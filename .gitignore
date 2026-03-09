@@ -46,3 +46,6 @@ logs/
 
 # AWS
 .aws/
+
+# Crawling output (로컬 데이터, S3 업로드 전)
+output/
