@@ -16,6 +16,8 @@
     --yellow-light: #FFF8EC;
     --purple: #9B59B6;
     --purple-light: #F5EEFB;
+    --orange: #E67E22;
+    --orange-light: #FEF5EC;
     --gray-bg: #F7F8FC;
     --gray-border: #E4E7EF;
     --text: #1A1D2E;
@@ -33,7 +35,6 @@
     line-height: 1.6;
   }
 
-  /* ── 헤더 ── */
   .hero {
     background: linear-gradient(135deg, #4F6EF7 0%, #7B4FEF 100%);
     color: white;
@@ -62,944 +63,705 @@
   }
   .hero h1 { font-size: 32px; font-weight: 800; margin-bottom: 10px; }
   .hero p { font-size: 15px; opacity: 0.85; }
-  .hero .meta {
-    display: flex;
-    gap: 24px;
-    justify-content: center;
-    margin-top: 28px;
-    flex-wrap: wrap;
-  }
-  .hero .meta-item {
-    background: rgba(255,255,255,0.15);
-    border-radius: 10px;
-    padding: 10px 20px;
-    font-size: 13px;
-  }
-  .hero .meta-item strong { display: block; font-size: 20px; font-weight: 800; }
 
-  /* ── 레이아웃 ── */
-  .container { max-width: 1080px; margin: 0 auto; padding: 40px 24px 80px; }
+  .container { max-width: 1100px; margin: 0 auto; padding: 40px 24px 80px; }
 
-  .section { margin-bottom: 48px; }
+  /* 섹션 카드 */
+  .section {
+    background: white;
+    border-radius: 16px;
+    border: 1px solid var(--gray-border);
+    padding: 32px;
+    margin-bottom: 28px;
+  }
   .section-title {
-    font-size: 20px;
-    font-weight: 800;
+    font-size: 18px;
+    font-weight: 700;
     margin-bottom: 20px;
     display: flex;
     align-items: center;
     gap: 10px;
-    color: var(--text);
   }
   .section-title .icon {
-    width: 36px; height: 36px;
-    border-radius: 10px;
+    width: 32px; height: 32px;
+    border-radius: 8px;
     display: flex; align-items: center; justify-content: center;
-    font-size: 18px;
+    font-size: 16px;
     flex-shrink: 0;
   }
 
-  /* ── 카드 ── */
-  .card {
-    background: white;
-    border-radius: 16px;
-    padding: 28px;
-    border: 1px solid var(--gray-border);
-    box-shadow: 0 2px 12px rgba(0,0,0,0.04);
-  }
-  .card-grid {
-    display: grid;
-    gap: 16px;
-  }
-  .card-grid.col2 { grid-template-columns: 1fr 1fr; }
-  .card-grid.col3 { grid-template-columns: 1fr 1fr 1fr; }
-
-  /* ── 기술 특성 칩 ── */
-  .tech-chips { display: flex; gap: 10px; flex-wrap: wrap; }
-  .chip {
-    padding: 8px 16px;
-    border-radius: 100px;
-    font-size: 13px;
+  /* 배지 */
+  .badge-tag {
+    display: inline-block;
+    font-size: 11px;
     font-weight: 600;
-    display: flex;
-    align-items: center;
-    gap: 6px;
+    padding: 2px 10px;
+    border-radius: 100px;
+    letter-spacing: 0.3px;
   }
-  .chip.blue { background: var(--primary-light); color: var(--primary); }
-  .chip.green { background: var(--green-light); color: var(--green); }
-  .chip.red { background: var(--accent-light); color: var(--accent); }
-  .chip.yellow { background: var(--yellow-light); color: var(--yellow); }
+  .badge-playwright { background: #E8F5E9; color: #2E7D32; }
+  .badge-api { background: var(--primary-light); color: var(--primary); }
+  .badge-html { background: var(--yellow-light); color: #B45309; }
+  .badge-json { background: var(--green-light); color: #1B7A52; }
+  .badge-conditional { background: var(--orange-light); color: var(--orange); }
+  .badge-required { background: #FFE4E4; color: #C0392B; }
+  .badge-new { background: #FDE8FF; color: #8E24AA; }
 
-  /* ── 카테고리 트리 ── */
-  .category-tree {
-    display: flex;
-    gap: 0;
-    align-items: stretch;
+  /* 테이블 */
+  table { width: 100%; border-collapse: collapse; font-size: 13.5px; margin-top: 12px; }
+  th {
+    background: var(--gray-bg);
+    padding: 9px 12px;
+    text-align: left;
+    font-weight: 600;
+    border-bottom: 2px solid var(--gray-border);
+    white-space: nowrap;
   }
-  .cat-node {
-    display: flex;
-    flex-direction: column;
-    align-items: center;
-    gap: 0;
+  td {
+    padding: 8px 12px;
+    border-bottom: 1px solid var(--gray-border);
+    vertical-align: top;
   }
-  .cat-box {
-    padding: 14px 24px;
-    border-radius: 12px;
-    text-align: center;
-    min-width: 130px;
+  tr:last-child td { border-bottom: none; }
+  tr:hover td { background: #FAFBFF; }
+  code {
+    font-family: 'JetBrains Mono', 'Fira Code', monospace;
+    background: #F0F2FA;
+    padding: 1px 6px;
+    border-radius: 4px;
+    font-size: 12px;
+    color: #3730A3;
   }
-  .cat-box .label { font-size: 12px; opacity: 0.7; margin-bottom: 2px; }
-  .cat-box .name { font-size: 15px; font-weight: 700; }
-  .cat-box .code { font-size: 11px; opacity: 0.65; margin-top: 4px; font-family: monospace; }
-  .cat-box.l1 { background: linear-gradient(135deg, #4F6EF7, #7B4FEF); color: white; }
-  .cat-box.l2 { background: linear-gradient(135deg, #2DB57A, #00C9A7); color: white; }
-  .cat-box.l3 { background: linear-gradient(135deg, #FF7043, #FF9A3C); color: white; }
-  .cat-arrow {
-    display: flex; align-items: center; padding: 0 16px;
-    color: var(--gray-border); font-size: 24px;
-  }
-  .pet-row { display: flex; gap: 16px; margin-bottom: 16px; }
-  .pet-badge {
-    padding: 10px 20px; border-radius: 10px;
-    font-weight: 700; font-size: 14px;
-    display: flex; align-items: center; gap: 8px;
-  }
-  .pet-badge.dog { background: #EEF1FF; color: #4F6EF7; }
-  .pet-badge.cat { background: #FFF3F0; color: #FF7043; }
-  .pet-badge code { font-size: 11px; opacity: 0.75; }
 
-  /* ── 수집 흐름도 ── */
+  /* 코드 블록 */
+  pre {
+    background: var(--code-bg);
+    border-radius: 10px;
+    padding: 20px 24px;
+    overflow-x: auto;
+    margin-top: 12px;
+    font-family: 'JetBrains Mono', 'Fira Code', monospace;
+    font-size: 13px;
+    line-height: 1.7;
+    color: var(--code-text);
+  }
+  pre .kw { color: #C792EA; }
+  pre .fn { color: #82AAFF; }
+  pre .st { color: #C3E88D; }
+  pre .cm { color: #546E7A; }
+  pre .nu { color: #F78C6C; }
+
+  /* 플로우 다이어그램 */
   .flow {
     display: flex;
     flex-direction: column;
     gap: 0;
+    margin-top: 16px;
   }
-  .flow-step {
+  .flow-item {
     display: flex;
     align-items: flex-start;
-    gap: 20px;
-    position: relative;
+    gap: 16px;
   }
-  .flow-left {
+  .flow-line {
     display: flex;
     flex-direction: column;
     align-items: center;
     flex-shrink: 0;
   }
-  .flow-num {
-    width: 40px; height: 40px;
+  .flow-dot {
+    width: 12px; height: 12px;
     border-radius: 50%;
-    display: flex; align-items: center; justify-content: center;
-    font-weight: 800; font-size: 16px;
-    color: white;
+    background: var(--primary);
     flex-shrink: 0;
-    z-index: 1;
+    margin-top: 4px;
   }
-  .flow-line {
+  .flow-connector {
     width: 2px;
-    flex: 1;
-    min-height: 24px;
+    height: 32px;
     background: var(--gray-border);
-    margin: 4px 0;
   }
   .flow-content {
-    flex: 1;
     padding-bottom: 24px;
+    flex: 1;
   }
-  .flow-content .title { font-weight: 700; font-size: 15px; margin-bottom: 6px; }
-  .flow-content .desc { font-size: 13px; color: var(--text-sub); }
+  .flow-content h4 { font-size: 14px; font-weight: 600; margin-bottom: 4px; }
+  .flow-content p { font-size: 13px; color: var(--text-sub); }
+  .flow-item:last-child .flow-connector { display: none; }
+  .flow-item:last-child .flow-content { padding-bottom: 0; }
 
-  /* ── API 카드 ── */
-  .api-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 16px; }
-  .api-card {
+  /* 요약 카드 그리드 */
+  .summary-grid {
+    display: grid;
+    grid-template-columns: repeat(3, 1fr);
+    gap: 16px;
+    margin-bottom: 28px;
+  }
+  .summary-card {
     background: white;
-    border-radius: 14px;
+    border-radius: 12px;
     border: 1px solid var(--gray-border);
-    overflow: hidden;
-  }
-  .api-card .api-head {
-    padding: 16px 20px;
-    display: flex; align-items: center; gap: 10px;
-  }
-  .api-card .method {
-    font-size: 11px; font-weight: 800;
-    padding: 3px 8px; border-radius: 6px;
-    flex-shrink: 0;
-  }
-  .method.post { background: #4F6EF7; color: white; }
-  .method.get { background: #2DB57A; color: white; }
-  .api-card .endpoint {
-    font-family: monospace; font-size: 12px;
-    color: var(--text); word-break: break-all;
-  }
-  .api-card .api-body { padding: 0 20px 16px; }
-  .api-card .api-desc { font-size: 13px; color: var(--text-sub); margin-bottom: 10px; }
-  .tag-list { display: flex; flex-wrap: wrap; gap: 6px; }
-  .tag {
-    background: var(--gray-bg);
-    border: 1px solid var(--gray-border);
-    border-radius: 6px;
-    padding: 3px 10px;
-    font-size: 12px;
-    font-family: monospace;
-    color: var(--text-sub);
-  }
-  .tag.key { background: var(--primary-light); border-color: var(--primary); color: var(--primary); }
-
-  /* ── 데이터 필드 테이블 ── */
-  .field-table { width: 100%; border-collapse: collapse; font-size: 13px; }
-  .field-table th {
-    background: var(--gray-bg);
-    padding: 10px 14px;
-    text-align: left;
-    font-weight: 700;
-    color: var(--text-sub);
-    border-bottom: 1px solid var(--gray-border);
-    font-size: 12px;
-  }
-  .field-table td {
-    padding: 10px 14px;
-    border-bottom: 1px solid var(--gray-border);
-    vertical-align: top;
-  }
-  .field-table tr:last-child td { border-bottom: none; }
-  .field-table tr:hover td { background: var(--gray-bg); }
-  .field-name { font-weight: 600; }
-  .field-type {
-    display: inline-block; padding: 1px 8px; border-radius: 4px;
-    font-size: 11px; font-weight: 600; font-family: monospace;
-  }
-  .type-str { background: #EEF1FF; color: #4F6EF7; }
-  .type-int { background: #EDFAF3; color: #2DB57A; }
-  .type-float { background: #FFF8EC; color: #F5A623; }
-
-  /* ── 데이터 레벨 탭 ── */
-  .level-tabs { display: flex; gap: 8px; margin-bottom: 16px; flex-wrap: wrap; }
-  .level-tab {
-    padding: 8px 18px; border-radius: 100px;
-    font-size: 13px; font-weight: 600;
-    border: 2px solid transparent;
-    cursor: pointer;
-  }
-  .level-tab.list { background: var(--primary-light); color: var(--primary); border-color: var(--primary); }
-  .level-tab.detail { background: var(--green-light); color: var(--green); border-color: var(--green); }
-  .level-tab.score { background: var(--yellow-light); color: var(--yellow); border-color: var(--yellow); }
-  .level-tab.review { background: var(--accent-light); color: var(--accent); border-color: var(--accent); }
-
-  /* ── 평점 시각화 ── */
-  .rating-visual {
-    display: flex; align-items: center; gap: 20px; flex-wrap: wrap;
-  }
-  .rating-big {
-    text-align: center; flex-shrink: 0;
-    background: linear-gradient(135deg, #F5A623, #FF7043);
-    color: white; border-radius: 16px;
-    padding: 20px 28px;
-  }
-  .rating-big .num { font-size: 48px; font-weight: 900; line-height: 1; }
-  .rating-big .sub { font-size: 12px; opacity: 0.85; margin-top: 4px; }
-  .rating-bars { flex: 1; min-width: 200px; }
-  .rating-bar-row { display: flex; align-items: center; gap: 10px; margin-bottom: 8px; }
-  .rating-bar-row .star-lbl { font-size: 13px; font-weight: 600; width: 28px; text-align: right; flex-shrink: 0; }
-  .bar-track { flex: 1; background: var(--gray-bg); border-radius: 100px; height: 10px; }
-  .bar-fill { height: 100%; border-radius: 100px; }
-  .rating-bar-row .pct-lbl { font-size: 12px; color: var(--text-sub); width: 36px; flex-shrink: 0; }
-
-  /* ── 주의사항 ── */
-  .notice-list { list-style: none; }
-  .notice-list li {
-    display: flex; gap: 12px; align-items: flex-start;
-    padding: 12px 0;
-    border-bottom: 1px solid var(--gray-border);
-    font-size: 14px;
-  }
-  .notice-list li:last-child { border-bottom: none; }
-  .notice-icon {
-    width: 28px; height: 28px; border-radius: 8px;
-    display: flex; align-items: center; justify-content: center;
-    font-size: 14px; flex-shrink: 0;
-    margin-top: 1px;
-  }
-
-  /* ── 챗봇 연결도 ── */
-  .pipeline {
-    display: flex; align-items: center; gap: 0;
-    overflow-x: auto; padding-bottom: 8px;
-  }
-  .pipe-node {
-    background: white;
-    border: 1px solid var(--gray-border);
-    border-radius: 14px;
-    padding: 16px 20px;
+    padding: 20px;
     text-align: center;
-    flex-shrink: 0;
-    min-width: 110px;
   }
-  .pipe-node .pipe-icon { font-size: 28px; margin-bottom: 6px; }
-  .pipe-node .pipe-title { font-size: 13px; font-weight: 700; }
-  .pipe-node .pipe-sub { font-size: 11px; color: var(--text-sub); margin-top: 2px; }
-  .pipe-arrow {
-    font-size: 20px; color: var(--gray-border);
-    padding: 0 8px; flex-shrink: 0;
-  }
-  .pipe-node.highlight {
-    background: linear-gradient(135deg, #4F6EF7, #7B4FEF);
-    color: white; border-color: transparent;
-  }
-  .pipe-node.highlight .pipe-sub { color: rgba(255,255,255,0.75); }
-
-  /* ── 반응형 ── */
-  @media (max-width: 680px) {
-    .card-grid.col2, .card-grid.col3, .api-grid { grid-template-columns: 1fr; }
-    .hero h1 { font-size: 24px; }
-    .category-tree { flex-direction: column; align-items: flex-start; }
-    .cat-arrow { transform: rotate(90deg); padding: 8px 0; }
-  }
-
-  code {
-    font-family: 'SF Mono', 'Fira Code', monospace;
-    background: var(--gray-bg);
-    border: 1px solid var(--gray-border);
-    padding: 1px 6px; border-radius: 4px;
-    font-size: 12px;
+  .summary-card .num {
+    font-size: 28px;
+    font-weight: 800;
     color: var(--primary);
+    line-height: 1.2;
   }
+  .summary-card .label { font-size: 13px; color: var(--text-sub); margin-top: 4px; }
+
+  /* 경고/정보 박스 */
+  .info-box {
+    border-radius: 8px;
+    padding: 12px 16px;
+    font-size: 13px;
+    margin-top: 12px;
+    display: flex;
+    gap: 10px;
+    align-items: flex-start;
+    line-height: 1.6;
+  }
+  .info-box.warning { background: #FFF8EC; border-left: 3px solid var(--yellow); }
+  .info-box.info { background: var(--primary-light); border-left: 3px solid var(--primary); }
+  .info-box.success { background: var(--green-light); border-left: 3px solid var(--green); }
+  .info-box.new { background: #FDE8FF; border-left: 3px solid #9B59B6; }
+
+  /* 탭 */
+  .tabs { display: flex; gap: 8px; margin-bottom: 16px; flex-wrap: wrap; }
+  .tab {
+    padding: 6px 16px;
+    border-radius: 100px;
+    font-size: 13px;
+    font-weight: 600;
+    cursor: pointer;
+    border: 1px solid var(--gray-border);
+    background: white;
+    color: var(--text-sub);
+    transition: all 0.15s;
+  }
+  .tab.active { background: var(--primary); color: white; border-color: var(--primary); }
+
+  /* 리뷰 구조 다이어그램 */
+  .review-structure {
+    border: 1px solid var(--gray-border);
+    border-radius: 10px;
+    overflow: hidden;
+    margin-top: 12px;
+    font-size: 13px;
+  }
+  .review-structure .rs-header {
+    background: var(--primary);
+    color: white;
+    padding: 8px 16px;
+    font-weight: 600;
+    font-size: 13px;
+  }
+  .review-structure .rs-row {
+    display: flex;
+    border-bottom: 1px solid var(--gray-border);
+    align-items: stretch;
+  }
+  .review-structure .rs-row:last-child { border-bottom: none; }
+  .review-structure .rs-label {
+    background: var(--gray-bg);
+    padding: 8px 14px;
+    font-weight: 600;
+    font-size: 12px;
+    width: 160px;
+    flex-shrink: 0;
+    display: flex;
+    align-items: center;
+    border-right: 1px solid var(--gray-border);
+    color: var(--text-sub);
+  }
+  .review-structure .rs-value {
+    padding: 8px 14px;
+    flex: 1;
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    flex-wrap: wrap;
+  }
+
+  h3 { font-size: 15px; font-weight: 700; margin: 20px 0 10px; color: var(--text); }
+  hr { border: none; border-top: 1px solid var(--gray-border); margin: 20px 0; }
 </style>
 </head>
 <body>
 
-<!-- ── 헤더 ── -->
 <div class="hero">
   <div class="badge">SKN22 Final Project · 2팀</div>
-  <h1>반려동물 상품 추천 챗봇<br>데이터 수집 명세</h1>
-  <p>어바웃펫(AboutPet) 크롤링 가능 항목 및 API 구조 분석</p>
-  <div class="meta">
-    <div class="meta-item"><strong>18,248개+</strong>소분류별 상품 합산</div>
-    <div class="meta-item"><strong>98개</strong>소분류 카테고리</div>
-    <div class="meta-item"><strong>6개</strong>API 엔드포인트</div>
-    <div class="meta-item"><strong>Selenium 불필요</strong>requests만으로 가능</div>
-  </div>
+  <h1>어바웃펫 크롤링 명세</h1>
+  <p>aboutpet.co.kr · Playwright 기반 · 강아지/고양이 상품 전체 수집</p>
 </div>
 
 <div class="container">
 
-  <!-- ── 챗봇 파이프라인 ── -->
+  <!-- 요약 통계 -->
+  <div class="summary-grid">
+    <div class="summary-card">
+      <div class="num">98</div>
+      <div class="label">소분류 카테고리</div>
+    </div>
+    <div class="summary-card">
+      <div class="num">18,248</div>
+      <div class="label">상품 수 (중복 포함)</div>
+    </div>
+    <div class="summary-card">
+      <div class="num">6</div>
+      <div class="label">수집 API 엔드포인트</div>
+    </div>
+  </div>
+
+  <!-- 사이트 기술 특성 -->
   <div class="section">
     <div class="section-title">
-      <div class="icon" style="background:#EEF1FF">🤖</div>
-      데이터가 챗봇에 쓰이는 흐름
+      <div class="icon" style="background:#E8F5E9">🎭</div>
+      사이트 기술 특성 &amp; Playwright 전략
     </div>
-    <div class="card">
-      <div class="pipeline">
-        <div class="pipe-node">
-          <div class="pipe-icon">🌐</div>
-          <div class="pipe-title">어바웃펫</div>
-          <div class="pipe-sub">원천 데이터</div>
+    <table>
+      <tr><th>항목</th><th>내용</th></tr>
+      <tr><td>렌더링 방식</td><td>AJAX 기반 동적 렌더링 (서버사이드 HTML 반환)</td></tr>
+      <tr><td>크롤링 도구</td><td><span class="badge-tag badge-playwright">Playwright</span> — JS 동적 렌더링 대응, 세션/쿠키 자동 유지</td></tr>
+      <tr>
+        <td>API 호출 방식</td>
+        <td>
+          <code>page.request.post()</code> / <code>page.request.get()</code> 로 직접 호출<br>
+          <span style="font-size:12px;color:var(--text-sub)">browser context 재사용 → 쿠키/세션 자동 포함</span>
+        </td>
+      </tr>
+      <tr><td>HTML 파싱</td><td><code>BeautifulSoup</code> (응답 text 전달) 또는 <code>page.evaluate()</code></td></tr>
+    </table>
+    <div class="info-box info" style="margin-top:16px">
+      <span>ℹ️</span>
+      <span>메인 페이지(<code>page.goto("https://aboutpet.co.kr")</code>)를 먼저 방문하여 세션을 초기화한 뒤, <code>page.request</code>로 API를 순차 호출합니다.</span>
+    </div>
+  </div>
+
+  <!-- API 엔드포인트 -->
+  <div class="section">
+    <div class="section-title">
+      <div class="icon" style="background:var(--primary-light)">🔌</div>
+      API 엔드포인트
+    </div>
+
+    <h3>1. 상품 목록 조회</h3>
+    <table>
+      <tr>
+        <th colspan="3">
+          <code>POST /shop/getScateGoodsList</code>
+          <span class="badge-tag badge-html" style="margin-left:8px">HTML 응답</span>
+        </th>
+      </tr>
+      <tr><th>파라미터</th><th>설명</th><th>예시</th></tr>
+      <tr><td><code>dispClsfNo</code></td><td>소분류 코드</td><td><code>100000443</code></td></tr>
+      <tr><td><code>cateCdL</code></td><td>대분류 코드</td><td><code>12565</code></td></tr>
+      <tr><td><code>cateCdM</code></td><td>중분류 코드</td><td><code>100000441</code></td></tr>
+      <tr><td><code>order</code></td><td>정렬 기준</td><td><code>APET</code> / <code>SCORE</code> / <code>NEW</code></td></tr>
+      <tr><td><code>page</code></td><td>페이지 번호 (1부터)</td><td><code>1</code></td></tr>
+      <tr><td><code>rows</code></td><td>페이지당 상품 수</td><td><code>20</code></td></tr>
+    </table>
+    <div class="info-box info" style="margin-top:10px">
+      <span>ℹ️</span>
+      <span>총 상품 수: 응답 스크립트 내 <code>var goodsCount = '224';</code> 파싱</span>
+    </div>
+
+    <hr>
+
+    <h3>2. 상품 상세 정보</h3>
+    <table>
+      <tr>
+        <th colspan="2">
+          <code>GET /goods/getGoodsDetail?goodsId={goodsId}</code>
+          <span class="badge-tag badge-html" style="margin-left:8px">HTML 응답</span>
+        </th>
+      </tr>
+      <tr><td colspan="2">상품 설명 이미지, 필수 정보 테이블 (원산지, 제조사 등)</td></tr>
+    </table>
+
+    <hr>
+
+    <h3>3. 평점 상세</h3>
+    <table>
+      <tr>
+        <th colspan="2">
+          <code>POST /goods/getGoodsCommentScore</code>
+          <span class="badge-tag badge-html" style="margin-left:8px">HTML 응답</span>
+        </th>
+      </tr>
+      <tr><th>파라미터</th><th>설명</th></tr>
+      <tr><td><code>goodsId</code></td><td>상품 ID</td></tr>
+    </table>
+
+    <hr>
+
+    <h3>4. 전체 후기 목록 <span class="badge-tag badge-new" style="margin-left:6px">핵심</span></h3>
+    <table>
+      <tr>
+        <th colspan="3">
+          <code>POST /goods/getGoodsEntireCommentList</code>
+          <span class="badge-tag badge-html" style="margin-left:8px">HTML 응답</span>
+        </th>
+      </tr>
+      <tr><th>파라미터</th><th>설명</th><th>예시</th></tr>
+      <tr><td><code>goodsId</code></td><td>상품 ID</td><td><code>GP251070972</code></td></tr>
+      <tr><td><code>page</code></td><td>페이지 번호</td><td><code>1</code></td></tr>
+      <tr><td><code>rows</code></td><td>페이지당 후기 수</td><td><code>10</code></td></tr>
+      <tr><td><code>sidx</code></td><td>정렬 기준</td><td><code>SYS_REG_DTM</code> / <code>ESTM_SCORE</code></td></tr>
+      <tr><td><code>sord</code></td><td>정렬 방향</td><td><code>DESC</code></td></tr>
+      <tr><td><code>optGoodsId</code></td><td>옵션 상품 ID 필터</td><td>(빈 문자열)</td></tr>
+    </table>
+
+    <hr>
+
+    <h3>5. 포토/영상 후기</h3>
+    <table>
+      <tr>
+        <th colspan="2">
+          <code>POST /goods/getGoodsPhotoAndLogComment</code>
+          <span class="badge-tag badge-json" style="margin-left:8px">JSON 응답</span>
+        </th>
+      </tr>
+      <tr><th>파라미터</th><th>설명</th></tr>
+      <tr><td><code>goodsId</code></td><td>상품 ID</td></tr>
+      <tr><td><code>rows</code></td><td>조회할 수</td></tr>
+    </table>
+
+    <hr>
+
+    <h3>6. 베스트 후기</h3>
+    <table>
+      <tr>
+        <th colspan="2">
+          <code>POST /goods/getGoodsBestComment</code>
+          <span class="badge-tag badge-html" style="margin-left:8px">HTML 응답</span>
+        </th>
+      </tr>
+      <tr><th>파라미터</th><th>설명</th></tr>
+      <tr><td><code>goodsId</code></td><td>상품 ID</td></tr>
+      <tr><td><code>rows</code></td><td>조회할 수</td></tr>
+    </table>
+  </div>
+
+  <!-- 추출 데이터 -->
+  <div class="section">
+    <div class="section-title">
+      <div class="icon" style="background:var(--yellow-light)">📦</div>
+      추출 가능 데이터 항목
+    </div>
+
+    <h3>상품 목록 레벨 — <code>.gd-item</code> data 속성</h3>
+    <table>
+      <tr><th>필드명</th><th>data 속성</th><th>타입</th><th>예시</th></tr>
+      <tr><td>상품 ID</td><td><code>data-goodsid</code></td><td>string</td><td><code>GP251070972</code></td></tr>
+      <tr><td>상품명</td><td><code>data-productname</code></td><td>string</td><td>스텔라앤츄이스 캣 크레이빙스...</td></tr>
+      <tr><td>브랜드명</td><td><code>data-brandname</code></td><td>string</td><td>스텔라앤츄이스</td></tr>
+      <tr><td>브랜드 ID</td><td><code>data-brandid</code></td><td>string</td><td><code>1247</code></td></tr>
+      <tr><td>정가</td><td><code>data-price</code></td><td>int</td><td><code>3500</code></td></tr>
+      <tr><td>할인가</td><td><code>data-discountprice</code></td><td>int</td><td><code>3500</code></td></tr>
+      <tr><td>품절 여부</td><td><code>data-soldoutyn</code></td><td>string</td><td><code>N</code> / <code>Y</code></td></tr>
+      <tr><td>리뷰 수</td><td><code>data-scorecnt</code></td><td>int</td><td><code>347</code></td></tr>
+      <tr><td>평점 (10점)</td><td><code>data-goodsstarsavgcnt</code></td><td>float</td><td><code>9.4</code></td></tr>
+    </table>
+
+    <hr>
+
+    <h3>상품 상세 레벨 — indexGoodsDetail</h3>
+    <table>
+      <tr><th>필드명</th><th>위치</th><th>예시</th></tr>
+      <tr><td>카테고리 대분류</td><td>JS 변수 <code>category_name_1depth</code></td><td>고양이</td></tr>
+      <tr><td>카테고리 중분류</td><td>JS 변수 <code>category_name_2depth</code></td><td>사료</td></tr>
+      <tr><td>카테고리 소분류</td><td>JS 변수 <code>category_name_3depth</code></td><td>주식파우치</td></tr>
+      <tr><td>평점 (5점)</td><td><code>.pdInfos .starpoint .point</code></td><td><code>4.7</code></td></tr>
+      <tr><td>카테고리 내 순위</td><td><code>.pdInfos .store-label</code></td><td>고양이 습식관 2위</td></tr>
+      <tr><td>대표 이미지</td><td><code>og:image</code> 메타태그</td><td>CDN URL</td></tr>
+    </table>
+    <div class="info-box warning">
+      <span>⚠️</span>
+      <span>평점 스케일 불일치 주의: 목록 API = <strong>10점 만점</strong> (<code>data-goodsstarsavgcnt</code>), 상세 페이지 = <strong>5점 만점</strong> (<code>.starpoint .point</code>). Silver 레이어에서 5점 기준으로 정규화 필요.</span>
+    </div>
+
+    <hr>
+
+    <h3>평점 분포 레벨 — getGoodsCommentScore</h3>
+    <table>
+      <tr><th>필드명</th><th>CSS 선택자</th><th>예시</th></tr>
+      <tr><td>평균 평점 (5점)</td><td><code>.starpan .ptbox .pnt</code></td><td>4.7</td></tr>
+      <tr><td>5점 비율</td><td><code>.plist li:nth(0) .pct b.p</code></td><td>85 (%)</td></tr>
+      <tr><td>4점 비율</td><td><code>.plist li:nth(1) .pct b.p</code></td><td>7 (%)</td></tr>
+      <tr><td>3점 비율</td><td><code>.plist li:nth(2) .pct b.p</code></td><td>6 (%)</td></tr>
+      <tr><td>2점 비율</td><td><code>.plist li:nth(3) .pct b.p</code></td><td>1 (%)</td></tr>
+      <tr><td>1점 비율</td><td><code>.plist li:nth(4) .pct b.p</code></td><td>1 (%)</td></tr>
+    </table>
+  </div>
+
+  <!-- 후기 구조 (핵심) -->
+  <div class="section">
+    <div class="section-title">
+      <div class="icon" style="background:#FDE8FF">💬</div>
+      후기(Review) 데이터 구조
+      <span class="badge-tag badge-new">신규 필드 추가</span>
+    </div>
+
+    <p style="font-size:13.5px;color:var(--text-sub);margin-bottom:16px">
+      DOM: <code>#entireCommentListUl &gt; li[n]</code> 각 항목 기준
+    </p>
+
+    <!-- 후기 구조 다이어그램 -->
+    <div class="review-structure">
+      <div class="rs-header">li (단일 후기 항목)</div>
+
+      <div class="rs-row">
+        <div class="rs-label">기본 정보</div>
+        <div class="rs-value">
+          <span>후기 번호 · 별점 · 내용 · 작성자 · 작성일 · 포토 유무</span>
+          <span class="badge-tag badge-api">항상 존재</span>
         </div>
-        <div class="pipe-arrow">→</div>
-        <div class="pipe-node">
-          <div class="pipe-icon">🕷️</div>
-          <div class="pipe-title">크롤러</div>
-          <div class="pipe-sub">API 호출 + 파싱</div>
+      </div>
+
+      <div class="rs-row">
+        <div class="rs-label">구매 유형 레이블<br><code>.purchase-label</code></div>
+        <div class="rs-value">
+          <code>first</code>=첫구매 / <code>repeat</code>=재구매
+          <span class="badge-tag badge-api">항상 존재</span>
+          <span style="font-size:12px;color:var(--text-sub);width:100%;margin-top:4px">
+            샘플 조사 결과 완구/식품 모두 100% 노출 확인. 미존재 시 <code>null</code> 처리.
+          </span>
         </div>
-        <div class="pipe-arrow">→</div>
-        <div class="pipe-node">
-          <div class="pipe-icon">🗄️</div>
-          <div class="pipe-title">데이터 저장</div>
-          <div class="pipe-sub">상품 / 리뷰 DB</div>
+      </div>
+
+      <div class="rs-row">
+        <div class="rs-label">펫 프로필<br><code>div.spec</code></div>
+        <div class="rs-value" style="flex-direction:column;align-items:flex-start;gap:6px">
+          <div style="display:flex;gap:8px;flex-wrap:wrap">
+            <span class="badge-tag badge-conditional">조건부</span>
+            <span style="font-size:12px;color:var(--text-sub)">완구 80% / 식품 20% 노출 (샘플 조사)</span>
+          </div>
+          <table style="margin-top:6px;width:auto">
+            <tr><th>필드</th><th>CSS 선택자</th><th>예시</th></tr>
+            <tr><td>펫 이름</td><td><code>div.spec &gt; em.b</code></td><td>초코</td></tr>
+            <tr><td>펫 성별</td><td><code>div.spec &gt; em.b &gt; i.g</code></td><td>수컷 / 암컷</td></tr>
+            <tr><td>펫 나이</td><td><code>div.spec &gt; em:nth-of-type(2)</code></td><td>7개월 / 3살</td></tr>
+            <tr><td>펫 체중</td><td><code>div.spec &gt; em:nth-of-type(3)</code></td><td>2.5kg</td></tr>
+            <tr><td>펫 품종</td><td><code>div.spec &gt; em:nth-of-type(4)</code></td><td>브리티시쇼트헤어</td></tr>
+          </table>
         </div>
-        <div class="pipe-arrow">→</div>
-        <div class="pipe-node">
-          <div class="pipe-icon">🔍</div>
-          <div class="pipe-title">벡터 임베딩</div>
-          <div class="pipe-sub">RAG 인덱싱</div>
+      </div>
+
+      <div class="rs-row">
+        <div class="rs-label">리뷰 상세 info<br><code>ul.satis</code></div>
+        <div class="rs-value" style="flex-direction:column;align-items:flex-start;gap:6px">
+          <div style="display:flex;gap:8px;flex-wrap:wrap">
+            <span class="badge-tag badge-conditional">카테고리 의존</span>
+            <span style="font-size:12px;color:var(--text-sub)">완구: 사용성/내구성/디자인. 식품류: 항목 없음 ({})</span>
+          </div>
+          <div style="font-size:12px;color:var(--text-sub)">
+            <code>ul.satis li .dt</code>(항목명) / <code>ul.satis li .dd</code>(값) → <code>dict</code>로 저장
+          </div>
         </div>
-        <div class="pipe-arrow">→</div>
-        <div class="pipe-node highlight">
-          <div class="pipe-icon">💬</div>
-          <div class="pipe-title">추천 챗봇</div>
-          <div class="pipe-sub">Claude / LLM</div>
+      </div>
+    </div>
+
+    <div class="info-box new" style="margin-top:16px">
+      <span>🆕</span>
+      <span>펫 프로필(이름·성별·나이·체중·품종)은 조건부(20~80%), review_info는 카테고리 의존(식품류 없음). 존재 여부 체크 후 수집, 미존재 시 <code>null</code> / <code>{}</code>로 저장.</span>
+    </div>
+  </div>
+
+  <!-- Playwright 코드 패턴 -->
+  <div class="section">
+    <div class="section-title">
+      <div class="icon" style="background:#E8F5E9">🎭</div>
+      Playwright 구현 패턴
+    </div>
+<pre>
+<span class="kw">from</span> playwright.async_api <span class="kw">import</span> async_playwright
+<span class="kw">from</span> bs4 <span class="kw">import</span> BeautifulSoup
+<span class="kw">import</span> re
+
+<span class="kw">async def</span> <span class="fn">crawl_reviews</span>(goods_id: str):
+    <span class="kw">async with</span> async_playwright() <span class="kw">as</span> p:
+        browser = <span class="kw">await</span> p.chromium.launch(headless=<span class="kw">True</span>)
+        context = <span class="kw">await</span> browser.new_context()
+        page = <span class="kw">await</span> context.new_page()
+
+        <span class="cm"># 세션 초기화 (쿠키 발급)</span>
+        <span class="kw">await</span> page.goto(<span class="st">"https://www.aboutpet.co.kr/shop/home/"</span>, wait_until=<span class="st">"networkidle"</span>)
+
+        <span class="cm"># 후기 직접 호출 — JS 트리거 불필요 (goodsCstrtTpCd=ITEM 필수)</span>
+        resp = <span class="kw">await</span> page.request.post(
+            <span class="st">"https://www.aboutpet.co.kr/goods/getGoodsEntireCommentList"</span>,
+            form={
+                <span class="st">"goodsId"</span>: goods_id,
+                <span class="st">"goodsCstrtTpCd"</span>: <span class="st">"ITEM"</span>,  <span class="cm"># 필수 — 누락 시 totalCount=0</span>
+                <span class="st">"page"</span>: <span class="st">"1"</span>,
+                <span class="st">"sidx"</span>: <span class="st">""</span>, <span class="st">"sord"</span>: <span class="st">""</span>,
+                <span class="st">"optGoodsId"</span>: <span class="st">""</span>, <span class="st">"detailYn"</span>: <span class="st">"Y"</span>,
+                <span class="st">"petKindNm"</span>: <span class="st">""</span>, <span class="st">"petAge"</span>: <span class="st">""</span>, <span class="st">"petWeight"</span>: <span class="st">""</span>,
+                <span class="st">"pageGoodsEstmNo"</span>: <span class="st">""</span>,
+            }
+        )
+        html = <span class="kw">await</span> resp.text()
+        soup = BeautifulSoup(html, <span class="st">"html.parser"</span>)
+        total_pages = int(re.search(<span class="st">r"totalPageCount\s*=\s*(\d+)"</span>, html).group(<span class="num">1</span>))
+
+        reviews = []
+        <span class="kw">for</span> box <span class="kw">in</span> soup.select(<span class="st">'div[name="estmDataArea"]'</span>):
+            estm_no  = box.get(<span class="st">"data-goods-estm-no"</span>)
+            nickname = box.select_one(<span class="st">".writer-info .ids"</span>)
+            date     = box.select_one(<span class="st">".writer-info .date"</span>)
+            stars_el = box.select_one(<span class="st">".stars.sm"</span>)
+
+            <span class="cm"># 별점: class p_X_Y → float (p_5_0=5.0, p_4_5=4.5)</span>
+            star_cls = next((c <span class="kw">for</span> c <span class="kw">in</span> (stars_el.get(<span class="st">"class"</span>, []) <span class="kw">if</span> stars_el <span class="kw">else</span> [])
+                             <span class="kw">if</span> c.startswith(<span class="st">"p_"</span>)), <span class="kw">None</span>)
+            rating = float(star_cls[<span class="num">2</span>:].replace(<span class="st">"_"</span>, <span class="st">"."</span>)) <span class="kw">if</span> star_cls <span class="kw">else</span> <span class="kw">None</span>
+
+            <span class="cm"># 구매 유형 (항상 존재)</span>
+            pl = box.select_one(<span class="st">".purchase-label"</span>)
+            purchase_label = (<span class="st">"first"</span> <span class="kw">if</span> pl <span class="kw">and</span> <span class="st">"first"</span> <span class="kw">in</span> pl.get(<span class="st">"class"</span>, [])
+                              <span class="kw">else</span> <span class="st">"repeat"</span> <span class="kw">if</span> pl <span class="kw">else</span> <span class="kw">None</span>)
+
+            <span class="cm"># 후기 본문</span>
+            msg = box.select_one(<span class="st">".msgs"</span>)
+
+            <span class="cm"># 펫 프로필 (조건부) — div.spec</span>
+            spec = box.select_one(<span class="st">"div.spec"</span>)
+            pet = {}
+            <span class="kw">if</span> spec:
+                ems = spec.select(<span class="st">"em"</span>)
+                gender_el = spec.select_one(<span class="st">"em.b > i.g"</span>)
+                name_el   = spec.select_one(<span class="st">"em.b"</span>)
+                pet = {
+                    <span class="st">"name"</span>:   name_el.get_text(strip=<span class="kw">True</span>).split(<span class="st">"("</span>)[<span class="num">0</span>] <span class="kw">if</span> name_el <span class="kw">else</span> <span class="kw">None</span>,
+                    <span class="st">"gender"</span>: gender_el.get_text(strip=<span class="kw">True</span>) <span class="kw">if</span> gender_el <span class="kw">else</span> <span class="kw">None</span>,
+                    <span class="st">"age"</span>:    ems[<span class="num">1</span>].get_text(strip=<span class="kw">True</span>) <span class="kw">if</span> len(ems) > <span class="num">1</span> <span class="kw">else</span> <span class="kw">None</span>,
+                    <span class="st">"weight"</span>: ems[<span class="num">2</span>].get_text(strip=<span class="kw">True</span>) <span class="kw">if</span> len(ems) > <span class="num">2</span> <span class="kw">else</span> <span class="kw">None</span>,
+                    <span class="st">"breed"</span>:  ems[<span class="num">3</span>].get_text(strip=<span class="kw">True</span>) <span class="kw">if</span> len(ems) > <span class="num">3</span> <span class="kw">else</span> <span class="kw">None</span>,
+                }
+
+            <span class="cm"># review_info (카테고리 의존 — 식품류 없음)</span>
+            review_info = {
+                li.select_one(<span class="st">".dt"</span>).get_text(strip=<span class="kw">True</span>): li.select_one(<span class="st">".dd"</span>).get_text(strip=<span class="kw">True</span>)
+                <span class="kw">for</span> li <span class="kw">in</span> box.select(<span class="st">"ul.satis li"</span>)
+                <span class="kw">if</span> li.select_one(<span class="st">".dt"</span>) <span class="kw">and</span> li.select_one(<span class="st">".dd"</span>)
+            }
+
+            reviews.append({
+                <span class="st">"review_no"</span>: estm_no,
+                <span class="st">"nickname"</span>: nickname.get_text(strip=<span class="kw">True</span>) <span class="kw">if</span> nickname <span class="kw">else</span> <span class="kw">None</span>,
+                <span class="st">"date"</span>: date.get_text(strip=<span class="kw">True</span>) <span class="kw">if</span> date <span class="kw">else</span> <span class="kw">None</span>,
+                <span class="st">"rating"</span>: rating,
+                <span class="st">"purchase_label"</span>: purchase_label,
+                <span class="st">"review_text"</span>: msg.get_text(strip=<span class="kw">True</span>) <span class="kw">if</span> msg <span class="kw">else</span> <span class="st">""</span>,
+                <span class="st">"pet_profile"</span>: pet <span class="kw">or</span> <span class="kw">None</span>,
+                <span class="st">"review_info"</span>: review_info,  <span class="cm"># {} if food category</span>
+            })
+
+        <span class="kw">await</span> browser.close()
+        <span class="kw">return</span> reviews
+</pre>
+    <div class="info-box info" style="margin-top:12px">
+      <span>ℹ️</span>
+      <span><code>goodsCstrtTpCd=ITEM</code> 누락 시 API가 빈 응답 반환. 세션 쿠키 유지를 위해 반드시 메인 페이지 방문 후 API 호출.</span>
+    </div>
+  </div>
+
+  <!-- 수집 흐름 -->
+  <div class="section">
+    <div class="section-title">
+      <div class="icon" style="background:var(--green-light)">🔄</div>
+      수집 흐름
+    </div>
+    <div class="flow">
+      <div class="flow-item">
+        <div class="flow-line"><div class="flow-dot"></div><div class="flow-connector"></div></div>
+        <div class="flow-content">
+          <h4>① 카테고리 목록 정의</h4>
+          <p>cateCdL + cateCdM + dispClsfNo 106개 소분류 순회</p>
+        </div>
+      </div>
+      <div class="flow-item">
+        <div class="flow-line"><div class="flow-dot"></div><div class="flow-connector"></div></div>
+        <div class="flow-content">
+          <h4>② 상품 목록 수집</h4>
+          <p>getScateGoodsList 반복 호출 (page=0, 1, 2 … goodsCount 소진 시까지)</p>
+        </div>
+      </div>
+      <div class="flow-item">
+        <div class="flow-line"><div class="flow-dot"></div><div class="flow-connector"></div></div>
+        <div class="flow-content">
+          <h4>③ goodsId 중복 제거</h4>
+          <p>소분류 간 동일 상품 중복 존재 → goodsId 기준 dedup 후 저장</p>
+        </div>
+      </div>
+      <div class="flow-item">
+        <div class="flow-line"><div class="flow-dot"></div><div class="flow-connector"></div></div>
+        <div class="flow-content">
+          <h4>④ 상품 상세 병렬 조회</h4>
+          <p>getGoodsDetail · getGoodsCommentScore · getGoodsEntireCommentList</p>
+        </div>
+      </div>
+      <div class="flow-item">
+        <div class="flow-line"><div class="flow-dot"></div></div>
+        <div class="flow-content">
+          <h4>⑤ 후기별 신규 필드 수집</h4>
+          <p>purchase_label (항상 존재) · 펫 프로필 (조건부) · review_info (카테고리 의존)</p>
         </div>
       </div>
     </div>
   </div>
 
-  <!-- ── 사이트 기술 특성 ── -->
+  <!-- 주의사항 -->
   <div class="section">
     <div class="section-title">
-      <div class="icon" style="background:#EDFAF3">⚙️</div>
-      사이트 기술 특성
-    </div>
-    <div class="card">
-      <div class="tech-chips" style="margin-bottom: 20px;">
-        <span class="chip blue">AJAX 동적 렌더링</span>
-        <span class="chip green">requests 라이브러리로 충분</span>
-        <span class="chip red">Selenium 불필요</span>
-        <span class="chip yellow">서버사이드 HTML 반환</span>
-      </div>
-      <div style="background: var(--code-bg); border-radius: 12px; padding: 20px; font-family: monospace; font-size: 13px; color: var(--code-text);">
-        <span style="color:#6B7280"># 필수 요청 헤더</span><br>
-        headers = {<br>
-        &nbsp;&nbsp;<span style="color:#79c0ff">"X-Requested-With"</span>: <span style="color:#a5d6ff">"XMLHttpRequest"</span>,<br>
-        &nbsp;&nbsp;<span style="color:#79c0ff">"Referer"</span>: <span style="color:#a5d6ff">"https://aboutpet.co.kr/shop/indexCategory?..."</span>,<br>
-        &nbsp;&nbsp;<span style="color:#79c0ff">"User-Agent"</span>: <span style="color:#a5d6ff">"Mozilla/5.0 ..."</span>,<br>
-        &nbsp;&nbsp;<span style="color:#79c0ff">"Content-Type"</span>: <span style="color:#a5d6ff">"application/x-www-form-urlencoded"</span><br>
-        }
-      </div>
-    </div>
-  </div>
-
-  <!-- ── 카테고리 구조 ── -->
-  <div class="section">
-    <div class="section-title">
-      <div class="icon" style="background:#FFF3F0">🐾</div>
-      카테고리 구조 (3단계 전체)
-    </div>
-
-    <!-- 구조 다이어그램 -->
-    <div class="card" style="margin-bottom:16px;">
-      <div class="pet-row" style="margin-bottom:16px;">
-        <div class="pet-badge dog">🐶 강아지 <code>cateCdL: 12564</code></div>
-        <div class="pet-badge cat">🐱 고양이 <code>cateCdL: 12565</code></div>
-      </div>
-      <div class="category-tree">
-        <div class="cat-node">
-          <div class="cat-box l1">
-            <div class="label">대분류</div>
-            <div class="name">강아지 / 고양이</div>
-            <div class="code">cateCdL</div>
-          </div>
-        </div>
-        <div class="cat-arrow">→</div>
-        <div class="cat-node">
-          <div class="cat-box l2">
-            <div class="label">중분류 (10개)</div>
-            <div class="name">사료 · 간식 · 용품 등</div>
-            <div class="code">cateCdM / dispClsfNo</div>
-          </div>
-        </div>
-        <div class="cat-arrow">→</div>
-        <div class="cat-node">
-          <div class="cat-box l3">
-            <div class="label">소분류 (98개)</div>
-            <div class="name">건식사료 · 주식파우치 등</div>
-            <div class="code">dispClsfNo</div>
-          </div>
-        </div>
-      </div>
-      <div style="margin-top:16px; padding:12px 16px; background:var(--gray-bg); border-radius:10px; font-size:13px; color:var(--text-sub);">
-        소분류 간 상품 중복 존재 (연령별·종류별·기능별이 동일 상품 포함) &nbsp;→&nbsp; 실질 고유 상품 수는 중복 제거 후 집계 필요
-      </div>
-    </div>
-
-    <!-- 강아지 카테고리 표 -->
-    <div style="margin-bottom:16px;">
-      <div style="font-weight:700; font-size:15px; margin-bottom:10px; display:flex; align-items:center; gap:8px;">
-        <span style="background:#EEF1FF; color:#4F6EF7; padding:4px 12px; border-radius:100px; font-size:13px;">🐶 강아지</span>
-      </div>
-      <div class="card-grid col3" style="gap:12px;">
-        <div class="card" style="padding:20px;">
-          <div style="font-weight:700; font-size:14px; margin-bottom:12px; color:var(--primary);">사료 <code style="font-size:11px;">100000374</code></div>
-          <div style="font-size:12px; color:var(--text-sub); line-height:2;">
-            퍼피(1세미만) <span style="float:right; font-weight:600; color:var(--text);">77</span><br>
-            어덜트(1~7세) <span style="float:right; font-weight:600; color:var(--text);">219</span><br>
-            시니어(7세이상) <span style="float:right; font-weight:600; color:var(--text);">94</span><br>
-            전연령 <span style="float:right; font-weight:600; color:var(--text);">440</span><br>
-            건식사료 <span style="float:right; font-weight:600; color:var(--text);">625</span><br>
-            화식 <span style="float:right; font-weight:600; color:var(--text);">171</span><br>
-            소프트사료 <span style="float:right; font-weight:600; color:var(--text);">126</span><br>
-            습식사료 <span style="float:right; font-weight:600; color:var(--text);">227</span><br>
-            동결건조/에어드라이 <span style="float:right; font-weight:600; color:var(--text);">138</span><br>
-            처방식 <span style="float:right; font-weight:600; color:var(--text);">38</span><br>
-            눈/눈물 <span style="float:right; font-weight:600; color:var(--text);">24</span><br>
-            체중조절 <span style="float:right; font-weight:600; color:var(--text);">44</span><br>
-            피부/모질 <span style="float:right; font-weight:600; color:var(--text);">44</span><br>
-            위장/소화 <span style="float:right; font-weight:600; color:var(--text);">51</span><br>
-            관절 <span style="float:right; font-weight:600; color:var(--text);">51</span><br>
-            중성화 <span style="float:right; font-weight:600; color:var(--text);">12</span><br>
-            스트레스 완화 <span style="float:right; font-weight:600; color:var(--text);">10</span><br>
-            구강/치아 <span style="float:right; font-weight:600; color:var(--text);">9</span><br>
-            견종별 <span style="float:right; font-weight:600; color:var(--text);">42</span><br>
-            맛보기 샘플 <span style="float:right; font-weight:600; color:var(--text);">49</span>
-          </div>
-        </div>
-        <div class="card" style="padding:20px;">
-          <div style="font-weight:700; font-size:14px; margin-bottom:12px; color:var(--green);">간식 <code style="font-size:11px;">100000375</code></div>
-          <div style="font-size:12px; color:var(--text-sub); line-height:2;">
-            덴탈껌 <span style="float:right; font-weight:600; color:var(--text);">354</span><br>
-            원물/뼈간식 <span style="float:right; font-weight:600; color:var(--text);">111</span><br>
-            캔/파우치 <span style="float:right; font-weight:600; color:var(--text);">131</span><br>
-            져키/트릿 <span style="float:right; font-weight:600; color:var(--text);">336</span><br>
-            비스킷/쿠키 <span style="float:right; font-weight:600; color:var(--text);">39</span><br>
-            사사미 <span style="float:right; font-weight:600; color:var(--text);">168</span><br>
-            통살/소시지 <span style="float:right; font-weight:600; color:var(--text);">51</span><br>
-            동결/건조간식 <span style="float:right; font-weight:600; color:var(--text);">143</span><br>
-            수제간식 <span style="float:right; font-weight:600; color:var(--text);">329</span><br>
-            파우더 <span style="float:right; font-weight:600; color:var(--text);">17</span><br>
-            음료/분유/우유 <span style="float:right; font-weight:600; color:var(--text);">14</span><br>
-            영양/기능 <span style="float:right; font-weight:600; color:var(--text);">106</span>
-          </div>
-          <div style="margin-top:16px; font-weight:700; font-size:14px; margin-bottom:12px; color:#9B59B6;">배변용품 <code style="font-size:11px;">100000394</code></div>
-          <div style="font-size:12px; color:var(--text-sub); line-height:2;">
-            배변패드 <span style="float:right; font-weight:600; color:var(--text);">135</span><br>
-            배변판 <span style="float:right; font-weight:600; color:var(--text);">36</span><br>
-            기저귀/팬티 <span style="float:right; font-weight:600; color:var(--text);">51</span><br>
-            탈취/소독 <span style="float:right; font-weight:600; color:var(--text);">9</span><br>
-            배변봉투/집게 <span style="float:right; font-weight:600; color:var(--text);">89</span><br>
-            배변유도제 <span style="float:right; font-weight:600; color:var(--text);">0</span><br>
-            물티슈/클리너 <span style="float:right; font-weight:600; color:var(--text);">28</span>
-          </div>
-        </div>
-        <div class="card" style="padding:20px;">
-          <div style="font-weight:700; font-size:14px; margin-bottom:12px; color:var(--accent);">용품 <code style="font-size:11px;">100000376</code></div>
-          <div style="font-size:12px; color:var(--text-sub); line-height:2;">
-            구강관리 <span style="float:right; font-weight:600; color:var(--text);">123</span><br>
-            건강관리 <span style="float:right; font-weight:600; color:var(--text);">368</span><br>
-            미용/목욕 <span style="float:right; font-weight:600; color:var(--text);">506</span><br>
-            급식/급수기 <span style="float:right; font-weight:600; color:var(--text);">274</span><br>
-            장난감/훈련 <span style="float:right; font-weight:600; color:var(--text);">693</span><br>
-            의류/악세사리 <span style="float:right; font-weight:600; color:var(--text);">1,085</span><br>
-            하우스/방석 <span style="float:right; font-weight:600; color:var(--text);">385</span><br>
-            이동장/캐리어 <span style="float:right; font-weight:600; color:var(--text);">241</span><br>
-            목줄/하네스 <span style="float:right; font-weight:600; color:var(--text);">770</span><br>
-            반려인용품 <span style="float:right; font-weight:600; color:var(--text);">76</span>
-          </div>
-          <div style="margin-top:16px; font-weight:700; font-size:14px; margin-bottom:12px; color:var(--yellow);">덴탈관 <code style="font-size:11px;">100000431</code></div>
-          <div style="font-size:12px; color:var(--text-sub); line-height:2;">
-            수의사인증 <span style="float:right; font-weight:600; color:var(--text);">26</span><br>
-            덴탈껌 <span style="float:right; font-weight:600; color:var(--text);">89</span><br>
-            칫솔 <span style="float:right; font-weight:600; color:var(--text);">68</span><br>
-            치약 <span style="float:right; font-weight:600; color:var(--text);">31</span><br>
-            원물/뼈간식 <span style="float:right; font-weight:600; color:var(--text);">31</span>
-          </div>
-        </div>
-      </div>
-    </div>
-
-    <!-- 고양이 카테고리 표 -->
-    <div>
-      <div style="font-weight:700; font-size:15px; margin-bottom:10px; display:flex; align-items:center; gap:8px;">
-        <span style="background:#FFF3F0; color:#FF7043; padding:4px 12px; border-radius:100px; font-size:13px;">🐱 고양이</span>
-      </div>
-      <div class="card-grid col3" style="gap:12px;">
-        <div class="card" style="padding:20px;">
-          <div style="font-weight:700; font-size:14px; margin-bottom:12px; color:var(--primary);">사료 <code style="font-size:11px;">100000437</code></div>
-          <div style="font-size:12px; color:var(--text-sub); line-height:2;">
-            키튼(1세미만) <span style="float:right; font-weight:600; color:var(--text);">90</span><br>
-            어덜트(1~7세) <span style="float:right; font-weight:600; color:var(--text);">456</span><br>
-            시니어(7세이상) <span style="float:right; font-weight:600; color:var(--text);">59</span><br>
-            전연령 <span style="float:right; font-weight:600; color:var(--text);">390</span><br>
-            주식캔 <span style="float:right; font-weight:600; color:var(--text);">552</span><br>
-            건식 <span style="float:right; font-weight:600; color:var(--text);">545</span><br>
-            주식파우치 <span style="float:right; font-weight:600; color:var(--text);">337</span><br>
-            에어/동결건조 <span style="float:right; font-weight:600; color:var(--text);">34</span><br>
-            처방식 <span style="float:right; font-weight:600; color:var(--text);">21</span><br>
-            헤어볼 <span style="float:right; font-weight:600; color:var(--text);">26</span><br>
-            피부/피모 <span style="float:right; font-weight:600; color:var(--text);">23</span><br>
-            위장/소화 <span style="float:right; font-weight:600; color:var(--text);">16</span><br>
-            요로기계 <span style="float:right; font-weight:600; color:var(--text);">31</span><br>
-            체중조절 <span style="float:right; font-weight:600; color:var(--text);">27</span><br>
-            구강/치아 <span style="float:right; font-weight:600; color:var(--text);">6</span><br>
-            면역력 <span style="float:right; font-weight:600; color:var(--text);">22</span><br>
-            묘종별 <span style="float:right; font-weight:600; color:var(--text);">15</span><br>
-            맛보기 샘플 <span style="float:right; font-weight:600; color:var(--text);">16</span>
-          </div>
-        </div>
-        <div class="card" style="padding:20px;">
-          <div style="font-weight:700; font-size:14px; margin-bottom:12px; color:var(--green);">간식 <code style="font-size:11px;">100000438</code></div>
-          <div style="font-size:12px; color:var(--text-sub); line-height:2;">
-            간식캔 <span style="float:right; font-weight:600; color:var(--text);">401</span><br>
-            간식파우치 <span style="float:right; font-weight:600; color:var(--text);">504</span><br>
-            동결/건조간식 <span style="float:right; font-weight:600; color:var(--text);">178</span><br>
-            스낵/캔디 <span style="float:right; font-weight:600; color:var(--text);">166</span><br>
-            져키/스틱 <span style="float:right; font-weight:600; color:var(--text);">96</span><br>
-            통살/소시지 <span style="float:right; font-weight:600; color:var(--text);">98</span><br>
-            음료 <span style="float:right; font-weight:600; color:var(--text);">22</span><br>
-            파우더/토퍼 <span style="float:right; font-weight:600; color:var(--text);">6</span><br>
-            영양/기능 <span style="float:right; font-weight:600; color:var(--text);">179</span>
-          </div>
-          <div style="margin-top:16px; font-weight:700; font-size:14px; margin-bottom:12px; color:#9B59B6;">모래 <code style="font-size:11px;">100000440</code></div>
-          <div style="font-size:12px; color:var(--text-sub); line-height:2;">
-            두부모래 <span style="float:right; font-weight:600; color:var(--text);">79</span><br>
-            카사바/천연모래 <span style="float:right; font-weight:600; color:var(--text);">76</span><br>
-            벤토나이트 <span style="float:right; font-weight:600; color:var(--text);">286</span><br>
-            기타 모래 <span style="float:right; font-weight:600; color:var(--text);">180</span>
-          </div>
-        </div>
-        <div class="card" style="padding:20px;">
-          <div style="font-weight:700; font-size:14px; margin-bottom:12px; color:var(--accent);">용품 <code style="font-size:11px;">100000439</code></div>
-          <div style="font-size:12px; color:var(--text-sub); line-height:2;">
-            건강관리 <span style="float:right; font-weight:600; color:var(--text);">115</span><br>
-            장난감/캣닢 <span style="float:right; font-weight:600; color:var(--text);">831</span><br>
-            스크래쳐/캣타워 <span style="float:right; font-weight:600; color:var(--text);">511</span><br>
-            치아관리 <span style="float:right; font-weight:600; color:var(--text);">52</span><br>
-            화장실/위생 <span style="float:right; font-weight:600; color:var(--text);">210</span><br>
-            미용/목욕 <span style="float:right; font-weight:600; color:var(--text);">378</span><br>
-            급식/급수기 <span style="float:right; font-weight:600; color:var(--text);">314</span><br>
-            의류/악세사리 <span style="float:right; font-weight:600; color:var(--text);">318</span><br>
-            하우스/방석 <span style="float:right; font-weight:600; color:var(--text);">357</span><br>
-            이동장/캐리어 <span style="float:right; font-weight:600; color:var(--text);">122</span><br>
-            반려인용품 <span style="float:right; font-weight:600; color:var(--text);">39</span>
-          </div>
-          <div style="margin-top:16px; font-weight:700; font-size:14px; margin-bottom:12px; color:var(--yellow);">습식관 <code style="font-size:11px;">100000441</code></div>
-          <div style="font-size:12px; color:var(--text-sub); line-height:2;">
-            주식캔 <span style="float:right; font-weight:600; color:var(--text);">436</span><br>
-            주식파우치 <span style="float:right; font-weight:600; color:var(--text);">224</span>
-          </div>
-        </div>
-      </div>
-    </div>
-  </div>
-
-  <!-- ── 수집 흐름 ── -->
-  <div class="section">
-    <div class="section-title">
-      <div class="icon" style="background:#F5EEFB">🔄</div>
-      크롤링 수집 흐름
-    </div>
-    <div class="card">
-      <div class="flow">
-        <div class="flow-step">
-          <div class="flow-left">
-            <div class="flow-num" style="background: var(--primary);">1</div>
-            <div class="flow-line"></div>
-          </div>
-          <div class="flow-content">
-            <div class="title">카테고리 정의</div>
-            <div class="desc">수집할 카테고리 코드(cateCdL, cateCdM, dispClsfNo) 목록 작성. 강아지/고양이 전 카테고리 대상.</div>
-          </div>
-        </div>
-        <div class="flow-step">
-          <div class="flow-left">
-            <div class="flow-num" style="background: var(--green);">2</div>
-            <div class="flow-line"></div>
-          </div>
-          <div class="flow-content">
-            <div class="title">상품 목록 수집 <code>POST /shop/getScateGoodsList</code></div>
-            <div class="desc">page=1, 2, 3... 반복 호출 (rows=20). 응답 스크립트에서 총 상품 수(goodsCount) 확인 후 종료. 각 상품의 goodsId 수집.</div>
-          </div>
-        </div>
-        <div class="flow-step">
-          <div class="flow-left">
-            <div class="flow-num" style="background: var(--yellow);">3</div>
-            <div class="flow-line"></div>
-          </div>
-          <div class="flow-content">
-            <div class="title">상품 상세 수집 <code>GET /goods/getGoodsDetail</code></div>
-            <div class="desc">goodsId별로 상세 페이지 호출. 상품 필수 정보 테이블(원산지, 제조사 등) 파싱.</div>
-          </div>
-        </div>
-        <div class="flow-step">
-          <div class="flow-left">
-            <div class="flow-num" style="background: var(--accent);">4</div>
-            <div class="flow-line"></div>
-          </div>
-          <div class="flow-content">
-            <div class="title">평점 분포 수집 <code>POST /goods/getGoodsCommentScore</code></div>
-            <div class="desc">평균 평점 + 별점별 비율(1~5점) 수집.</div>
-          </div>
-        </div>
-        <div class="flow-step">
-          <div class="flow-left">
-            <div class="flow-num" style="background: var(--purple);">5</div>
-          </div>
-          <div class="flow-content">
-            <div class="title">후기 목록 수집 <code>POST /goods/getGoodsEntireCommentList</code></div>
-            <div class="desc">페이지 반복 호출로 전체 후기 수집. 후기 내용, 별점, 작성일, 닉네임 등 파싱.</div>
-          </div>
-        </div>
-      </div>
-    </div>
-  </div>
-
-  <!-- ── API 목록 ── -->
-  <div class="section">
-    <div class="section-title">
-      <div class="icon" style="background:#EEF1FF">📡</div>
-      API 엔드포인트 6개
-    </div>
-    <div class="api-grid">
-      <div class="api-card">
-        <div class="api-head" style="background: #EEF1FF;">
-          <span class="method post">POST</span>
-          <span class="endpoint">/shop/getScateGoodsList</span>
-        </div>
-        <div class="api-body">
-          <div class="api-desc">상품 목록 조회. 페이지네이션 지원.</div>
-          <div class="tag-list">
-            <span class="tag key">dispClsfNo</span>
-            <span class="tag key">cateCdL</span>
-            <span class="tag key">cateCdM</span>
-            <span class="tag">order</span>
-            <span class="tag">page</span>
-            <span class="tag">rows</span>
-          </div>
-        </div>
-      </div>
-      <div class="api-card">
-        <div class="api-head" style="background: #EDFAF3;">
-          <span class="method get">GET</span>
-          <span class="endpoint">/goods/getGoodsDetail?goodsId=</span>
-        </div>
-        <div class="api-body">
-          <div class="api-desc">상품 상세 정보. 원산지·제조사 테이블 포함.</div>
-          <div class="tag-list">
-            <span class="tag key">goodsId</span>
-          </div>
-        </div>
-      </div>
-      <div class="api-card">
-        <div class="api-head" style="background: #FFF8EC;">
-          <span class="method post">POST</span>
-          <span class="endpoint">/goods/getGoodsCommentScore</span>
-        </div>
-        <div class="api-body">
-          <div class="api-desc">평점 상세. 평균 점수 + 별점별 비율 반환.</div>
-          <div class="tag-list">
-            <span class="tag key">goodsId</span>
-          </div>
-        </div>
-      </div>
-      <div class="api-card">
-        <div class="api-head" style="background: #FFF3F0;">
-          <span class="method post">POST</span>
-          <span class="endpoint">/goods/getGoodsEntireCommentList</span>
-        </div>
-        <div class="api-body">
-          <div class="api-desc">전체 후기 목록. 최신순/평점순 정렬 지원.</div>
-          <div class="tag-list">
-            <span class="tag key">goodsId</span>
-            <span class="tag">page</span>
-            <span class="tag">sidx</span>
-            <span class="tag">sord</span>
-          </div>
-        </div>
-      </div>
-      <div class="api-card">
-        <div class="api-head" style="background: #F5EEFB;">
-          <span class="method post">POST</span>
-          <span class="endpoint">/goods/getGoodsPhotoAndLogComment</span>
-        </div>
-        <div class="api-body">
-          <div class="api-desc">포토/영상 후기 목록. JSON 응답 형식.</div>
-          <div class="tag-list">
-            <span class="tag key">goodsId</span>
-            <span class="tag">rows</span>
-          </div>
-        </div>
-      </div>
-      <div class="api-card">
-        <div class="api-head" style="background: #EDFAF3;">
-          <span class="method post">POST</span>
-          <span class="endpoint">/goods/getGoodsBestComment</span>
-        </div>
-        <div class="api-body">
-          <div class="api-desc">베스트 후기 목록. 도움이 됐어요 기준 상위 노출.</div>
-          <div class="tag-list">
-            <span class="tag key">goodsId</span>
-            <span class="tag">rows</span>
-          </div>
-        </div>
-      </div>
-    </div>
-  </div>
-
-  <!-- ── 추출 데이터 필드 ── -->
-  <div class="section">
-    <div class="section-title">
-      <div class="icon" style="background:#FFF8EC">📦</div>
-      추출 가능 데이터 필드
-    </div>
-
-    <!-- 상품 목록 레벨 -->
-    <div style="margin-bottom: 12px;">
-      <div class="level-tabs">
-        <span class="level-tab list">① 상품 목록 레벨</span>
-      </div>
-      <div class="card" style="padding: 0; overflow: hidden;">
-        <table class="field-table">
-          <thead>
-            <tr>
-              <th>필드명</th>
-              <th>data 속성 / 선택자</th>
-              <th>타입</th>
-              <th>예시</th>
-            </tr>
-          </thead>
-          <tbody>
-            <tr><td class="field-name">상품 ID</td><td><code>data-goodsid</code></td><td><span class="field-type type-str">string</span></td><td>GP251070972</td></tr>
-            <tr><td class="field-name">상품명</td><td><code>data-productname</code></td><td><span class="field-type type-str">string</span></td><td>스텔라앤츄이스 캣 크레이빙스...</td></tr>
-            <tr><td class="field-name">브랜드명</td><td><code>data-brandname</code></td><td><span class="field-type type-str">string</span></td><td>스텔라앤츄이스</td></tr>
-            <tr><td class="field-name">정가</td><td><code>data-price</code></td><td><span class="field-type type-int">int</span></td><td>3,500</td></tr>
-            <tr><td class="field-name">할인가</td><td><code>data-discountprice</code></td><td><span class="field-type type-int">int</span></td><td>3,500</td></tr>
-            <tr><td class="field-name">품절 여부</td><td><code>data-soldoutyn</code></td><td><span class="field-type type-str">string</span></td><td>N / Y</td></tr>
-            <tr><td class="field-name">리뷰 수</td><td><code>data-scorecnt</code></td><td><span class="field-type type-int">int</span></td><td>347</td></tr>
-            <tr><td class="field-name">평점 (10점)</td><td><code>data-goodsstarsavgcnt</code></td><td><span class="field-type type-float">float</span></td><td>9.4</td></tr>
-            <tr><td class="field-name">썸네일 이미지</td><td><code>.gd-thumb .thumb-img[src]</code></td><td><span class="field-type type-str">string</span></td><td>CDN URL</td></tr>
-          </tbody>
-        </table>
-      </div>
-    </div>
-
-    <!-- 상품 상세 레벨 -->
-    <div style="margin-bottom: 12px;">
-      <div class="level-tabs">
-        <span class="level-tab detail">② 상품 상세 레벨</span>
-      </div>
-      <div class="card" style="padding: 0; overflow: hidden;">
-        <table class="field-table">
-          <thead>
-            <tr>
-              <th>필드명</th>
-              <th>위치</th>
-              <th>예시</th>
-            </tr>
-          </thead>
-          <tbody>
-            <tr><td class="field-name">카테고리 대분류</td><td><code>category_name_1depth</code> (JS 변수)</td><td>고양이</td></tr>
-            <tr><td class="field-name">카테고리 중분류</td><td><code>category_name_2depth</code></td><td>사료*</td></tr>
-            <tr><td class="field-name">카테고리 소분류</td><td><code>category_name_3depth</code></td><td>주식파우치</td></tr>
-            <tr><td class="field-name">판매가</td><td><code>.pdInfos .prices .price-txt</code></td><td>3,500원</td></tr>
-            <tr><td class="field-name">평점 (5점)</td><td><code>.pdInfos .starpoint .point</code></td><td>4.7</td></tr>
-            <tr><td class="field-name">카테고리 내 순위</td><td><code>.pdInfos .store-label</code></td><td>고양이 습식관 2위</td></tr>
-            <tr><td class="field-name">원산지 / 제조국</td><td>필수 정보 테이블</td><td>태국</td></tr>
-            <tr><td class="field-name">제조자 / 수입사</td><td>필수 정보 테이블</td><td>Stella&Chewys</td></tr>
-            <tr><td class="field-name">대표 이미지 URL</td><td><code>og:image</code> 메타태그</td><td>CDN URL</td></tr>
-          </tbody>
-        </table>
-      </div>
-    </div>
-
-    <!-- 평점 상세 레벨 -->
-    <div style="margin-bottom: 12px;">
-      <div class="level-tabs">
-        <span class="level-tab score">③ 평점 상세 레벨</span>
-      </div>
-      <div class="card">
-        <div class="rating-visual">
-          <div class="rating-big">
-            <div class="num">4.7</div>
-            <div>★★★★☆</div>
-            <div class="sub">평균 평점 (5점 만점)</div>
-          </div>
-          <div class="rating-bars">
-            <div class="rating-bar-row">
-              <span class="star-lbl">5점</span>
-              <div class="bar-track"><div class="bar-fill" style="width:85%; background:linear-gradient(90deg,#F5A623,#FF7043);"></div></div>
-              <span class="pct-lbl">85%</span>
-            </div>
-            <div class="rating-bar-row">
-              <span class="star-lbl">4점</span>
-              <div class="bar-track"><div class="bar-fill" style="width:7%; background:#F5A623;"></div></div>
-              <span class="pct-lbl">7%</span>
-            </div>
-            <div class="rating-bar-row">
-              <span class="star-lbl">3점</span>
-              <div class="bar-track"><div class="bar-fill" style="width:6%; background:#ccc;"></div></div>
-              <span class="pct-lbl">6%</span>
-            </div>
-            <div class="rating-bar-row">
-              <span class="star-lbl">2점</span>
-              <div class="bar-track"><div class="bar-fill" style="width:1%; background:#ccc;"></div></div>
-              <span class="pct-lbl">1%</span>
-            </div>
-            <div class="rating-bar-row">
-              <span class="star-lbl">1점</span>
-              <div class="bar-track"><div class="bar-fill" style="width:1%; background:#ccc;"></div></div>
-              <span class="pct-lbl">1%</span>
-            </div>
-          </div>
-          <div style="font-size: 13px; color: var(--text-sub); min-width: 160px;">
-            <div style="margin-bottom: 6px;"><strong>수집 필드:</strong></div>
-            <div>• 평균 평점 (5점)</div>
-            <div>• 별점별 비율 (%)</div>
-            <div style="margin-top: 8px; font-size: 12px; color: #FF7043;">⚠ 목록 API는 10점 만점<br>상세 API는 5점 만점으로 다름</div>
-          </div>
-        </div>
-      </div>
-    </div>
-
-    <!-- 후기 레벨 -->
-    <div>
-      <div class="level-tabs">
-        <span class="level-tab review">④ 후기 레벨</span>
-      </div>
-      <div class="card" style="padding: 0; overflow: hidden;">
-        <table class="field-table">
-          <thead>
-            <tr>
-              <th>필드명</th>
-              <th>속성 / 선택자</th>
-              <th>설명</th>
-            </tr>
-          </thead>
-          <tbody>
-            <tr><td class="field-name">후기 번호</td><td><code>data-goods-estm-no</code></td><td>고유 식별자</td></tr>
-            <tr><td class="field-name">별점</td><td><code>.estmScore</code></td><td>1~5점</td></tr>
-            <tr><td class="field-name">후기 내용</td><td><code>.rcdt</code> 텍스트</td><td>구매 후기 본문</td></tr>
-            <tr><td class="field-name">작성자 닉네임</td><td><code>.nickNm</code></td><td>마스킹 처리 가능성 있음</td></tr>
-            <tr><td class="field-name">작성일</td><td><code>.sysRegDtm</code></td><td>날짜 문자열</td></tr>
-            <tr><td class="field-name">포토 이미지 유무</td><td><code>.pics .pic</code> 존재 여부</td><td>이미지 포함 후기 여부</td></tr>
-          </tbody>
-        </table>
-      </div>
-    </div>
-  </div>
-
-  <!-- ── 주의 사항 ── -->
-  <div class="section">
-    <div class="section-title">
-      <div class="icon" style="background:#FFF3F0">⚠️</div>
+      <div class="icon" style="background:var(--accent-light)">⚠️</div>
       주의 사항
     </div>
-    <div class="card">
-      <ul class="notice-list">
-        <li>
-          <div class="notice-icon" style="background:#EEF1FF">📄</div>
-          <div><strong>무한 스크롤이지만 API는 페이지 파라미터 지원</strong><br><span style="color:var(--text-sub); font-size:13px;">UI는 무한 스크롤이나 내부 API는 <code>page</code> 파라미터를 지원하므로 순차 호출로 전체 수집 가능.</span></div>
-        </li>
-        <li>
-          <div class="notice-icon" style="background:#FFF8EC">⭐</div>
-          <div><strong>평점 스케일 혼용 주의</strong><br><span style="color:var(--text-sub); font-size:13px;">목록 API의 <code>data-goodsstarsavgcnt</code>는 10점 만점, 상세 페이지 <code>.starpoint .point</code>는 5점 만점. 정규화 필요.</span></div>
-        </li>
-        <li>
-          <div class="notice-icon" style="background:#EDFAF3">⏱️</div>
-          <div><strong>요청 간 딜레이 설정 권장</strong><br><span style="color:var(--text-sub); font-size:13px;">서버 부하 방지 및 차단 우회를 위해 요청 사이에 1~2초 간격 설정 권장.</span></div>
-        </li>
-        <li>
-          <div class="notice-icon" style="background:#FFF3F0">🖼️</div>
-          <div><strong>영양 성분·원재료는 이미지로 제공될 수 있음</strong><br><span style="color:var(--text-sub); font-size:13px;">일부 상품 상세 설명은 텍스트가 아닌 이미지로 렌더링됨. OCR 처리가 필요할 수 있음.</span></div>
-        </li>
-        <li>
-          <div class="notice-icon" style="background:#F5EEFB">🔐</div>
-          <div><strong>후기는 로그인 없이 조회 가능</strong><br><span style="color:var(--text-sub); font-size:13px;">후기 목록 조회 API는 비로그인 상태에서도 호출 가능. 단, 후기 작성은 구매자만 가능.</span></div>
-        </li>
-      </ul>
+    <div class="info-box warning">
+      <span>⚠️</span>
+      <span><strong>평점 스케일 불일치</strong>: 상품목록 API(<code>data-goodsstarsavgcnt</code>) = 10점 만점, 리뷰 별점(<code>p_X_Y</code> class) = 5점 만점. Silver 레이어 정제 시 5점 기준으로 통일.</span>
+    </div>
+    <div class="info-box warning" style="margin-top:8px">
+      <span>⚠️</span>
+      <span><strong>review_info 항목 구성 카테고리 의존</strong>: 완구=사용성/내구성/디자인, 식품=없음. <code>dict</code>로 수집하여 없으면 <code>{}</code>로 저장.</span>
+    </div>
+    <div class="info-box warning" style="margin-top:8px">
+      <span>⚠️</span>
+      <span><strong>getGoodsEntireCommentList <code>goodsCstrtTpCd=ITEM</code> 필수</strong>: 누락 시 API가 빈 응답 반환 (totalCount=0).</span>
+    </div>
+    <div class="info-box info" style="margin-top:8px">
+      <span>ℹ️</span>
+      <span>무한 스크롤 방식이지만 API는 page 파라미터를 지원하므로 Playwright에서 스크롤 없이 순차 페이지 호출로 수집 가능.</span>
+    </div>
+    <div class="info-box info" style="margin-top:8px">
+      <span>ℹ️</span>
+      <span>상품 상세 설명은 이미지로 제공 → OCR(Gold 레이어 2차 증강) 적용. 원재료 텍스트 추출 불가 시 상품명 키워드 1차 추출로 대체.</span>
     </div>
   </div>
 
-  <!-- ── 수집 규모 ── -->
+  <!-- 예상 수집 규모 -->
   <div class="section">
     <div class="section-title">
-      <div class="icon" style="background:#EDFAF3">📊</div>
-      예상 수집 규모 (고양이 주식파우치 기준)
+      <div class="icon" style="background:var(--purple-light)">📊</div>
+      예상 수집 규모
     </div>
-    <div class="card-grid col3">
-      <div class="card" style="text-align:center; background: linear-gradient(135deg, #4F6EF7, #7B4FEF); color:white; border:none;">
-        <div style="font-size:36px; font-weight:900; line-height:1;">18,248<span style="font-size:16px;">개+</span></div>
-        <div style="opacity:0.85; margin-top:6px;">소분류별 상품 합산<br><span style="font-size:12px;">(중복 제거 전)</span></div>
-      </div>
-      <div class="card" style="text-align:center; background: linear-gradient(135deg, #2DB57A, #00C9A7); color:white; border:none;">
-        <div style="font-size:40px; font-weight:900; line-height:1;">98<span style="font-size:20px;">개</span></div>
-        <div style="opacity:0.85; margin-top:6px;">소분류 카테고리<br><span style="font-size:12px;">(강아지 53 + 고양이 45)</span></div>
-      </div>
-      <div class="card" style="text-align:center; background: linear-gradient(135deg, #FF7043, #FF9A3C); color:white; border:none;">
-        <div style="font-size:40px; font-weight:900; line-height:1;">3+<span style="font-size:20px;">회</span></div>
-        <div style="opacity:0.85; margin-top:6px;">상품당 API 호출 수<br><span style="font-size:12px;">(상세+평점+후기)</span></div>
-      </div>
+    <table>
+      <tr><th>항목</th><th>수량</th></tr>
+      <tr><td>소분류 카테고리 수</td><td>106개</td></tr>
+      <tr><td>전체 상품 수 (소분류 중복 합산)</td><td>18,248개</td></tr>
+      <tr><td>상품당 후기 수</td><td>수십 ~ 수백 개</td></tr>
+      <tr><td>API 호출 (목록, 소분류당)</td><td>소분류당 약 1~55회 (rows=20 기준)</td></tr>
+      <tr><td>API 호출 (상세)</td><td>상품당 최소 3회</td></tr>
+    </table>
+    <div class="info-box info" style="margin-top:12px">
+      <span>ℹ️</span>
+      <span>실질 고유 상품 수는 goodsId 기준 중복 제거 후 집계 필요. 소분류 간 동일 상품 중복 포함.</span>
     </div>
   </div>
 
 </div>
-
 </body>
 </html>
