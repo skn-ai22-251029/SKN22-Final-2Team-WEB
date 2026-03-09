@@ -742,23 +742,34 @@
     </div>
   </div>
 
-  <!-- 예상 수집 규모 -->
+  <!-- 실측 수집 규모 -->
   <div class="section">
     <div class="section-title">
       <div class="icon" style="background:var(--purple-light)">📊</div>
-      예상 수집 규모
+      실측 수집 규모
     </div>
     <table>
-      <tr><th>항목</th><th>수량</th></tr>
-      <tr><td>소분류 카테고리 수</td><td>106개</td></tr>
-      <tr><td>전체 상품 수 (소분류 중복 합산)</td><td>18,248개</td></tr>
-      <tr><td>상품당 후기 수</td><td>수십 ~ 수백 개</td></tr>
-      <tr><td>API 호출 (목록, 소분류당)</td><td>소분류당 약 1~55회 (rows=20 기준)</td></tr>
-      <tr><td>API 호출 (상세)</td><td>상품당 최소 3회</td></tr>
+      <tr><th>항목</th><th>수량</th><th>비고</th></tr>
+      <tr><td>소분류 카테고리 수</td><td>106개</td><td>—</td></tr>
+      <tr><td>전체 상품 수 (중복 합산)</td><td>18,248개</td><td>목록 API goodsCount 합산</td></tr>
+      <tr style="background:var(--primary-light);font-weight:700"><td>고유 상품 수 (dedup 후)</td><td>4,934개</td><td>goodsId Set 집계 실측값</td></tr>
+      <tr><td>중복 비율</td><td>~73%</td><td>소분류 간 동일 상품 중복</td></tr>
+      <tr><td>목록 수집 API 호출</td><td>239회</td><td>rows=100, 소분류당 평균 2.4회</td></tr>
+      <tr><td>상품당 후기 수</td><td>수십 ~ 4,000+개</td><td>인기 식품 최대 4,000+</td></tr>
     </table>
+    <div style="margin-top:20px">
+      <div style="font-weight:700;margin-bottom:10px;font-size:14px">예상 크롤링 소요 시간 (고유 4,934개 기준)</div>
+      <table>
+        <tr><th>작업</th><th>호출 수</th><th>0.5s 순차</th><th>병렬 5개</th></tr>
+        <tr><td>상품 목록 전수집</td><td>239회</td><td>~2분</td><td>—</td></tr>
+        <tr><td>리뷰 수집 (평균 12페이지/상품)</td><td>~59,000회</td><td>~8시간</td><td>~1.5시간</td></tr>
+        <tr><td>상품 상세 (getGoodsDetail)</td><td>4,934회</td><td>~40분</td><td>~10분</td></tr>
+        <tr style="font-weight:700"><td>합계</td><td>—</td><td>~9시간</td><td>~2시간</td></tr>
+      </table>
+    </div>
     <div class="info-box info" style="margin-top:12px">
       <span>ℹ️</span>
-      <span>실질 고유 상품 수는 goodsId 기준 중복 제거 후 집계 필요. 소분류 간 동일 상품 중복 포함.</span>
+      <span>리뷰 상한 설정 권장: 상품당 최대 N페이지 캡을 두면 호출 수 대폭 감소. 예) 5페이지(50건) 캡 → ~25,000회, 순차 ~3.5시간.</span>
     </div>
   </div>
 

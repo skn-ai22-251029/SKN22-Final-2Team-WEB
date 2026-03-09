@@ -112,7 +112,7 @@ closes #이슈번호
 
 ## 5. 기술 스택 문서화
 
-> 상세 기술 스택은 `requirements_spec_v1.md` 섹션 4-1 참고.
+> 상세 기술 스택은 `planning/03_requirements_spec.md` 섹션 2-1 참고.
 
 각 기술 선택 근거는 멘토링 전 팀 내 합의 후 해당 섹션에 추가 기재.
 
