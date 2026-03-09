@@ -4,7 +4,7 @@
 > **버전**: v1.0 (프로토타이핑)
 > **작성일**: 2026-03-06
 >
-> 관련 문서: `01_project_overview.md` · `02_system_architecture.md` · `04_data_model_detail.md` · `05_user_flow.md` · `06_aboutpet_crawling_spec.md` · `07_dev_convention.md`
+> 관련 문서: `planning/01_project_overview.md` · `planning/02_system_architecture.md` · `planning/04_data_model_detail.md` · `planning/05_user_flow.md` · `planning/06_dev_convention.md` · `data/01_crawling_spec.md`
 
 ---
 
@@ -107,7 +107,7 @@
 | NFR-011 | 데이터 관리 | NF-DM-02 | 대화 이력 보존 및 요약 | 대화 세션별 토큰 제한 초과 시 이전 대화 요약본 저장 및 컨텍스트 유지. 요약 전략 및 Max Token 기준 TBD. |
 | NFR-011 | 데이터 관리 | NF-DM-03 | 구매 및 주문 데이터 정합성 | 구매 완료 후 주문 내역을 PostgreSQL에 안전하게 저장. 트랜잭션 처리 및 실패 시 롤백 보장. 주문 이력 조회 기능 제공. |
 | NFR-011 | 데이터 관리 | NF-DM-04 | 비정형 데이터 처리 | 사용자 업로드 이미지(jpeg, png) 및 음성 데이터를 **AWS S3**에 저장 및 관리. 파일명 UUID 치환, 경로 DB 저장. |
-| NFR-010 | 개발 협업 | — | 개발 협업 컨벤션 | Git 브랜치 전략, 커밋/PR 컨벤션, 코드 컨벤션, 기술 스택 문서화. 별도 문서 참고: `dev_convention.md` |
+| NFR-010 | 개발 협업 | — | 개발 협업 컨벤션 | Git 브랜치 전략, 커밋/PR 컨벤션, 코드 컨벤션, 기술 스택 문서화. 별도 문서 참고: `planning/06_dev_convention.md` |
 
 ---
 
@@ -175,186 +175,7 @@
 
 ## 3. 데이터 모델
 
-> 컬럼 상세 정의는 `04_data_model_detail.md` 참고.
-
-### 5.0 ERD (Mermaid)
-
-```mermaid
-erDiagram
-
-    USER {
-        uuid    user_id         PK
-        string  email
-        string  password_hash   "nullable"
-        string  oauth_provider  "google|kakao|naver|null"
-        string  name
-        int     age             "nullable"
-        string  gender          "nullable"
-        string  address         "nullable"
-        string  profile_image_url "nullable"
-        datetime created_at
-    }
-
-    USER_PREFERENCE {
-        uuid    preference_id   PK
-        uuid    user_id         FK
-        string  response_style  "concise|detailed"
-        int     card_count      "1|3|5"
-        boolean save_history
-        string  language        "ko|en"
-    }
-
-    PET {
-        uuid    pet_id          PK
-        uuid    user_id         FK
-        string  name
-        string  species         "cat|dog"
-        string  breed           "nullable"
-        string  gender          "male|female"
-        int     age_years
-        int     age_months
-        float   weight_kg       "nullable"
-        boolean neutered        "nullable"
-        date    vaccination_date "nullable"
-        string  budget_range
-        string  special_notes   "nullable"
-        datetime created_at
-        datetime updated_at
-    }
-
-    PET_HEALTH_CONCERN {
-        uuid    id              PK
-        uuid    pet_id          FK
-        string  concern         "skin|joint|digestion|weight|urinary|eye|hairball|dental|immunity"
-    }
-
-    PET_ALLERGY {
-        uuid    id              PK
-        uuid    pet_id          FK
-        string  ingredient
-    }
-
-    PET_FOOD_PREFERENCE {
-        uuid    id              PK
-        uuid    pet_id          FK
-        string  food_type       "dry|wet_can|wet_pouch|freeze_dried|raw"
-    }
-
-    PRODUCT {
-        string  goods_id        PK
-        string  goods_name
-        string  brand_name
-        int     price
-        int     discount_price
-        float   rating
-        int     review_count
-        string  thumbnail_url
-        string  product_url
-        boolean soldout_yn
-        datetime crawled_at
-    }
-
-    PRODUCT_CATEGORY_TAG {
-        uuid    id              PK
-        string  goods_id        FK
-        string  tag
-    }
-
-    REVIEW {
-        uuid    review_id       PK
-        string  goods_id        FK
-        int     score
-        string  content
-        string  author_nickname
-        datetime written_at
-    }
-
-    CHAT_SESSION {
-        uuid    session_id      PK
-        uuid    user_id         FK  "nullable(guest)"
-        uuid    target_pet_id   FK  "nullable"
-        string  title
-        datetime created_at
-        datetime updated_at
-    }
-
-    CHAT_MESSAGE {
-        uuid    message_id      PK
-        uuid    session_id      FK
-        string  role            "user|assistant"
-        string  content
-        datetime created_at
-    }
-
-    MESSAGE_PRODUCT_CARD {
-        uuid    id              PK
-        uuid    message_id      FK
-        string  goods_id        FK
-        string  reason
-    }
-
-    CART {
-        uuid    cart_id         PK
-        uuid    user_id         FK  "nullable(guest=session)"
-        datetime updated_at
-    }
-
-    CART_ITEM {
-        uuid    cart_item_id    PK
-        uuid    cart_id         FK
-        string  goods_id        FK
-        int     quantity
-        datetime added_at
-    }
-
-    ORDER {
-        uuid    order_id        PK
-        uuid    user_id         FK
-        int     total_price
-        string  status          "pending|completed|cancelled"
-        datetime created_at
-    }
-
-    ORDER_ITEM {
-        uuid    order_item_id   PK
-        uuid    order_id        FK
-        string  goods_id        FK
-        int     quantity
-        int     price_at_order
-    }
-
-    PET_USED_PRODUCT {
-        uuid    id              PK
-        uuid    pet_id          FK
-        string  goods_id        FK
-    }
-
-    USER            ||--o{ PET                  : "1:N"
-    USER            ||--||  USER_PREFERENCE      : "1:1"
-    USER            ||--o{ CHAT_SESSION          : "1:N"
-    USER            ||--o|  CART                 : "1:1"
-    USER            ||--o{ ORDER                 : "1:N"
-
-    PET             ||--o{ PET_HEALTH_CONCERN    : "1:N"
-    PET             ||--o{ PET_ALLERGY           : "1:N"
-    PET             ||--o{ PET_FOOD_PREFERENCE   : "1:N"
-    PET             ||--o{ PET_USED_PRODUCT      : "1:N"
-
-    CHAT_SESSION    ||--o{ CHAT_MESSAGE          : "1:N"
-    CHAT_SESSION    }o--o|  PET                  : "N:1(optional)"
-
-    CHAT_MESSAGE    ||--o{ MESSAGE_PRODUCT_CARD  : "1:N"
-
-    PRODUCT         ||--o{ PRODUCT_CATEGORY_TAG  : "1:N"
-    PRODUCT         ||--o{ REVIEW               : "1:N"
-    PRODUCT         ||--o{ MESSAGE_PRODUCT_CARD  : "1:N"
-    PRODUCT         ||--o{ CART_ITEM             : "1:N"
-    PRODUCT         ||--o{ ORDER_ITEM            : "1:N"
-    PRODUCT         ||--o{ PET_USED_PRODUCT      : "1:N"
-
-    CART            ||--o{ CART_ITEM             : "1:N"
-    ORDER           ||--o{ ORDER_ITEM            : "1:N"
-```
+> ERD 및 컬럼 상세 정의: `planning/04_data_model_detail.md`
 
 ---
 
