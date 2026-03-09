@@ -35,14 +35,14 @@ Gold    S3 Parquet (메타데이터 증강)
 
 **배경**
 
-- 대상: aboutpet.co.kr 강아지/고양이 전체 카테고리 (소분류 **106개**, 상품 **18,248개 listed → 4,934개 unique**, 중복률 73%)
+- 대상: aboutpet.co.kr 강아지/고양이 전체 카테고리 (소분류 **98개**, 상품 **18,248개 listed → 4,934개 unique**, 중복률 73%)
 - Playwright를 사용하는 이유: AJAX 기반 동적 렌더링 대응 및 세션/쿠키 자동 유지
 - 상세 크롤링 스펙: `docs/data/01_crawling_spec.md` 참고
 
 **서브 이슈**
 
 - [ ] 상품 목록·상세 크롤링 구현
-  - `getScateGoodsList` (소분류 106개 순회), `getGoodsDetail` 호출
+  - `getScateGoodsList` (소분류 98개 순회), `getGoodsDetail` 호출
   - `goodsId` 기준 중복 제거 (소분류 간 동일 상품 중복 포함)
   - `indexGoodsDetail` 페이지에서 `detail_image_urls` 수집 (`img[src*='editor/goods_desc/']`, 식품류만 존재)
   - 예상 소요시간: 순차 ~9시간 / 병렬-5 ~2시간

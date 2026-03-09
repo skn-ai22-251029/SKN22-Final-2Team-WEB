@@ -237,7 +237,6 @@ erDiagram
   "health_concerns": ["skin", "joint", "digestion", "weight", "urinary", "eye", "hairball", "dental", "immunity"],
   "allergies": ["string"],
   "food_type_preference": ["dry", "wet_can", "wet_pouch", "freeze_dried", "raw"],
-  "budget_range": "under_10k | 10k_30k | 30k_50k | over_50k",
   "used_product_ids": ["string"],
   "special_notes": "string | null",
   "created_at": "datetime",
