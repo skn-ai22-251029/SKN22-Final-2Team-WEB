@@ -104,6 +104,11 @@ def load_goods_ids(goods_input: str, gp_only: bool) -> list[str]:
 
 # ── 리뷰 API 호출 ──────────────────────────────────────────────────────────────
 
+def goods_cstrt_tp_cd(goods_id: str) -> str:
+    """GP 상품은 PAK, 나머지는 ITEM"""
+    return "PAK" if goods_id.startswith("GP") else "ITEM"
+
+
 async def fetch_review_page(page, goods_id: str, page_num: int) -> str:
     for attempt in range(MAX_RETRIES):
         try:
@@ -111,7 +116,7 @@ async def fetch_review_page(page, goods_id: str, page_num: int) -> str:
                 f"{BASE_URL}/goods/getGoodsEntireCommentList",
                 form={
                     "goodsId":          goods_id,
-                    "goodsCstrtTpCd":   "ITEM",
+                    "goodsCstrtTpCd":   goods_cstrt_tp_cd(goods_id),
                     "page":             str(page_num),
                     "sidx":             "",
                     "sord":             "",
