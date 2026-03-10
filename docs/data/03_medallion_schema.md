@@ -30,38 +30,45 @@ classDiagram
     }
 
     class BronzeReviews["🟫 bronze/reviews"] {
-        string  goods_estm_no
+        string  review_id
         string  goods_id
-        string  nickname
-        string  review_date_raw
-        string  star_class_raw
-        string  purchase_label_raw
-        string  review_text
-        bool    has_photo
+        float   score_raw
+        string  content
+        string  author_nickname
+        string  written_at_raw
+        string  purchase_label
         string  pet_name
         string  pet_gender
         string  pet_age_raw
         string  pet_weight_raw
         string  pet_breed
-        string  review_info_json
+        string  review_info
         timestamp  crawled_at
     }
 
     class SilverGoods["🥈 silver/goods  (goodsId dedup)"] {
         string    goods_id  PK
+        string    prefix
         string    product_name
         string    brand_id
         string    brand_name
         int       price
         int       discount_price
-        float     rating_5pt
+        float     rating
         int       review_count
         bool      sold_out
         string    thumbnail_url
-        string    product_url
-        string[]  disp_clsf_nos
+        string[]  subcategories
+        string[]  subcategory_names
         string[]  detail_image_urls
-        timestamp processed_at
+        int       detail_image_count
+        string    review_count_source
+        bool      soldout_reliable
+        bool      ocr_target
+        bool      is_canonical
+        string    duplicate_of
+        timestamp crawled_at
+        timestamp etl_at
     }
 
     class SilverReviews["🥈 silver/reviews"] {
@@ -196,20 +203,19 @@ classDiagram
 
 | 컬럼 | 타입 | 출처 | 예시 |
 |---|---|---|---|
-| `goods_estm_no` | string | `data-goods-estm-no` | `1198680` |
-| `goods_id` | string | `data-goods-id` | `GI251094382` |
-| `nickname` | string | `.writer-info .ids` | `호로록피` |
-| `review_date_raw` | string | `.writer-info .date` | `2026.03.06` |
-| `star_class_raw` | string | `.stars.sm` class | `p_5_0` |
-| `purchase_label_raw` | string | `.purchase-label` class | `first` / `repeat` / null |
-| `review_text` | string | `.msgs` | 본문 텍스트 |
-| `has_photo` | bool | `ul.swiper-wrapper.pics` 존재 여부 | `true` |
+| `review_id` | string | `data-goods-estm-no` | `1198680` |
+| `goods_id` | string | 수집 대상 goods_id | `GI251094382` |
+| `score_raw` | float\|null | `.stars.sm` class 파싱 (`p_5_0` → 5.0) | `5.0` |
+| `content` | string | `.msgs` | 본문 텍스트 |
+| `author_nickname` | string | `.writer-info .ids` | `호로록피` |
+| `written_at_raw` | string | `.writer-info .date` | `2026.03.06` |
+| `purchase_label` | string\|null | `.purchase-label` class | `first` / `repeat` / null |
 | `pet_name` | string\|null | `div.spec > em.b` | `시루` |
 | `pet_gender` | string\|null | `div.spec > em.b > i.g` | `암컷` |
 | `pet_age_raw` | string\|null | `div.spec > em:nth-of-type(2)` | `7개월` |
 | `pet_weight_raw` | string\|null | `div.spec > em:nth-of-type(3)` | `2.5kg` |
 | `pet_breed` | string\|null | `div.spec > em:nth-of-type(4)` | `브리티시쇼트헤어` |
-| `review_info_json` | string\|null | `ul.satis` 키-값 | `{"사용성":"잘 쓰고 있어요"}` |
+| `review_info` | string\|null | `ul.satis` 키-값 JSON 문자열 | `{"사용성":"잘 쓰고 있어요"}` |
 | `crawled_at` | timestamp | 수집 시각 | |
 
 ---
@@ -218,24 +224,32 @@ classDiagram
 
 ### `silver/goods/`
 
-Bronze goods에서 goodsId 기준 dedup, 타입 변환, 평점 정규화.
+Bronze goods에서 goodsId 기준 dedup, 타입 변환, 평점 정규화, OCR·dedup 플래그 추가.
 
 | 컬럼 | 타입 | Bronze → Silver 처리 |
 |---|---|---|
 | `goods_id` | string (PK) | dedup 기준 |
+| `prefix` | string | `goods_id` 앞 2자리 (`GI`/`GP`/`GO`/`GS`/`PI`) |
 | `product_name` | string | 그대로 |
 | `brand_id` | string | 그대로 |
 | `brand_name` | string | 그대로 |
 | `price` | int | `price_raw` → int |
 | `discount_price` | int | `discount_price_raw` → int |
-| `rating_5pt` | float | `rating_raw` ÷ 2 (9.4 → 4.7) |
+| `rating` | float | `rating_raw` ÷ 2 (9.4 → 4.7) |
 | `review_count` | int | `review_count_raw` → int |
 | `sold_out` | bool | `sold_out_yn` == `Y` |
 | `thumbnail_url` | string | 그대로 |
-| `product_url` | string | `/goods/indexGoodsDetail?goodsId={goods_id}` 생성 |
-| `disp_clsf_nos` | string[] | 해당 goodsId가 속한 소분류 코드 전체 (중복 소거) |
-| `detail_image_urls` | string[]\|null | Bronze 그대로 (OCR 입력용) |
-| `processed_at` | timestamp | |
+| `subcategories` | string[] | 해당 goodsId가 속한 소분류 코드 전체 (중복 소거) |
+| `subcategory_names` | string[] | 소분류명 목록 (예: `["강아지_사료_어덜트(1~7세)"]`) |
+| `detail_image_urls` | string[] | Bronze `detail_image_urls` dedup (OCR 입력용) |
+| `detail_image_count` | int | `detail_image_urls` 길이 |
+| `review_count_source` | string | `direct` (단품 직접 집계) / `aggregated` (GP 하위 합산) |
+| `soldout_reliable` | bool | `GO` 상품은 `False` (품절 여부 불신뢰) |
+| `ocr_target` | bool | 사료·간식·습식관·덴탈관·건강관리 카테고리 여부 (Gold OCR 대상 판단) |
+| `is_canonical` | bool | dedup 대표 상품 여부 (리뷰 수집 대상) |
+| `duplicate_of` | string\|null | 비정규 상품의 대표 `goods_id` (정규 상품은 null) |
+| `crawled_at` | timestamp | Bronze 수집 시각 |
+| `etl_at` | timestamp | Silver ETL 처리 시각 |
 
 ### `silver/reviews/`
 
