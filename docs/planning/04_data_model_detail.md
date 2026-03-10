@@ -167,6 +167,16 @@ erDiagram
         string  goods_id        FK
     }
 
+    USER_INTERACTION {
+        uuid    id               PK
+        uuid    user_id          FK  "nullable(guest)"
+        string  goods_id         FK
+        uuid    session_id       FK  "nullable"
+        string  interaction_type "click|cart|purchase|reject"
+        int     weight           "click=1|cart=3|purchase=5|reject=-1"
+        datetime created_at
+    }
+
     USER            ||--o{ PET                  : "1:N"
     USER            ||--||  USER_PREFERENCE      : "1:1"
     USER            ||--o{ CHAT_SESSION          : "1:N"
@@ -192,6 +202,10 @@ erDiagram
 
     CART            ||--o{ CART_ITEM             : "1:N"
     ORDER           ||--o{ ORDER_ITEM            : "1:N"
+
+    USER            ||--o{ USER_INTERACTION      : "1:N"
+    PRODUCT         ||--o{ USER_INTERACTION      : "1:N"
+    CHAT_SESSION    ||--o{ USER_INTERACTION      : "1:N"
 ```
 
 ---
@@ -320,6 +334,24 @@ erDiagram
   "pet_weight_kg":    "float | null    -- Silver 파싱: 2.5kg→2.5",
   "pet_gender":       "string | null   -- 수컷 | 암컷",
   "pet_breed":        "string | null   -- 품종명 (등록 시에만)"
+}
+```
+
+---
+
+## 6.3-C User Interaction (Phase 2 — CF 준비)
+
+> Day 1부터 로깅. CF 모델 학습 전에도 데이터 축적 목적.
+
+```json
+{
+  "id":               "uuid",
+  "user_id":          "uuid | null  -- guest = null",
+  "goods_id":         "string       -- FK → PRODUCT",
+  "session_id":       "uuid | null  -- FK → CHAT_SESSION",
+  "interaction_type": "click | cart | purchase | reject",
+  "weight":           "int          -- click=1 | cart=3 | purchase=5 | reject=-1",
+  "created_at":       "datetime"
 }
 ```
 

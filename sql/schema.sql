@@ -244,3 +244,20 @@ CREATE TABLE pet_used_product (
     goods_id VARCHAR(20) NOT NULL REFERENCES product(goods_id) ON DELETE RESTRICT,
     UNIQUE (pet_id, goods_id)
 );
+
+-- =============================================================
+-- USER_INTERACTION  (Phase 2 CF 준비 — Day 1부터 로깅)
+-- =============================================================
+CREATE TABLE user_interaction (
+    id               UUID         PRIMARY KEY DEFAULT gen_random_uuid(),
+    user_id          UUID         REFERENCES "user"(user_id) ON DELETE SET NULL,   -- guest = NULL
+    goods_id         VARCHAR(20)  REFERENCES product(goods_id) ON DELETE CASCADE,
+    session_id       UUID         REFERENCES chat_session(session_id) ON DELETE SET NULL,
+    interaction_type VARCHAR(20)  NOT NULL
+                     CHECK (interaction_type IN ('click', 'cart', 'purchase', 'reject')),
+    weight           SMALLINT     NOT NULL DEFAULT 1,
+    created_at       TIMESTAMPTZ  NOT NULL DEFAULT NOW()
+);
+
+CREATE INDEX idx_ui_user_id  ON user_interaction(user_id);
+CREATE INDEX idx_ui_goods_id ON user_interaction(goods_id);
