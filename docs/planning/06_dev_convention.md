@@ -11,7 +11,8 @@
 |---|---|
 | `main` | 배포 가능한 안정 코드. 직접 push 금지. |
 | `develop` | 통합 개발 브랜치. PR 머지 대상. |
-| `feature/<이슈번호>-<설명>` | 기능 개발. 예: `feature/42-chat-session` |
+| `feature/<이슈번호>-<설명>` | 서비스 기능 개발. 예: `feature/42-chat-session` |
+| `data/<설명>` | 데이터 파이프라인, 크롤링, ETL, EDA. 예: `data/bronze-silver-pipeline` |
 | `fix/<이슈번호>-<설명>` | 버그 수정. 예: `fix/55-cart-null-error` |
 | `hotfix/<설명>` | main 긴급 수정. |
 
