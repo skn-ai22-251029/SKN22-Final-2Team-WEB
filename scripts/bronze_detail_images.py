@@ -4,8 +4,8 @@
 - indexGoodsDetail 페이지 방문 → img[src*='editor/goods_desc/'] 수집
 - 기존 parquet의 detail_image_urls 컬럼 업데이트 후 덮어쓰기
 
-실행: conda run -n final-project python scripts/crawl_detail_images.py
-     conda run -n final-project python scripts/crawl_detail_images.py --input output/bronze/goods/20260309_goods.parquet
+실행: conda run -n final-project python scripts/bronze_detail_images.py
+     conda run -n final-project python scripts/bronze_detail_images.py --input output/bronze/goods/20260309_goods.parquet
 """
 
 import argparse

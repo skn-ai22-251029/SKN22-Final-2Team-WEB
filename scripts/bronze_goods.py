@@ -1,7 +1,7 @@
 """
 어바웃펫 상품 목록 크롤러
 - 106개 소분류 전체 순회 → Bronze Parquet 저장
-- 실행: conda run -n final-project python scripts/crawl_goods.py
+- 실행: conda run -n final-project python scripts/bronze_goods.py
 - 출력: output/bronze/goods/YYYYMMDD_goods.parquet
 - 체크포인트: output/checkpoint_goods.json (중단 후 재실행 시 완료된 소분류 스킵)
 """
