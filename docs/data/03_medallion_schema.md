@@ -101,6 +101,7 @@ classDiagram
     class GoldReviews["🥇 gold/reviews  (silver 전체 + 증강)"] {
         float   sentiment_score
         string  sentiment_label
+        dict    aspect_sentiments
         timestamp processed_at
     }
 
@@ -312,8 +313,9 @@ Silver reviews에 감성 분석 결과 추가.
 | 컬럼 | 타입 | 도출 방법 |
 |---|---|---|
 | *(silver 컬럼 전체 포함)* | | |
-| `sentiment_score` | float | 한국어 감성 분석 모델 (0.0~1.0) |
-| `sentiment_label` | string | `positive` / `negative` / `neutral` |
+| `sentiment_score` | float | `Copycats/koelectra-base-v3-generalized-sentiment-analysis` — 리뷰 전체 긍/부정 점수 (0.0~1.0) |
+| `sentiment_label` | string | `positive` / `negative` (`sentiment_score` ≥ 0.5 → positive) |
+| `aspect_sentiments` | dict\|null | ABSA 결과 — 속성별 긍/부정 집계. 예: `{"기호성": "긍정", "냄새": "부정"}`. 8개 속성: 기호성·생체반응·소화/배변·제품 성상·성분/원료·냄새·가격/구매·배송/포장 |
 | `processed_at` | timestamp | |
 
 ---
@@ -346,6 +348,7 @@ Silver reviews에 감성 분석 결과 추가.
 | `purchase_label` | `REVIEW.purchase_label` |
 | `sentiment_score` | `REVIEW.sentiment_score` |
 | `sentiment_label` | `REVIEW.sentiment_label` |
+| `aspect_sentiments` | `REVIEW.aspect_sentiments` (JSONB) |
 | `pet_age_months` | `REVIEW.pet_age_months` |
 | `pet_weight_kg` | `REVIEW.pet_weight_kg` |
 | `pet_gender` | `REVIEW.pet_gender` |

@@ -1,12 +1,12 @@
 """
-Bronze Reviews EDA
-- 입력: output/bronze/reviews/20260310_reviews.parquet
+Silver Reviews EDA
+- 입력: output/silver/reviews/YYYYMMDD_reviews_silver.parquet
 - 출력: output/eda/reviews_eda.html (Plotly 인터랙티브)
 
 실행:
   conda run -n final-project python scripts/eda/eda_reviews.py
   conda run -n final-project python scripts/eda/eda_reviews.py \
-      --input output/bronze/reviews/20260310_reviews.parquet
+      --input output/silver/reviews/20260310_reviews_silver.parquet
 """
 
 import argparse
@@ -27,38 +27,12 @@ OUTPUT_PATH  = "output/eda/reviews_eda.html"
 
 def load_data(input_path: str):
     df = pd.read_parquet(input_path)
-    df["written_at"] = pd.to_datetime(df["written_at_raw"], format="%Y.%m.%d", errors="coerce")
+    # Silver parquet: written_at은 date 타입, pet_age_months/pet_weight_kg 파싱 완료
+    df["written_at"] = pd.to_datetime(df["written_at"], errors="coerce")
     df["content_len"] = df["content"].str.len()
     df["prefix"] = df["goods_id"].str[:2]
     df["year"]  = df["written_at"].dt.year
     df["month"] = df["written_at"].dt.to_period("M").astype(str)
-
-    # pet_age → 개월 수 변환
-    def to_months(val):
-        if pd.isna(val):
-            return None
-        val = str(val).strip()
-        if "개월" in val:
-            try: return int(val.replace("개월", "").strip())
-            except: return None
-        elif "살" in val:
-            try: return int(val.replace("살", "").strip()) * 12
-            except: return None
-        return None
-
-    df["pet_age_months"] = df["pet_age_raw"].apply(to_months)
-
-    # pet_weight → float
-    def to_weight(val):
-        if pd.isna(val):
-            return None
-        try:
-            return float(str(val).replace("kg", "").strip())
-        except:
-            return None
-
-    df["pet_weight_kg"] = df["pet_weight_raw"].apply(to_weight)
-
     return df
 
 
@@ -150,7 +124,7 @@ def fig_score(df):
     figs = []
 
     # 2-1. 전체 점수 분포
-    score_cnt = df["score_raw"].value_counts().sort_index()
+    score_cnt = df["score"].value_counts().sort_index()
     total = score_cnt.sum()
     fig = go.Figure(go.Bar(
         x=[str(s) for s in score_cnt.index],
@@ -159,11 +133,11 @@ def fig_score(df):
         text=[f"{v:,}<br>({v/total*100:.1f}%)" for v in score_cnt.values],
         textposition="outside",
     ))
-    fig.update_layout(title="전체 점수(score_raw) 분포", xaxis_title="점수", yaxis_title="리뷰 수")
+    fig.update_layout(title="전체 점수(score) 분포", xaxis_title="점수", yaxis_title="리뷰 수")
     figs.append(fig)
 
     # 2-2. prefix별 평균 점수
-    prefix_score = df.groupby("prefix")["score_raw"].agg(["mean","count"]).reset_index()
+    prefix_score = df.groupby("prefix")["score"].agg(["mean","count"]).reset_index()
     fig = go.Figure(go.Bar(
         x=prefix_score["prefix"].tolist(),
         y=prefix_score["mean"].round(2).tolist(),
@@ -172,7 +146,7 @@ def fig_score(df):
         textposition="outside",
         error_y=dict(
             type="data",
-            array=df.groupby("prefix")["score_raw"].std().reindex(prefix_score["prefix"]).tolist(),
+            array=df.groupby("prefix")["score"].std().reindex(prefix_score["prefix"]).tolist(),
             visible=True,
         ),
     ))
@@ -184,7 +158,7 @@ def fig_score(df):
     figs.append(fig)
 
     # 2-3. 점수별 purchase_label 비율
-    score_label = df.groupby(["score_raw","purchase_label"]).size().unstack(fill_value=0)
+    score_label = df.groupby(["score","purchase_label"]).size().unstack(fill_value=0)
     for col in ["first","repeat"]:
         if col not in score_label.columns:
             score_label[col] = 0
@@ -288,9 +262,9 @@ def fig_pet_profile(df):
     """SECTION 5: 펫 프로필"""
     figs = []
 
-    # 5-1. 프로필 필드 보유율
-    fields = ["pet_name","pet_gender","pet_age_raw","pet_weight_raw","pet_breed","review_info"]
-    labels = ["이름","성별","나이","체중","품종","review_info"]
+    # 5-1. 프로필 필드 보유율 (Silver 파싱 컬럼 기준)
+    fields = ["pet_name","pet_gender","pet_age_months","pet_weight_kg","pet_breed","review_info"]
+    labels = ["이름","성별","나이(개월)","체중(kg)","품종","review_info"]
     rates  = [df[f].notna().mean() * 100 for f in fields]
     counts = [df[f].notna().sum() for f in fields]
     fig = go.Figure(go.Bar(
@@ -406,7 +380,7 @@ def fig_purchase(df):
     figs.append(fig)
 
     # 6-3. 구매 유형별 평균 점수
-    score_by_pl = df.groupby("purchase_label")["score_raw"].agg(["mean","count"]).reset_index()
+    score_by_pl = df.groupby("purchase_label")["score"].agg(["mean","count"]).reset_index()
     fig = go.Figure(go.Bar(
         x=score_by_pl["purchase_label"].tolist(),
         y=score_by_pl["mean"].round(3).tolist(),
@@ -511,7 +485,7 @@ ISSUES_HTML = """
     <p style="margin:0;font-size:.9rem;color:#444;line-height:1.6">
       전체 131,147건 중 5점이 101,046건(77%). 4점 이상 93%.<br>
       <b>원인</b>: 자기선택 편향 + 포인트 지급 구조.<br>
-      <b>대응</b>: <code>score_raw</code> 단독 랭킹 사용 금지.
+      <b>대응</b>: <code>score</code> 단독 랭킹 사용 금지.
       <code>popularity_score</code>에 텍스트 기반 <code>sentiment_score</code> 가중치 사용.
       감성 분석 모델 학습 시 클래스 가중치 조정 필요.
     </p>
@@ -556,10 +530,11 @@ def render_html(all_figs: list[tuple[int, go.Figure]], output_path: str, summary
     <div style="display:flex;gap:16px;flex-wrap:wrap;margin:24px 0">
       <div class="card"><div class="val">{summary['total_reviews']:,}</div><div class="lbl">전체 리뷰</div></div>
       <div class="card"><div class="val">{summary['unique_goods']:,}</div><div class="lbl">리뷰 보유 상품</div></div>
-      <div class="card"><div class="val">{summary['unique_authors']:,}</div><div class="lbl">고유 작성자</div></div>
+      <div class="card"><div class="val">{summary['unique_authors']:,}</div><div class="lbl">고유 작성자 (비로그인 제외)</div></div>
+      <div class="card"><div class="val">{summary['anon_reviews']:,}</div><div class="lbl">비로그인 리뷰 ({summary['anon_pct']:.1f}%)</div></div>
       <div class="card"><div class="val">{summary['coverage_pct']:.1f}%</div><div class="lbl">수집 대상 커버율</div></div>
       <div class="card"><div class="val">{summary['avg_score']:.2f}</div><div class="lbl">평균 점수</div></div>
-      <div class="card"><div class="val">{summary['pet_profile_pct']:.1f}%</div><div class="lbl">펫 프로필 보유율</div></div>
+      <div class="card"><div class="val">{summary['pet_profile_pct']:.1f}%</div><div class="lbl">나이+체중 보유율</div></div>
     </div>
     """)
 
@@ -634,13 +609,16 @@ def main(input_path: str) -> None:
     has_review = df["goods_id"].nunique()
     total_target = len(sg[~sg.index.str.startswith("GP")])
 
+    anon_mask   = df["author_nickname"] == "어바웃펫 회원"
     summary = {
         "total_reviews":   len(df),
         "unique_goods":    has_review,
-        "unique_authors":  df["author_nickname"].nunique(),
+        "unique_authors":  df.loc[~anon_mask, "author_nickname"].nunique(),
+        "anon_reviews":    int(anon_mask.sum()),
+        "anon_pct":        anon_mask.mean() * 100,
         "coverage_pct":    has_review / total_target * 100,
-        "avg_score":       df["score_raw"].mean(),
-        "pet_profile_pct": df["pet_name"].notna().mean() * 100,
+        "avg_score":       df["score"].mean(),
+        "pet_profile_pct": (df["pet_age_months"].notna() & df["pet_weight_kg"].notna()).mean() * 100,
     }
 
     print("  차트 생성 중...")
@@ -661,8 +639,8 @@ if __name__ == "__main__":
     parser = argparse.ArgumentParser()
     parser.add_argument(
         "--input",
-        default="output/bronze/reviews/20260310_reviews.parquet",
-        help="Bronze reviews parquet 경로",
+        default="output/silver/reviews/20260310_reviews_silver.parquet",
+        help="Silver reviews parquet 경로",
     )
     args = parser.parse_args()
     main(args.input)

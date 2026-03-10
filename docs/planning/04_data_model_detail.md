@@ -99,8 +99,9 @@ erDiagram
         string  author_nickname
         datetime written_at
         string  purchase_label      "first|repeat|null"
-        float   sentiment_score     "0.0~1.0 (Gold: 감성 분석)"
-        string  sentiment_label     "positive|negative|neutral"
+        float   sentiment_score     "0.0~1.0 (Gold: 전체 감성 점수)"
+        string  sentiment_label     "positive|negative"
+        jsonb   aspect_sentiments   "nullable (Gold: ABSA 속성별 긍/부정)"
         int     pet_age_months      "nullable (7개월→7, 3살→36)"
         float   pet_weight_kg       "nullable"
         string  pet_gender          "nullable (수컷|암컷)"
@@ -314,8 +315,9 @@ erDiagram
   "author_nickname":  "string          -- 작성자 닉네임",
   "written_at":       "date            -- 작성일 (Silver: YYYY.MM.DD 파싱)",
   "purchase_label":   "string | null   -- first | repeat (Bronze 직접 수집)",
-  "sentiment_score":  "float | null    -- Gold 파생: 0.0~1.0 한국어 감성 분석",
-  "sentiment_label":  "string | null   -- Gold 파생: positive | negative | neutral",
+  "sentiment_score":  "float | null    -- Gold 파생: 0.0~1.0 전체 긍/부정 점수 (KoELECTRA)",
+  "sentiment_label":  "string | null   -- Gold 파생: positive | negative",
+  "aspect_sentiments":"jsonb | null    -- Gold 파생: ABSA 결과 {기호성|생체반응|소화/배변|제품 성상|성분/원료|냄새|가격/구매|배송/포장: 긍정|부정}",
   "pet_age_months":   "int | null      -- Silver 파싱: 7개월→7, 3살→36",
   "pet_weight_kg":    "float | null    -- Silver 파싱: 2.5kg→2.5",
   "pet_gender":       "string | null   -- 수컷 | 암컷",

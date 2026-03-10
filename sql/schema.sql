@@ -136,16 +136,18 @@ CREATE TABLE review (
     author_nickname VARCHAR(100)  NOT NULL,
     written_at      DATE          NOT NULL,
     purchase_label  VARCHAR(10)   CHECK (purchase_label IN ('first', 'repeat')),
-    sentiment_score NUMERIC(4,3)  CHECK (sentiment_score BETWEEN 0 AND 1),  -- Gold
-    sentiment_label VARCHAR(10)   CHECK (sentiment_label IN ('positive', 'negative', 'neutral')),  -- Gold
+    sentiment_score NUMERIC(4,3)  CHECK (sentiment_score BETWEEN 0 AND 1),  -- Gold: 전체 감성 점수
+    sentiment_label VARCHAR(10)   CHECK (sentiment_label IN ('positive', 'negative')),             -- Gold
+    aspect_sentiments JSONB,                                                                        -- Gold: ABSA {기호성|생체반응|...: 긍정|부정}
     pet_age_months  INT,
     pet_weight_kg   NUMERIC(5,2),
     pet_gender      VARCHAR(10),
     pet_breed       VARCHAR(100)
 );
 
-CREATE INDEX idx_review_goods_id  ON review(goods_id);
-CREATE INDEX idx_review_written   ON review(written_at DESC);
+CREATE INDEX idx_review_goods_id       ON review(goods_id);
+CREATE INDEX idx_review_written        ON review(written_at DESC);
+CREATE INDEX idx_review_aspect_senti   ON review USING GIN(aspect_sentiments);
 
 -- =============================================================
 -- CHAT_SESSION
