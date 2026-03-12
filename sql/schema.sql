@@ -7,31 +7,33 @@
 CREATE EXTENSION IF NOT EXISTS pgcrypto;
 
 -- =============================================================
--- USER
+-- USER  (auth 전용)
 -- =============================================================
 CREATE TABLE "user" (
-    user_id           UUID          PRIMARY KEY DEFAULT gen_random_uuid(),
-    email             VARCHAR(255)  NOT NULL UNIQUE,
-    password_hash     TEXT,
-    oauth_provider    VARCHAR(10)   CHECK (oauth_provider IN ('google', 'kakao', 'naver')),
-    name              VARCHAR(100)  NOT NULL,
-    age               INT,
-    gender            VARCHAR(20),
-    address           TEXT,
-    profile_image_url TEXT,
-    created_at        TIMESTAMPTZ   NOT NULL DEFAULT NOW()
+    user_id        UUID         PRIMARY KEY DEFAULT gen_random_uuid(),
+    email          VARCHAR(255) NOT NULL UNIQUE,
+    password_hash  TEXT,                                          -- 자체 가입: 필수, 소셜 가입: NULL
+    oauth_provider VARCHAR(10)  CHECK (oauth_provider IN ('google', 'kakao', 'naver')),  -- 소셜 가입: 필수, 자체 가입: NULL
+    created_at     TIMESTAMPTZ  NOT NULL DEFAULT NOW(),
+    is_active      BOOLEAN      NOT NULL DEFAULT TRUE,
+    CONSTRAINT chk_auth_method CHECK (
+        oauth_provider IS NOT NULL OR password_hash IS NOT NULL
+    )
 );
 
 -- =============================================================
--- USER_PREFERENCE
+-- USER_PROFILE  (온보딩에서 채움, 1:1)
 -- =============================================================
-CREATE TABLE user_preference (
-    preference_id  UUID         PRIMARY KEY DEFAULT gen_random_uuid(),
-    user_id        UUID         NOT NULL UNIQUE REFERENCES "user"(user_id) ON DELETE CASCADE,
-    response_style VARCHAR(10)  NOT NULL DEFAULT 'concise' CHECK (response_style IN ('concise', 'detailed')),
-    card_count     SMALLINT     NOT NULL DEFAULT 3          CHECK (card_count IN (1, 3, 5)),
-    save_history   BOOLEAN      NOT NULL DEFAULT TRUE,
-    language       VARCHAR(5)   NOT NULL DEFAULT 'ko'       CHECK (language IN ('ko', 'en'))
+CREATE TABLE user_profile (
+    user_id           UUID         PRIMARY KEY REFERENCES "user"(user_id) ON DELETE CASCADE,
+    nickname          VARCHAR(100) NOT NULL,                      -- OAuth provider에서 pre-fill
+    age               INT,
+    gender            VARCHAR(20),
+    address           TEXT,                                       -- 기본 배송지
+    phone             VARCHAR(20),
+    marketing_consent BOOLEAN      NOT NULL DEFAULT FALSE,
+    profile_image_url TEXT,
+    updated_at        TIMESTAMPTZ  NOT NULL DEFAULT NOW()
 );
 
 -- =============================================================
@@ -114,6 +116,20 @@ CREATE INDEX idx_product_brand        ON product(brand_name);
 CREATE INDEX idx_product_popularity   ON product(popularity_score DESC NULLS LAST);
 CREATE INDEX idx_product_trend        ON product(trend_score DESC NULLS LAST);
 CREATE INDEX idx_product_main_ingr    ON product USING GIN(main_ingredients);
+
+-- =============================================================
+-- PRODUCT_ADMIN_CONFIG  (어드민 추천 가중치 — 파이프라인 데이터와 분리)
+-- =============================================================
+CREATE TABLE product_admin_config (
+    id           UUID        PRIMARY KEY DEFAULT gen_random_uuid(),
+    goods_id     VARCHAR(20) NOT NULL UNIQUE REFERENCES product(goods_id) ON DELETE CASCADE,
+    admin_weight NUMERIC(5,2) NOT NULL DEFAULT 1.0,  -- 추천 상위 노출 가중치 (1.0=기본, >1.0=부스트)
+    pinned       BOOLEAN      NOT NULL DEFAULT FALSE,  -- 최상단 고정 여부
+    memo         TEXT,                                 -- 어드민 메모
+    updated_at   TIMESTAMPTZ  NOT NULL DEFAULT NOW()
+);
+
+CREATE INDEX idx_pac_goods_id ON product_admin_config(goods_id);
 
 -- =============================================================
 -- PRODUCT_CATEGORY_TAG
@@ -217,11 +233,13 @@ CREATE INDEX idx_cart_item_cart ON cart_item(cart_id);
 -- ORDER
 -- =============================================================
 CREATE TABLE "order" (
-    order_id    UUID        PRIMARY KEY DEFAULT gen_random_uuid(),
-    user_id     UUID        NOT NULL REFERENCES "user"(user_id) ON DELETE RESTRICT,
-    total_price INT         NOT NULL,
-    status      VARCHAR(15) NOT NULL DEFAULT 'pending' CHECK (status IN ('pending', 'completed', 'cancelled')),
-    created_at  TIMESTAMPTZ NOT NULL DEFAULT NOW()
+    order_id          UUID        PRIMARY KEY DEFAULT gen_random_uuid(),
+    user_id           UUID        NOT NULL REFERENCES "user"(user_id) ON DELETE RESTRICT,
+    recipient_name    VARCHAR(100) NOT NULL,                      -- 주문 시 스냅샷
+    delivery_address  TEXT        NOT NULL,                       -- 주문 시 스냅샷
+    total_price       INT         NOT NULL,
+    status            VARCHAR(15) NOT NULL DEFAULT 'pending' CHECK (status IN ('pending', 'completed', 'cancelled')),
+    created_at        TIMESTAMPTZ NOT NULL DEFAULT NOW()
 );
 
 CREATE INDEX idx_order_user_id ON "order"(user_id);

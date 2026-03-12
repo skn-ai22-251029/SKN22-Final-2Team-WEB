@@ -19,7 +19,6 @@ Silver reviews → Basic sentiment + ABSA → output/gold/sentiment/
 """
 
 import argparse
-import re
 import sys
 from datetime import datetime
 from pathlib import Path
@@ -67,9 +66,6 @@ def preprocess(text: str) -> str:
             .strip()
     )
 
-def split_sentences(text: str) -> list[str]:
-    return [s.strip() for s in re.split(r"[.!?]\s*", text) if s.strip()]
-
 def get_aspects(sentence: str) -> list[str]:
     return [asp for asp, kws in ASPECT_KEYWORDS.items() if any(kw in sentence for kw in kws)]
 
@@ -110,23 +106,20 @@ def run_basic(df: pd.DataFrame, clf) -> pd.DataFrame:
 
 
 def run_absa(df: pd.DataFrame, clf) -> pd.DataFrame:
-    """문장 단위 ABSA → absa.parquet 형식 DataFrame (행: 문장)"""
+    """리뷰 단위 ABSA → absa.parquet 형식 DataFrame (행: 리뷰)"""
     from tqdm import tqdm
     rows = []
     for _, row in tqdm(df.iterrows(), total=len(df), desc="ABSA"):
         review_id = str(row["review_id"])
-        sentences = split_sentences(preprocess(row["review_text"]))
-        for sent in sentences:
-            aspects = get_aspects(sent)
-            if not aspects:
-                continue
-            res = clf(sent[:512])[0]
-            label = "긍정" if res["label"] == "1" else "부정"
-            entry = {"review_id": review_id, "문장": sent}
-            for asp in ASPECT_COLS:
-                entry[asp] = label if asp in aspects else "-"
-            entry["종합_확신도"] = round(res["score"], 4)
-            rows.append(entry)
+        review = preprocess(row["review_text"])
+        aspects = get_aspects(review)
+        res = clf(review[:512])[0]
+        label = "긍정" if res["label"] == "1" else "부정"
+        entry = {"review_id": review_id, "문장": review}
+        for asp in ASPECT_COLS:
+            entry[asp] = label if asp in aspects else "-"
+        entry["종합_확신도"] = round(res["score"], 4)
+        rows.append(entry)
     return pd.DataFrame(rows)
 
 

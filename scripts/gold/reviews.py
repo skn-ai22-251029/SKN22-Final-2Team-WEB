@@ -41,7 +41,7 @@ GOLD_COLUMNS = [
 
 # ── ABSA 로드 ─────────────────────────────────────────────────────────────────
 
-def load_absa(path: str) -> dict[str, list] | None:
+def load_absa(path: str) -> dict[str, dict] | None:
     p = Path(path)
     if not p.exists():
         print(f"  ABSA 파일 없음: {p}")
@@ -49,16 +49,13 @@ def load_absa(path: str) -> dict[str, list] | None:
     df = pd.read_parquet(p)
     print(f"  ABSA 로드: {p} ({len(df):,}행)")
 
-    absa_map: dict[str, list] = {}
-    for review_id, group in df.groupby("review_id"):
-        rows = []
-        for _, row in group.iterrows():
-            entry = {"sentence": row.get("문장", "")}
-            for asp in ASPECT_COLS:
-                entry[asp] = row.get(asp, "-")
-            entry["종합_확신도"] = float(row.get("종합_확신도", 0))
-            rows.append(entry)
-        absa_map[str(review_id)] = rows
+    absa_map: dict[str, dict] = {}
+    for _, row in df.iterrows():
+        entry = {"sentence": row.get("문장", "")}
+        for asp in ASPECT_COLS:
+            entry[asp] = row.get(asp, "-")
+        entry["종합_확신도"] = float(row.get("종합_확신도", 0))
+        absa_map[str(row["review_id"])] = entry
 
     print(f"  ABSA review 수: {len(absa_map):,}개")
     return absa_map
