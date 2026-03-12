@@ -80,8 +80,10 @@ erDiagram
         boolean soldout_yn
         float   popularity_score    "log(review_count+1) × rating"
         float   trend_score         "최근 30일 리뷰 수 / 전체 리뷰 수"
-        jsonb   main_ingredients    "상품명 파싱 + OCR 추출 성분 키워드 배열"
-        text    ingredient_text_ocr "상세 이미지 OCR 원문 (nullable)"
+        jsonb   main_ingredients       "OCR 추출 원료 키워드 배열 (치킨|연어|오리 등)"
+        jsonb   ingredient_composition "원료명별 함량 (nullable, 식품류만)"
+        jsonb   nutrition_info         "영양성분 수치 (nullable, 식품류만)"
+        text    ingredient_text_ocr    "상세 이미지 OCR 원문 (nullable)"
         datetime crawled_at
     }
 
@@ -99,8 +101,9 @@ erDiagram
         string  author_nickname
         datetime written_at
         string  purchase_label      "first|repeat|null"
-        float   sentiment_score     "0.0~1.0 (Gold: 감성 분석)"
+        float   sentiment_score     "0.0~1.0 (Gold: 전체 문장 감성)"
         string  sentiment_label     "positive|negative|neutral"
+        jsonb   absa_result         "Gold: [{sentence, 기호성, 생체반응, 소화/배변, 제품 성상, 성분/원료, 냄새, 가격/구매, 배송/포장, 종합_확신도}]"
         int     pet_age_months      "nullable (7개월→7, 3살→36)"
         float   pet_weight_kg       "nullable"
         string  pet_gender          "nullable (수컷|암컷)"
@@ -297,8 +300,10 @@ erDiagram
   "soldout_yn":           "boolean         -- 품절 여부 (Bronze: data-soldoutyn)",
   "popularity_score":     "float           -- Gold 파생: log(review_count+1) × rating",
   "trend_score":          "float           -- Gold 파생: 최근 30일 리뷰 수 / 전체 리뷰 수",
-  "main_ingredients":     "string[]        -- Gold 파생: 상품명 키워드 추출 + OCR (치킨|연어|오리|소고기 등)",
-  "ingredient_text_ocr":  "string | null   -- Gold 파생: indexGoodsDetail img[src*='editor/goods_desc/'] OCR 원문 (식품류만)",
+  "main_ingredients":        "string[]       -- Gold 파생: OCR 추출 원료 키워드 배열 (치킨|연어|오리|소고기 등, 식품류만)",
+  "ingredient_composition":  "object | null  -- Gold 파생: {원료명: 함량%} (식품류만, LLM 파싱)",
+  "nutrition_info":           "object | null  -- Gold 파생: {영양성분명: 수치} (식품류만, LLM 파싱)",
+  "ingredient_text_ocr":     "string | null  -- Gold 파생: indexGoodsDetail img[src*='editor/goods_desc/'] OCR 원문 (식품류만)",
   "crawled_at":           "datetime"
 }
 ```
@@ -328,8 +333,9 @@ erDiagram
   "author_nickname":  "string          -- 작성자 닉네임",
   "written_at":       "date            -- 작성일 (Silver: YYYY.MM.DD 파싱)",
   "purchase_label":   "string | null   -- first | repeat (Bronze 직접 수집)",
-  "sentiment_score":  "float | null    -- Gold 파생: 0.0~1.0 한국어 감성 분석",
+  "sentiment_score":  "float | null    -- Gold 파생: 0.0~1.0 전체 문장 감성",
   "sentiment_label":  "string | null   -- Gold 파생: positive | negative | neutral",
+  "absa_result":      "array | null    -- Gold 파생: [{sentence, 기호성, 생체반응, 소화/배변, 제품 성상, 성분/원료, 냄새, 가격/구매, 배송/포장, 종합_확신도}]",
   "pet_age_months":   "int | null      -- Silver 파싱: 7개월→7, 3살→36",
   "pet_weight_kg":    "float | null    -- Silver 파싱: 2.5kg→2.5",
   "pet_gender":       "string | null   -- 수컷 | 암컷",

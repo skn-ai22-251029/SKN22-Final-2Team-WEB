@@ -47,5 +47,8 @@ logs/
 # AWS
 .aws/
 
+# GCP / 기타 인증 키
+.secrets/
+
 # Crawling output (로컬 데이터, S3 업로드 전)
 output/
