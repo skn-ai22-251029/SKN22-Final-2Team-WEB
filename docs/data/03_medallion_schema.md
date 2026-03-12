@@ -5,7 +5,55 @@
 
 ---
 
-## 개요
+## 파이프라인 흐름
+
+```mermaid
+flowchart TD
+    subgraph Bronze["🟫 Bronze 수집"]
+        B1[bronze/goods.py] --> BO1[(bronze/goods/<br>YYYYMMDD_goods.parquet)]
+        B2[bronze/detail_images.py] --> BO1
+        B3[bronze/reviews.py] --> BO2[(bronze/reviews/<br>YYYYMMDD_reviews.parquet)]
+    end
+
+    subgraph Silver["🥈 Silver 정제"]
+        BO1 --> S1[silver/goods.py]
+        S1 --> SO1[(silver/goods/<br>YYYYMMDD_goods_silver.parquet)]
+        BO2 --> S2[silver/reviews.py]
+        S2 --> SO2[(silver/reviews/<br>YYYYMMDD_reviews_silver.parquet)]
+    end
+
+    subgraph Gold["🥇 Gold 증강"]
+        SO1 --> G1[gold/ocr.py]
+        G1 --> GO1[(gold/ocr/<br>YYYYMMDD_ocr.parquet)]
+        GO1 --> G2[gold/ingredients.py]
+        G2 --> GO2[(gold/ingredients/<br>YYYYMMDD_ingredients.parquet)]
+
+        SO1 --> G3[gold/goods.py]
+        GO1 --> G3
+        GO2 --> G3
+        SO2 --> G3
+        G3 --> GO3[(gold/goods/<br>YYYYMMDD_goods_gold.parquet)]
+
+        SO2 --> G5[gold/sentiment.py]
+        G5 --> GO5[(gold/sentiment/<br>YYYYMMDD_basic.parquet)]
+        G5 --> GO6[(gold/sentiment/<br>YYYYMMDD_absa.parquet)]
+
+        SO2 --> G4[gold/reviews.py]
+        GO5 --> G4
+        GO6 --> G4
+        G4 --> GO4[(gold/reviews/<br>YYYYMMDD_reviews_gold.parquet)]
+    end
+
+    subgraph DB["📦 적재"]
+        GO3 --> P[(PostgreSQL<br>PRODUCT / PRODUCT_CATEGORY_TAG)]
+        GO4 --> R[(PostgreSQL<br>REVIEW)]
+        GO3 --> Q[(Qdrant<br>Hybrid Search)]
+    end
+```
+
+---
+
+## 스키마 상세
 
 ```mermaid
 classDiagram
@@ -92,6 +140,8 @@ classDiagram
     class GoldGoods["🥇 gold/goods  (silver 전체 + 증강)"] {
         string[]  health_concern_tags
         string[]  main_ingredients
+        object    ingredient_composition
+        object    nutrition_info
         string    ingredient_text_ocr
         float     popularity_score
         float     trend_score
@@ -101,6 +151,7 @@ classDiagram
     class GoldReviews["🥇 gold/reviews  (silver 전체 + 증강)"] {
         float   sentiment_score
         string  sentiment_label
+        jsonb   absa_result
         timestamp processed_at
     }
 
@@ -118,6 +169,8 @@ classDiagram
         float   popularity_score
         float   trend_score
         jsonb   main_ingredients
+        jsonb   ingredient_composition
+        jsonb   nutrition_info
         text    ingredient_text_ocr
         timestamp crawled_at
     }
@@ -138,6 +191,7 @@ classDiagram
         string  purchase_label
         float   sentiment_score
         string  sentiment_label
+        jsonb   absa_result
         int     pet_age_months
         float   pet_weight_kg
         string  pet_gender
@@ -159,10 +213,11 @@ classDiagram
         string  thumbnail_url
     }
 
-    BronzeGoods  --> SilverGoods   : dedup · 타입변환 · 평점÷2
-    BronzeReviews --> SilverReviews : 중복제거 · 날짜·수치 파싱
-    SilverGoods  --> GoldGoods     : 태그매핑 · OCR · 추천신호
-    SilverReviews --> GoldReviews  : 감성분석
+    BronzeGoods   --> SilverGoods    : silver/goods.py
+    BronzeReviews --> SilverReviews  : silver/reviews.py
+    SilverGoods   --> GoldGoods      : gold/ocr.py → gold/ingredients.py → gold/goods.py
+    SilverReviews --> GoldGoods      : trend_score
+    SilverReviews --> GoldReviews    : gold/reviews.py
     GoldGoods    --> PRODUCT       : goods
     GoldGoods    --> PRODUCT_CATEGORY_TAG : tags → 1행씩
     GoldReviews  --> REVIEW        : reviews
@@ -285,7 +340,9 @@ Silver goods에 추천 신호 및 증강 컬럼 추가.
 |---|---|---|
 | *(silver 컬럼 전체 포함)* | | |
 | `health_concern_tags` | string[] | `disp_clsf_nos` → 키워드 매핑 규칙 (아래 표 참고) |
-| `main_ingredients` | string[] | 상품명에서 원료 키워드 추출 (치킨\|연어\|오리\|소고기\|참치\|양고기\|오리\|칠면조 등) |
+| `main_ingredients` | string[] | OCR 원재료 섹션에서 추출한 원료 키워드 배열 (치킨\|연어\|오리 등, 식품류만) |
+| `ingredient_composition` | object\|null | `{원료명: 함량%}` — OCR 원재료명 및 함량 섹션 LLM 파싱 (식품류만) |
+| `nutrition_info` | object\|null | `{영양성분명: 수치}` — OCR 영양성분 섹션 LLM 파싱 (식품류만) |
 | `ingredient_text_ocr` | string\|null | `silver.detail_image_urls` 이미지 OCR 결과 원문 (식품류만 존재) |
 | `popularity_score` | float | `log(review_count + 1) × rating_5pt` |
 | `trend_score` | float | 최근 30일 리뷰 수 / 전체 리뷰 수 (`silver/reviews` sysRegDtm 기준) |
@@ -312,8 +369,9 @@ Silver reviews에 감성 분석 결과 추가.
 | 컬럼 | 타입 | 도출 방법 |
 |---|---|---|
 | *(silver 컬럼 전체 포함)* | | |
-| `sentiment_score` | float | 한국어 감성 분석 모델 (0.0~1.0) |
+| `sentiment_score` | float | 전체 문장 감성 모델 (0.0~1.0) |
 | `sentiment_label` | string | `positive` / `negative` / `neutral` |
+| `absa_result` | jsonb\|null | 문장별 관점 감성 배열 `[{sentence, 기호성, 생체반응, ...}]` |
 | `processed_at` | timestamp | |
 
 ---
@@ -335,6 +393,8 @@ Silver reviews에 감성 분석 결과 추가.
 | `popularity_score` | `PRODUCT.popularity_score` |
 | `trend_score` | `PRODUCT.trend_score` |
 | `main_ingredients` | `PRODUCT.main_ingredients` (JSONB) |
+| `ingredient_composition` | `PRODUCT.ingredient_composition` (JSONB) |
+| `nutrition_info` | `PRODUCT.nutrition_info` (JSONB) |
 | `ingredient_text_ocr` | `PRODUCT.ingredient_text_ocr` |
 | `health_concern_tags[i]` | `PRODUCT_CATEGORY_TAG.tag` (1행씩 insert) |
 | `review_id` | `REVIEW.review_id` |
@@ -346,6 +406,7 @@ Silver reviews에 감성 분석 결과 추가.
 | `purchase_label` | `REVIEW.purchase_label` |
 | `sentiment_score` | `REVIEW.sentiment_score` |
 | `sentiment_label` | `REVIEW.sentiment_label` |
+| `absa_result` | `REVIEW.absa_result` (JSONB) |
 | `pet_age_months` | `REVIEW.pet_age_months` |
 | `pet_weight_kg` | `REVIEW.pet_weight_kg` |
 | `pet_gender` | `REVIEW.pet_gender` |

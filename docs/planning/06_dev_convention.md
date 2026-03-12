@@ -116,7 +116,59 @@ data(crawl): Playwright 어바웃펫 상품 수집 스크립트 추가
 
 ---
 
-## 5. 기술 스택 문서화
+## 5. 이슈 컨벤션
+
+### 이슈 제목 형식
+
+```
+[prefix] 설명
+```
+
+| prefix 유형 | 예시 |
+|---|---|
+| 담당 영역 | `[frontend]`, `[backend]`, `[ai]`, `[infra]`, `[data]` |
+| 평가 단계 (산출물) | `[기획]`, `[데이터 수집 및 저장]`, `[데이터 전처리]`, `[모델링 및 평가]`, `[모델 배포]`, `[발표 및 시연]` |
+
+### 라벨 구성
+
+> 상세: `planning/label_scheme.md`
+
+이슈 등록 시 **Scope + Type** 조합 필수 라벨링.
+
+| 유형 | 라벨 |
+|---|---|
+| Scope | `frontend` `backend` `ai` `infra` `data` |
+| Type | `feat` `fix` `docs` `refactor` `test` `chore` |
+| Status | `blocked` `wontfix` |
+| Special | `artifact` (평가 산출물), `sprint` (현재 스프린트) |
+
+**예시**: 챗봇 인터페이스 구현 이슈 → `frontend` + `feat`
+
+### 마일스톤
+
+| 마일스톤 | 기간 | 대상 주차 |
+|---|---|---|
+| 1. 기획/시스템설계 주간 | 1~2주차 | 설계·문서·환경 세팅 |
+| 2. 구현 주간1 | 3~4주차 | 인증·프로필·파이프라인·챗봇 뼈대 |
+| 3. 구현 주간2 | 5~6주차 | 추천·RAG·장바구니·기능 고도화 |
+| 4. 테스트/발표 주간 | 7~8주차 | 어드민·CI/CD·QA·마무리 |
+
+### 칸반 보드 Status
+
+| Status | 설명 |
+|---|---|
+| Backlog | 등록되었으나 아직 시작 전 |
+| Ready | 착수 가능 (선행 이슈 완료) |
+| In Progress | 현재 작업 중 |
+| In Review | PR 리뷰 중 |
+| Done | 완료 |
+
+- 이슈 등록 시 기본값: **Backlog**
+- 작업 시작 시 직접 **In Progress** 로 이동
+
+---
+
+## 6. 기술 스택 문서화
 
 > 상세 기술 스택은 `planning/03_requirements_spec.md` 섹션 2-1 참고.
 
