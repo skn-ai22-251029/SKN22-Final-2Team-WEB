@@ -120,7 +120,7 @@ erDiagram
 
     CHAT_SESSION {
         uuid    session_id      PK
-        uuid    user_id         FK  "nullable(guest)"
+        uuid    user_id         FK
         uuid    target_pet_id   FK  "nullable"
         string  title
         datetime created_at
@@ -135,16 +135,9 @@ erDiagram
         datetime created_at
     }
 
-    MESSAGE_PRODUCT_CARD {
-        uuid    id              PK
-        uuid    message_id      FK
-        string  goods_id        FK
-        string  reason
-    }
-
     CART {
         uuid    cart_id         PK
-        uuid    user_id         FK  "nullable(guest=session)"
+        uuid    user_id         FK
         datetime updated_at
     }
 
@@ -191,7 +184,7 @@ erDiagram
     }
 
     USER            ||--o{ PET                  : "1:N"
-    USER            ||--||  USER_PROFILE         : "1:1(온보딩 필수)"
+    USER            ||--o|  USER_PROFILE         : "1:1(optional before onboarding)"
     USER            ||--o{ CHAT_SESSION          : "1:N"
     USER            ||--o|  CART                 : "1:1"
     USER            ||--o{ ORDER                 : "1:N"
@@ -204,12 +197,9 @@ erDiagram
     CHAT_SESSION    ||--o{ CHAT_MESSAGE          : "1:N"
     CHAT_SESSION    }o--o|  PET                  : "N:1(optional)"
 
-    CHAT_MESSAGE    ||--o{ MESSAGE_PRODUCT_CARD  : "1:N"
-
     PRODUCT         ||--o{ PRODUCT_CATEGORY_TAG  : "1:N"
     PRODUCT         ||--o|  PRODUCT_ADMIN_CONFIG  : "1:1(optional)"
     PRODUCT         ||--o{ REVIEW               : "1:N"
-    PRODUCT         ||--o{ MESSAGE_PRODUCT_CARD  : "1:N"
     PRODUCT         ||--o{ CART_ITEM             : "1:N"
     PRODUCT         ||--o{ ORDER_ITEM            : "1:N"
     PRODUCT         ||--o{ PET_USED_PRODUCT      : "1:N"
@@ -241,7 +231,8 @@ erDiagram
 
 ### USER_PROFILE
 
-> 온보딩 필수 완료 항목. 미완료 시 앱에서 온보딩 페이지로 폴백.
+> 온보딩 완료 시 생성되는 1:1 프로필 엔티티.
+> 로그인만 완료된 회원은 `user`만 존재할 수 있으며, `user_profile`이 생성되기 전까지 채팅/장바구니/구매 기능을 사용할 수 없다.
 
 ```json
 {
@@ -283,6 +274,8 @@ erDiagram
 ```
 
 ## 3. Chat Session
+
+> 온보딩이 완료되어 `user_profile`이 생성된 회원만 사용할 수 있다.
 
 ```json
 {
@@ -398,10 +391,12 @@ erDiagram
 
 ## 7. Cart
 
+> 온보딩이 완료되어 `user_profile`이 생성된 회원만 사용할 수 있다.
+
 ```json
 {
   "cart_id":    "uuid",
-  "user_id":    "uuid",    // FK → USER. 1인 1카트
+  "user_id":    "uuid",    // FK → USER. 온보딩 완료 회원 기준 1인 1카트
   "items": [
     {
       "goods_id":      "string",
@@ -417,6 +412,8 @@ erDiagram
 ```
 
 ## 8. Order
+
+> 온보딩이 완료되어 `user_profile`이 생성된 회원만 사용할 수 있다.
 
 ```json
 {
