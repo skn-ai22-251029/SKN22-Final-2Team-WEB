@@ -19,6 +19,9 @@ from pathlib import Path
 import pandas as pd
 from playwright.async_api import async_playwright
 
+import sys
+from pathlib import Path
+sys.path.insert(0, str(Path(__file__).parent.parent))
 from config import (
     BASE_URL,
     CHECKPOINT_DETAIL_IMAGES,
