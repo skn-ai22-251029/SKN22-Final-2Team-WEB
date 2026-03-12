@@ -149,6 +149,7 @@ CREATE TABLE review (
 
 CREATE INDEX idx_review_goods_id  ON review(goods_id);
 CREATE INDEX idx_review_written   ON review(written_at DESC);
+CREATE INDEX idx_review_absa      ON review USING GIN(absa_result);
 
 -- =============================================================
 -- CHAT_SESSION
