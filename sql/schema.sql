@@ -103,8 +103,10 @@ CREATE TABLE product (
     soldout_yn          BOOLEAN        NOT NULL DEFAULT FALSE,
     popularity_score    NUMERIC(10,4),                       -- Gold 파생
     trend_score         NUMERIC(6,4),                        -- Gold 파생
-    main_ingredients    JSONB,                               -- Gold 파생, 식품류만
-    ingredient_text_ocr TEXT,                               -- Gold 파생, OCR 원문
+    main_ingredients        JSONB,                           -- Gold 파생, 식품류만 (원료 키워드 배열)
+    ingredient_composition  JSONB,                           -- Gold 파생, 식품류만 (원료명: 함량%)
+    nutrition_info          JSONB,                           -- Gold 파생, 식품류만 (영양성분명: 수치)
+    ingredient_text_ocr     TEXT,                            -- Gold 파생, OCR 원문
     crawled_at          TIMESTAMPTZ    NOT NULL
 );
 
@@ -136,8 +138,9 @@ CREATE TABLE review (
     author_nickname VARCHAR(100)  NOT NULL,
     written_at      DATE          NOT NULL,
     purchase_label  VARCHAR(10)   CHECK (purchase_label IN ('first', 'repeat')),
-    sentiment_score NUMERIC(4,3)  CHECK (sentiment_score BETWEEN 0 AND 1),  -- Gold
+    sentiment_score NUMERIC(4,3)  CHECK (sentiment_score BETWEEN 0 AND 1),  -- Gold: 전체 문장 감성
     sentiment_label VARCHAR(10)   CHECK (sentiment_label IN ('positive', 'negative', 'neutral')),  -- Gold
+    absa_result     JSONB,                                                   -- Gold: ABSA 문장별 관점 감성 배열
     pet_age_months  INT,
     pet_weight_kg   NUMERIC(5,2),
     pet_gender      VARCHAR(10),

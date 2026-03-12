@@ -19,12 +19,13 @@ Bronze goods parquet → Silver goods parquet
 import argparse
 import json
 import re
+import sys
 from datetime import datetime
 from pathlib import Path
 
-import pandas as pd
+sys.path.insert(0, str(Path(__file__).parent.parent))
 
-from config import CHECKPOINT_DETAIL_IMAGES
+import pandas as pd
 
 # ── 상수 ──────────────────────────────────────────────────────────────────────
 
@@ -282,16 +283,6 @@ SILVER_COLUMNS = [
 
 # ── 메인 ──────────────────────────────────────────────────────────────────────
 
-def load_detail_images(checkpoint_path: str) -> dict[str, list[str]]:
-    """checkpoint_detail_images.json → {goods_id: [url, ...]}"""
-    p = Path(checkpoint_path)
-    if not p.exists():
-        print(f"  [경고] 상세 이미지 체크포인트 없음: {checkpoint_path}")
-        return {}
-    with open(p) as f:
-        return json.load(f)
-
-
 def main(input_path: str) -> None:
     print(f"[etl_silver_goods] 시작 — {datetime.now().strftime('%H:%M:%S')}")
     print(f"  입력: {input_path}")
@@ -299,15 +290,6 @@ def main(input_path: str) -> None:
     # 로드
     df_bronze = pd.read_parquet(input_path)
     print(f"  Bronze 행 수: {len(df_bronze):,}  (unique goods_id: {df_bronze['goods_id'].nunique():,})")
-
-    # 상세 이미지 체크포인트 → Bronze에 merge
-    detail_images = load_detail_images(CHECKPOINT_DETAIL_IMAGES)
-    if detail_images:
-        df_bronze["detail_image_urls"] = df_bronze["goods_id"].map(
-            lambda gid: detail_images.get(gid, [])
-        )
-        filled = (df_bronze["detail_image_urls"].apply(len) > 0).sum()
-        print(f"  상세 이미지 로드: {len(detail_images):,}개 goods → {filled:,}행 적용")
 
     # Step 1: goods_id별 집계
     print("\n[1/5] goods_id 집계 중...")

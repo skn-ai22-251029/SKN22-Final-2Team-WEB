@@ -18,10 +18,10 @@ MAX_RETRIES = 3              # 요청 실패 시 최대 재시도 횟수
 
 # ── 출력 경로 ─────────────────────────────────────────────
 OUTPUT_DIR = "output/bronze"
-CHECKPOINT_GOODS = "output/checkpoint_goods.json"
-CHECKPOINT_DETAIL_IMAGES = "output/checkpoint_detail_images.json"
-CHECKPOINT_REVIEWS    = "output/checkpoint_reviews.json"
-CHECKPOINT_REVIEWS_GP = "output/checkpoint_reviews_gp.json"
+CHECKPOINT_GOODS          = "output/checkpoints/checkpoint_goods.json"
+CHECKPOINT_DETAIL_IMAGES  = "output/checkpoints/checkpoint_detail_images.json"
+CHECKPOINT_REVIEWS        = "output/checkpoints/checkpoint_reviews.json"
+CHECKPOINT_REVIEWS_GP     = "output/checkpoints/checkpoint_reviews_gp.json"
 
 # ── 카테고리 목록 (소분류 106개) ──────────────────────────
 # (cate_cd_l, cate_cd_m, disp_clsf_no, 소분류명)

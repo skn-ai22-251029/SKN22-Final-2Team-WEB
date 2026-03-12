@@ -39,6 +39,9 @@ from bs4 import BeautifulSoup
 from playwright.async_api import async_playwright
 from tqdm.asyncio import tqdm
 
+import sys
+from pathlib import Path
+sys.path.insert(0, str(Path(__file__).parent.parent))
 from config import (
     BASE_URL,
     CHECKPOINT_REVIEWS,
