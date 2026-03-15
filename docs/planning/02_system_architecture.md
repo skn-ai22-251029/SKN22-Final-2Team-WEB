@@ -41,16 +41,13 @@ flowchart TD
         direction LR
         PG[("PostgreSQL<br>user · pet · order<br>goods · review")]
         QDRANT[("Qdrant<br>Vector DB<br>Hybrid Search + RRF")]
-        S3[("AWS S3<br>Medallion<br>Bronze / Silver / Gold")]
     end
 
     subgraph PIPELINE["🔄 Data Pipeline"]
         direction LR
         ABOUTPET["어바웃펫<br>aboutpet.co.kr"]
         PW["Playwright<br>크롤링"]
-        NAVER["네이버 DataLab API<br>트렌드 수집"]
-        AIRFLOW["Apache Airflow<br>DAG 오케스트레이션"]
-        DUCKDB["DuckDB<br>S3 Parquet 분석"]
+        PREPROCESS["전처리 파이프라인<br>Bronze → Silver → Gold"]
     end
 
     subgraph MONITORING["📊 Monitoring"]
@@ -79,12 +76,9 @@ flowchart TD
 
     %% 데이터 파이프라인
     PW --> ABOUTPET
-    PW --> S3
-    NAVER --> AIRFLOW
-    AIRFLOW --> S3
-    S3 --> PG
-    S3 --> QDRANT
-    S3 --> DUCKDB
+    PW --> PREPROCESS
+    PREPROCESS --> PG
+    PREPROCESS --> QDRANT
 
     %% 모니터링
     DJANGO --> LOKI
@@ -114,8 +108,8 @@ flowchart TD
     class DJANGO,FASTAPI backend
     class LANGGRAPH,LLM ai
     class YOLO,STT multimodal
-    class PG,QDRANT,S3 db
-    class ABOUTPET,PW,NAVER,AIRFLOW,DUCKDB pipeline
+    class PG,QDRANT db
+    class ABOUTPET,PW,PREPROCESS pipeline
     class PROM,LOKI,GRAFANA monitoring
     class JENKINS infra
 ```
@@ -161,24 +155,17 @@ flowchart TD
   Playwright
       │
       ▼
-[Bronze Layer]  S3 (Parquet) ── 원시 데이터 보존
+[Bronze]  원시 크롤링 데이터 (로컬 Parquet)
       │
       ▼
-[Silver Layer]  S3 (Parquet) ── 정제 · 정규화
+[Silver]  정제 · 정규화 (HTML 제거, 인코딩, 중복 제거)
       │
       ▼
-[Gold Layer]    S3 (Parquet) ── 메타데이터 증강
-  (알레르기 태그, 건강 관심사 매핑, 리뷰 감성 점수, LLM 요약)
+[Gold]    분석 및 추천 신호 파생
+  (OCR, 감성 분석, ABSA, popularity_score, trend_score, 건강 관심사 태그)
       │
       ├──► PostgreSQL  (관계형 서빙 DB)
       └──► Qdrant      (벡터 임베딩 인덱싱)
-
-[Airflow DAG]  트렌드 수집 오케스트레이션
-  daily_trend_dag    : 네이버 DataLab + 어바웃펫 인기 랭킹
-  weekly_review_dag  : 신규 리뷰 + 리뷰 급증 상품 감지
-  monthly_weight_dag : 계절성 가중치 갱신 + 추천 가중치 재계산
-
-[DuckDB]  S3 Parquet 분석 쿼리 (어드민 대시보드 · 데이터 분석)
 ```
 
 ---
@@ -188,7 +175,7 @@ flowchart TD
 ```
 [AWS]
   ├── EC2          앱 서버 (Docker Compose)
-  ├── S3           데이터 레이크 (Medallion Bronze/Silver/Gold)
+  ├── S3           이미지 스토리지 (펫 프로필, OCR 원본)
   ├── IAM          최소 권한 원칙
   └── Secrets Manager  API 키 · DB 접속 정보
 
@@ -199,7 +186,6 @@ flowchart TD
   ├── nginx        리버스 프록시 / LB
   ├── postgres     PostgreSQL 16
   ├── qdrant       Vector DB
-  ├── airflow      DAG 오케스트레이션
   ├── prometheus   메트릭 수집
   ├── grafana      모니터링 대시보드
   └── loki         로그 수집

@@ -68,13 +68,11 @@
 | NFR-001 | 성능 | NF-PERF-03 | 브라우저 지원 | Chrome 최신, Safari 최신. 모바일 미지원 (프로토타입, 데스크탑 우선). |
 | NFR-002 | 데이터 수집 | NF-DATA-01 | 크롤링 대상 | 어바웃펫(aboutpet.co.kr) 전체 카테고리 (강아지/고양이, 소분류 98개). 수집 항목: 상품 정보, 평점, 리뷰, 원산지, 제조사. |
 | NFR-002 | 데이터 수집 | NF-DATA-02 | 크롤링 방식 | **Playwright** 사용 (JS 동적 렌더링 대응). 요청 간 딜레이 설정으로 서버 부하 방지. goodsId 기준 중복 제거. |
-| NFR-002 | 데이터 수집 | NF-DATA-03 | 데이터 갱신 주기 | 상품 데이터 갱신은 Playwright 크롤링 파이프라인에서 별도 처리. Airflow DAG는 트렌드 수집 전용으로 운영. |
-| NFR-002 | 데이터 수집 | NF-DATA-04 | 트렌드 수집 소스 | ① **어바웃펫 인기 랭킹** 크롤링 (Playwright, 상품 랭킹 변화 추적). ② **네이버 DataLab API** (공식 무료 API, 반려동물 검색어 트렌드). ③ **계절성** 날짜 기반 규칙 처리 (별도 수집 없음). |
-| NFR-002 | 데이터 수집 | NF-DATA-05 | 트렌드 DAG 구성 | `daily_trend_dag`: 네이버 DataLab + 어바웃펫 인기 랭킹. `weekly_review_dag`: 신규 리뷰 수집 + 리뷰 급증 상품 감지. `monthly_weight_dag`: 계절성 가중치 갱신 + 추천 가중치 재계산 → PostgreSQL / Qdrant 반영. |
+| NFR-002 | 데이터 수집 | NF-DATA-03 | 데이터 갱신 주기 | 상품 데이터 갱신은 Playwright 크롤링 파이프라인에서 별도 처리. |
 | NFR-003 | 데이터 전처리 | NF-PREP-01 | 텍스트 정제 | 크롤링 수집 데이터의 HTML 태그 제거, 특수문자 정규화, 인코딩 처리. |
 | NFR-003 | 데이터 전처리 | NF-PREP-02 | 리뷰 데이터 전처리 | 리뷰 텍스트 노이즈 제거, 중복 리뷰 필터링. 추천 모델 학습용 레이블링 전략 수립 필요 (시계열 판매 실적 데이터의 특정 기간 라벨링 여부 TBD). |
 | NFR-003 | 데이터 전처리 | NF-PREP-03 | 벡터 임베딩 | 상품 정보 + 리뷰 텍스트를 임베딩 모델로 벡터화하여 **Qdrant**에 인덱싱. Dense + Sparse 벡터 저장, Hybrid Search (RRF) RAG 검색에 활용. |
-| NFR-003 | 데이터 전처리 | NF-PREP-04 | 데이터 레이어 구조 (Medallion) | **Bronze → Silver → Gold** 3단계 레이어 구조 적용. Bronze: 원시 크롤링 데이터 (S3 Parquet). Silver: 정제·정규화 데이터. Gold: 메타데이터 증강 데이터 (성분 기반 알레르기 태그, 건강 관심사 매핑, 리뷰 감성 점수, LLM 요약 등). Airflow DAG 오케스트레이션. DuckDB로 S3 Parquet 직접 쿼리 (BigQuery 모방). |
+| NFR-003 | 데이터 전처리 | NF-PREP-04 | 데이터 전처리 레이어 (Medallion) | **Bronze → Silver → Gold** 3단계 전처리 파이프라인. Bronze: 원시 크롤링 데이터. Silver: 정제·정규화 (HTML 제거, 인코딩, 중복 제거). Gold: 분석 및 추천 신호 파생 (OCR, 감성 분석, ABSA, popularity_score, trend_score, 건강 관심사 태그). 결과물은 PostgreSQL 및 Qdrant에 직접 적재. |
 | NFR-004 | 추천 시스템 | NF-REC-01 | 추천 알고리즘 | Matrix Factorization (MF), Factorization Machines (FM), 딥러닝 기반 추천 모델 중 선택 또는 앙상블. 추천 시스템 조사 및 비교 후 결정. |
 | NFR-004 | 추천 시스템 | NF-REC-02 | 추천 입력 데이터 | 유저 프로필(종, 나이, 건강 관심사, 알레르기, 예산), 상품 리뷰 텍스트, 리뷰 평점 활용. |
 | NFR-004 | 추천 시스템 | NF-REC-03 | 추천 메타데이터 | 시계열 판매 실적 데이터, 클릭 로그, 클릭 후 구매 전환 로그를 추천 모델 보조 피처로 활용. |
@@ -90,7 +88,7 @@
 | NFR-007 | 모니터링 | NF-MON-01 | 시스템 모니터링 | Prometheus + Grafana를 활용하여 API 응답 시간, 서버 리소스, 에러율 등 전체 시스템 지표 수집 및 대시보드 시각화. |
 | NFR-007 | 모니터링 | NF-MON-02 | 로그 수집 및 검색 | **Grafana Loki** 활용. 애플리케이션 로그, LLM 요청/응답 로그, 추천 결과 로그 수집. Prometheus + Grafana와 동일 스택으로 통합 운영. OpenSearch 대비 메모리 사용량 대폭 절감. |
 | NFR-007 | 모니터링 | NF-MON-03 | LLM 품질 모니터링 | 사용자 질의응답 내역 리스트 조회. 응답 품질 좋아요/싫어요 집계. 어드민 페이지에서 확인 가능. |
-| NFR-007 | 모니터링 | NF-MON-04 | 데이터 파이프라인 모니터링 | Airflow DAG 실행 현황 및 실패 알림. 크롤링 수집량, 전처리 완료량 지표 추적. |
+| NFR-007 | 모니터링 | NF-MON-04 | 데이터 파이프라인 모니터링 | 크롤링 수집량, 전처리 완료량 지표 추적. |
 | NFR-007 | 모니터링 | NF-MON-05 | 보안 감사 로그 | 회원 탈퇴, 데이터 초기화, 주요 설정 변경 등 민감 액션에 대한 이력 관리. Loki에 별도 감사 로그 스트림으로 수집. |
 | NFR-008 | 보안 | NF-SEC-01 | 인증 및 세션 관리 | JWT 기반 인증. HTTPS 통신 필수. 토큰 만료 및 갱신 처리. 로그아웃 시 토큰 즉시 폐기. |
 | NFR-008 | 보안 | NF-SEC-02 | PII 마스킹 | 사용자 입력 및 LLM 응답 내 개인정보(이름·연락처·주소 등) 마스킹 처리. 로그에 PII 미포함. |
@@ -103,7 +101,7 @@
 | NFR-009 | 인프라 | NF-INFRA-05 | 부하 분산 (LB) | 트래픽 증가 시 챗봇 서비스 가용성 확보를 위한 로드 밸런싱 적용. **Nginx** 확정. |
 | NFR-009 | 인프라 | NF-INFRA-06 | 레이턴시 최적화 | RAG 기반 상품 추천 응답 속도 최적화. Qdrant 검색 + LLM 호출 구간별 타임아웃 관리. 병목 구간 프로파일링 및 캐싱 전략 수립. |
 | NFR-009 | 인프라 | NF-INFRA-02 | CI/CD | CI 전략 수립 (테스트 자동화 포함). CD는 Jenkins 또는 Crontab 기반 자동 배포. 전략 TBD. |
-| NFR-009 | 인프라 | NF-INFRA-03 | 데이터 파이프라인 오케스트레이션 | Apache Airflow를 활용한 DAG 기반 배치 파이프라인 운영. 일 배치 및 월 배치 스케줄 정의. |
+
 | NFR-011 | 데이터 관리 | NF-DM-01 | 실시간 데이터 동기화 | 반려동물 프로필 변경 시 챗봇 시스템 프롬프트에 실시간 반영. 프로필 업데이트 이벤트 발생 시 세션 컨텍스트 즉시 갱신. |
 | NFR-011 | 데이터 관리 | NF-DM-02 | 대화 이력 보존 및 요약 | 대화 세션별 토큰 제한 초과 시 이전 대화 요약본 저장 및 컨텍스트 유지. 요약 전략 및 Max Token 기준 TBD. |
 | NFR-011 | 데이터 관리 | NF-DM-03 | 구매 및 주문 데이터 정합성 | 구매 완료 후 주문 내역을 PostgreSQL에 안전하게 저장. 트랜잭션 처리 및 실패 시 롤백 보장. 주문 이력 조회 기능 제공. |
@@ -157,15 +155,13 @@
 |---|---|---|
 | PostgreSQL on EC2 (Docker) | 관계형 데이터 (user, pet, order, goods, review) | 확정 |
 | Qdrant | Vector DB, Hybrid Search (Dense + Sparse) + RRF | 확정 |
-| AWS S3 (Parquet) | 데이터 레이크 (Medallion Bronze / Silver / Gold) | 확정 |
+| AWS S3 | 이미지 스토리지 (펫 프로필, OCR 원본) | 확정 |
 
 ### Data Pipeline - 임도형
 
 | 기술 | 용도 | 상태 |
 |---|---|---|
 | Playwright | 어바웃펫 크롤링 | 확정 |
-| Apache Airflow | DAG 기반 트렌드 수집 오케스트레이션 | 확정 |
-| DuckDB | S3 Parquet 분석 쿼리 (BigQuery 모방) | 확정 |
 
 ### Infra / DevOps - 임도형
 

@@ -1,7 +1,7 @@
-# S3 Medallion 스키마 정의
+# 전처리 파이프라인 스키마 정의
 
-> **범위**: Bronze → Silver → Gold S3 Parquet 레이어 컬럼 정의
-> 각 레이어는 `s3://bucket/{layer}/{table}/` 경로에 Parquet로 저장
+> **범위**: Bronze → Silver → Gold 전처리 레이어 컬럼 정의
+> 각 레이어는 로컬 디렉터리(`data/{layer}/{table}/`)에 Parquet로 저장
 
 ---
 
