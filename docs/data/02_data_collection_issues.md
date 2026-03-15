@@ -8,18 +8,16 @@
 
 ## 개요
 
-어바웃펫(aboutpet.co.kr) 상품·리뷰 데이터를 수집하고, S3 Medallion 구조(Bronze → Silver → Gold)로 정제·증강한 뒤 PostgreSQL / Qdrant에 적재하는 파이프라인 전체를 정의한다.
-
-**아키텍처 확장성 원칙**: S3 Medallion 구조와 배치 스크립트 인터페이스를 프로토타입 단계에서 확정하여, Phase 2에서 Airflow DAG 전환 시 아키텍처 변경 없이 자동화만 추가할 수 있도록 한다.
+어바웃펫(aboutpet.co.kr) 상품·리뷰 데이터를 수집하고, Bronze → Silver → Gold 전처리 파이프라인으로 정제·증강한 뒤 PostgreSQL / Qdrant에 적재하는 파이프라인 전체를 정의한다.
 
 ```
 크롤링 (Playwright)
     ↓
-Bronze  S3 Parquet (원시 데이터)
+Bronze  로컬 Parquet (원시 데이터)
     ↓
-Silver  S3 Parquet (정제·정규화)
+Silver  로컬 Parquet (정제·정규화)
     ↓
-Gold    S3 Parquet (메타데이터 증강)
+Gold    로컬 Parquet (분석 및 추천 신호 파생)
     ↓
     ├── PostgreSQL  (관계형 서빙 DB)
     └── Qdrant      (벡터 임베딩 인덱싱)
@@ -59,19 +57,18 @@ Gold    S3 Parquet (메타데이터 증강)
 
 ### 이슈 2 — ETL 파이프라인 구현 (Bronze → Silver → Gold)
 
-**한 줄 설명**: 수집 데이터를 S3 Medallion 구조로 정제·증강
+**한 줄 설명**: 수집 데이터를 Bronze → Silver → Gold 전처리 파이프라인으로 정제·증강
 
 **배경**
 
-- S3 Medallion 구조를 프로토타입 단계에서 확정하여 추후 Airflow 연동 시 적재 로직 재작성 불필요
 - Gold 레이어의 추천 신호는 외부 데이터 없이 크롤링 데이터에서 파생 (리뷰 timestamp, review_count 등)
 - LLM 요약은 비용 및 시간 이슈로 Phase 2 이후 적용
 - Bronze/Silver/Gold 컬럼 정의 확정: `docs/data/03_medallion_schema.md` 참고
 
 **서브 이슈**
 
-- [ ] Bronze: 원시 크롤링 데이터 S3 Parquet 저장
-  - 파티션 구조 설계 (예: `s3://bucket/bronze/goods/`, `s3://bucket/bronze/reviews/`)
+- [ ] Bronze: 원시 크롤링 데이터 로컬 저장
+  - 디렉터리 구조 설계 (`data/bronze/goods/`, `data/bronze/reviews/`)
   - 스키마 정의 (크롤링 원본 필드 그대로 보존)
 - [ ] Silver: 정제·정규화
   - 평점 스케일 통일 (목록 API 10점 → 5점 기준)
@@ -119,14 +116,14 @@ Gold    S3 Parquet (메타데이터 증강)
 
 ---
 
-### 이슈 4 — 배치 스크립트 작성 (Airflow stub)
+### 이슈 4 — 배치 스크립트 작성
 
-**한 줄 설명**: Phase 2 Airflow DAG 전환을 위한 수동 실행 스크립트
+**한 줄 설명**: 점수 재계산 및 가중치 갱신을 위한 수동 실행 스크립트
 
 **배경**
 
-- 프로토타입 단계에서는 자동화(Airflow) 없이 수동 실행
-- 스크립트 인터페이스(입력·출력·실행 단위)를 Airflow DAG Task 단위와 일치시켜 추후 전환 비용 최소화
+- 프로토타입 단계에서는 자동화 없이 수동 실행
+- 스크립트 단위를 명확히 분리하여 추후 자동화 전환 비용 최소화
 
 **서브 이슈**
 
@@ -138,7 +135,6 @@ Gold    S3 Parquet (메타데이터 증강)
   - 추천 가중치 재계산 → PostgreSQL 반영
 
 > 신규 리뷰 수집은 프로토타입 범위 외 (상품 수 대비 API 호출 비용 큼). 필요 시 이슈 1 크롤링 스크립트 재실행으로 대체.
-> Phase 2 전환 시 각 스크립트를 Airflow DAG의 PythonOperator Task로 래핑하면 됨.
 
 ---
 
@@ -147,9 +143,9 @@ Gold    S3 Parquet (메타데이터 증강)
 | 항목 | 프로토타입 (현재) | Phase 2 |
 |---|---|---|
 | 크롤링 | Playwright 수동 실행 | Playwright + 스케줄링 |
-| ETL | 스크립트 수동 실행 | Airflow DAG 자동화 |
+| ETL | 스크립트 수동 실행 | 자동화 스케줄러 전환 |
 | 성분·알레르기 정보 | 상품명 추출 (1차) + OCR (2차) | 어드민 수동 수정 인터페이스 |
-| 신규 리뷰 수집 | 미구현 (전체 재크롤링으로 대체) | Airflow weekly DAG |
+| 신규 리뷰 수집 | 미구현 (전체 재크롤링으로 대체) | 정기 크롤링 스케줄링 |
 | 트렌드 수집 | 미구현 | 네이버 DataLab API 연동 |
 | LLM 요약 | 미구현 | Gold 레이어 증강 추가 |
-| 모니터링 | 미구현 | Airflow DAG 실행 현황 알림 |
+| 모니터링 | 미구현 | 배치 실행 현황 알림 |
