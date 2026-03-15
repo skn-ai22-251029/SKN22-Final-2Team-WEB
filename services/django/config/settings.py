@@ -20,8 +20,12 @@ INSTALLED_APPS = [
     "corsheaders",
     "users",
     "pets",
+    "products",
     "orders",
+    "chat",
 ]
+
+AUTH_USER_MODEL = "users.User"
 
 MIDDLEWARE = [
     "corsheaders.middleware.CorsMiddleware",
