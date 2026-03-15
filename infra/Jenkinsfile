@@ -1,0 +1,42 @@
+pipeline {
+    agent any
+
+    triggers {
+        githubPush()
+    }
+
+    stages {
+
+        stage('Build') {
+            steps {
+                sh 'docker compose build'
+            }
+        }
+
+        stage('Test') {
+            steps {
+                sh 'docker compose run --rm django python manage.py test'
+            }
+        }
+
+        stage('Deploy') {
+            // main 머지 시에만 배포
+            when {
+                branch 'main'
+            }
+            steps {
+                sh 'docker compose up -d --build'
+            }
+        }
+
+    }
+
+    post {
+        failure {
+            echo 'Pipeline failed.'
+        }
+        success {
+            echo 'Pipeline succeeded.'
+        }
+    }
+}
