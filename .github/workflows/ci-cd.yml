@@ -8,6 +8,7 @@ on:
   pull_request:
     branches:
       - develop
+      - main
 
 jobs:
   build-and-test:
@@ -23,7 +24,7 @@ jobs:
 
       - name: Create .env
         run: |
-          cat <<EOF > .env
+          cat <<EOF > infra/.env
           DJANGO_SECRET_KEY=${{ secrets.DJANGO_SECRET_KEY }}
           DJANGO_DEBUG=False
           DJANGO_ALLOWED_HOSTS=localhost
@@ -33,6 +34,8 @@ jobs:
           POSTGRES_HOST=postgres
           POSTGRES_PORT=5432
           CORS_ALLOWED_ORIGINS=http://localhost
+          QDRANT_HOST=qdrant
+          QDRANT_PORT=6333
           EOF
 
       - name: Build

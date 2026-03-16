@@ -2,7 +2,7 @@ from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 from routers import chat, recommend, products
 
-app = FastAPI(title="PetBot API")
+app = FastAPI(title="TailTalk API")
 
 app.add_middleware(
     CORSMiddleware,
