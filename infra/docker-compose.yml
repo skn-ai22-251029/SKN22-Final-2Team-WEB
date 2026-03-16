@@ -1,0 +1,104 @@
+name: tailtalk
+
+services:
+
+  # ── 리버스 프록시 ────────────────────────────────────────────────────────────
+  nginx:
+    image: nginx:alpine
+    platform: linux/amd64
+    ports:
+      - "80:80"
+    volumes:
+      - ./nginx/nginx.conf:/etc/nginx/nginx.conf:ro
+    depends_on:
+      - django
+      - fastapi
+      - frontend
+    restart: unless-stopped
+
+  # ── Django (Auth / User / Pet / Order / Admin) ───────────────────────────────
+  django:
+    build: ../services/django
+    platform: linux/amd64
+    command: >
+      sh -c "python manage.py migrate &&
+             gunicorn config.wsgi:application --bind 0.0.0.0:8000 --workers 3"
+    env_file: .env
+    expose:
+      - "8000"
+    depends_on:
+      postgres:
+        condition: service_healthy
+    restart: unless-stopped
+
+  # ── FastAPI (챗봇 / 추천) ────────────────────────────────────────────────────
+  fastapi:
+    build: ../services/fastapi
+    platform: linux/amd64
+    command: uvicorn main:app --host 0.0.0.0 --port 8001 --workers 2
+    env_file: .env
+    expose:
+      - "8001"
+    depends_on:
+      postgres:
+        condition: service_healthy
+      qdrant:
+        condition: service_started
+    restart: unless-stopped
+
+  # ── Next.js ──────────────────────────────────────────────────────────────────
+  frontend:
+    build: ../services/frontend
+    platform: linux/amd64
+    expose:
+      - "3000"
+    restart: unless-stopped
+
+  # ── PostgreSQL 16 ────────────────────────────────────────────────────────────
+  postgres:
+    image: postgres:16
+    platform: linux/amd64
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+    env_file: .env
+    environment:
+      POSTGRES_DB: ${POSTGRES_DB}
+      POSTGRES_USER: ${POSTGRES_USER}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD}
+    expose:
+      - "5432"
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U ${POSTGRES_USER} -d ${POSTGRES_DB}"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+    restart: unless-stopped
+
+  # ── Qdrant (Vector DB) ───────────────────────────────────────────────────────
+  qdrant:
+    image: qdrant/qdrant
+    platform: linux/amd64
+    volumes:
+      - qdrant_data:/qdrant/storage
+    expose:
+      - "6333"
+    restart: unless-stopped
+
+  # ── Jenkins (CI/CD) ──────────────────────────────────────────────────────────
+  jenkins:
+    image: jenkins/jenkins:lts
+    platform: linux/amd64
+    volumes:
+      - jenkins_data:/var/jenkins_home
+      - /var/run/docker.sock:/var/run/docker.sock  # 호스트 Docker 제어
+    environment:
+      - JAVA_OPTS=-Djenkins.install.runSetupWizard=false
+    expose:
+      - "8080"
+    restart: unless-stopped
+
+
+volumes:
+  postgres_data:
+  qdrant_data:
+  jenkins_data:
