@@ -78,15 +78,22 @@ gitGraph
 
 `upstream 레포 → Settings → Secrets and variables → Actions → New repository secret`
 
-| Secret | 설명 |
+| Secret | 값 예시 / 생성 방법 |
 |---|---|
-| `DJANGO_SECRET_KEY` | Django 시크릿 키 |
-| `POSTGRES_DB` | DB 이름 |
-| `POSTGRES_USER` | DB 유저 |
-| `POSTGRES_PASSWORD` | DB 패스워드 |
-| `EC2_HOST` | EC2 퍼블릭 IP (Elastic IP) |
-| `EC2_USER` | EC2 접속 유저 (`ubuntu`) |
-| `EC2_SSH_KEY` | EC2 키페어 private key 전체 내용 |
+| `DJANGO_SECRET_KEY` | `python -c "import secrets; print(secrets.token_urlsafe(50))"` |
+| `POSTGRES_DB` | `tailtalk_db` |
+| `POSTGRES_USER` | `mungnyang` |
+| `POSTGRES_PASSWORD` | 임의 패스워드 |
+| `EC2_HOST` | EC2 Elastic IP (예: `3.xx.xx.xx`) |
+| `EC2_USER` | `ubuntu` |
+| `EC2_SSH_KEY` | 키페어 `.pem` 파일 전체 내용 (`-----BEGIN RSA PRIVATE KEY-----` 포함) |
+
+### EC2_SSH_KEY 입력 방법
+
+```bash
+cat ~/.ssh/tailtalk-key.pem
+# 출력된 내용 전체를 Secret 값으로 붙여넣기
+```
 
 ---
 
