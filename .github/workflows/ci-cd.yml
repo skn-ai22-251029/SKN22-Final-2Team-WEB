@@ -24,10 +24,10 @@ jobs:
 
       - name: Create .env
         run: |
-          cat <<EOF > infra/.env
+          cat <<'EOF' > infra/.env
           DJANGO_SECRET_KEY=${{ secrets.DJANGO_SECRET_KEY }}
           DJANGO_DEBUG=False
-          DJANGO_ALLOWED_HOSTS=localhost
+          DJANGO_ALLOWED_HOSTS=localhost,tailtalk.leemdo.com,3.38.220.193
           POSTGRES_DB=${{ secrets.POSTGRES_DB }}
           POSTGRES_USER=${{ secrets.POSTGRES_USER }}
           POSTGRES_PASSWORD=${{ secrets.POSTGRES_PASSWORD }}
