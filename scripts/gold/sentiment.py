@@ -75,8 +75,16 @@ def get_aspects(sentence: str) -> list[str]:
 def load_classifier():
     import torch
     from transformers import pipeline
-    device = 0 if torch.cuda.is_available() else -1
-    print(f"  모델 로드 중... (device={'GPU' if device == 0 else 'CPU'})")
+    if torch.cuda.is_available():
+        device = 0
+        device_name = "CUDA"
+    elif torch.backends.mps.is_available():
+        device = "mps"
+        device_name = "MPS"
+    else:
+        device = -1
+        device_name = "CPU"
+    print(f"  모델 로드 중... (device={device_name})")
     clf = pipeline(
         "sentiment-analysis",
         model="Copycats/koelectra-base-v3-generalized-sentiment-analysis",
