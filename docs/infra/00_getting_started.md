@@ -213,9 +213,36 @@ docker compose up -d
 
 ## 8. CI/CD
 
-PR을 `develop`에 올리면 **자동으로 Build & Test**가 실행된다.
-`main`에 머지되면 **EC2 자동 배포**까지 진행된다.
+### 흐름
 
-- 배포 주소: http://tailtalk.leemdo.com
+```
+코드 push / PR
+  │
+  ▼
+[GitHub Actions] Build & Test
+  │  develop, main 모두 실행
+  │
+  ▼ (main push 시에만)
+[GitHub Actions] Docker Hub push
+  │  leemdo/tailtalk-django:latest
+  │  leemdo/tailtalk-fastapi:latest
+  │  leemdo/tailtalk-frontend:latest
+  │
+  ▼
+[EC2] docker pull → docker compose up -d
+```
+
+> 빌드는 GitHub Actions에서 수행. EC2는 이미지 pull + 실행만 한다.
+
+### 트리거
+
+| 이벤트 | 브랜치 | 실행 |
+|---|---|---|
+| `push` / `pull_request` | `develop` | Build & Test |
+| `push` | `main` | Build & Test → Docker Hub push → EC2 배포 |
+
+### 배포 주소
+
+- http://tailtalk.leemdo.com
 
 상세 내용: `docs/infra/04_github_actions_guide.md`
