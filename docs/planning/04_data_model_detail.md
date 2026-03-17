@@ -12,7 +12,6 @@ erDiagram
     USER {
         uuid    user_id         PK
         string  email
-        string  oauth_provider  "google|kakao|naver — OAuth 전용"
         datetime created_at
         boolean is_active
         string  password        "Django AbstractBaseUser 필수 필드 — unusable password로 설정"
@@ -227,12 +226,12 @@ erDiagram
 
 > OAuth 전용 인증. 자체 가입(이메일+비밀번호) 미지원.
 > Django `AbstractBaseUser` + `PermissionsMixin` 기반 커스텀 유저 모델.
+> OAuth provider 정보는 `social_auth_usersocialauth` 테이블에서 관리 (`social-auth-app-django`).
 
 ```json
 {
   "user_id":        "uuid",
   "email":          "string",
-  "oauth_provider": "google | kakao | naver",
   "created_at":     "datetime",
   "is_active":      "boolean",
 
