@@ -6,6 +6,21 @@
 
 ## 1. 사전 준비
 
+### 개발 환경
+
+> **Windows 사용자**: WSL2 + Docker Desktop 조합을 권장한다.
+> WSL2 안에서 레포 클론 및 모든 작업을 진행한다.
+
+**WSL2 설치 (Windows)**
+```powershell
+# PowerShell (관리자)
+wsl --install
+# 재부팅 후 Ubuntu 터미널에서 작업
+```
+
+**Docker Desktop 설정 (Windows)**
+- Docker Desktop 설치 후 Settings → Resources → WSL Integration → Ubuntu 활성화
+
 ### 필수 설치
 
 | 도구 | 설치 방법 |
@@ -15,11 +30,24 @@
 
 > Docker Desktop이 실행 중이어야 `docker compose`가 동작한다.
 
-### 레포지토리 클론
+### 레포지토리 설정
+
+**1. upstream 레포 fork**
+
+GitHub에서 `skn-ai22-251029/SKN22-Final-2Team-WEB` → **Fork** 버튼 클릭
+
+**2. fork 클론**
 
 ```bash
-git clone https://github.com/skn-ai22-251029/SKN22-Final-2Team-WEB.git
+git clone https://github.com/<내_GitHub_ID>/SKN22-Final-2Team-WEB.git
 cd SKN22-Final-2Team-WEB
+```
+
+**3. upstream remote 추가**
+
+```bash
+git remote add upstream https://github.com/skn-ai22-251029/SKN22-Final-2Team-WEB.git
+git remote -v  # 확인
 ```
 
 ---
@@ -47,7 +75,77 @@ python -c "import secrets; print(secrets.token_urlsafe(50))"
 
 ---
 
-## 3. 로컬 실행
+## 3. DB 데이터 복원
+
+데이터 적재는 한 명이 완료한 후 스냅샷을 공유한다. 팀 공유 채널에서 덤프 파일을 받아 아래 절차로 복원한다.
+
+### PostgreSQL 복원
+
+```bash
+# DB 컨테이너 실행
+cd infra && docker compose up -d postgres
+
+# 덤프 파일 복원
+docker exec -i tailtalk-postgres-1 psql -U mungnyang -d tailtalk_db < tailtalk_dump.sql
+```
+
+### pg_dump 생성 (데이터 담당자)
+
+```bash
+docker exec tailtalk-postgres-1 pg_dump -U mungnyang tailtalk_db > tailtalk_dump.sql
+```
+
+### Qdrant 복원
+
+```bash
+# 스냅샷 생성 (데이터 담당자)
+curl -X POST "http://localhost:6333/collections/products/snapshots"
+
+# 스냅샷 복원
+curl -X PUT "http://localhost:6333/collections/products/snapshots/recover" \
+  -H "Content-Type: application/json" \
+  -d '{"location": "스냅샷_파일_경로"}'
+```
+
+> 덤프/스냅샷 파일은 팀 공유 채널(Google Drive 등)에서 받는다.
+
+---
+
+## 4. 로컬 실행
+
+개발할 때는 **DB만 Docker로 올리고, 서비스는 직접 실행**하는 방식을 사용한다.
+매번 재빌드 없이 핫리로드로 빠르게 개발할 수 있다.
+
+### DB 컨테이너 실행
+
+```bash
+cd infra
+docker compose up -d postgres qdrant
+```
+
+### 서비스 직접 실행
+
+> `infra/.env`의 `POSTGRES_HOST=postgres` → `POSTGRES_HOST=localhost`로 변경 후 실행
+
+```bash
+# Django (터미널 1)
+cd services/django
+pip install -r requirements.txt
+python manage.py migrate
+python manage.py runserver
+
+# FastAPI (터미널 2)
+cd services/fastapi
+pip install -r requirements.txt
+uvicorn main:app --reload --port 8001
+
+# Frontend (터미널 3)
+cd services/frontend
+npm install
+npm run dev
+```
+
+### 통합 테스트 / 배포 전 확인 — 전체 Docker Compose
 
 ```bash
 cd infra
@@ -68,12 +166,16 @@ docker compose up -d --build
 ### 첫 실행 시 Django 슈퍼유저 생성
 
 ```bash
+# 방법 1
+python manage.py createsuperuser
+
+# 방법 2 (Docker)
 docker compose run --rm django python manage.py createsuperuser
 ```
 
 ---
 
-## 4. 브랜치 전략
+## 5. 브랜치 전략
 
 ### 기본 규칙
 
@@ -95,25 +197,32 @@ docs/<이슈번호>-<설명>      # 문서 작업
 
 ```
 1. GitHub에서 이슈 생성 또는 확인
-2. develop에서 브랜치 생성
+2. upstream/develop 최신화 후 브랜치 생성
 3. 작업 후 커밋
-4. develop으로 PR 생성
+4. fork에 push → upstream/develop으로 PR 생성
 5. 리뷰 후 머지
 ```
 
 ```bash
-# 브랜치 생성
+# upstream 최신화
+git fetch upstream
 git checkout develop
-git pull origin develop
+git merge upstream/develop
+git push origin develop
+
+# 브랜치 생성
 git checkout -b feature/12-user-login
 
 # 작업 후 커밋
 git add .
 git commit -m "feat(auth): add login API"
 
-# push 후 GitHub에서 PR 생성
+# fork에 push 후 GitHub에서 upstream/develop으로 PR 생성
 git push origin feature/12-user-login
 ```
+
+> **CI/CD 참고**: fork PR → upstream/develop 은 빌드 자동 검증 없음.
+> develop 머지 후 push 이벤트에서 Build & Test 실행됨.
 
 ### 커밋 메시지 형식
 
@@ -132,7 +241,7 @@ git push origin feature/12-user-login
 
 ---
 
-## 5. 자주 쓰는 명령어
+## 6. 자주 쓰는 명령어
 
 ```bash
 # 컨테이너 상태 확인
@@ -159,7 +268,7 @@ docker compose run --rm django python manage.py migrate
 
 ---
 
-## 6. 트러블슈팅
+## 7. 트러블슈팅
 
 ### 포트가 이미 사용 중이라는 오류
 
@@ -197,7 +306,7 @@ docker compose up -d
 
 ---
 
-## 7. 역할별 작업 디렉토리
+## 8. 역할별 작업 디렉토리
 
 | 역할 | 작업 경로 | 로컬 포트 |
 |---|---|---|
@@ -211,7 +320,7 @@ docker compose up -d
 
 ---
 
-## 8. CI/CD
+## 9. CI/CD
 
 ### 흐름
 
