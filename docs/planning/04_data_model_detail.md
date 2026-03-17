@@ -12,10 +12,13 @@ erDiagram
     USER {
         uuid    user_id         PK
         string  email
-        string  password_hash   "nullable — 자체 가입만"
-        string  oauth_provider  "google|kakao|naver|null — 소셜 가입만"
+        string  oauth_provider  "google|kakao|naver — OAuth 전용"
         datetime created_at
         boolean is_active
+        string  password        "Django AbstractBaseUser 필수 필드 — unusable password로 설정"
+        datetime last_login     "Django 자동 관리"
+        boolean is_superuser    "Django PermissionsMixin 필드"
+        boolean is_staff        "Django Admin 접근 제어"
     }
 
     USER_PROFILE {
@@ -67,60 +70,66 @@ erDiagram
     }
 
     PRODUCT {
-        string  goods_id            PK
+        string  goods_id               PK
         string  goods_name
         string  brand_name
         int     price
         int     discount_price
-        float   rating              "5점 만점 (Gold: rating_raw/2)"
+        numeric rating                 "5점 만점 (Gold: rating_raw/2)"
         int     review_count
         string  thumbnail_url
         string  product_url
         boolean soldout_yn
-        float   popularity_score    "log(review_count+1) × rating"
-        float   trend_score         "최근 30일 리뷰 수 / 전체 리뷰 수"
-        jsonb   main_ingredients       "OCR 추출 원료 키워드 배열 (치킨|연어|오리 등)"
+        boolean soldout_reliable       "GO 상품 등 옵션별 품절 구조는 false"
+        string[]  pet_type             "강아지|고양이 (Silver 파싱)"
+        string[]  category             "사료|간식|용품|... (Silver 파싱)"
+        string[]  subcategory          "전연령|퍼피|시니어|... (Silver 파싱)"
+        string[]  health_concern_tags  "관절|피부|소화|체중|요로|눈물|헤어볼|치아|면역"
+        numeric popularity_score       "log(review_count+1) × rating"
+        numeric sentiment_avg          "GP 제외 상품 감성 평균 (nullable)"
+        numeric repeat_rate            "재구매 비율 (nullable)"
+        jsonb   main_ingredients       "OCR 추출 원료 키워드 배열 (nullable, 식품류만)"
         jsonb   ingredient_composition "원료명별 함량 (nullable, 식품류만)"
         jsonb   nutrition_info         "영양성분 수치 (nullable, 식품류만)"
-        text    ingredient_text_ocr    "상세 이미지 OCR 원문 (nullable)"
+        text    ingredient_text_ocr    "상세 이미지 OCR 원문 (nullable, 식품류만)"
         datetime crawled_at
     }
 
     PRODUCT_CATEGORY_TAG {
         uuid    id              PK
-        string  goods_id        FK
+        string  product_id      FK
         string  tag             "health concern 태그 (관절|피부|소화|체중|요로|눈물|헤어볼|치아|면역)"
     }
 
     PRODUCT_ADMIN_CONFIG {
         uuid    id              PK
-        string  goods_id        FK  "1:1"
-        float   admin_weight    "추천 가중치 (기본 1.0, >1.0 부스트)"
+        string  product_id      FK  "1:1"
+        numeric admin_weight    "추천 가중치 (기본 1.0, >1.0 부스트)"
         boolean pinned          "최상단 고정 여부"
         string  memo            "nullable"
         datetime updated_at
     }
 
     REVIEW {
-        uuid    review_id           PK
-        string  goods_id            FK
-        float   score               "5점 만점"
+        string  review_id           PK  "goods_estm_no (어바웃펫 후기 번호)"
+        string  product_id          FK
+        numeric score               "5점 만점"
         string  content
         string  author_nickname
-        datetime written_at
+        date    written_at
         string  purchase_label      "first|repeat|null"
-        float   sentiment_score     "0.0~1.0 (Gold: 전체 문장 감성)"
+        numeric sentiment_score     "0.0~1.0 (Gold: 전체 문장 감성)"
         string  sentiment_label     "positive|negative|neutral"
         jsonb   absa_result         "Gold: {sentence, 기호성, 생체반응, 소화/배변, 제품 성상, 성분/원료, 냄새, 가격/구매, 배송/포장, 종합_확신도}"
         int     pet_age_months      "nullable (7개월→7, 3살→36)"
-        float   pet_weight_kg       "nullable"
+        numeric pet_weight_kg       "nullable"
         string  pet_gender          "nullable (수컷|암컷)"
         string  pet_breed           "nullable"
     }
 
     CHAT_SESSION {
         uuid    session_id      PK
-        uuid    user_id         FK
+        uuid    user_id         FK  "not null — 로그인 필수"
         uuid    target_pet_id   FK  "nullable"
         string  title
         datetime created_at
@@ -137,14 +146,14 @@ erDiagram
 
     CART {
         uuid    cart_id         PK
-        uuid    user_id         FK
+        uuid    user_id         FK  "not null — 로그인 필수"
         datetime updated_at
     }
 
     CART_ITEM {
         uuid    cart_item_id    PK
         uuid    cart_id         FK
-        string  goods_id        FK
+        string  product_id      FK
         int     quantity
         datetime added_at
     }
@@ -162,7 +171,7 @@ erDiagram
     ORDER_ITEM {
         uuid    order_item_id   PK
         uuid    order_id        FK
-        string  goods_id        FK
+        string  product_id      FK
         int     quantity
         int     price_at_order
     }
@@ -170,13 +179,13 @@ erDiagram
     PET_USED_PRODUCT {
         uuid    id              PK
         uuid    pet_id          FK
-        string  goods_id        FK
+        string  product_id      FK
     }
 
     USER_INTERACTION {
         uuid    id               PK
-        uuid    user_id          FK  "nullable(guest)"
-        string  goods_id         FK
+        uuid    user_id          FK
+        string  product_id       FK
         uuid    session_id       FK  "nullable"
         string  interaction_type "click|cart|purchase|reject"
         int     weight           "click=1|cart=3|purchase=5|reject=-1"
@@ -216,16 +225,22 @@ erDiagram
 
 ## 1. User
 
-> 인증 전용. 자체 가입 / 소셜 가입 중 하나.
+> OAuth 전용 인증. 자체 가입(이메일+비밀번호) 미지원.
+> Django `AbstractBaseUser` + `PermissionsMixin` 기반 커스텀 유저 모델.
 
 ```json
 {
   "user_id":        "uuid",
   "email":          "string",
-  "password_hash":  "string | null",  // 자체 가입: 필수, 소셜 가입: null
-  "oauth_provider": "google | kakao | naver | null",  // 소셜 가입: 필수, 자체 가입: null
+  "oauth_provider": "google | kakao | naver",
   "created_at":     "datetime",
-  "is_active":      "boolean"
+  "is_active":      "boolean",
+
+  // Django AbstractBaseUser 자동 관리 필드 (직접 사용 X)
+  "password":       "string",   // unusable password로 설정 — OAuth이므로 실제 비밀번호 없음
+  "last_login":     "datetime | null",  // Django 로그인 시 자동 갱신
+  "is_superuser":   "boolean",  // Django Admin 권한
+  "is_staff":       "boolean"   // Django Admin 접근 제어
 }
 ```
 
@@ -305,14 +320,20 @@ erDiagram
   "brand_name":             "string",
   "price":                  "int",             // 정가 원
   "discount_price":         "int",             // 할인가 원
-  "rating":                 "float",           // 5점 만점
+  "rating":                 "numeric",         // 5점 만점
   "review_count":           "int",
   "thumbnail_url":          "string",
   "product_url":            "string",
   "soldout_yn":             "boolean",
-  "popularity_score":       "float",           // log(review_count+1) × rating
-  "trend_score":            "float",           // 최근 30일 리뷰 수 / 전체 리뷰 수
-  "main_ingredients":       "string[]",        // OCR 추출 원료 키워드 배열 (식품류만)
+  "soldout_reliable":       "boolean",         // GO 상품 등 옵션별 품절 구조는 false
+  "pet_type":               "string[]",        // 강아지|고양이 (Silver 파싱)
+  "category":               "string[]",        // 사료|간식|용품|... (Silver 파싱)
+  "subcategory":            "string[]",        // 전연령|퍼피|시니어|... (Silver 파싱)
+  "health_concern_tags":    "string[]",        // 관절|피부|소화|체중|요로|눈물|헤어볼|치아|면역
+  "popularity_score":       "numeric",         // log(review_count+1) × rating
+  "sentiment_avg":          "numeric | null",  // GP 제외 상품 감성 평균
+  "repeat_rate":            "numeric | null",  // 재구매 비율
+  "main_ingredients":       "string[] | null", // OCR 추출 원료 키워드 배열 (식품류만)
   "ingredient_composition": "object | null",   // {원료명: 함량%} (식품류만)
   "nutrition_info":         "object | null",   // {영양성분명: 수치} (식품류만)
   "ingredient_text_ocr":    "string | null",   // 상세 이미지 OCR 원문 (식품류만)
@@ -324,9 +345,9 @@ erDiagram
 
 ```json
 {
-  "id":       "uuid",
-  "goods_id": "string",  // FK → PRODUCT
-  "tag":      "string"   // Gold 파생: disp_clsf_no → 헬스 태그 매핑 (관절|피부|소화|체중|요로|눈물|헤어볼|치아|면역)
+  "id":         "uuid",
+  "product_id": "string",  // FK → PRODUCT (Django ORM 기준 컬럼명)
+  "tag":        "string"   // Gold 파생: disp_clsf_no → 헬스 태그 매핑 (관절|피부|소화|체중|요로|눈물|헤어볼|치아|면역)
 }
 ```
 
@@ -338,8 +359,8 @@ erDiagram
 ```json
 {
   "id":           "uuid",
-  "goods_id":     "string",        // FK → PRODUCT (1:1). 설정 없는 상품은 행 없음 (admin_weight=1.0 기본값)
-  "admin_weight": "float",         // 추천 노출 가중치. 기본 1.0. >1.0 부스트, <1.0 다운랭크
+  "product_id":   "string",        // FK → PRODUCT (1:1). 설정 없는 상품은 행 없음 (admin_weight=1.0 기본값)
+  "admin_weight": "numeric",       // 추천 노출 가중치. 기본 1.0. >1.0 부스트, <1.0 다운랭크
   "pinned":       "boolean",       // 추천 결과 최상단 고정. admin_weight와 별개
   "memo":         "string | null", // 어드민 내부 메모. 사용자에게 노출 안 됨
   "updated_at":   "datetime"
