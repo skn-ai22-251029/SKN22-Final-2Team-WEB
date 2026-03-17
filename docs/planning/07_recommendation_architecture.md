@@ -2,83 +2,138 @@
 
 > **Phase 1**: RAG + Content-based Filtering (서비스 런칭)
 > **Phase 2**: CF 레이어 추가 (사용자 상호작용 데이터 축적 후)
+>
+> 상세 피처 정의 및 LangGraph State 구조: `docs/data/08_feature_engineering_and_recommendation.md`
 
 ---
 
-## Phase 1 — RAG 기반 추천
+## Phase 1 — LangGraph 기반 추천
 
 ### 추천 흐름
 
+LangGraph **순환(cyclic) 그래프** 구조. 의도 불명확 시 재질문 루프, 검색 결과 부족 시 필터 완화 후 재검색 루프를 포함한다.
+
+> **펫 프로필 전달 방식**: 프론트엔드 Zustand 상태 → API 요청 페이로드에 포함 → FastAPI가 ChatState에 주입. DB 조회 없음.
+>
+> **병렬 실행**: `domain_qa + recommend` 동시 감지 시 LangGraph `Send` API로 fan-out. MERGE 노드에서 fan-in.
+
+```mermaid
+flowchart TD
+    START([사용자 메시지<br>+ 펫 프로필 페이로드<br>+ 대화 히스토리]) --> INTENT
+
+    INTENT[의도 분류 노드<br>intents: list 복수 가능]
+
+    INTENT -->|domain_qa ∈ intents| GENERAL
+    INTENT -->|recommend ∈ intents| PROFILE
+    INTENT -->|small_talk| RESPOND
+    INTENT -->|unclear| CLARIFY
+
+    GENERAL[General 노드<br>펫 프로필 주입 + 쿼리 정제<br>서브도메인 분류]
+    GENERAL -->|health_disease| RAG
+    GENERAL -->|care_management| RAG
+    GENERAL -->|nutrition_diet| RAG
+    GENERAL -->|behavior_psychology| RAG
+    GENERAL -->|travel| RAG
+
+    RAG[RAG 노드<br>domain_qna 검색] --> MERGE
+
+    PROFILE[breed_meta 조회 노드<br>breed → health_concern_tags] --> QUERY
+    QUERY[쿼리 생성 노드<br>펫 프로필 → 검색 쿼리 + 필터] --> SEARCH
+    SEARCH[Qdrant Hybrid Search<br>Dense + Sparse + RRF] --> RERANK
+    RERANK[재랭킹 노드<br>final_score 계산] -->|결과 부족 < 3개| QUERY
+    RERANK -->|결과 충분| MERGE
+
+    MERGE[응답 병합 노드<br>RAG 컨텍스트 + 상품 카드 통합] --> RESPOND
+
+    CLARIFY[재질문 생성 노드<br>명확화 질문 생성] --> WAIT([사용자 응답 대기])
+    WAIT -->|clarification_count ≤ 2| INTENT
+    WAIT -->|clarification_count > 2| RESPOND
+
+    RESPOND[응답 생성 노드<br>LLM 스트리밍 출력] --> END([응답 + 상품 카드 반환])
 ```
-사용자 입력 (대화 메시지)
-        │
-        ▼
-┌─────────────────────┐
-│  Agent 1: 의도 분류  │  상품추천 / 일반질문 / 후속질문
-└─────────┬───────────┘
-          │ 상품추천
-          ▼
-┌──────────────────────────┐
-│  Agent 2: 컨텍스트 추출   │
-│  · 펫 프로필 로드 (DB)    │
-│  · 대화에서 추가 조건 추출 │  → species, allergy, health_concern,
-│  · 필터 파라미터 구성      │     budget, food_type, keyword
-└─────────┬────────────────┘
-          │
-          ▼
-┌──────────────────────────┐
-│  Agent 3: 상품 검색       │
-│  · Pre-filter (PostgreSQL)│  알레르기 성분 포함 상품 제외, 품절 제외
-│  · Qdrant Hybrid Search   │  Dense + Sparse + RRF → top-K 후보
-└─────────┬────────────────┘
-          │
-          ▼
-┌──────────────────────────┐
-│  Agent 4: 재랭킹          │  ← Phase 2 확장 포인트
-│  · popularity_score       │
-│  · trend_score            │
-│  · sentiment_score        │
-│  · (Phase 2) CF_score     │
-└─────────┬────────────────┘
-          │
-          ▼
-┌──────────────────────────┐
-│  Agent 5: 응답 생성       │
-│  · 선택 상품 + 펫 프로필   │
-│  · LLM → 설명 텍스트 생성  │
-│  · 스트리밍 출력            │
-└──────────────────────────┘
-```
+
+### 노드 구성 및 라우팅
+
+**intent 분류 → 라우팅 (복수 가능)**
+
+| intent | 다음 노드 | 설명 |
+|---|---|---|
+| `recommend` | PROFILE | 상품 추천 플로우. `domain_qa`와 동시 발화 가능 |
+| `domain_qa` | GENERAL | 도메인 QA 플로우. `recommend`와 동시 발화 가능 |
+| `small_talk` | RESPOND | 일반 대화. 단독 발화만 |
+| `unclear` | CLARIFY | 어떤 intent도 확신 불가 시. 재질문 후 INTENT 재시도 |
+
+**General 노드 역할 (domain_qa 전용)**
+
+| 단계 | 설명 |
+|---|---|
+| 펫 프로필 주입 | ChatState의 pet_profile (요청 페이로드 출처)을 쿼리 컨텍스트에 반영 |
+| 쿼리 정제 | "이거 먹어도 돼요?" → "말티즈 5kg 3살 수컷이 [식품명]을 먹어도 되는지" |
+| 서브도메인 분류 | health_disease / care_management / nutrition_diet / behavior_psychology / travel |
+| 정보 보완 | 프로필 없으면 세션 컨텍스트에서 추론 |
+
+**MERGE 노드 동작**
+
+| 수신 결과 | 출력 |
+|---|---|
+| RAG만 | 도메인 답변만 |
+| 상품 카드만 | 상품 추천만 |
+| RAG + 상품 카드 | 도메인 답변 + 상품 카드 통합 |
+
+**서브도메인 → Qdrant domain_qna category 필터 매핑**
+
+| 서브도메인 | QnA category 필터 | 설명 |
+|---|---|---|
+| `health_disease` | 건강 및 질병 | 질병, 증상, 응급 상황 |
+| `care_management` | 사육 및 관리 | 용품, 위생, 생활 환경 |
+| `nutrition_diet` | 영양 및 식단 | 사료, 간식, 영양소 |
+| `behavior_psychology` | 행동 및 심리 | 훈련, 분리불안, 습관 |
+| `travel` | 여행 및 이동 | 이동장, 비행기, 여행 |
+
+**순환 엣지**
+
+| 순환 | 조건 | 설명 |
+|---|---|---|
+| `CLARIFY → INTENT` | clarification_count ≤ 2 | 재질문 후 사용자 답변으로 의도 재분류 |
+| `CLARIFY → RESPOND` | clarification_count > 2 | 2회 재질문 후에도 불명확 → 컨텍스트 기반 best-effort 응답 |
+| `RERANK → QUERY` | 검색 결과 < 3개 | 필터 조건 완화 후 재검색 |
 
 ### Qdrant 임베딩 대상
 
 ```python
-product_text = (
-    f"{goods_name} {brand_name} "
-    f"{' '.join(main_ingredients or [])} "
-    f"{' '.join(category_tags or [])} "
-    f"{review_summary or ''}"
-)
-# embed(product_text) → dense vector
+product_text = " ".join([
+    product_name, brand_name,
+    " ".join(subcategory_names or []),
+    " ".join(health_concern_tags or []),
+    " ".join(main_ingredients or []),
+    " ".join(f"{k} {v}" for k, v in (ingredient_composition or {}).items()),
+    " ".join(f"{k} {v}" for k, v in (nutrition_info or {}).items()),
+])
+# embed(product_text) → dense vector (multilingual-e5-large, 1024d)
 # BM25(product_text)  → sparse vector
 ```
 
-`main_ingredients`: Gold OCR 파이프라인에서 추출
-`review_summary`: 리뷰 감성 분석 후 LLM 요약 생성
-`category_tags`: `product_category_tag` 테이블 (관절/피부/소화 등)
+- `ingredient_composition` / `nutrition_info`: dict → `"원료명 함량% ..."` 직렬화 (ingest_qdrant.py에서 처리)
+- `ingredient_text_ocr`: payload 저장 전용 (알레르기 키워드 매칭). 임베딩 제외 — OCR 노이즈 많음
+- **GP 상품 (prefix=GP) 제외**: 기획전 카드 섹션 전용, Qdrant 미적재
 
 ### Phase 1 랭킹 수식
 
 ```
-final_score =
-    α × vector_similarity      # Qdrant RRF score
-  + β × popularity_score       # log(review_count+1) × rating (GP 보정 포함)
-  + γ × trend_score            # 최근 N일 리뷰 증가율
-  + δ × sentiment_score        # 긍정 리뷰 비율
+final_score = α × rrf_score
+            + β × normalize(popularity_score)
+            + γ × sentiment_avg
+            + ε × absa_aspect_score[detected_aspect]  # 속성 감지 시만 적용
 
-# 초기 가중치 (튜닝 필요)
-α=0.4, β=0.3, γ=0.2, δ=0.1
+기본 가중치 (튜닝 필요):
+  α = 0.5   검색 적합도 (Qdrant RRF)
+  β = 0.25  인기도 (log(review_count+1) × rating_5pt)
+  γ = 0.25  감성 품질 (상품별 sentiment_score 평균)
+  ε = 0.1   ABSA 속성 (미감지 시 ε = 0)
 ```
+
+> - `sentiment_avg` null 상품: γ = 0, β로 보완
+> - 가중치는 A/B 테스트로 튜닝 예정
 
 ---
 
@@ -126,16 +181,15 @@ CREATE INDEX idx_ui_goods_id ON user_interaction(goods_id);
 ### Phase 2 랭킹 수식
 
 ```
-final_score =
-    α × vector_similarity
-  + β × popularity_score
-  + γ × trend_score
-  + δ × sentiment_score
-  + ε × CF_score             # ← 추가
+final_score = α × rrf_score
+            + β × normalize(popularity_score)
+            + γ × sentiment_avg
+            + ε × absa_aspect_score[detected_aspect]
+            + ζ × CF_score             # ← 추가
 
 # cold-start 처리
-ε = 0  if user_interaction_count < THRESHOLD
-ε = 0.2  otherwise
+ζ = 0    if user_interaction_count < THRESHOLD
+ζ = 0.2  otherwise
 ```
 
 ### CF 확장을 위한 설계 원칙
@@ -153,10 +207,10 @@ final_score =
 ## 단계별 로드맵
 
 ```
-[현재] Bronze 크롤링 → Silver ETL → Gold (OCR, 감성분석)
+[현재] Bronze 크롤링 → Silver ETL → Gold (OCR, 감성분석, 피처 집계)
                                             │
                                             ▼
-[Phase 1] PostgreSQL + Qdrant 적재 → LangGraph 에이전트 구현 → 서비스 배포
+[Phase 1] PostgreSQL + Qdrant 적재 → LangGraph 구현 → 서비스 배포
                                             │
                                             ▼ (런칭 후 수개월)
 [Phase 2] user_interaction 로그 축적 → CF 모델 학습 → 랭킹 레이어에 CF_score 추가
