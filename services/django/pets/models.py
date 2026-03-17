@@ -1,5 +1,6 @@
 import uuid
 from django.db import models
+from products.models import Product
 from users.models import User
 
 
@@ -66,10 +67,10 @@ class PetFoodPreference(models.Model):
 
 
 class PetUsedProduct(models.Model):
-    id       = models.UUIDField(primary_key=True, default=uuid.uuid4, editable=False)
-    pet      = models.ForeignKey(Pet, on_delete=models.CASCADE, related_name="used_products")
-    goods_id = models.CharField(max_length=20)
+    id      = models.UUIDField(primary_key=True, default=uuid.uuid4, editable=False)
+    pet     = models.ForeignKey(Pet, on_delete=models.CASCADE, related_name="used_products")
+    product = models.ForeignKey(Product, on_delete=models.CASCADE, related_name="used_by_pets")
 
     class Meta:
         db_table = "pet_used_product"
-        unique_together = [("pet", "goods_id")]
+        unique_together = [("pet", "product")]

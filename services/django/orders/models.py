@@ -6,7 +6,7 @@ from products.models import Product
 
 class Cart(models.Model):
     cart_id    = models.UUIDField(primary_key=True, default=uuid.uuid4, editable=False)
-    user       = models.OneToOneField(User, on_delete=models.SET_NULL, null=True, blank=True)
+    user       = models.OneToOneField(User, on_delete=models.CASCADE)
     updated_at = models.DateTimeField(auto_now=True)
 
     class Meta:
@@ -55,8 +55,8 @@ class UserInteraction(models.Model):
     INTERACTION_CHOICES = [("click", "클릭"), ("cart", "장바구니"), ("purchase", "구매"), ("reject", "거절")]
 
     id               = models.UUIDField(primary_key=True, default=uuid.uuid4, editable=False)
-    user             = models.ForeignKey(User, on_delete=models.SET_NULL, null=True, blank=True)
-    product          = models.ForeignKey(Product, on_delete=models.CASCADE, null=True, blank=True)
+    user             = models.ForeignKey(User, on_delete=models.CASCADE)
+    product          = models.ForeignKey(Product, on_delete=models.CASCADE)
     session_id       = models.UUIDField(null=True, blank=True)
     interaction_type = models.CharField(max_length=20, choices=INTERACTION_CHOICES)
     weight           = models.SmallIntegerField(default=1)
