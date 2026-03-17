@@ -1,30 +1,33 @@
 """
 Gold Goods 어셈블리
-Silver goods + OCR 결과 + ingredients 파싱 결과 + (선택) 리뷰 → Gold goods parquet
+Silver goods + OCR 결과 + ingredients 파싱 결과 → Gold goods parquet
 
 선행 스크립트:
   1. scripts/gold/ocr.py          → output/gold/ocr/YYYYMMDD_ocr.parquet
   2. scripts/gold/ingredients.py  → output/gold/ingredients/YYYYMMDD_ingredients.parquet
+  3. scripts/gold/sentiment.py    → output/gold/sentiment/YYYYMMDD_basic.parquet
 
 처리 순서:
   1. Silver goods 로드 (canonical만)
   2. health_concern_tags 파생 (subcategory_names → 태그 매핑)
   3. OCR 결과 JOIN → ingredient_text_ocr
   4. ingredients 파싱 결과 JOIN → main_ingredients, ingredient_composition, nutrition_info
-  5. popularity_score / trend_score 파생
-  6. 출력: output/gold/goods/YYYYMMDD_goods_gold.parquet
+  5. popularity_score 파생
+  6. sentiment_avg / repeat_rate 집계 (sentiment basic.parquet + silver reviews)
+  7. 출력: output/gold/goods/YYYYMMDD_goods_gold.parquet
 
 실행:
   conda run -n final-project python scripts/gold/goods.py
   conda run -n final-project python scripts/gold/goods.py --sample 10
   conda run -n final-project python scripts/gold/goods.py \\
-      --reviews-input output/silver/reviews/20260310_reviews_silver.parquet
+      --reviews-input output/silver/reviews/20260310_reviews_silver.parquet \\
+      --sentiment-input output/gold/sentiment/20260310_basic.parquet
 """
 
 import argparse
 import math
 import sys
-from datetime import datetime, timedelta
+from datetime import datetime
 from glob import glob
 from pathlib import Path
 
@@ -48,12 +51,13 @@ HEALTH_TAG_RULES: list[tuple[str, list[str]]] = [
 
 OCR_CACHE_GLOB         = "output/gold/ocr/*_ocr.parquet"
 INGREDIENTS_CACHE_GLOB = "output/gold/ingredients/*_ingredients.parquet"
+SENTIMENT_CACHE_GLOB   = "output/gold/sentiment/*_basic.parquet"
 
 GOLD_COLUMNS = [
     "goods_id", "prefix", "product_name", "brand_id", "brand_name",
     "price", "discount_price", "rating", "rating_5pt", "review_count",
     "sold_out", "thumbnail_url", "product_url",
-    "subcategories", "subcategory_names",
+    "subcategories", "subcategory_names", "pet_type", "category", "subcategory",
     "review_count_source", "soldout_reliable", "ocr_target",
     "is_canonical", "duplicate_of", "crawled_at",
     "health_concern_tags",
@@ -61,7 +65,7 @@ GOLD_COLUMNS = [
     "main_ingredients",
     "ingredient_composition",
     "nutrition_info",
-    "popularity_score", "trend_score", "processed_at",
+    "popularity_score", "sentiment_avg", "repeat_rate", "processed_at",
 ]
 
 
@@ -94,22 +98,30 @@ def calc_popularity_score(review_count, rating_5pt) -> float | None:
     return math.log(review_count + 1) * rating_5pt
 
 
-def calc_trend_scores(df_goods: pd.DataFrame, df_reviews: pd.DataFrame | None) -> pd.Series:
-    if df_reviews is None:
-        return pd.Series([None] * len(df_goods), index=df_goods.index, dtype=object)
+def calc_sentiment_avg(df_goods: pd.DataFrame, df_sentiment: pd.DataFrame | None, df_reviews: pd.DataFrame | None) -> pd.Series:
+    """goods_id별 sentiment_score 평균. sentiment parquet은 review_id 기준이므로 reviews를 통해 goods_id 매핑."""
+    null_series = pd.Series([None] * len(df_goods), index=df_goods.index, dtype=object)
+    if df_sentiment is None or df_reviews is None:
+        return null_series
 
-    cutoff = pd.Timestamp.now(tz="UTC") - timedelta(days=30)
-    date_col = pd.to_datetime(df_reviews.get("review_date"), utc=True, errors="coerce")
-    if date_col is None:
-        return pd.Series([None] * len(df_goods), index=df_goods.index, dtype=object)
+    # review_id → goods_id 매핑
+    id_map = df_reviews[["review_id", "goods_id"]].drop_duplicates()
+    df_s = df_sentiment.merge(id_map, on="review_id", how="inner")
+    avg = df_s.groupby("goods_id")["sentiment_score"].mean().round(4)
+    return df_goods["goods_id"].map(avg)
 
-    df_rev = df_reviews.copy()
-    df_rev["_date"] = date_col
-    total = df_rev.groupby("goods_id").size().rename("total")
-    recent = df_rev[df_rev["_date"] >= cutoff].groupby("goods_id").size().rename("recent")
-    stat = total.to_frame().join(recent, how="left").fillna(0)
-    stat["trend_score"] = stat["recent"] / stat["total"].replace(0, 1)
-    return df_goods["goods_id"].map(stat["trend_score"])
+
+def calc_repeat_rate(df_goods: pd.DataFrame, df_reviews: pd.DataFrame | None) -> pd.Series:
+    """goods_id별 재구매 리뷰 비율 (purchase_label == 'repeat' / 전체)."""
+    null_series = pd.Series([None] * len(df_goods), index=df_goods.index, dtype=object)
+    if df_reviews is None or "purchase_label" not in df_reviews.columns:
+        return null_series
+
+    total = df_reviews.groupby("goods_id").size().rename("total")
+    repeat = df_reviews[df_reviews["purchase_label"] == "repeat"].groupby("goods_id").size().rename("repeat")
+    stat = total.to_frame().join(repeat, how="left").fillna(0)
+    stat["repeat_rate"] = (stat["repeat"] / stat["total"].replace(0, 1)).round(4)
+    return df_goods["goods_id"].map(stat["repeat_rate"])
 
 
 # ── 메인 ──────────────────────────────────────────────────────────────────────
@@ -119,6 +131,7 @@ def main(
     ocr_cache_path: str | None,
     ingredients_path: str | None,
     reviews_input: str | None,
+    sentiment_input: str | None,
     canonical_only: bool,
     sample_n: int | None,
 ) -> None:
@@ -190,25 +203,45 @@ def main(
         df["ingredient_composition"] = None
         df["nutrition_info"] = None
 
-    # 5. popularity_score + trend_score
-    print("[4/4] 추천 신호 점수 계산 중...")
+    # 5. popularity_score
+    print("[4/5] popularity_score 계산 중...")
     df["rating_5pt"] = df["rating"].apply(lambda r: round(r / 2, 2) if pd.notna(r) else None)
     df["popularity_score"] = df.apply(
         lambda row: calc_popularity_score(row["review_count"], row["rating_5pt"]), axis=1
     )
     print(f"  popularity_score 유효: {df['popularity_score'].notna().sum():,}개")
 
+    # 6. sentiment_avg + repeat_rate
+    print("[5/5] sentiment_avg / repeat_rate 집계 중...")
     df_reviews = None
     if reviews_input:
         try:
             df_reviews = pd.read_parquet(reviews_input)
             print(f"  리뷰 로드: {len(df_reviews):,}행")
         except Exception as e:
-            print(f"  리뷰 로드 실패 (trend_score=None): {e}")
+            print(f"  리뷰 로드 실패: {e}")
     else:
-        print("  --reviews-input 미지정 → trend_score=None")
+        print("  --reviews-input 미지정 → sentiment_avg / repeat_rate = None")
 
-    df["trend_score"] = calc_trend_scores(df, df_reviews)
+    df_sentiment = None
+    if sentiment_input:
+        try:
+            df_sentiment = pd.read_parquet(sentiment_input)
+            print(f"  sentiment 로드: {len(df_sentiment):,}행")
+        except Exception as e:
+            print(f"  sentiment 로드 실패: {e}")
+    else:
+        sent_files = sorted(glob(SENTIMENT_CACHE_GLOB))
+        if sent_files:
+            df_sentiment = pd.read_parquet(sent_files[-1])
+            print(f"  sentiment 자동 로드: {sent_files[-1]} ({len(df_sentiment):,}행)")
+        else:
+            print("  sentiment 파일 없음 (gold/sentiment.py 먼저 실행) → sentiment_avg = None")
+
+    df["sentiment_avg"] = calc_sentiment_avg(df, df_sentiment, df_reviews)
+    df["repeat_rate"] = calc_repeat_rate(df, df_reviews)
+    print(f"  sentiment_avg 유효: {df['sentiment_avg'].notna().sum():,}개")
+    print(f"  repeat_rate 유효: {df['repeat_rate'].notna().sum():,}개")
 
     # 저장
     df["processed_at"] = pd.Timestamp.now(tz="UTC")
@@ -228,7 +261,8 @@ if __name__ == "__main__":
     parser.add_argument("--input", default="output/silver/goods/20260310_goods_silver.parquet")
     parser.add_argument("--ocr-cache", default=None, help="OCR 결과 parquet 경로 (기본: output/gold/ocr/ 최신)")
     parser.add_argument("--ingredients", default=None, help="ingredients 파싱 결과 parquet 경로 (기본: output/gold/ingredients/ 최신)")
-    parser.add_argument("--reviews-input", default=None, help="Silver reviews parquet (trend_score용)")
+    parser.add_argument("--reviews-input", default=None, help="Silver reviews parquet (sentiment_avg / repeat_rate용)")
+    parser.add_argument("--sentiment-input", default=None, help="Gold sentiment basic parquet (기본: output/gold/sentiment/ 최신)")
     parser.add_argument("--all", action="store_true", help="non-canonical 포함")
     parser.add_argument("--sample", type=int, default=None, metavar="N", help="N개 샘플 (검증용)")
     args = parser.parse_args()
@@ -238,6 +272,7 @@ if __name__ == "__main__":
         ocr_cache_path=args.ocr_cache,
         ingredients_path=args.ingredients,
         reviews_input=args.reviews_input,
+        sentiment_input=args.sentiment_input,
         canonical_only=not args.all,
         sample_n=args.sample,
     )

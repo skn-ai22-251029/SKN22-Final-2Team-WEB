@@ -79,6 +79,24 @@ def midcate_name(subcate: str) -> str:
     return parts[1] if len(parts) >= 2 else ""
 
 
+def parse_category_fields(subcategory_names: list[str]) -> tuple[list[str], list[str], list[str]]:
+    """
+    subcategory_names 배열에서 pet_type / category / subcategory 파싱.
+    '강아지_사료_퍼피(1세미만)' → ('강아지', '사료', '퍼피(1세미만)')
+    다중 카테고리 상품은 각 필드가 배열로 반환 (중복 제거).
+    """
+    pet_types, categories, subcategories = set(), set(), set()
+    for name in subcategory_names:
+        parts = name.split("_", 2)
+        if len(parts) >= 1:
+            pet_types.add(parts[0])
+        if len(parts) >= 2:
+            categories.add(parts[1])
+        if len(parts) >= 3:
+            subcategories.add(parts[2])
+    return sorted(pet_types), sorted(categories), sorted(subcategories)
+
+
 def is_ocr_target(subcategories: list[str]) -> bool:
     """소분류 목록 중 OCR 대상이 하나라도 있으면 True"""
     for sc in subcategories:
@@ -187,6 +205,12 @@ def add_derived_columns(df: pd.DataFrame) -> pd.DataFrame:
     # OCR 대상 여부 (Gold 단계 판단 기준)
     df["ocr_target"] = df["subcategory_names"].apply(is_ocr_target)
 
+    # subcategory_names → pet_type / category / subcategory 파싱
+    parsed = df["subcategory_names"].apply(parse_category_fields)
+    df["pet_type"]    = parsed.apply(lambda x: x[0])
+    df["category"]    = parsed.apply(lambda x: x[1])
+    df["subcategory"] = parsed.apply(lambda x: x[2])
+
     return df
 
 
@@ -261,7 +285,10 @@ SILVER_COLUMNS = [
     "detail_image_count",
     # 카테고리
     "subcategories",        # 소분류 코드 리스트
-    "subcategory_names",    # 소분류 이름 리스트
+    "subcategory_names",    # 소분류 이름 리스트 ('{pet_type}_{category}_{subcategory}' 형태)
+    "pet_type",             # 강아지/고양이 (list[str])
+    "category",             # 사료/간식/용품/... (list[str])
+    "subcategory",          # 전연령/퍼피/시니어/... (list[str])
     # 데이터 품질 플래그
     "review_count_source",  # 'direct' | 'aggregated'
     "soldout_reliable",     # bool (GO=False)
