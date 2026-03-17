@@ -144,7 +144,8 @@ classDiagram
         object    nutrition_info
         string    ingredient_text_ocr
         float     popularity_score
-        float     trend_score
+        float     sentiment_avg
+        float     repeat_rate
         timestamp processed_at
     }
 
@@ -166,8 +167,14 @@ classDiagram
         string  thumbnail_url
         string  product_url
         bool    soldout_yn
+        bool    soldout_reliable
+        string[]  pet_type
+        string[]  category
+        string[]  subcategory
+        string[]  health_concern_tags
         float   popularity_score
-        float   trend_score
+        float   sentiment_avg
+        float   repeat_rate
         jsonb   main_ingredients
         jsonb   ingredient_composition
         jsonb   nutrition_info
@@ -202,21 +209,29 @@ classDiagram
         vector  dense
         vector  sparse_bm25
         string  goods_id
-        string  goods_name
         string  brand_name
-        float   rating_5pt
-        int     review_count
-        float   popularity_score
+        string  prefix
+        int     price
+        int     discount_price
+        bool    sold_out
+        bool    soldout_reliable
+        string[]  pet_type
+        string[]  category
+        string[]  subcategory
         string[]  health_concern_tags
         string[]  main_ingredients
-        int     discount_price
+        string  ingredient_text_ocr
+        float   popularity_score
+        float   sentiment_avg
+        float   repeat_rate
         string  thumbnail_url
+        string  product_url
     }
 
     BronzeGoods   --> SilverGoods    : silver/goods.py
     BronzeReviews --> SilverReviews  : silver/reviews.py
     SilverGoods   --> GoldGoods      : gold/ocr.py → gold/ingredients.py → gold/goods.py
-    SilverReviews --> GoldGoods      : trend_score
+    SilverReviews --> GoldGoods      : sentiment_avg / repeat_rate 집계
     SilverReviews --> GoldReviews    : gold/reviews.py
     GoldGoods    --> PRODUCT       : goods
     GoldGoods    --> PRODUCT_CATEGORY_TAG : tags → 1행씩
@@ -295,7 +310,10 @@ Bronze goods에서 goodsId 기준 dedup, 타입 변환, 평점 정규화, OCR·d
 | `sold_out` | bool | `sold_out_yn` == `Y` |
 | `thumbnail_url` | string | 그대로 |
 | `subcategories` | string[] | 해당 goodsId가 속한 소분류 코드 전체 (중복 소거) |
-| `subcategory_names` | string[] | 소분류명 목록 (예: `["강아지_사료_어덜트(1~7세)"]`) |
+| `subcategory_names` | string[] | 소분류명 목록 (예: `["강아지_사료_어덜트(1~7세)"]`, `{pet_type}_{category}_{subcategory}` 형태) |
+| `pet_type` | string[] | 종 분류 — `subcategory_names` `_` 파싱 1번째 (예: `["강아지"]`, 다중 가능) |
+| `category` | string[] | 중분류 — `subcategory_names` `_` 파싱 2번째 (예: `["사료"]`, 다중 가능) |
+| `subcategory` | string[] | 소분류 — `subcategory_names` `_` 파싱 3번째 (예: `["어덜트(1~7세)"]`, 다중 가능) |
 | `detail_image_urls` | string[] | Bronze `detail_image_urls` dedup (OCR 입력용) |
 | `detail_image_count` | int | `detail_image_urls` 길이 |
 | `review_count_source` | string | `direct` (단품 직접 집계) / `aggregated` (GP 하위 합산) |
@@ -339,13 +357,16 @@ Silver goods에 추천 신호 및 증강 컬럼 추가.
 | 컬럼 | 타입 | 도출 방법 |
 |---|---|---|
 | *(silver 컬럼 전체 포함)* | | |
-| `health_concern_tags` | string[] | `disp_clsf_nos` → 키워드 매핑 규칙 (아래 표 참고) |
+| `rating_5pt` | float | `rating` ÷ 2 (10점 → 5점 환산) |
+| `product_url` | string | `https://www.aboutpet.co.kr/goods/indexGoodsDetail?goodsId={goods_id}` 생성 |
+| `health_concern_tags` | string[] | `subcategory_names` → 키워드 매핑 규칙 (아래 표 참고) |
 | `main_ingredients` | string[] | OCR 원재료 섹션에서 추출한 원료 키워드 배열 (치킨\|연어\|오리 등, 식품류만) |
 | `ingredient_composition` | object\|null | `{원료명: 함량%}` — OCR 원재료명 및 함량 섹션 LLM 파싱 (식품류만) |
 | `nutrition_info` | object\|null | `{영양성분명: 수치}` — OCR 영양성분 섹션 LLM 파싱 (식품류만) |
 | `ingredient_text_ocr` | string\|null | `silver.detail_image_urls` 이미지 OCR 결과 원문 (식품류만 존재) |
 | `popularity_score` | float | `log(review_count + 1) × rating_5pt` |
-| `trend_score` | float | 최근 30일 리뷰 수 / 전체 리뷰 수 (`silver/reviews` sysRegDtm 기준) |
+| `sentiment_avg` | float | `mean(sentiment_score)` per goods_id — gold/sentiment basic.parquet 집계 |
+| `repeat_rate` | float | `repeat 리뷰 수 / 전체 리뷰 수` — silver/reviews purchase_label 집계 |
 | `processed_at` | timestamp | |
 
 **health_concern_tags 매핑 규칙** (disp_clsf_no 소분류명 기반):
@@ -391,7 +412,8 @@ Silver reviews에 감성 분석 결과 추가.
 | `product_url` | `PRODUCT.product_url` |
 | `sold_out` | `PRODUCT.soldout_yn` |
 | `popularity_score` | `PRODUCT.popularity_score` |
-| `trend_score` | `PRODUCT.trend_score` |
+| `sentiment_avg` | `PRODUCT.sentiment_avg` |
+| `repeat_rate` | `PRODUCT.repeat_rate` |
 | `main_ingredients` | `PRODUCT.main_ingredients` (JSONB) |
 | `ingredient_composition` | `PRODUCT.ingredient_composition` (JSONB) |
 | `nutrition_info` | `PRODUCT.nutrition_info` (JSONB) |
@@ -416,8 +438,12 @@ Silver reviews에 감성 분석 결과 추가.
 
 | 항목 | 내용 |
 |---|---|
-| **임베딩 대상 텍스트** | `상품명 + 소분류명 + 리뷰 텍스트 상위 N개 concat` |
-| **payload** | `goods_id`, `goods_name`, `brand_name`, `rating_5pt`, `review_count`, `popularity_score`, `health_concern_tags`, `main_ingredients`, `discount_price`, `thumbnail_url` |
-| **Dense vector** | 한국어 임베딩 모델 (TBD) |
-| **Sparse vector** | BM25 |
+| **임베딩 대상 텍스트** | `product_name + brand_name + subcategory_names + health_concern_tags + main_ingredients + ingredient_composition(직렬화) + nutrition_info(직렬화)` |
+| **payload** | `goods_id`, `brand_name`, `prefix`, `price`, `discount_price`, `sold_out`, `soldout_reliable`, `pet_type`, `category`, `subcategory`, `health_concern_tags`, `main_ingredients`, `ingredient_text_ocr`(알레르기 필터용), `popularity_score`, `sentiment_avg`, `repeat_rate`, `thumbnail_url`, `product_url` |
+| **Dense vector** | `multilingual-e5-large` 또는 `bge-m3` |
+| **Sparse vector** | BM25 (Qdrant 내장) |
 | **검색 방식** | Hybrid Search (Dense + Sparse + RRF) |
+
+> `ingredient_composition` / `nutrition_info`: PostgreSQL 저장 + 인제스트 시 직렬화하여 임베딩 텍스트에 포함. Qdrant payload 미적재 (dict 그대로 저장 불필요).<br>
+> `ingredient_text_ocr`: payload 저장 (알레르기 키워드 매칭용). 임베딩 텍스트 제외.<br>
+> GP 상품 (prefix=GP): PostgreSQL 전량 적재, Qdrant 미적재 (기획전 카드 섹션 전용).

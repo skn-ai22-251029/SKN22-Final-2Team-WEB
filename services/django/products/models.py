@@ -1,4 +1,5 @@
 import uuid
+from django.contrib.postgres.fields import ArrayField
 from django.db import models
 
 
@@ -13,8 +14,14 @@ class Product(models.Model):
     thumbnail_url          = models.TextField()
     product_url            = models.TextField()
     soldout_yn             = models.BooleanField(default=False)
+    soldout_reliable       = models.BooleanField(default=True)
+    pet_type               = ArrayField(models.CharField(max_length=20), default=list)
+    category               = ArrayField(models.CharField(max_length=50), default=list)
+    subcategory            = ArrayField(models.CharField(max_length=100), default=list)
+    health_concern_tags    = ArrayField(models.CharField(max_length=20), default=list)
     popularity_score       = models.DecimalField(max_digits=10, decimal_places=4, null=True, blank=True)
-    trend_score            = models.DecimalField(max_digits=6, decimal_places=4, null=True, blank=True)
+    sentiment_avg          = models.DecimalField(max_digits=5, decimal_places=4, null=True, blank=True)
+    repeat_rate            = models.DecimalField(max_digits=5, decimal_places=4, null=True, blank=True)
     main_ingredients       = models.JSONField(null=True, blank=True)
     ingredient_composition = models.JSONField(null=True, blank=True)
     nutrition_info         = models.JSONField(null=True, blank=True)
@@ -26,7 +33,6 @@ class Product(models.Model):
         indexes = [
             models.Index(fields=["brand_name"]),
             models.Index(fields=["-popularity_score"]),
-            models.Index(fields=["-trend_score"]),
         ]
 
 
