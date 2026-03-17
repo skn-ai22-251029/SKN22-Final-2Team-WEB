@@ -10,7 +10,7 @@
 erDiagram
 
     USER {
-        uuid    user_id         PK
+        int     id              PK  "Django 기본 auto increment"
         string  email
         datetime created_at
         boolean is_active
@@ -21,7 +21,7 @@ erDiagram
     }
 
     USER_PROFILE {
-        uuid    user_id           PK "FK 1:1"
+        int     user_id           PK "FK 1:1 → USER.id"
         string  nickname
         int     age               "nullable"
         string  gender            "nullable"
@@ -34,7 +34,7 @@ erDiagram
 
     PET {
         uuid    pet_id          PK
-        uuid    user_id         FK
+        int     user_id         FK
         string  name
         string  species         "cat|dog"
         string  breed           "nullable"
@@ -128,7 +128,7 @@ erDiagram
 
     CHAT_SESSION {
         uuid    session_id      PK
-        uuid    user_id         FK  "not null — 로그인 필수"
+        int     user_id         FK  "not null — 로그인 필수"
         uuid    target_pet_id   FK  "nullable"
         string  title
         datetime created_at
@@ -145,7 +145,7 @@ erDiagram
 
     CART {
         uuid    cart_id         PK
-        uuid    user_id         FK  "not null — 로그인 필수"
+        int     user_id         FK  "not null — 로그인 필수"
         datetime updated_at
     }
 
@@ -159,7 +159,7 @@ erDiagram
 
     ORDER {
         uuid    order_id          PK
-        uuid    user_id           FK
+        int     user_id           FK
         string  recipient_name    "주문 시 스냅샷"
         string  delivery_address  "주문 시 스냅샷"
         int     total_price
@@ -183,7 +183,7 @@ erDiagram
 
     USER_INTERACTION {
         uuid    id               PK
-        uuid    user_id          FK
+        int     user_id          FK
         string  product_id       FK
         uuid    session_id       FK  "nullable"
         string  interaction_type "click|cart|purchase|reject"
@@ -230,7 +230,7 @@ erDiagram
 
 ```json
 {
-  "user_id":        "uuid",
+  "id":             "int",      // PK. Django 기본 auto increment
   "email":          "string",
   "created_at":     "datetime",
   "is_active":      "boolean",
@@ -250,7 +250,7 @@ erDiagram
 
 ```json
 {
-  "user_id":           "uuid",           // PK, FK → USER (1:1)
+  "user_id":           "int",            // PK, FK → USER.id (1:1)
   "nickname":          "string",         // OAuth provider에서 pre-fill 후 수정 가능
   "age":               "int | null",
   "gender":            "string | null",
@@ -267,7 +267,7 @@ erDiagram
 ```json
 {
   "pet_id":               "uuid",
-  "user_id":              "uuid",
+  "user_id":              "int",
   "name":                 "string",
   "species":              "cat | dog",
   "breed":                "string | null",
@@ -294,7 +294,7 @@ erDiagram
 ```json
 {
   "session_id":    "uuid",
-  "user_id":       "uuid",
+  "user_id":       "int",
   "title":         "string",             // 첫 메시지 기반 LLM 자동 생성
   "target_pet_id": "uuid | null",        // 대화 대상 펫. 미선택 시 null
   "messages": [
@@ -398,7 +398,7 @@ erDiagram
 ```json
 {
   "id":               "uuid",
-  "user_id":          "uuid",             // FK → USER
+  "user_id":          "int",              // FK → USER.id
   "goods_id":         "string",           // FK → PRODUCT
   "session_id":       "uuid | null",      // FK → CHAT_SESSION
   "interaction_type": "click | cart | purchase | reject",
@@ -416,7 +416,7 @@ erDiagram
 ```json
 {
   "cart_id":    "uuid",
-  "user_id":    "uuid",    // FK → USER. 온보딩 완료 회원 기준 1인 1카트
+  "user_id":    "int",     // FK → USER.id. 온보딩 완료 회원 기준 1인 1카트
   "items": [
     {
       "goods_id":      "string",
@@ -438,7 +438,7 @@ erDiagram
 ```json
 {
   "order_id":         "uuid",
-  "user_id":          "uuid",
+  "user_id":          "int",
   "recipient_name":   "string",   // 주문 시 스냅샷. user_profile.nickname 기본값
   "delivery_address": "string",   // 주문 시 스냅샷. user_profile.address 기본값
   "items":            ["OrderItem"],
