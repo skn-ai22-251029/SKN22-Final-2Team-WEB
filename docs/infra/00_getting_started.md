@@ -30,11 +30,24 @@ wsl --install
 
 > Docker Desktop이 실행 중이어야 `docker compose`가 동작한다.
 
-### 레포지토리 클론
+### 레포지토리 설정
+
+**1. upstream 레포 fork**
+
+GitHub에서 `skn-ai22-251029/SKN22-Final-2Team-WEB` → **Fork** 버튼 클릭
+
+**2. fork 클론**
 
 ```bash
-git clone https://github.com/skn-ai22-251029/SKN22-Final-2Team-WEB.git
+git clone https://github.com/<내_GitHub_ID>/SKN22-Final-2Team-WEB.git
 cd SKN22-Final-2Team-WEB
+```
+
+**3. upstream remote 추가**
+
+```bash
+git remote add upstream https://github.com/skn-ai22-251029/SKN22-Final-2Team-WEB.git
+git remote -v  # 확인
 ```
 
 ---
@@ -184,25 +197,32 @@ docs/<이슈번호>-<설명>      # 문서 작업
 
 ```
 1. GitHub에서 이슈 생성 또는 확인
-2. develop에서 브랜치 생성
+2. upstream/develop 최신화 후 브랜치 생성
 3. 작업 후 커밋
-4. develop으로 PR 생성
+4. fork에 push → upstream/develop으로 PR 생성
 5. 리뷰 후 머지
 ```
 
 ```bash
-# 브랜치 생성
+# upstream 최신화
+git fetch upstream
 git checkout develop
-git pull origin develop
+git merge upstream/develop
+git push origin develop
+
+# 브랜치 생성
 git checkout -b feature/12-user-login
 
 # 작업 후 커밋
 git add .
 git commit -m "feat(auth): add login API"
 
-# push 후 GitHub에서 PR 생성
+# fork에 push 후 GitHub에서 upstream/develop으로 PR 생성
 git push origin feature/12-user-login
 ```
+
+> **CI/CD 참고**: fork PR → upstream/develop 은 빌드 자동 검증 없음.
+> develop 머지 후 push 이벤트에서 Build & Test 실행됨.
 
 ### 커밋 메시지 형식
 
