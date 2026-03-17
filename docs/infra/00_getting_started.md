@@ -77,37 +77,66 @@ python -c "import secrets; print(secrets.token_urlsafe(50))"
 
 ## 3. DB 데이터 복원
 
-데이터 적재는 한 명이 완료한 후 스냅샷을 공유한다. 팀 공유 채널에서 덤프 파일을 받아 아래 절차로 복원한다.
+데이터 적재는 한 명이 완료한 후 덤프 파일을 공유한다.
+**팀 공유 드라이브에서 아래 파일을 받아 레포 루트에 놓는다:**
+
+- `tailtalk_dump.sql` — PostgreSQL 전체 덤프 (상품 3,800개 / 리뷰 전체)
+- `qdrant_products.snapshot` — Qdrant products 컬렉션 스냅샷 (3,618개)
 
 ### PostgreSQL 복원
 
 ```bash
-# DB 컨테이너 실행
+# 1. DB 컨테이너 실행
 cd infra && docker compose up -d postgres
 
-# 덤프 파일 복원
+# 2. 마이그레이션 먼저 적용 (테이블 스키마 생성)
+docker compose run --rm django python manage.py migrate
+
+# 3. 덤프 복원 (레포 루트에서 실행)
 docker exec -i tailtalk-postgres-1 psql -U mungnyang -d tailtalk_db < tailtalk_dump.sql
-```
-
-### pg_dump 생성 (데이터 담당자)
-
-```bash
-docker exec tailtalk-postgres-1 pg_dump -U mungnyang tailtalk_db > tailtalk_dump.sql
 ```
 
 ### Qdrant 복원
 
 ```bash
-# 스냅샷 생성 (데이터 담당자)
-curl -X POST "http://localhost:6333/collections/products/snapshots"
+# 1. Qdrant 컨테이너 실행
+cd infra && docker compose up -d qdrant
 
-# 스냅샷 복원
+# 2. 스냅샷 파일을 컨테이너에 복사 (레포 루트에서 실행)
+docker cp qdrant_products.snapshot tailtalk-qdrant-1:/qdrant/snapshots/
+
+# 3. 스냅샷으로 컬렉션 복원
 curl -X PUT "http://localhost:6333/collections/products/snapshots/recover" \
   -H "Content-Type: application/json" \
-  -d '{"location": "스냅샷_파일_경로"}'
+  -d '{"location": "/qdrant/snapshots/qdrant_products.snapshot"}'
+
+# 4. 복원 확인
+curl -s "http://localhost:6333/collections/products" | python3 -m json.tool
 ```
 
-> 덤프/스냅샷 파일은 팀 공유 채널(Google Drive 등)에서 받는다.
+> `points_count: 3618`, `status: green` 이면 정상.
+
+---
+
+### 덤프 파일 재생성 (데이터 담당자만)
+
+Gold ETL 결과가 변경됐을 때만 재생성한다.
+
+```bash
+# PostgreSQL dump
+docker exec tailtalk-postgres-1 pg_dump -U mungnyang tailtalk_db > tailtalk_dump.sql
+
+# Qdrant snapshot
+docker exec tailtalk-fastapi-1 python3 -c "
+from qdrant_client import QdrantClient
+snap = QdrantClient(url='http://qdrant:6333').create_snapshot('products')
+print(snap.name)
+"
+# 출력된 파일명으로 복사
+docker cp tailtalk-qdrant-1:/qdrant/snapshots/products/<출력된_파일명> qdrant_products.snapshot
+```
+
+> 재생성 후 팀 공유 드라이브 파일 교체 및 팀 공지 필요.
 
 ---
 
