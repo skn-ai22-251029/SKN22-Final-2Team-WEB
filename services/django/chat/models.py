@@ -7,7 +7,7 @@ from products.models import Product
 
 class ChatSession(models.Model):
     session_id = models.UUIDField(primary_key=True, default=uuid.uuid4, editable=False)
-    user       = models.ForeignKey(User, on_delete=models.SET_NULL, null=True, blank=True, related_name="chat_sessions")
+    user       = models.ForeignKey(User, on_delete=models.CASCADE, related_name="chat_sessions")
     target_pet = models.ForeignKey(Pet, on_delete=models.SET_NULL, null=True, blank=True)
     title      = models.TextField()
     created_at = models.DateTimeField(auto_now_add=True)
@@ -28,13 +28,3 @@ class ChatMessage(models.Model):
 
     class Meta:
         db_table = "chat_message"
-
-
-class MessageProductCard(models.Model):
-    id      = models.UUIDField(primary_key=True, default=uuid.uuid4, editable=False)
-    message = models.ForeignKey(ChatMessage, on_delete=models.CASCADE, related_name="product_cards")
-    product = models.ForeignKey(Product, on_delete=models.RESTRICT)
-    reason  = models.TextField()
-
-    class Meta:
-        db_table = "message_product_card"

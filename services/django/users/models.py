@@ -1,4 +1,3 @@
-import uuid
 from django.contrib.auth.models import AbstractBaseUser, BaseUserManager, PermissionsMixin
 from django.db import models
 
@@ -11,6 +10,8 @@ class UserManager(BaseUserManager):
         user = self.model(email=email, **extra_fields)
         if password:
             user.set_password(password)
+        else:
+            user.set_unusable_password()
         user.save(using=self._db)
         return user
 
@@ -21,12 +22,8 @@ class UserManager(BaseUserManager):
 
 
 class User(AbstractBaseUser, PermissionsMixin):
-    user_id        = models.UUIDField(primary_key=True, default=uuid.uuid4, editable=False)
-    email          = models.EmailField(unique=True)
-    oauth_provider = models.CharField(
-        max_length=10, null=True, blank=True,
-        choices=[("google", "Google"), ("kakao", "Kakao"), ("naver", "Naver")]
-    )
+    id         = models.AutoField(primary_key=True)
+    email      = models.EmailField(unique=True)
     created_at = models.DateTimeField(auto_now_add=True)
     is_active  = models.BooleanField(default=True)
     is_staff   = models.BooleanField(default=False)
