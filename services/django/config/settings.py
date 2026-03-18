@@ -18,6 +18,7 @@ INSTALLED_APPS = [
     "django.contrib.postgres",
     "rest_framework",
     "rest_framework_simplejwt",
+    "rest_framework_simplejwt.token_blacklist",
     "corsheaders",
     "users",
     "pets",
@@ -89,9 +90,38 @@ REST_FRAMEWORK = {
 SIMPLE_JWT = {
     "ACCESS_TOKEN_LIFETIME": timedelta(hours=1),
     "REFRESH_TOKEN_LIFETIME": timedelta(days=7),
+    "BLACKLIST_AFTER_ROTATION": True,
 }
 
+SECURE_SSL_REDIRECT = config("DJANGO_SECURE_SSL_REDIRECT", default=False, cast=bool)
+SESSION_COOKIE_SECURE = config("DJANGO_SESSION_COOKIE_SECURE", default=False, cast=bool)
+CSRF_COOKIE_SECURE = config("DJANGO_CSRF_COOKIE_SECURE", default=False, cast=bool)
+
 CORS_ALLOWED_ORIGINS = config("CORS_ALLOWED_ORIGINS", default="").split(",")
+
+SOCIAL_AUTH_PROVIDERS = {
+    "google": {
+        "client_id": config("GOOGLE_CLIENT_ID", default=""),
+        "client_secret": config("GOOGLE_CLIENT_SECRET", default=""),
+        "authorize_url": "https://accounts.google.com/o/oauth2/v2/auth",
+        "token_url": "https://oauth2.googleapis.com/token",
+        "userinfo_url": "https://openidconnect.googleapis.com/v1/userinfo",
+    },
+    "naver": {
+        "client_id": config("NAVER_CLIENT_ID", default=""),
+        "client_secret": config("NAVER_CLIENT_SECRET", default=""),
+        "authorize_url": "https://nid.naver.com/oauth2.0/authorize",
+        "token_url": "https://nid.naver.com/oauth2.0/token",
+        "userinfo_url": "https://openapi.naver.com/v1/nid/me",
+    },
+    "kakao": {
+        "client_id": config("KAKAO_CLIENT_ID", default=""),
+        "client_secret": config("KAKAO_CLIENT_SECRET", default=""),
+        "authorize_url": "https://kauth.kakao.com/oauth/authorize",
+        "token_url": "https://kauth.kakao.com/oauth/token",
+        "userinfo_url": "https://kapi.kakao.com/v2/user/me",
+    },
+}
 
 LANGUAGE_CODE = "ko-kr"
 TIME_ZONE = "Asia/Seoul"
