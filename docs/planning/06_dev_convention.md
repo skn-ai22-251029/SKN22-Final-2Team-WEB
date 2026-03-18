@@ -100,13 +100,12 @@ data(crawl): Playwright 어바웃펫 상품 수집 스크립트 추가
 | Import 정렬 | `isort` |
 | 타입 힌트 | 필수 (FastAPI는 Pydantic 모델 활용) |
 
-### TypeScript / Next.js
+### HTML / CSS / JavaScript (Django Template)
 
 | 항목 | 설정 |
 |---|---|
-| Formatter | `prettier` |
-| Linter | `eslint` |
-| 스타일 | camelCase (변수/함수), PascalCase (컴포넌트) |
+| CSS | Tailwind CSS via CDN |
+| JS | Vanilla JS (camelCase) |
 
 ### 공통
 

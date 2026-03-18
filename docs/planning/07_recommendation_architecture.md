@@ -13,7 +13,7 @@
 
 LangGraph **순환(cyclic) 그래프** 구조. 의도 불명확 시 재질문 루프, 검색 결과 부족 시 필터 완화 후 재검색 루프를 포함한다.
 
-> **펫 프로필 전달 방식**: 프론트엔드 Zustand 상태 → API 요청 페이로드에 포함 → FastAPI가 ChatState에 주입. DB 조회 없음.
+> **펫 프로필 전달 방식**: API 요청 페이로드에 포함 → FastAPI가 ChatState에 주입. DB 조회 없음.
 >
 > **병렬 실행**: `domain_qa + recommend` 동시 감지 시 LangGraph `Send` API로 fan-out. MERGE 노드에서 fan-in.
 
