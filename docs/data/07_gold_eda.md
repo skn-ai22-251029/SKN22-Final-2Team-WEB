@@ -264,17 +264,17 @@ Silver ETL에서 `_` 기준으로 파싱하여 `pet_type`, `category`, `subcateg
 
 > `main_ingredients`, `ingredient_composition`, `nutrition_info`는 거의 미처리 — Gold ETL 파싱 로직 보완 필요
 
-### 1-9. popularity_score / trend_score
+### 1-9. popularity_score / sentiment_avg / repeat_rate
 
-| 항목 | popularity_score | trend_score |
-|---|---|---|
-| non-null | 4,641개 | 2,314개 |
-| mean | 10.32 | — |
-| 중앙값 | 6.93 | — |
-| 75% | 17.75 | — |
-| max | 48.51 | — |
+| 항목 | popularity_score | sentiment_avg | repeat_rate |
+|---|---|---|---|
+| non-null | 4,641개 | 3,618개 (GP 제외) | 3,618개 (GP 제외) |
+| mean | 10.32 | — | — |
+| 중앙값 | 6.93 | — | — |
+| 75% | 17.75 | — | — |
+| max | 48.51 | — | — |
 
-> `trend_score`는 최근 30일 리뷰가 있는 상품(2,314개)만 산출
+> `sentiment_avg`, `repeat_rate`는 GP 제외 상품(3,618개) 기준, Silver 리뷰 집계로 산출
 > `popularity_score` 0인 상품 25% 이상 — 리뷰 없는 신규/저인기 상품
 
 ---
@@ -423,10 +423,10 @@ Silver ETL에서 `_` 기준으로 파싱하여 `pet_type`, `category`, `subcateg
 
 | 이슈 | 영향 | 현황 |
 |---|---|---|
-| GP 리뷰 sentiment/ABSA 미처리 (232,821건) | 추천 품질 저하 | 별도 실행 필요 |
-| health_concern_tags 미부여 87.9% | 건강 필터링 제한 | OCR 키워드 매핑 보완 필요 |
-| main_ingredients / nutrition_info 거의 미파싱 | 성분 기반 추천 제한 | Gold ETL 파싱 로직 보완 |
-| pet_weight_kg 이상값 (>100kg, 258건) | 체중 기반 필터 오작동 | Silver ETL 상한 처리 필요 |
-| review_info 전체 null | 체크박스 정보 미활용 | 파싱 로직 추가 검토 |
-| has_photo 전부 False | 이미지 리뷰 활용 불가 | Phase 2 수집 검토 |
-| 5점 rating 편향 (77.5%) | 평점 기반 랭킹 무의미 | sentiment_score로 대체 |
+| GP 리뷰 sentiment/ABSA 미처리 (232,821건) | 추천 품질 저하 | Qdrant에 GP 상품 자체 미적재로 우회 처리 (`ingest_qdrant.py --prefix != GP`) |
+| health_concern_tags 미부여 87.9% | 건강 필터링 제한 | 미해결 — OCR 키워드 매핑 보완 필요 |
+| main_ingredients / nutrition_info 거의 미파싱 | 성분 기반 추천 제한 | 미해결 — Gold ETL 파싱 로직 보완 필요 |
+| pet_weight_kg 이상값 (>100kg, 258건) | 체중 기반 필터 오작동 | 미해결 — Silver ETL 상한 처리 필요 |
+| review_info 전체 null | 체크박스 정보 미활용 | 미해결 — 파싱 로직 추가 검토 |
+| has_photo 전부 False | 이미지 리뷰 활용 불가 | 미해결 — Phase 2 수집 검토 |
+| 5점 rating 편향 (77.5%) | 평점 기반 랭킹 무의미 | 해결 — `sentiment_avg` 추가로 대체 수단 확보 |

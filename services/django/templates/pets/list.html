@@ -1,0 +1,72 @@
+{% extends "base.html" %}
+{% block title %}반려동물 정보 — TailTalk{% endblock %}
+
+{% block content %}
+<div class="min-h-screen bg-[#f7fafc]">
+<div class="relative flex min-h-screen w-full items-center justify-center px-4 py-8">
+
+  <a href="/chat/" class="absolute left-8 top-8 text-[26px] font-bold leading-none text-[#2d3748]">
+    <span class="text-[#3182ce]">Tail</span><span>Talk</span>
+  </a>
+
+  <div class="w-full max-w-[860px] rounded-[20px] border border-[#dbe7f5] bg-white px-10 py-10 shadow-[0_6px_20px_rgba(45,55,72,0.04)]">
+    <div class="flex items-end justify-between gap-4">
+      <div>
+        <h1 class="text-[24px] font-bold text-[#2d3748]">반려동물 정보</h1>
+        <p class="mt-2 text-[14px] text-[#718096]">
+          등록된 아이들의 정보를 수정하거나, 새로운 아이를 추가할 수 있습니다.
+        </p>
+      </div>
+      <div class="text-[14px] font-bold text-[#3182ce]">등록 현황: {{ pets|length }} / 5마리</div>
+    </div>
+
+    <div class="mt-5 h-px w-full bg-[#edf2f7]"></div>
+
+    <div class="mt-8 space-y-4">
+      {% for pet in pets %}
+      <div class="flex items-center gap-5 rounded-[14px] border border-[#e2e8f0] bg-white px-4 py-4 shadow-[0_1px_2px_rgba(45,55,72,0.02)]">
+        <div class="flex h-[56px] w-[56px] items-center justify-center rounded-full bg-[#edf2f7] text-[24px]">
+          {% if pet.species == "dog" %}🐶{% else %}🐱{% endif %}
+        </div>
+        <div class="min-w-0 flex-1">
+          <div class="text-[18px] font-bold text-[#2d3748]">
+            {{ pet.name }} ({{ pet.get_species_display }})
+          </div>
+          <div class="mt-1 text-[14px] text-[#718096]">
+            {{ pet.age_years }}년 {{ pet.age_months }}개월
+            · {{ pet.get_gender_display }}
+            {% if pet.breed %} · {{ pet.breed }}{% endif %}
+          </div>
+        </div>
+        <div class="flex items-center gap-3">
+          <a href="/pets/{{ pet.pet_id }}/edit/"
+             class="flex h-[36px] w-[58px] items-center justify-center rounded-[8px] bg-[#edf2f7] text-[14px] font-bold text-[#4a5568] hover:bg-[#e2e8f0]">
+            수정
+          </a>
+          <form method="post" action="/api/pets/{{ pet.pet_id }}/" style="display:contents"
+                onsubmit="return confirm('정말 삭제하시겠습니까?')">
+            {% csrf_token %}
+            <input type="hidden" name="_method" value="DELETE" />
+            <button type="submit"
+                    class="flex h-[36px] w-[58px] items-center justify-center rounded-[8px] border border-[#feb2b2] bg-white text-[14px] font-bold text-[#e53e3e] hover:bg-[#fff5f5]">
+              삭제
+            </button>
+          </form>
+        </div>
+      </div>
+      {% empty %}
+      <p class="py-8 text-center text-[14px] text-[#a0aec0]">등록된 반려동물이 없습니다.</p>
+      {% endfor %}
+    </div>
+
+    {% if pets|length < 5 %}
+    <a href="/pets/add/"
+       class="mt-4 flex h-[44px] w-full items-center justify-center rounded-[12px] border border-dashed border-[#90cdf4] bg-[#f8fbff] text-[16px] font-bold text-[#3182ce] hover:bg-[#eef7ff]">
+      + 새로운 반려동물 추가하기
+    </a>
+    {% endif %}
+  </div>
+
+</div>
+</div>
+{% endblock %}

@@ -13,10 +13,7 @@ __pycache__/
 .ruff_cache/
 .mypy_cache/
 
-# Django 런타임 생성 파일
-db.sqlite3
-media/
-staticfiles/
+# 런타임 생성 파일
 *.log
 
 # 테스트

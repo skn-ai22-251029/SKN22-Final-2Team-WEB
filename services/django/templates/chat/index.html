@@ -1,0 +1,514 @@
+{% extends "base.html" %}
+{% block title %}TailTalk{% endblock %}
+
+{% block content %}
+<div class="min-h-screen bg-[#f7fafc]">
+<div class="relative h-screen w-full overflow-hidden bg-[#f7fafc]">
+
+  <!-- ── 삭제 확인 모달 (회원 전용) ──────────────────────────────────────── -->
+  {% if user.is_authenticated %}
+  <div id="deleteModal" class="absolute inset-0 z-[60] hidden items-center justify-center bg-black/10"
+       onclick="closeDeleteModal(event)">
+    <div class="relative h-[279px] w-[399px] rounded-[20px] border border-[#dbe7f5] bg-white shadow-[0_14px_36px_rgba(45,55,72,0.10)]"
+         onclick="event.stopPropagation()">
+      <div class="absolute left-1/2 top-[27px] flex h-[81px] w-[81px] -translate-x-1/2 items-center justify-center rounded-full border-[4px] border-[#ef4444]">
+        <span class="relative top-[-1px] text-[48px] font-bold leading-none text-[#ef4444]">!</span>
+      </div>
+      <p class="absolute left-1/2 top-[127px] -translate-x-1/2 whitespace-nowrap text-center text-[19px] font-bold leading-none text-[#2d3748]">
+        정말 삭제하시겠습니까?
+      </p>
+      <p class="absolute left-1/2 top-[171px] -translate-x-1/2 whitespace-nowrap text-center text-[14px] leading-none text-[#718096]">
+        대화 기록이 영구적으로 삭제됩니다
+      </p>
+      <div class="absolute bottom-[24px] left-[40px] right-[40px] flex h-[42px] items-center justify-between">
+        <button type="button" onclick="closeDeleteModal()"
+                class="flex h-full w-[150px] items-center justify-center rounded-[8px] bg-[#edf2f7] text-[14px] font-bold text-[#4a5568]">
+          취소
+        </button>
+        <button type="button" id="confirmDeleteBtn"
+                class="flex h-full w-[150px] items-center justify-center rounded-[8px] bg-[#ef4444] text-[14px] font-bold text-white">
+          삭제하기
+        </button>
+      </div>
+    </div>
+  </div>
+  {% endif %}
+
+  <!-- ── 사이드바 오버레이 ─────────────────────────────────────────────── -->
+  <button id="sidebarOverlay"
+          class="absolute inset-0 z-[15] hidden cursor-default"
+          type="button" aria-label="사이드바 닫기"
+          onclick="closeSidebar()"></button>
+
+  <!-- ── 사이드바 ────────────────────────────────────────────────────── -->
+  <aside id="sidebar"
+         class="absolute left-0 top-0 z-20 h-full w-[281px] transition-transform duration-300 ease-[cubic-bezier(0.22,1,0.36,1)]"
+         style="transform: translateX(-213px)">
+
+    <!-- 열린 상태 패널 -->
+    <div id="sidebarOpen" class="absolute inset-0 pointer-events-none opacity-0 transition-opacity duration-200">
+      {% if user.is_authenticated %}
+      <img alt="" class="absolute inset-0 h-full w-full"
+           src="https://www.figma.com/api/mcp/asset/0f914b5b-cc10-4bd1-b35c-23768f69ccb7" />
+
+      <!-- 새 대화 버튼 -->
+      <a href="/chat/" class="absolute left-[16px] top-[21px] flex h-[37px] w-[207px] items-center justify-center">
+        <img alt="" class="absolute inset-0 h-full w-full"
+             src="https://www.figma.com/api/mcp/asset/df3ce098-f6c1-4139-a85f-f8777af8e86d" />
+        <span class="relative whitespace-nowrap text-[16px] font-bold leading-none text-white">새 대화 시작</span>
+      </a>
+      <!-- 닫기 버튼 -->
+      <button type="button" onclick="closeSidebar()"
+              class="absolute left-[242px] top-[32px] h-[16px] w-[24px]" aria-label="사이드바 닫기">
+        <img alt="" class="block h-full w-full"
+             src="https://www.figma.com/api/mcp/asset/5f81f82e-a391-4ba4-b447-0ac855e07b12" />
+      </button>
+
+      <!-- 프로필 섹션 -->
+      <img alt="프로필 선택" class="absolute left-[20.5px] top-[89.28px] h-[55.22px] w-[240px]"
+           src="https://www.figma.com/api/mcp/asset/50f5e84b-42c0-4a50-9404-59ac09c4f92c" />
+
+      <!-- 대화 목록 -->
+      <div class="absolute left-[15.5px] top-[182px] flex w-[250px] flex-col gap-[12px]" id="chatHistoryList">
+        {% for session in sessions %}
+        <div class="chat-history-item relative h-[40px] w-[250px] rounded-[8px] transition-colors duration-150"
+             data-id="{{ session.session_id }}">
+          <img alt="" class="history-bg absolute inset-0 h-[40px] w-[250px] transition-opacity duration-150"
+               src="https://www.figma.com/api/mcp/asset/6630cc6d-cbd9-471a-8587-bd6e56070487" />
+          <span class="history-title absolute left-[10.5px] right-[66px] top-[11.8px] overflow-hidden text-ellipsis whitespace-nowrap text-[12px] font-semibold leading-none text-[#2d3748]">
+            {{ session.title|default:"새 대화" }}
+          </span>
+          <div class="absolute right-[10px] top-[11px] h-[18px] w-[62px]">
+            <span class="history-date absolute right-0 top-[1px] w-full whitespace-nowrap text-right text-[11px] leading-none tabular-nums text-[#a0aec0]">
+              {{ session.created_at|date:"y/m/d" }}
+            </span>
+            <div class="history-actions absolute right-0 top-0 hidden flex items-center justify-end gap-[7px]">
+              <button type="button" class="flex h-[18px] w-[18px] items-center justify-center text-[12px]"
+                      aria-label="수정" onclick="editHistory(this)">✏️</button>
+              <button type="button" class="flex h-[18px] w-[18px] items-center justify-center text-[12px]"
+                      aria-label="삭제" onclick="openDeleteModal('{{ session.session_id }}')">🗑️</button>
+            </div>
+          </div>
+        </div>
+        {% endfor %}
+      </div>
+
+      <!-- 하단 구분선 / 로그아웃 / 설정 -->
+      <img alt="" class="absolute bottom-[69.5px] left-[20.5px] h-px w-[240px]"
+           src="https://www.figma.com/api/mcp/asset/29c2734e-0f52-4f9b-80bf-a8e97d42dbc0" />
+      <a href="/logout/" class="absolute bottom-[34.26px] left-[25.07px] h-[12.96px] w-[50.37px]">
+        <img alt="로그아웃" class="block h-full w-full"
+             src="https://www.figma.com/api/mcp/asset/859bd012-3121-4646-8578-a808af8cfaf3" />
+      </a>
+      <img alt="설정" class="absolute bottom-[30.9px] left-[237px] h-[19.1px] w-[18.68px]"
+           src="https://www.figma.com/api/mcp/asset/792ac734-a1f1-4756-b214-34070a46371f" />
+
+      {% else %}
+      <!-- 비회원 사이드바 -->
+      <img alt="" class="absolute inset-0 h-full w-full"
+           src="https://www.figma.com/api/mcp/asset/ad58345b-5dd6-4c4d-9add-d9ce93ab4236" />
+      <button type="button" onclick="closeSidebar()"
+              class="absolute right-[15px] top-[31px] h-[16px] w-[24px]" aria-label="사이드바 닫기">
+        <img alt="" class="block h-full w-full"
+             src="https://www.figma.com/api/mcp/asset/915378dd-f8b9-43fe-9cf7-1933a9312d51" />
+      </button>
+      <a href="/login/" class="absolute left-[16px] top-[20px] flex h-[37px] w-[207px] items-center justify-center">
+        <img alt="" class="absolute inset-0 h-full w-full"
+             src="https://www.figma.com/api/mcp/asset/20591019-64ca-4cd7-a3a1-6fea5ee43fa8" />
+        <span class="relative text-[16px] font-bold text-white">로그인 / 회원가입</span>
+      </a>
+      <p class="absolute left-[29px] top-[72px] text-[12px] text-[#718096]">맞춤형 반려동물 케어와 대화 기록 저장을 위해</p>
+      <p class="absolute left-[85px] top-[87px] text-[12px] text-[#718096]">로그인을 진행해 주세요</p>
+      <img alt="설정" class="absolute bottom-[31px] right-[24px] h-[19.1px] w-[18.68px]"
+           src="https://www.figma.com/api/mcp/asset/07028074-58d6-4ef3-b1b8-303b3868d92b" />
+      {% endif %}
+    </div>
+
+    <!-- 접힌 상태 패널 (우측 68px) -->
+    <div id="sidebarCollapsed"
+         class="absolute right-0 top-0 h-full w-[68px] bg-[#edf2f7] transition-opacity duration-[180ms] linear">
+      <button type="button" onclick="openSidebar()"
+              class="absolute left-1/2 top-[31px] h-[16px] w-[24px] -translate-x-1/2" aria-label="사이드바 열기">
+        <img alt="" class="block h-full w-full"
+             src="https://www.figma.com/api/mcp/asset/8aa9f692-3df6-4a17-a9e8-f713d7d1a1ee" />
+      </button>
+      {% if user.is_authenticated %}
+      <a href="/chat/"
+         class="absolute left-1/2 top-[93.19px] flex h-[14.81px] w-[14.81px] -translate-x-1/2 items-center justify-center"
+         aria-label="새 대화 시작">
+        <img alt="" class="block h-full w-full"
+             src="https://www.figma.com/api/mcp/asset/d6bb3b36-3d28-4b12-874c-412da87095c8" />
+      </a>
+      {% endif %}
+      <img alt="설정" class="absolute bottom-[28.45px] left-1/2 h-[19.1px] w-[18.68px] -translate-x-1/2"
+           src="https://www.figma.com/api/mcp/asset/4eec41a1-b8c0-4611-9d1a-adc716d51753" />
+    </div>
+  </aside>
+
+  <!-- ── 메인 콘텐츠 ──────────────────────────────────────────────────── -->
+  <div id="mainContent"
+       class="absolute inset-0 z-10 transition-transform duration-300 ease-[cubic-bezier(0.22,1,0.36,1)]">
+
+    <!-- 헤더 -->
+    <header class="absolute left-0 top-0 h-[80px] w-full border-b border-[#e2e8f0] bg-white">
+      <div class="absolute left-[87.5px] top-1/2 -translate-y-1/2 text-[26px] font-bold leading-none text-[#2d3748]">
+        <span class="text-[#3182ce]">Tail</span><span>Talk</span>
+      </div>
+    </header>
+
+    <!-- 히어로 섹션 -->
+    <div id="heroSection"
+         class="absolute left-1/2 text-center transition-transform duration-300 ease-[cubic-bezier(0.22,1,0.36,1)] will-change-transform"
+         style="top: clamp(240px, 33vh, 320px); width: min(540px, 90vw); transform: translateX(calc(-50% + 34px))">
+      <p class="whitespace-nowrap text-[32px] font-bold leading-[1.2] text-[#1a202c]">
+        <span class="text-[#3182ce]">Tail</span><span>Talk 와 함께하는 스마트한 집사 생활 </span>
+      </p>
+      {% if user.is_authenticated %}{% else %}
+      <p class="mt-[12px] text-[16px] text-[#718096]">로그인 후 AI 비서와 대화를 시작하고 다양한 혜택을 만나보세요.</p>
+      {% endif %}
+    </div>
+
+    <!-- 예시 칩 (회원 전용) -->
+    {% if user.is_authenticated %}
+    <div id="exampleChips"
+         class="absolute left-1/2 flex flex-wrap items-center justify-center gap-[12px] transition-transform duration-300 ease-[cubic-bezier(0.22,1,0.36,1)] will-change-transform"
+         style="top: clamp(305px, 41vh, 380px); width: min(820px, 92vw); transform: translateX(calc(-50% + 34px))">
+      <button type="button" onclick="fillMessage('가수분해 사료란?')"
+              class="flex h-[36px] items-center justify-center rounded-full border border-[#3182ce] bg-white px-[18px] text-[13px] font-bold text-[#3182ce] shadow-[0_1px_2px_rgba(49,130,206,0.08)]">
+        ✨ 가수분해 사료란?
+      </button>
+      <button type="button" onclick="fillMessage('닭고기 없는 간식 추천')"
+              class="flex h-[36px] items-center justify-center rounded-full border border-[#3182ce] bg-white px-[18px] text-[13px] font-bold text-[#3182ce] shadow-[0_1px_2px_rgba(49,130,206,0.08)]">
+        🚫 닭고기 없는 간식 추천
+      </button>
+      <button type="button" onclick="fillMessage('치석 제거용 껌 추천')"
+              class="flex h-[36px] items-center justify-center rounded-full border border-[#3182ce] bg-white px-[18px] text-[13px] font-bold text-[#3182ce] shadow-[0_1px_2px_rgba(49,130,206,0.08)]">
+        🦷 치석 제거용 껌 추천
+      </button>
+    </div>
+    {% endif %}
+
+    <!-- 메시지 입력창 -->
+    <div id="composerWrap"
+         class="absolute left-1/2 bg-white transition-transform duration-300 ease-[cubic-bezier(0.22,1,0.36,1)] will-change-transform"
+         style="top: clamp(430px, 56vh, 520px); width: min(801px, 90vw); transform: translateX(calc(-50% + 34px)); height: 61px">
+      <img alt="" class="absolute inset-0 h-full w-full"
+           src="https://www.figma.com/api/mcp/asset/4ec52273-5227-44c9-b2fb-f9ed508ae4ba" />
+
+      {% if user.is_authenticated %}
+      <!-- 왼쪽 플러스 버튼 -->
+      <div class="absolute bottom-[10.5px] left-[10.5px] h-[40px] w-[40px]">
+        <img alt="" class="absolute inset-0 h-full w-full"
+             src="https://www.figma.com/api/mcp/asset/bf9036d0-fa6a-4951-8bf1-87121fd476c3" />
+        <img alt="추가" class="absolute left-[14px] top-[14px] h-[12px] w-[12px]"
+             src="https://www.figma.com/api/mcp/asset/ce465e75-6e82-4e2a-88c9-c2fd47a455ac" />
+      </div>
+
+      <!-- 텍스트 입력 -->
+      <textarea id="messageInput" rows="1"
+                class="absolute bottom-[18px] left-[63px] right-[64px] min-h-[24px] resize-none overflow-y-auto bg-transparent text-[16px] leading-[24px] text-black outline-none placeholder:text-[#a6a6a6]"
+                placeholder="메시지를 입력하세요..."
+                aria-label="메시지 입력"
+                oninput="onMessageInput(this)"></textarea>
+
+      <!-- 전송/마이크 버튼 -->
+      <button type="button" id="sendBtn"
+              class="absolute bottom-[10.5px] right-[10.5px] flex h-[40px] w-[40px] items-center justify-center overflow-hidden rounded-full"
+              aria-label="음성 입력" onclick="sendMessage()">
+        <div class="absolute inset-0 rounded-full bg-[#3182ce]"></div>
+        <!-- 마이크 아이콘 -->
+        <div id="micIcon" class="pointer-events-none absolute flex items-center justify-center transition-all duration-[220ms] ease-[cubic-bezier(0.22,1,0.36,1)]">
+          <svg aria-hidden="true" class="h-[19px] w-[16px]" viewBox="0 0 16 19" fill="none" xmlns="http://www.w3.org/2000/svg">
+            <path d="M8 12.25C9.933 12.25 11.5 10.683 11.5 8.75V5.25C11.5 3.317 9.933 1.75 8 1.75C6.067 1.75 4.5 3.317 4.5 5.25V8.75C4.5 10.683 6.067 12.25 8 12.25Z" stroke="white" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"/>
+            <path d="M2.75 8.75C2.75 11.649 5.101 14 8 14C10.899 14 13.25 11.649 13.25 8.75" stroke="white" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"/>
+            <path d="M8 14V17.25" stroke="white" stroke-width="1.8" stroke-linecap="round"/>
+            <path d="M5.5 17.25H10.5" stroke="white" stroke-width="1.8" stroke-linecap="round"/>
+          </svg>
+        </div>
+        <!-- 전송 아이콘 -->
+        <div id="sendIcon" class="pointer-events-none absolute inset-0 flex items-center justify-center transition-all duration-[220ms] ease-[cubic-bezier(0.22,1,0.36,1)] translate-y-[6px] scale-[0.8] opacity-0">
+          <svg aria-hidden="true" class="h-[20px] w-[14px]" viewBox="0 0 14 20" fill="none" xmlns="http://www.w3.org/2000/svg">
+            <path d="M7 18V3M7 3L1.75 8.25M7 3L12.25 8.25" stroke="white" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"/>
+          </svg>
+        </div>
+      </button>
+
+      {% else %}
+      <!-- 비회원: 비활성화 입력창 -->
+      <div class="absolute bottom-[10.5px] left-[10.5px] flex h-[40px] w-[40px] items-center justify-center rounded-full bg-[#e2e8f0]">
+        <img alt="추가" class="h-[12px] w-[12px]"
+             src="https://www.figma.com/api/mcp/asset/1ff96a70-7f54-490e-9aaf-e8720798c90e" />
+      </div>
+      <div class="absolute bottom-[18px] left-[63px] right-[64px] text-[14px] text-[#a0aec0]">로그인이 필요한 서비스입니다</div>
+      <div class="absolute bottom-[10.5px] right-[10.5px] flex h-[40px] w-[40px] items-center justify-center rounded-full bg-[#e2e8f0]">
+        <img alt="마이크" class="h-[17px] w-[14px]"
+             src="https://www.figma.com/api/mcp/asset/01523a82-0f56-457b-9208-3c76dc0b544b" />
+      </div>
+      {% endif %}
+    </div>
+
+  </div>
+
+  <!-- ── 헤더 오른쪽 영역 (z-30) ──────────────────────────────────────── -->
+  <div class="absolute left-0 top-0 z-30 h-[80px] w-full pointer-events-none">
+    <div class="absolute right-[32px] top-[20px] flex h-[40px] items-center gap-[17px] pointer-events-auto">
+
+      <!-- 다크모드 토글 (UI 전용) -->
+      <div class="h-[36px] w-[72px] rounded-full border border-[#e2e8f0] bg-white">
+        <div class="flex h-full w-full items-center justify-between px-[10px] text-[16px]">
+          <span class="text-[#f6ad55]">☀️</span>
+          <span class="text-[#a0aec0]">🌙</span>
+        </div>
+      </div>
+
+      {% if user.is_authenticated %}
+      <!-- 장바구니 -->
+      <div class="h-[40px] w-[40px]">
+        <img alt="장바구니" class="h-full w-full"
+             src="https://www.figma.com/api/mcp/asset/be02fb28-1930-43fb-ac3b-9fcf482e1f58" />
+      </div>
+      <!-- 프로필 드롭다운 -->
+      <div class="relative h-[40px] w-[40px]" id="profileMenuWrapper">
+        <button type="button" class="h-[40px] w-[40px]" aria-label="프로필 메뉴 열기"
+                onclick="toggleProfileMenu()">
+          <img alt="프로필" class="h-full w-full"
+               src="https://www.figma.com/api/mcp/asset/ba733178-1524-4321-b48c-649741e0bb5f" />
+        </button>
+        <div id="profileMenu"
+             class="absolute right-0 top-[52px] w-[160px] origin-top-right rounded-[16px] border border-[#dbe7f5] bg-white shadow-[0_14px_36px_rgba(45,55,72,0.10)] transition-all duration-[180ms] ease-[cubic-bezier(0.22,1,0.36,1)] pointer-events-none translate-y-[-8px] scale-95 opacity-0">
+          <a href="/profile/" class="flex h-[44px] w-full items-center rounded-t-[16px] px-[16px] text-[14px] text-[#2d3748] hover:bg-[#edf2f7]">내 정보</a>
+          <div class="mx-[12px] h-px bg-[#edf2f7]"></div>
+          <a href="/pets/" class="flex h-[44px] w-full items-center px-[16px] text-[14px] text-[#2d3748] hover:bg-[#edf2f7]">반려동물 정보</a>
+          <div class="mx-[12px] h-px bg-[#edf2f7]"></div>
+          <a href="/orders/" class="flex h-[44px] w-full items-center px-[16px] text-[14px] text-[#2d3748] hover:bg-[#edf2f7]">주문 내역</a>
+          <div class="mx-[12px] h-px bg-[#edf2f7]"></div>
+          <a href="/logout/" class="flex h-[44px] w-full items-center rounded-b-[16px] px-[16px] text-[14px] text-[#ef4444] hover:bg-[#fef2f2]">로그아웃</a>
+        </div>
+      </div>
+
+      {% else %}
+      <!-- 비회원: 로그인/회원가입 버튼 -->
+      <div class="flex h-[40px] w-[200px] items-center gap-[10px]">
+        <a href="/login/"
+           class="flex h-full w-[90px] items-center justify-center rounded-full border border-[#cbd5e0] bg-white text-[14px] font-bold text-[#4a5568]">
+          로그인
+        </a>
+        <a href="/signup/"
+           class="flex h-full w-[100px] items-center justify-center rounded-full bg-[#3182ce] text-[14px] font-bold text-white">
+          회원가입
+        </a>
+      </div>
+      {% endif %}
+
+    </div>
+  </div>
+
+</div>
+</div>
+{% endblock %}
+
+{% block scripts %}
+<script>
+(function () {
+  var DRAWER_WIDTH = 281;
+  var COLLAPSED_WIDTH = 68;
+  var SHIFT = DRAWER_WIDTH - COLLAPSED_WIDTH; // 213
+
+  var sidebar      = document.getElementById('sidebar');
+  var sidebarOpen  = document.getElementById('sidebarOpen');
+  var sidebarColl  = document.getElementById('sidebarCollapsed');
+  var overlay      = document.getElementById('sidebarOverlay');
+  var mainContent  = document.getElementById('mainContent');
+  var hero         = document.getElementById('heroSection');
+  var chips        = document.getElementById('exampleChips');
+  var composer     = document.getElementById('composerWrap');
+
+  var isOpen = false;
+
+  function getSidebarOffset() { return isOpen ? 0 : -SHIFT; }
+  function getContentOffset() { return isOpen ? SHIFT : 0; }
+  function getElementOffset() {
+    var base = COLLAPSED_WIDTH - (isOpen ? DRAWER_WIDTH : COLLAPSED_WIDTH) / 2;
+    return base + 'px';
+  }
+
+  function applyLayout() {
+    sidebar.style.transform = 'translateX(' + getSidebarOffset() + 'px)';
+    mainContent.style.transform = 'translateX(' + getContentOffset() + 'px)';
+
+    if (hero) hero.style.transform = 'translateX(calc(-50% + ' + getElementOffset() + '))';
+    if (chips) chips.style.transform = 'translateX(calc(-50% + ' + getElementOffset() + '))';
+    if (composer) composer.style.transform = 'translateX(calc(-50% + ' + getElementOffset() + '))';
+
+    if (isOpen) {
+      sidebarOpen.style.opacity = '1';
+      sidebarOpen.style.pointerEvents = 'auto';
+      sidebarColl.style.opacity = '0';
+      sidebarColl.style.pointerEvents = 'none';
+      sidebarColl.style.visibility = 'hidden';
+      overlay.style.display = 'block';
+    } else {
+      sidebarOpen.style.opacity = '0';
+      sidebarOpen.style.pointerEvents = 'none';
+      sidebarColl.style.opacity = '1';
+      sidebarColl.style.pointerEvents = 'auto';
+      sidebarColl.style.visibility = 'visible';
+      overlay.style.display = 'none';
+    }
+  }
+
+  window.openSidebar = function () { isOpen = true; applyLayout(); };
+  window.closeSidebar = function () { isOpen = false; applyLayout(); };
+
+  // ── 프로필 드롭다운 ─────────────────────────────────────────
+  var profileMenu = document.getElementById('profileMenu');
+  var profileWrapper = document.getElementById('profileMenuWrapper');
+
+  window.toggleProfileMenu = function () {
+    var open = profileMenu.style.opacity === '1';
+    if (open) {
+      profileMenu.style.opacity = '0';
+      profileMenu.style.transform = 'translateY(-8px) scale(0.95)';
+      profileMenu.style.pointerEvents = 'none';
+    } else {
+      profileMenu.style.opacity = '1';
+      profileMenu.style.transform = 'translateY(0) scale(1)';
+      profileMenu.style.pointerEvents = 'auto';
+    }
+  };
+
+  document.addEventListener('mousedown', function (e) {
+    if (profileWrapper && !profileWrapper.contains(e.target)) {
+      if (profileMenu) {
+        profileMenu.style.opacity = '0';
+        profileMenu.style.transform = 'translateY(-8px) scale(0.95)';
+        profileMenu.style.pointerEvents = 'none';
+      }
+    }
+  });
+
+  // ── 메시지 입력창 ───────────────────────────────────────────
+  var messageInput = document.getElementById('messageInput');
+  var composerWrap = document.getElementById('composerWrap');
+  var micIcon      = document.getElementById('micIcon');
+  var sendIcon     = document.getElementById('sendIcon');
+  var sendBtn      = document.getElementById('sendBtn');
+
+  window.onMessageInput = function (el) {
+    el.style.height = '24px';
+    var h = Math.min(Math.max(el.scrollHeight, 24), 120);
+    el.style.height = h + 'px';
+    var composerH = Math.max(61, h + 36);
+    composerWrap.style.height = composerH + 'px';
+
+    var hasMsg = el.value.trim().length > 0;
+    if (hasMsg) {
+      micIcon.style.transform = 'translateY(-6px) scale(0.75)';
+      micIcon.style.opacity = '0';
+      sendIcon.style.transform = 'translateY(0) scale(1)';
+      sendIcon.style.opacity = '1';
+      sendBtn.setAttribute('aria-label', '메시지 전송');
+    } else {
+      micIcon.style.transform = '';
+      micIcon.style.opacity = '1';
+      sendIcon.style.transform = 'translateY(6px) scale(0.8)';
+      sendIcon.style.opacity = '0';
+      sendBtn.setAttribute('aria-label', '음성 입력');
+    }
+  };
+
+  window.fillMessage = function (text) {
+    if (!messageInput) return;
+    messageInput.value = text;
+    messageInput.focus();
+    onMessageInput(messageInput);
+  };
+
+  window.sendMessage = function () {
+    if (!messageInput) return;
+    var msg = messageInput.value.trim();
+    if (!msg) return;
+    // TODO: FastAPI 챗봇 API 연동 (#47)
+    console.log('send:', msg);
+  };
+
+  // ── 대화 기록 삭제 모달 ─────────────────────────────────────
+  var deleteModal = document.getElementById('deleteModal');
+  var pendingDeleteId = null;
+
+  window.openDeleteModal = function (sessionId) {
+    pendingDeleteId = sessionId;
+    deleteModal.style.display = 'flex';
+  };
+
+  window.closeDeleteModal = function (e) {
+    if (e && e.target !== deleteModal) return;
+    deleteModal.style.display = 'none';
+    pendingDeleteId = null;
+  };
+
+  var confirmBtn = document.getElementById('confirmDeleteBtn');
+  if (confirmBtn) {
+    confirmBtn.addEventListener('click', function () {
+      if (!pendingDeleteId) return;
+      fetch('/api/chat/sessions/' + pendingDeleteId + '/', {
+        method: 'DELETE',
+        headers: { 'X-CSRFToken': '{{ csrf_token }}' },
+      }).then(function () {
+        var el = document.querySelector('[data-id="' + pendingDeleteId + '"]');
+        if (el) el.remove();
+        deleteModal.style.display = 'none';
+        pendingDeleteId = null;
+      });
+    });
+  }
+
+  // ── 대화 기록 hover 효과 ────────────────────────────────────
+  document.querySelectorAll('.chat-history-item').forEach(function (item) {
+    var bg      = item.querySelector('.history-bg');
+    var date    = item.querySelector('.history-date');
+    var actions = item.querySelector('.history-actions');
+
+    item.addEventListener('mouseenter', function () {
+      item.style.backgroundColor = '#e2e8f0';
+      if (bg) bg.style.opacity = '0';
+      if (date) date.style.display = 'none';
+      if (actions) actions.style.display = 'flex';
+    });
+    item.addEventListener('mouseleave', function () {
+      item.style.backgroundColor = '';
+      if (bg) bg.style.opacity = '1';
+      if (date) date.style.display = '';
+      if (actions) actions.style.display = 'none';
+    });
+  });
+
+  window.editHistory = function (btn) {
+    var item = btn.closest('.chat-history-item');
+    var titleEl = item.querySelector('.history-title');
+    var current = titleEl.textContent.trim();
+    var input = document.createElement('input');
+    input.type = 'text';
+    input.value = current;
+    input.className = 'absolute left-[10.5px] top-[7.8px] h-[24px] w-[175px] rounded border border-[#cbd5e0] bg-white px-[6px] text-[12px] font-semibold text-[#2d3748] outline-none';
+    titleEl.replaceWith(input);
+    input.focus();
+    input.select();
+
+    function done() {
+      var newTitle = input.value.trim() || current;
+      var span = document.createElement('span');
+      span.className = 'history-title absolute left-[10.5px] right-[66px] top-[11.8px] overflow-hidden text-ellipsis whitespace-nowrap text-[12px] font-semibold leading-none text-[#2d3748]';
+      span.textContent = newTitle;
+      input.replaceWith(span);
+      // TODO: PATCH /api/chat/sessions/{id}/ title 업데이트
+    }
+    input.addEventListener('blur', done);
+    input.addEventListener('keydown', function (e) {
+      if (e.key === 'Enter' || e.key === 'Escape') input.blur();
+    });
+  };
+
+})();
+</script>
+{% endblock %}
