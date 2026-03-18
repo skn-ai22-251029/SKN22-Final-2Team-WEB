@@ -1,5 +1,99 @@
 {% extends "base.html" %}
-{% block title %}TailTalk{% endblock %}
+{% block title %}로그인 — TailTalk{% endblock %}
+
 {% block content %}
-<!-- TODO: users/login.html 포팅 (#119~#121) -->
+<div class="min-h-screen bg-[#f7fafc]">
+  <div class="relative h-screen w-full overflow-hidden bg-[#f7fafc] flex items-center justify-center">
+
+    <div class="relative w-[400px]">
+
+      <!-- 로고 -->
+      <div class="mb-6 text-center text-[26px] font-bold text-[#2d3748]">
+        <a href="/"><span class="text-[#3182ce]">Tail</span><span>Talk</span></a>
+      </div>
+
+      <!-- 카드 -->
+      <div class="rounded-xl bg-white shadow-md px-10 py-8">
+
+        <!-- 이메일 로그인 폼 -->
+        <form method="post" id="login-form">
+          {% csrf_token %}
+          <input type="hidden" name="remember_me" id="rememberMeInput" value="on" />
+          {% if error %}
+          <p class="mb-2 text-center text-[12px] text-red-500">{{ error }}</p>
+          {% endif %}
+          <input type="email" name="email" placeholder="이메일" required
+                 class="mb-2 w-full rounded border border-[#e2e8f0] bg-[#f7fafc] px-3 py-2 text-[13px] text-[#2d3748] outline-none focus:border-[#3182ce]" />
+          <input type="password" name="password" placeholder="비밀번호" required
+                 class="w-full rounded border border-[#e2e8f0] bg-[#f7fafc] px-3 py-2 text-[13px] text-[#2d3748] outline-none focus:border-[#3182ce]" />
+        </form>
+
+        <!-- 간편 로그인 구분선 -->
+        <div class="my-4 flex items-center gap-2">
+          <div class="h-[1px] flex-1 bg-[#e2e8f0]"></div>
+          <span class="text-[12px] text-[#a0aec0]">간편 로그인</span>
+          <div class="h-[1px] flex-1 bg-[#e2e8f0]"></div>
+        </div>
+
+        <!-- 소셜 버튼 -->
+        <div class="flex justify-center gap-4">
+          <a href="/api/auth/social/kakao/" aria-label="카카오 로그인">
+            <img alt="카카오" class="h-[40px] w-[40px]"
+                 src="https://www.figma.com/api/mcp/asset/d22d7edf-9f92-417d-8172-d0122cb9956e" />
+          </a>
+          <a href="/api/auth/social/naver/" aria-label="네이버 로그인">
+            <img alt="네이버" class="h-[40px] w-[40px]"
+                 src="https://www.figma.com/api/mcp/asset/7cfb3bd5-c1d7-42df-8155-0281c422f977" />
+          </a>
+          <a href="/api/auth/social/google/" aria-label="구글 로그인">
+            <img alt="구글" class="h-[40px] w-[40px]"
+                 src="https://www.figma.com/api/mcp/asset/579f7bd6-15db-47cc-995e-1510a459db1d" />
+          </a>
+        </div>
+
+        <!-- 하단: 로그인 상태 유지 + 로그인 버튼 -->
+        <div class="mt-4 flex items-center justify-between">
+          <label class="flex cursor-pointer items-center gap-2 text-[13px] text-[#4a5568]" id="rememberLabel">
+            <span id="checkboxIcon"
+                  class="flex h-[18px] w-[18px] items-center justify-center rounded border border-[#3182ce] bg-white">
+              <span id="checkmark" class="text-[10px] font-bold text-[#3182ce]">✓</span>
+            </span>
+            로그인 상태 유지
+          </label>
+          <button type="submit" form="login-form"
+                  class="rounded bg-[#3182ce] px-5 py-2 text-[13px] font-medium text-white hover:bg-[#2b6cb0]">
+            로그인
+          </button>
+        </div>
+
+      </div>
+
+      <!-- 회원가입 링크 -->
+      <p class="mt-4 text-center text-[13px] text-[#718096]">
+        계정이 없으신가요?
+        <a href="/signup/" class="text-[#3182ce] hover:underline">회원가입</a>
+      </p>
+
+    </div>
+  </div>
+</div>
+{% endblock %}
+
+{% block scripts %}
+<script>
+  (function () {
+    let checked = true;
+    const label = document.getElementById('rememberLabel');
+    const icon = document.getElementById('checkboxIcon');
+    const mark = document.getElementById('checkmark');
+    const input = document.getElementById('rememberMeInput');
+
+    label.addEventListener('click', function () {
+      checked = !checked;
+      input.value = checked ? 'on' : '';
+      mark.style.display = checked ? 'block' : 'none';
+      icon.style.borderColor = checked ? '#3182ce' : '#cbd5e0';
+    });
+  })();
+</script>
 {% endblock %}
