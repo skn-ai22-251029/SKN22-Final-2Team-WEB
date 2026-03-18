@@ -13,7 +13,6 @@ services:
     depends_on:
       - django
       - fastapi
-      - frontend
     restart: unless-stopped
 
   # ── Django (Auth / User / Pet / Order / Admin) ───────────────────────────────
@@ -46,15 +45,6 @@ services:
         condition: service_healthy
       qdrant:
         condition: service_started
-    restart: unless-stopped
-
-  # ── Next.js ──────────────────────────────────────────────────────────────────
-  frontend:
-    image: leemdo/tailtalk-frontend:latest
-    build: ../services/frontend
-    platform: linux/amd64
-    expose:
-      - "3000"
     restart: unless-stopped
 
   # ── PostgreSQL 16 ────────────────────────────────────────────────────────────
