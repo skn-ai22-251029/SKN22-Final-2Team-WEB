@@ -80,7 +80,7 @@ python -c "import secrets; print(secrets.token_urlsafe(50))"
 데이터 적재는 한 명이 완료한 후 덤프 파일을 공유한다.
 **팀 공유 드라이브에서 아래 파일을 받아 레포 루트에 놓는다:**
 
-- `tailtalk_dump.sql` — PostgreSQL 전체 덤프 (상품 3,800개 / 리뷰 전체)
+- `tailtalk_dump.sql` — PostgreSQL 전체 덤프 (상품 4,902개 / 리뷰 전체)
 - `qdrant_products.snapshot` — Qdrant products 컬렉션 스냅샷 (3,618개)
 
 ### PostgreSQL 복원

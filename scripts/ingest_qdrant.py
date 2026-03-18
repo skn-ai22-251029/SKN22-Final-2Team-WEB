@@ -91,6 +91,7 @@ def build_payload(row) -> dict:
 
     return {
         "goods_id":          row["goods_id"],
+        "product_name":      row.get("product_name"),
         "brand_name":        row.get("brand_name"),
         "prefix":            row.get("prefix"),
         "price":             int(row["price"]) if pd.notna(row.get("price")) else None,
