@@ -43,6 +43,9 @@
       <p class="mb-4 text-center text-[13px] {% if msg.tags == 'error' %}text-red-500{% else %}text-green-600{% endif %}">{{ msg }}</p>
       {% endfor %}
       {% endif %}
+      {% if setup_mode %}
+      <p class="mb-4 text-center text-[13px] text-[#3182ce]">소셜 로그인 완료. 추가 정보를 입력하고 저장해 주세요.</p>
+      {% endif %}
 
       <div class="text-[18px] font-bold text-[#2d3748]">1. 프로필 관리</div>
 
@@ -101,21 +104,36 @@
         <div class="flex items-center gap-3">
           <img alt="Kakao" class="h-8 w-8" src="https://www.figma.com/api/mcp/asset/527049c9-ee7f-443c-a0c6-0e70f4b905e3" />
           <div class="flex-1">
+            {% if social_accounts.kakao %}
+            <div class="text-[14px] font-bold text-[#2d3748]">Kakao 계정 연동 중</div>
+            <div class="text-[12px] text-[#718096]">{{ social_accounts.kakao.email|default:user.email }}</div>
+            {% else %}
             <div class="text-[14px] font-bold text-[#2d3748]">Kakao 계정 연동하기</div>
+            {% endif %}
           </div>
         </div>
         <div class="my-4 h-px w-full bg-[#e2e8f0]"></div>
         <div class="flex items-center gap-3">
           <img alt="Naver" class="h-8 w-8" src="https://www.figma.com/api/mcp/asset/7a5a2941-cee1-4c91-a571-7ad9b01bcfc6" />
           <div class="flex-1">
+            {% if social_accounts.naver %}
+            <div class="text-[14px] font-bold text-[#2d3748]">NAVER 계정 연동 중</div>
+            <div class="text-[12px] text-[#718096]">{{ social_accounts.naver.email|default:user.email }}</div>
+            {% else %}
             <div class="text-[14px] font-bold text-[#2d3748]">NAVER 계정 연동하기</div>
+            {% endif %}
           </div>
         </div>
         <div class="my-4 h-px w-full bg-[#e2e8f0]"></div>
         <div class="flex items-center gap-3">
           <img alt="Google" class="h-8 w-8" src="https://www.figma.com/api/mcp/asset/e3eff93a-1607-4896-8a57-8b1125091b0a" />
           <div class="flex-1">
+            {% if social_accounts.google %}
+            <div class="text-[14px] font-bold text-[#2d3748]">Google 계정 연동 중</div>
+            <div class="text-[12px] text-[#718096]">{{ social_accounts.google.email|default:user.email }}</div>
+            {% else %}
             <div class="text-[14px] font-bold text-[#2d3748]">Google 계정 연동하기</div>
+            {% endif %}
           </div>
         </div>
       </div>

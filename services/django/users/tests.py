@@ -1,6 +1,7 @@
 from unittest.mock import patch
 
 from django.test import TestCase, override_settings
+from rest_framework import status
 from rest_framework.test import APIClient
 
 from users.models import SocialAccount, User, UserProfile
@@ -106,3 +107,54 @@ class SocialLoginViewTests(TestCase):
             self.assertTrue(provider["configured"])
             self.assertIn("authorization_url", provider)
             self.assertIn("state", provider)
+
+
+@override_settings(SOCIAL_AUTH_PROVIDERS=TEST_SOCIAL_PROVIDERS)
+class AuthApiTests(TestCase):
+    def setUp(self):
+        self.client = APIClient()
+        self.user = User.objects.create_user(email="auth@example.com", password="Password123!")
+        UserProfile.objects.create(user=self.user, nickname="Auth User")
+
+    def test_login_returns_access_and_refresh_tokens(self):
+        response = self.client.post(
+            "/api/auth/login/",
+            {"email": "auth@example.com", "password": "Password123!"},
+            format="json",
+        )
+
+        self.assertEqual(response.status_code, status.HTTP_200_OK)
+        self.assertIn("access", response.data)
+        self.assertIn("refresh", response.data)
+        self.assertEqual(response.data["user"]["email"], "auth@example.com")
+
+    def test_logout_blacklists_refresh_token(self):
+        login_response = self.client.post(
+            "/api/auth/login/",
+            {"email": "auth@example.com", "password": "Password123!"},
+            format="json",
+        )
+        access = login_response.data["access"]
+        refresh = login_response.data["refresh"]
+
+        self.client.credentials(HTTP_AUTHORIZATION=f"Bearer {access}")
+        logout_response = self.client.post("/api/auth/logout/", {"refresh": refresh}, format="json")
+        self.assertEqual(logout_response.status_code, status.HTTP_204_NO_CONTENT)
+
+        refresh_response = self.client.post("/api/auth/token/refresh/", {"refresh": refresh}, format="json")
+        self.assertEqual(refresh_response.status_code, status.HTTP_401_UNAUTHORIZED)
+
+    def test_withdraw_deletes_user(self):
+        login_response = self.client.post(
+            "/api/auth/login/",
+            {"email": "auth@example.com", "password": "Password123!"},
+            format="json",
+        )
+        access = login_response.data["access"]
+        refresh = login_response.data["refresh"]
+
+        self.client.credentials(HTTP_AUTHORIZATION=f"Bearer {access}")
+        response = self.client.delete("/api/auth/withdraw/", {"refresh": refresh}, format="json")
+
+        self.assertEqual(response.status_code, status.HTTP_204_NO_CONTENT)
+        self.assertFalse(User.objects.filter(email="auth@example.com").exists())
