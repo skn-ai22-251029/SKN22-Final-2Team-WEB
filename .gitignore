@@ -53,6 +53,8 @@ logs/
 # Crawling output (로컬 데이터, S3 업로드 전)
 output/
 
-# DB 덤프 파일 (팀 공유 드라이브로 배포)
+# DB 백업 (팀 공유 드라이브로 배포)
+backup/
 *.sql
+*.dump
 *.snapshot
