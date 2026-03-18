@@ -439,7 +439,7 @@ Silver reviews에 감성 분석 결과 추가.
 | 항목 | 내용 |
 |---|---|
 | **임베딩 대상 텍스트** | `product_name + brand_name + subcategory_names + health_concern_tags + main_ingredients + ingredient_composition(직렬화) + nutrition_info(직렬화)` |
-| **payload** | `goods_id`, `brand_name`, `prefix`, `price`, `discount_price`, `sold_out`, `soldout_reliable`, `pet_type`, `category`, `subcategory`, `health_concern_tags`, `main_ingredients`, `ingredient_text_ocr`(알레르기 필터용), `popularity_score`, `sentiment_avg`, `repeat_rate`, `thumbnail_url`, `product_url` |
+| **payload** | `goods_id`, `product_name`, `brand_name`, `prefix`, `price`, `discount_price`, `sold_out`, `soldout_reliable`, `pet_type`, `category`, `subcategory`, `health_concern_tags`, `main_ingredients`, `ingredient_text_ocr`(알레르기 필터용), `popularity_score`, `sentiment_avg`, `repeat_rate`, `thumbnail_url`, `product_url` |
 | **Dense vector** | `multilingual-e5-large` 또는 `bge-m3` |
 | **Sparse vector** | BM25 (Qdrant 내장) |
 | **검색 방식** | Hybrid Search (Dense + Sparse + RRF) |
