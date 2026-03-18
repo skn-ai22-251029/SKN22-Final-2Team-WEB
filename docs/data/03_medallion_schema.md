@@ -27,16 +27,20 @@ flowchart TD
         G1 --> GO1[(gold/ocr/<br>YYYYMMDD_ocr.parquet)]
         GO1 --> G2[gold/ingredients.py]
         G2 --> GO2[(gold/ingredients/<br>YYYYMMDD_ingredients.parquet)]
+        GO1 --> GHT[gold/health_tags.py]
+        GHT --> GOHT[(gold/health_tags/<br>YYYYMMDD_health_tags.parquet)]
 
         SO1 --> G3[gold/goods.py]
         GO1 --> G3
         GO2 --> G3
+        GOHT --> G3
         SO2 --> G3
         G3 --> GO3[(gold/goods/<br>YYYYMMDD_goods_gold.parquet)]
 
         SO2 --> G5[gold/sentiment.py]
         G5 --> GO5[(gold/sentiment/<br>YYYYMMDD_basic.parquet)]
         G5 --> GO6[(gold/sentiment/<br>YYYYMMDD_absa.parquet)]
+        GO5 --> G3
 
         SO2 --> G4[gold/reviews.py]
         GO5 --> G4
@@ -44,12 +48,17 @@ flowchart TD
         G4 --> GO4[(gold/reviews/<br>YYYYMMDD_reviews_gold.parquet)]
     end
 
-    subgraph DB["📦 적재"]
-        GO3 --> P[(PostgreSQL<br>PRODUCT / PRODUCT_CATEGORY_TAG)]
-        GO4 --> R[(PostgreSQL<br>REVIEW)]
-        GO3 --> Q[(Qdrant<br>Hybrid Search)]
+    subgraph DB["📦 적재 → 상세: docs/data/10_ingest_pipeline.md"]
+        GO3 --> PG_INGEST[ingest_postgres.py<br>GP 포함 전체 적재]
+        GO4 --> PG_INGEST
+        GO3 --> QD_INGEST[ingest_qdrant.py<br>GP 제외 + 임베딩 생성]
+        PG_INGEST --> P[(PostgreSQL<br>product / product_category_tag / review)]
+        QD_INGEST --> Q[(Qdrant<br>products 컬렉션<br>Dense+Sparse Hybrid)]
     end
 ```
+
+> ingest 단계 처리 로직(GP 필터링, 임베딩 텍스트 조합, 컬렉션 설정, FK 필터 등) 및 실행 명령 상세:
+> **[docs/data/10_ingest_pipeline.md](10_ingest_pipeline.md)**
 
 ---
 
@@ -359,7 +368,7 @@ Silver goods에 추천 신호 및 증강 컬럼 추가.
 | *(silver 컬럼 전체 포함)* | | |
 | `rating_5pt` | float | `rating` ÷ 2 (10점 → 5점 환산) |
 | `product_url` | string | `https://www.aboutpet.co.kr/goods/indexGoodsDetail?goodsId={goods_id}` 생성 |
-| `health_concern_tags` | string[] | `subcategory_names` → 키워드 매핑 규칙 (아래 표 참고) |
+| `health_concern_tags` | string[] | `ocr_target=True`(식품류)만 — GPT-4o-mini로 OCR 텍스트 분류 (9개 태그). 비식품류는 `[]` |
 | `main_ingredients` | string[] | OCR 원재료 섹션에서 추출한 원료 키워드 배열 (치킨\|연어\|오리 등, 식품류만) |
 | `ingredient_composition` | object\|null | `{원료명: 함량%}` — OCR 원재료명 및 함량 섹션 LLM 파싱 (식품류만) |
 | `nutrition_info` | object\|null | `{영양성분명: 수치}` — OCR 영양성분 섹션 LLM 파싱 (식품류만) |
@@ -369,19 +378,13 @@ Silver goods에 추천 신호 및 증강 컬럼 추가.
 | `repeat_rate` | float | `repeat 리뷰 수 / 전체 리뷰 수` — silver/reviews purchase_label 집계 |
 | `processed_at` | timestamp | |
 
-**health_concern_tags 매핑 규칙** (disp_clsf_no 소분류명 기반):
+**health_concern_tags 분류 방식** (LLM 기반):
 
-| 태그 | 매핑 소분류명 키워드 |
-|---|---|
-| `관절` | 관절 |
-| `피부` | 피부, 피모, 모질 |
-| `소화` | 위장, 소화 |
-| `체중` | 체중조절 |
-| `요로` | 요로기계 |
-| `눈물` | 눈, 눈물 |
-| `헤어볼` | 헤어볼 |
-| `치아` | 치아, 구강, 덴탈 |
-| `면역` | 면역력 |
+- 대상: `ocr_target=True` 식품류 상품 (사료/간식/습식관/덴탈관/건강관리)
+- 입력: `product_name` + `ingredient_text_ocr` (최대 1,000자)
+- 모델: GPT-4o-mini (`scripts/gold/health_tags.py`)
+- 허용 태그: `관절` `피부` `소화` `체중` `요로` `눈물` `헤어볼` `치아` `면역`
+- 비식품류(`ocr_target=False`): `[]` 고정
 
 ### `gold/reviews/`
 

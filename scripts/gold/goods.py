@@ -1,16 +1,17 @@
 """
 Gold Goods 어셈블리
-Silver goods + OCR 결과 + ingredients 파싱 결과 → Gold goods parquet
+Silver goods + OCR 결과 + health_tags + ingredients 파싱 결과 → Gold goods parquet
 
 선행 스크립트:
   1. scripts/gold/ocr.py          → output/gold/ocr/YYYYMMDD_ocr.parquet
-  2. scripts/gold/ingredients.py  → output/gold/ingredients/YYYYMMDD_ingredients.parquet
-  3. scripts/gold/sentiment.py    → output/gold/sentiment/YYYYMMDD_basic.parquet
+  2. scripts/gold/health_tags.py  → output/gold/health_tags/YYYYMMDD_health_tags.parquet
+  3. scripts/gold/ingredients.py  → output/gold/ingredients/YYYYMMDD_ingredients.parquet
+  4. scripts/gold/sentiment.py    → output/gold/sentiment/YYYYMMDD_basic.parquet
 
 처리 순서:
   1. Silver goods 로드 (canonical만)
-  2. health_concern_tags 파생 (subcategory_names → 태그 매핑)
-  3. OCR 결과 JOIN → ingredient_text_ocr
+  2. OCR 결과 JOIN → ingredient_text_ocr
+  3. health_concern_tags JOIN (ocr_target=True → health_tags parquet, 나머지 → [])
   4. ingredients 파싱 결과 JOIN → main_ingredients, ingredient_composition, nutrition_info
   5. popularity_score 파생
   6. sentiment_avg / repeat_rate 집계 (sentiment basic.parquet + silver reviews)
@@ -37,21 +38,10 @@ import pandas as pd
 
 # ── 상수 ──────────────────────────────────────────────────────────────────────
 
-HEALTH_TAG_RULES: list[tuple[str, list[str]]] = [
-    ("관절",   ["관절"]),
-    ("피부",   ["피부", "피모", "모질"]),
-    ("소화",   ["위장", "소화"]),
-    ("체중",   ["체중조절"]),
-    ("요로",   ["요로기계"]),
-    ("눈물",   ["눈/눈물", "눈물"]),
-    ("헤어볼", ["헤어볼"]),
-    ("치아",   ["치아", "구강", "덴탈"]),
-    ("면역",   ["면역력"]),
-]
-
-OCR_CACHE_GLOB         = "output/gold/ocr/*_ocr.parquet"
-INGREDIENTS_CACHE_GLOB = "output/gold/ingredients/*_ingredients.parquet"
-SENTIMENT_CACHE_GLOB   = "output/gold/sentiment/*_basic.parquet"
+OCR_CACHE_GLOB          = "output/gold/ocr/*_ocr.parquet"
+HEALTH_TAGS_CACHE_GLOB  = "output/gold/health_tags/*_health_tags.parquet"
+INGREDIENTS_CACHE_GLOB  = "output/gold/ingredients/*_ingredients.parquet"
+SENTIMENT_CACHE_GLOB    = "output/gold/sentiment/*_basic.parquet"
 
 GOLD_COLUMNS = [
     "goods_id", "prefix", "product_name", "brand_id", "brand_name",
@@ -70,15 +60,6 @@ GOLD_COLUMNS = [
 
 
 # ── 헬퍼 ──────────────────────────────────────────────────────────────────────
-
-def map_health_tags(subcategory_names) -> list[str]:
-    tags: set[str] = set()
-    joined = " ".join(subcategory_names) if subcategory_names is not None else ""
-    for tag, keywords in HEALTH_TAG_RULES:
-        if any(kw in joined for kw in keywords):
-            tags.add(tag)
-    return sorted(tags)
-
 
 def load_latest(glob_pattern: str, label: str) -> pd.DataFrame | None:
     """glob 패턴으로 최신 parquet 로드. 없으면 None 반환."""
@@ -154,21 +135,15 @@ def main(
             lambda gid: f"https://www.aboutpet.co.kr/goods/indexGoodsDetail?goodsId={gid}"
         )
 
-    # 2. health_concern_tags
-    print("[1/4] health_concern_tags 매핑 중...")
-    df["health_concern_tags"] = df["subcategory_names"].apply(map_health_tags)
-    tag_counts = df["health_concern_tags"].apply(len)
-    print(f"  태그 있는 상품: {(tag_counts > 0).sum():,}개 / 없음: {(tag_counts == 0).sum():,}개")
-
-    # 3. OCR JOIN → ingredient_text_ocr
-    print("[2/4] OCR 결과 병합 중...")
-    ocr_glob = f"{ocr_cache_path}" if ocr_cache_path else OCR_CACHE_GLOB
-    df_ocr = load_latest(ocr_glob if "*" in ocr_glob else OCR_CACHE_GLOB, "OCR 결과")
+    # 2. OCR JOIN → ingredient_text_ocr
+    print("[1/4] OCR 결과 병합 중...")
     if ocr_cache_path:
         p = Path(ocr_cache_path)
         df_ocr = pd.read_parquet(p) if p.exists() else None
         if df_ocr is not None:
             print(f"  OCR 결과 로드: {p} ({len(df_ocr):,}개)")
+    else:
+        df_ocr = load_latest(OCR_CACHE_GLOB, "OCR 결과")
 
     if df_ocr is not None:
         ocr_map = dict(zip(df_ocr["goods_id"], df_ocr["ocr_text"]))
@@ -179,6 +154,21 @@ def main(
     else:
         df["ingredient_text_ocr"] = None
     print(f"  ingredient_text_ocr 보유: {df['ingredient_text_ocr'].notna().sum():,}개 / ocr_target: {df['ocr_target'].sum():,}개")
+
+    # 3. health_concern_tags JOIN (ocr_target=True → health_tags parquet, 나머지 → [])
+    print("[2/4] health_concern_tags 병합 중...")
+    df_ht = load_latest(HEALTH_TAGS_CACHE_GLOB, "health_tags")
+    if df_ht is not None:
+        ht_map = dict(zip(df_ht["goods_id"], df_ht["health_concern_tags"]))
+        df["health_concern_tags"] = df.apply(
+            lambda row: ht_map.get(row["goods_id"], []) if row.get("ocr_target") else [],
+            axis=1,
+        )
+    else:
+        df["health_concern_tags"] = [[] for _ in range(len(df))]
+        print("  health_tags 없음 → 전체 [] 처리 (scripts/gold/health_tags.py 먼저 실행 필요)")
+    tag_counts = df["health_concern_tags"].apply(len)
+    print(f"  태그 있는 상품: {(tag_counts > 0).sum():,}개 / 없음: {(tag_counts == 0).sum():,}개")
 
     # 4. ingredients JOIN → main_ingredients, ingredient_composition, nutrition_info
     print("[3/4] ingredients 파싱 결과 병합 중...")

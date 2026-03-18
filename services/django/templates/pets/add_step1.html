@@ -1,0 +1,81 @@
+{% extends "base.html" %}
+{% block title %}반려동물 등록 — TailTalk{% endblock %}
+
+{% block content %}
+<div class="min-h-screen bg-[#f7fafc]">
+  <div class="relative flex min-h-screen w-full items-center justify-center px-4 py-8">
+    <a href="/chat/" class="absolute left-4 top-4 text-[22px] font-bold leading-none text-[#2d3748] md:left-8 md:top-8 md:text-[26px]" aria-label="메인으로 이동">
+      <span class="text-[#3182ce]">Tail</span><span>Talk</span>
+    </a>
+
+    <div class="w-full max-w-[720px] rounded-[20px] border border-[#dbe7f5] bg-white px-5 py-6 shadow-[0_6px_20px_rgba(45,55,72,0.04)] md:px-[40px] md:py-[32px]">
+      <div class="grid grid-cols-3 gap-[10px]">
+        <span class="h-[6px] rounded-full bg-[#3182ce]"></span>
+        <span class="h-[6px] rounded-full bg-[#e2e8f0]"></span>
+        <span class="h-[6px] rounded-full bg-[#e2e8f0]"></span>
+      </div>
+      <div class="mt-6 text-[14px] font-bold text-[#3182ce]">STEP 1 / 3</div>
+      <h1 class="mt-2 text-[24px] font-bold leading-[1.3] text-[#2d3748] md:text-[28px]">어떤 반려동물과 함께하고 계신가요?</h1>
+
+      <div class="mt-8 grid grid-cols-1 gap-4 sm:grid-cols-2 md:grid-cols-3 md:gap-5" id="speciesGrid">
+        {% for value, label, emoji in species_options %}
+        <button
+          type="button"
+          class="species-btn flex h-[140px] flex-col items-center justify-center rounded-[14px] border border-[#e2e8f0] bg-white transition-all duration-150 hover:border-[#90cdf4] hover:bg-[#fbfdff] md:h-[160px]"
+          data-value="{{ value }}"
+        >
+          <div class="flex h-[56px] w-[56px] items-center justify-center rounded-full bg-[#edf2f7] text-[24px]">{{ emoji }}</div>
+          <div class="mt-6 text-[18px] font-bold text-[#4a5568]">{{ label }}</div>
+        </button>
+        {% endfor %}
+      </div>
+
+      <button
+        type="button"
+        id="nextStepButton"
+        disabled
+        class="mt-8 flex h-[48px] w-full items-center justify-center rounded-[10px] bg-[#cbd5e0] text-[16px] font-bold text-white transition-colors"
+      >
+        다음 단계로 (기본 정보 입력)
+      </button>
+    </div>
+  </div>
+</div>
+{% endblock %}
+
+{% block scripts %}
+<script>
+  (function () {
+    var selectedSpecies = null;
+    var buttons = Array.from(document.querySelectorAll('.species-btn'));
+    var nextButton = document.getElementById('nextStepButton');
+
+    function updateButtons() {
+      buttons.forEach(function (button) {
+        var active = button.dataset.value === selectedSpecies;
+        button.style.borderColor = active ? '#3182ce' : '';
+        button.style.backgroundColor = active ? '#f7fbff' : '';
+        button.style.boxShadow = active ? '0 0 0 2px rgba(49,130,206,0.08)' : '';
+      });
+
+      var hasSelection = !!selectedSpecies;
+      var canProceed = hasSelection && selectedSpecies !== 'future';
+      nextButton.disabled = !hasSelection;
+      nextButton.style.backgroundColor = canProceed ? '#3182ce' : '#cbd5e0';
+      nextButton.style.cursor = hasSelection ? 'pointer' : 'default';
+    }
+
+    buttons.forEach(function (button) {
+      button.addEventListener('click', function () {
+        selectedSpecies = button.dataset.value;
+        updateButtons();
+      });
+    });
+
+    nextButton.addEventListener('click', function () {
+      if (!selectedSpecies || selectedSpecies === 'future') return;
+      window.location.href = '/pets/add/details/?type=' + selectedSpecies;
+    });
+  })();
+</script>
+{% endblock %}

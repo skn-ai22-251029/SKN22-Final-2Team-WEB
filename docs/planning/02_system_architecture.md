@@ -13,7 +13,7 @@ flowchart TD
 
     subgraph FRONTEND["🖥️ Frontend"]
         direction LR
-        FE["Next.js + Zustand<br>3-패널 레이아웃"]
+        FE["Django Template (MVT)<br>3-패널 레이아웃"]
         OAUTH["OAuth<br>Google · Kakao · Naver"]
     end
 
@@ -50,14 +50,7 @@ flowchart TD
         PREPROCESS["전처리 파이프라인<br>Bronze → Silver → Gold"]
     end
 
-    subgraph MONITORING["📊 Monitoring"]
-        direction LR
-        PROM["Prometheus<br>메트릭 수집"]
-        LOKI["Grafana Loki<br>로그 수집"]
-        GRAFANA["Grafana<br>대시보드"]
-    end
-
-    JENKINS["🔧 Jenkins<br>CI/CD"]
+    CICD["🔧 GitHub Actions<br>CI/CD → AWS EC2 (EB)"]
 
     %% 사용자 → 프론트 → 백엔드
     USER --> FE
@@ -80,16 +73,8 @@ flowchart TD
     PREPROCESS --> PG
     PREPROCESS --> QDRANT
 
-    %% 모니터링
-    DJANGO --> LOKI
-    FASTAPI --> LOKI
-    DJANGO --> PROM
-    FASTAPI --> PROM
-    PROM --> GRAFANA
-    LOKI --> GRAFANA
-
     %% CI/CD
-    JENKINS --> NGINX
+    CICD --> NGINX
 
     %% 스타일
     classDef frontend fill:#3B82F6,stroke:#1D4ED8,color:#fff
@@ -110,8 +95,7 @@ flowchart TD
     class YOLO,STT multimodal
     class PG,QDRANT db
     class ABOUTPET,PW,PREPROCESS pipeline
-    class PROM,LOKI,GRAFANA monitoring
-    class JENKINS infra
+    class CICD infra
 ```
 
 ---
@@ -122,7 +106,7 @@ flowchart TD
 [사용자 / 게스트]
       │
       ▼
-[Frontend]  Next.js + Zustand
+[Frontend]  Django Template (MVT) + Vanilla JS
   OAuth (Google / Kakao / Naver)
       │
       ▼
@@ -162,7 +146,7 @@ flowchart TD
       │
       ▼
 [Gold]    분석 및 추천 신호 파생
-  (OCR, 감성 분석, ABSA, popularity_score, trend_score, 건강 관심사 태그)
+  (OCR, 감성 분석, ABSA, popularity_score, 건강 관심사 태그)
       │
       ├──► PostgreSQL  (관계형 서빙 DB)
       └──► Qdrant      (벡터 임베딩 인덱싱)
@@ -174,24 +158,19 @@ flowchart TD
 
 ```
 [AWS]
-  ├── EC2          앱 서버 (Docker Compose)
-  ├── S3           이미지 스토리지 (펫 프로필, OCR 원본)
-  ├── IAM          최소 권한 원칙
-  └── Secrets Manager  API 키 · DB 접속 정보
+  ├── EC2                앱 서버 (Elastic Beanstalk로 프로비저닝)
+  └── IAM                최소 권한 원칙
 
 [Docker Compose 서비스 구성]
-  ├── frontend     Next.js
-  ├── django       Django 백엔드
+  ├── django       Django 백엔드 + Template 렌더링
   ├── fastapi      FastAPI 마이크로서비스
   ├── nginx        리버스 프록시 / LB
   ├── postgres     PostgreSQL 16
-  ├── qdrant       Vector DB
-  ├── prometheus   메트릭 수집
-  ├── grafana      모니터링 대시보드
-  └── loki         로그 수집
+  └── qdrant       Vector DB
 
-[CI/CD]  Jenkins
-  └── 테스트 자동화 → 빌드 → EC2 배포
+[CI/CD]  GitHub Actions
+  └── PR → main: Build & Test
+  └── push → main: DockerHub push → AWS EC2 (Elastic Beanstalk) 배포
 ```
 
 ---
@@ -200,7 +179,7 @@ flowchart TD
 
 ```
 [이미지 입력]
-  MIME Type 검증 (프론트) → S3 업로드 → YOLO 분석 (체중 추정)
+  MIME Type 검증 (프론트) → YOLO 분석 (체중 추정)  ※ S3 연동 미구현 (TBD)
 
 [음성 입력 / 출력]  (구현 여부 TBD)
   STT: 마이크 입력 → 텍스트 변환 → 챗봇 전달

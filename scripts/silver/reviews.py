@@ -196,11 +196,20 @@ def main(input_path: str, gp_input_path: str | None, goods_path: str) -> None:
         lambda v: v if isinstance(v, str) and v in ("first", "repeat") else None
     )
 
-    # 5. 컬럼 정리
+    # 5. 품질 필터링
+    before = len(df)
+    df = df[df["review_text"].apply(lambda x: isinstance(x, str) and len(x.strip()) > 0)].copy()
+    print(f"  빈 review_text 제거: {before - len(df):,}개 → {len(df):,}개")
+
+    before = len(df)
+    df.loc[df["pet_weight_kg"] > 100, "pet_weight_kg"] = None
+    print(f"  pet_weight_kg > 100 이상값 null 처리: {before - len(df[df['pet_weight_kg'].notna()]):,}개")
+
+    # 6. 컬럼 정리
     available = [c for c in SILVER_COLUMNS if c in df.columns]
     df_out = df[available]
 
-    # 6. 저장
+    # 7. 저장
     date_str = datetime.now().strftime("%Y%m%d")
     output_dir = Path("output/silver/reviews")
     output_dir.mkdir(parents=True, exist_ok=True)

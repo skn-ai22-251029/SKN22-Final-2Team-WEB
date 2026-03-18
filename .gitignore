@@ -58,3 +58,6 @@ backup/
 *.sql
 *.dump
 *.snapshot
+
+# Issues / internal notes (로컬 전용)
+docs/issues/

@@ -1,0 +1,170 @@
+{% extends "base.html" %}
+{% block title %}반려동물 등록 — TailTalk{% endblock %}
+
+{% block content %}
+<div class="min-h-screen bg-[#f7fafc]">
+  <div class="relative flex min-h-screen w-full items-center justify-center px-4 py-8">
+    <a href="/chat/" class="absolute left-4 top-4 text-[22px] font-bold leading-none text-[#2d3748] md:left-8 md:top-8 md:text-[26px]" aria-label="메인으로 이동">
+      <span class="text-[#3182ce]">Tail</span><span>Talk</span>
+    </a>
+
+    <div class="w-full max-w-[720px] rounded-[20px] border border-[#e2e8f0] bg-white px-5 pb-6 pt-0 shadow-[0_6px_20px_rgba(45,55,72,0.04)] md:px-[40px] md:pb-[32px]">
+      <div class="grid grid-cols-3 gap-[10px]">
+        <span class="h-[6px] rounded-full bg-[#3182ce]"></span>
+        <span class="h-[6px] rounded-full bg-[#3182ce]"></span>
+        <span class="h-[6px] rounded-full bg-[#3182ce]"></span>
+      </div>
+      <div class="mt-[20px] text-[14px] font-bold leading-none text-[#3182ce]">STEP 3 / 3</div>
+      <div class="mt-[14px] flex items-center gap-[8px] text-[16px] font-bold leading-none text-[#2d3748] md:text-[18px]">
+        <span class="text-[18px] md:text-[20px]">{% if species == "cat" %}🐱{% elif species == "future" %}🏠{% else %}🐶{% endif %}</span>
+        <span>
+          {% if species == "cat" %}고양이 건강/식이 정보{% elif species == "future" %}예비 집사 건강/식이 정보{% else %}강아지 건강/식이 정보{% endif %}
+        </span>
+      </div>
+      <p class="mt-[14px] text-[15px] leading-snug text-[#718096] md:text-[16px] md:leading-none">정확한 사료와 영양제 추천을 위해 빈칸을 채워주세요</p>
+
+      <form method="post" action="/pets/add/health/" class="mt-[18px]">
+        {% csrf_token %}
+        <input type="hidden" name="final_step" value="1" />
+        <input type="hidden" name="species" value="{{ step2_data.species }}" />
+        <input type="hidden" name="name" value="{{ step2_data.name }}" />
+        <input type="hidden" name="breed" value="{{ step2_data.breed }}" />
+        <input type="hidden" name="gender" value="{{ step2_data.gender }}" />
+        <input type="hidden" name="age_years" value="{{ step2_data.age_years }}" />
+        <input type="hidden" name="age_months" value="{{ step2_data.age_months }}" />
+        <input type="hidden" name="weight_kg" value="{{ step2_data.weight_kg }}" />
+        <input type="hidden" name="neutered" value="{{ step2_data.neutered }}" />
+        <input type="hidden" name="allergies" id="allergiesInput" value="{{ step3_data.allergies }}" />
+
+        <div class="grid grid-cols-1 gap-x-[28px] gap-y-[18px] md:grid-cols-2">
+          <div>
+            <label class="mb-[8px] block text-[14px] font-bold text-[#4a5568]">
+              마지막 접종일 <span class="text-[#a0aec0]">(선택)</span>
+            </label>
+            <div class="relative">
+              <input type="date" name="vaccination_date" value="{{ step3_data.vaccination_date }}" class="h-[42px] w-full rounded-[8px] border border-[#e2e8f0] bg-white px-[14px] text-[14px] text-[#2d3748] outline-none focus:border-[#90cdf4]" />
+            </div>
+          </div>
+
+          <div>
+            <div class="mb-[8px] text-[14px] font-bold text-[#4a5568]">
+              선호 사료 형태 <span class="text-[#a0aec0]">(다중 선택 가능)</span>
+            </div>
+            <div class="flex flex-wrap gap-[8px]">
+              {% for value, label in food_options %}
+              <label class="food-option flex h-[42px] flex-1 cursor-pointer items-center justify-center rounded-[8px] border text-[14px] {% if value in step3_data.food_preferences %}border-[#3182ce] bg-[#f7fbff] font-bold text-[#3182ce]{% else %}border-[#e2e8f0] bg-white text-[#4a5568]{% endif %}">
+                <input type="checkbox" class="hidden food-checkbox" name="food_preferences" value="{{ value }}" {% if value in step3_data.food_preferences %}checked{% endif %} />
+                {{ label }}
+              </label>
+              {% endfor %}
+            </div>
+          </div>
+
+          <div class="md:col-span-2">
+            <div class="mb-[8px] text-[14px] font-bold text-[#4a5568]">
+              건강 관심사 <span class="text-[#a0aec0]">(다중 선택 가능)</span>
+            </div>
+            <div class="flex flex-wrap gap-[8px]">
+              {% for value, label in health_options %}
+              <label class="health-option flex h-[28px] cursor-pointer items-center justify-center rounded-full border px-[16px] text-[13px] {% if value in step3_data.health_concerns %}border-[#3182ce] bg-[#f7fbff] font-bold text-[#3182ce]{% else %}border-[#e2e8f0] bg-white text-[#4a5568]{% endif %}">
+                <input type="checkbox" class="hidden health-checkbox" name="health_concerns" value="{{ value }}" {% if value in step3_data.health_concerns %}checked{% endif %} />
+                {{ label }}
+              </label>
+              {% endfor %}
+            </div>
+          </div>
+
+          <div>
+            <label class="mb-[8px] block text-[14px] font-bold text-[#4a5568]">
+              알레르기 태그 <span class="text-[#a0aec0]">(선택)</span>
+            </label>
+            <input id="allergyTextInput" type="text" placeholder="알레르기 성분 입력 후 Enter (예: 닭고기)" class="h-[42px] w-full rounded-[8px] border border-[#e2e8f0] bg-white px-[14px] text-[13px] text-[#2d3748] outline-none placeholder:text-[#a0aec0] focus:border-[#90cdf4]" />
+            <div id="allergyTags" class="mt-[8px] flex flex-wrap gap-[6px]"></div>
+          </div>
+
+          <div>
+            <label class="mb-[8px] block text-[14px] font-bold text-[#4a5568]">
+              월 예산대 <span class="text-[#a0aec0]">(선택)</span>
+            </label>
+            <select name="budget_range" class="h-[42px] w-full rounded-[8px] border border-[#e2e8f0] bg-white px-[14px] text-[14px] text-[#2d3748] outline-none focus:border-[#90cdf4]">
+              <option value="">선택해주세요</option>
+              {% for value, label in budget_options %}
+              <option value="{{ value }}" {% if step3_data.budget_range == value %}selected{% endif %}>{{ label }}</option>
+              {% endfor %}
+            </select>
+          </div>
+
+          <div class="md:col-span-2">
+            <label class="mb-[8px] block text-[14px] font-bold text-[#4a5568]">
+              특이사항 <span class="text-[#a0aec0]">(선택)</span>
+            </label>
+            <textarea name="special_notes" class="h-[88px] w-full resize-none rounded-[10px] border border-[#e2e8f0] bg-white px-[14px] py-[12px] text-[13px] text-[#2d3748] outline-none placeholder:text-[#a0aec0] focus:border-[#90cdf4]" placeholder="약 복용 여부, 기저질환 등 기타 특이사항을 자유롭게 적어주세요.">{{ step3_data.special_notes }}</textarea>
+          </div>
+        </div>
+
+        <div class="mt-[28px] flex flex-col-reverse gap-[10px] md:flex-row md:items-end md:gap-[14px]">
+          <button type="button" onclick="history.back()" class="flex h-[44px] w-full items-center justify-center rounded-[10px] bg-[#edf2f7] text-[16px] font-bold text-[#4a5568] md:w-[128px]">이전으로</button>
+          <button type="submit" class="flex h-[44px] flex-1 items-center justify-center rounded-[10px] bg-[#3182ce] text-[16px] font-bold text-white">등록 완료</button>
+        </div>
+      </form>
+    </div>
+  </div>
+</div>
+{% endblock %}
+
+{% block scripts %}
+<script>
+  (function () {
+    function syncSelectable(className, inputClass, activeClass, inactiveClass) {
+      var labels = Array.from(document.querySelectorAll(className));
+      labels.forEach(function (label) {
+        var input = label.querySelector(inputClass);
+        function paint() {
+          label.className = label.className.replace(activeClass, '').replace(inactiveClass, '').trim();
+          label.className += ' ' + (input.checked ? activeClass : inactiveClass);
+        }
+        label.addEventListener('click', function () {
+          setTimeout(paint, 0);
+        });
+        paint();
+      });
+    }
+
+    syncSelectable('.food-option', '.food-checkbox', 'border-[#3182ce] bg-[#f7fbff] font-bold text-[#3182ce]', 'border-[#e2e8f0] bg-white text-[#4a5568]');
+    syncSelectable('.health-option', '.health-checkbox', 'border-[#3182ce] bg-[#f7fbff] font-bold text-[#3182ce]', 'border-[#e2e8f0] bg-white text-[#4a5568]');
+
+    var allergyInput = document.getElementById('allergyTextInput');
+    var allergiesHidden = document.getElementById('allergiesInput');
+    var tagsContainer = document.getElementById('allergyTags');
+    var tags = allergiesHidden.value ? allergiesHidden.value.split(',').map(function (item) { return item.trim(); }).filter(Boolean) : [];
+
+    function syncTags() {
+      allergiesHidden.value = tags.join(',');
+      tagsContainer.innerHTML = '';
+      tags.forEach(function (tag, index) {
+        var button = document.createElement('button');
+        button.type = 'button';
+        button.className = 'rounded-[4px] bg-[#edf2f7] px-[10px] py-[4px] text-[12px] text-[#4a5568]';
+        button.textContent = tag + ' ×';
+        button.addEventListener('click', function () {
+          tags.splice(index, 1);
+          syncTags();
+        });
+        tagsContainer.appendChild(button);
+      });
+    }
+
+    allergyInput.addEventListener('keydown', function (event) {
+      if (event.key !== 'Enter') return;
+      event.preventDefault();
+      var value = allergyInput.value.trim();
+      if (!value || tags.indexOf(value) !== -1) return;
+      tags.push(value);
+      allergyInput.value = '';
+      syncTags();
+    });
+
+    syncTags();
+  })();
+</script>
+{% endblock %}

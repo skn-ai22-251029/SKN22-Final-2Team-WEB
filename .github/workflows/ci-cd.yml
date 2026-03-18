@@ -1,18 +1,18 @@
 name: CI/CD
 
 on:
-  push:
-    branches:
-      - develop
-      - main
   pull_request:
+    branches:
+      - main
+  push:
     branches:
       - main
 
 jobs:
-  build-and-test:
-    name: Build & Test
+  ci:
+    name: CI — Build & Test
     runs-on: ubuntu-latest
+    if: github.repository == 'skn-ai22-251029/SKN22-Final-2Team-WEB'
 
     steps:
       - name: Checkout
@@ -26,7 +26,7 @@ jobs:
           cat <<'EOF' > infra/.env
           DJANGO_SECRET_KEY=${{ secrets.DJANGO_SECRET_KEY }}
           DJANGO_DEBUG=False
-          DJANGO_ALLOWED_HOSTS=localhost,tailtalk.leemdo.com
+          DJANGO_ALLOWED_HOSTS=localhost
           POSTGRES_DB=${{ secrets.POSTGRES_DB }}
           POSTGRES_USER=${{ secrets.POSTGRES_USER }}
           POSTGRES_PASSWORD=${{ secrets.POSTGRES_PASSWORD }}
@@ -47,11 +47,11 @@ jobs:
         if: always()
         run: docker compose -f infra/docker-compose.yml down -v
 
-  push-images:
-    name: Push Images to Docker Hub
-    needs: build-and-test
+  cd:
+    name: CD — Push & Deploy
     runs-on: ubuntu-latest
-    if: github.ref == 'refs/heads/main' && github.event_name == 'push'
+    needs: ci
+    if: github.repository == 'skn-ai22-251029/SKN22-Final-2Team-WEB' && github.ref == 'refs/heads/main' && github.event_name == 'push'
 
     steps:
       - name: Checkout
@@ -82,24 +82,19 @@ jobs:
           push: true
           tags: leemdo/tailtalk-fastapi:latest
 
-  deploy:
-    name: Deploy to EC2
-    needs: push-images
-    runs-on: ubuntu-latest
-    timeout-minutes: 10
+      - name: Create deployment package
+        run: |
+          cp infra/docker-compose.yml docker-compose.yml
+          cp -r infra/nginx nginx
+          zip -r deploy.zip docker-compose.yml nginx
 
-    steps:
-      - name: Deploy via SSH
-        uses: appleboy/ssh-action@v1
+      - name: Deploy to Elastic Beanstalk
+        uses: einaregilsson/beanstalk-deploy@v22
         with:
-          host: ${{ secrets.EC2_HOST }}
-          username: ${{ secrets.EC2_USER }}
-          key: ${{ secrets.EC2_SSH_KEY }}
-          command_timeout: 8m
-          script: |
-            cd ~/SKN22-Final-2Team-WEB
-            git pull origin main
-            docker compose -f infra/docker-compose.yml pull
-            docker compose -f infra/docker-compose.yml up -d
-            docker compose -f infra/docker-compose.yml exec -T django python manage.py migrate --noinput
-            docker compose -f infra/docker-compose.yml exec -T django python manage.py collectstatic --noinput
+          aws_access_key: ${{ secrets.AWS_ACCESS_KEY_ID }}
+          aws_secret_key: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
+          region: ${{ secrets.AWS_REGION }}
+          application_name: ${{ secrets.EB_APP_NAME }}
+          environment_name: ${{ secrets.EB_ENV_NAME }}
+          version_label: ${{ github.sha }}
+          deployment_package: deploy.zip
