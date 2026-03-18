@@ -3,9 +3,9 @@
 
 {% block content %}
 <div class="min-h-screen bg-[#f7fafc]">
-<div class="relative flex min-h-screen w-full items-center justify-center px-4 py-8">
+<div class="relative flex h-screen w-full items-center justify-center px-4 py-8">
 
-  <a href="/chat/" class="absolute left-8 top-8 text-[26px] font-bold leading-none text-[#2d3748]">
+  <a href="/chat/" class="absolute left-8 top-8 text-[26px] font-bold leading-none text-[#2d3748]" aria-label="메인으로 이동">
     <span class="text-[#3182ce]">Tail</span><span>Talk</span>
   </a>
 
@@ -26,7 +26,7 @@
       {% for pet in pets %}
       <div class="flex items-center gap-5 rounded-[14px] border border-[#e2e8f0] bg-white px-4 py-4 shadow-[0_1px_2px_rgba(45,55,72,0.02)]">
         <div class="flex h-[56px] w-[56px] items-center justify-center rounded-full bg-[#edf2f7] text-[24px]">
-          {% if pet.species == "dog" %}🐶{% else %}🐱{% endif %}
+          {% if pet.species == "cat" %}🐱{% else %}🐶{% endif %}
         </div>
         <div class="min-w-0 flex-1">
           <div class="text-[18px] font-bold text-[#2d3748]">
@@ -40,7 +40,7 @@
         </div>
         <div class="flex items-center gap-3">
           <a href="/pets/{{ pet.pet_id }}/edit/"
-             class="flex h-[36px] w-[58px] items-center justify-center rounded-[8px] bg-[#edf2f7] text-[14px] font-bold text-[#4a5568] hover:bg-[#e2e8f0]">
+             class="flex h-[36px] w-[58px] items-center justify-center rounded-[8px] bg-[#edf2f7] text-[14px] font-bold text-[#4a5568] transition-colors hover:bg-[#e2e8f0]">
             수정
           </a>
           <form method="post" action="/api/pets/{{ pet.pet_id }}/" style="display:contents"
@@ -48,7 +48,7 @@
             {% csrf_token %}
             <input type="hidden" name="_method" value="DELETE" />
             <button type="submit"
-                    class="flex h-[36px] w-[58px] items-center justify-center rounded-[8px] border border-[#feb2b2] bg-white text-[14px] font-bold text-[#e53e3e] hover:bg-[#fff5f5]">
+                    class="flex h-[36px] w-[58px] items-center justify-center rounded-[8px] border border-[#feb2b2] bg-white text-[14px] font-bold text-[#e53e3e] transition-colors hover:bg-[#fff5f5]">
               삭제
             </button>
           </form>
@@ -61,7 +61,7 @@
 
     {% if pets|length < 5 %}
     <a href="/pets/add/"
-       class="mt-4 flex h-[44px] w-full items-center justify-center rounded-[12px] border border-dashed border-[#90cdf4] bg-[#f8fbff] text-[16px] font-bold text-[#3182ce] hover:bg-[#eef7ff]">
+       class="mt-4 flex h-[44px] w-full items-center justify-center rounded-[12px] border border-dashed border-[#90cdf4] bg-[#f8fbff] text-[16px] font-bold text-[#3182ce] transition-colors hover:bg-[#eef7ff]">
       + 새로운 반려동물 추가하기
     </a>
     {% endif %}
