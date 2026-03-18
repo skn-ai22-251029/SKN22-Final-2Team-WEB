@@ -82,14 +82,6 @@ jobs:
           push: true
           tags: leemdo/tailtalk-fastapi:latest
 
-      - name: Build & Push Frontend
-        uses: docker/build-push-action@v6
-        with:
-          context: services/frontend
-          platforms: linux/amd64
-          push: true
-          tags: leemdo/tailtalk-frontend:latest
-
   deploy:
     name: Deploy to EC2
     needs: push-images
