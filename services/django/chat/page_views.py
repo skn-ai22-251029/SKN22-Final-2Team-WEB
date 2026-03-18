@@ -2,4 +2,9 @@ from django.shortcuts import render
 
 
 def chat_view(request):
-    return render(request, "chat/index.html")
+    sessions = []
+    if request.user.is_authenticated:
+        sessions = list(
+            request.user.chat_sessions.order_by("-created_at").values("id", "title", "created_at")[:50]
+        )
+    return render(request, "chat/index.html", {"sessions": sessions})
