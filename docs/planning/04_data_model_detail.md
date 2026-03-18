@@ -346,7 +346,7 @@ erDiagram
 {
   "id":         "uuid",
   "product_id": "string",  // FK → PRODUCT (Django ORM 기준 컬럼명)
-  "tag":        "string"   // Gold 파생: disp_clsf_no → 헬스 태그 매핑 (관절|피부|소화|체중|요로|눈물|헤어볼|치아|면역)
+  "tag":        "string"   // Gold 파생: LLM 분류 (OCR 텍스트 기반, 식품류만) — 관절|피부|소화|체중|요로|눈물|헤어볼|치아|면역
 }
 ```
 

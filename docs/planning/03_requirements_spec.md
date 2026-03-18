@@ -72,7 +72,7 @@
 | NFR-003 | 데이터 전처리 | NF-PREP-01 | 텍스트 정제 | 크롤링 수집 데이터의 HTML 태그 제거, 특수문자 정규화, 인코딩 처리. |
 | NFR-003 | 데이터 전처리 | NF-PREP-02 | 리뷰 데이터 전처리 | 리뷰 텍스트 노이즈 제거, 중복 리뷰 필터링. 추천 모델 학습용 레이블링 전략 수립 필요 (시계열 판매 실적 데이터의 특정 기간 라벨링 여부 TBD). |
 | NFR-003 | 데이터 전처리 | NF-PREP-03 | 벡터 임베딩 | 상품 정보 + 리뷰 텍스트를 임베딩 모델로 벡터화하여 **Qdrant**에 인덱싱. Dense + Sparse 벡터 저장, Hybrid Search (RRF) RAG 검색에 활용. |
-| NFR-003 | 데이터 전처리 | NF-PREP-04 | 데이터 전처리 레이어 (Medallion) | **Bronze → Silver → Gold** 3단계 전처리 파이프라인. Bronze: 원시 크롤링 데이터. Silver: 정제·정규화 (HTML 제거, 인코딩, 중복 제거). Gold: 분석 및 추천 신호 파생 (OCR, 감성 분석, ABSA, popularity_score, trend_score, 건강 관심사 태그). 결과물은 PostgreSQL 및 Qdrant에 직접 적재. |
+| NFR-003 | 데이터 전처리 | NF-PREP-04 | 데이터 전처리 레이어 (Medallion) | **Bronze → Silver → Gold** 3단계 전처리 파이프라인. Bronze: 원시 크롤링 데이터. Silver: 정제·정규화 (HTML 제거, 인코딩, 중복 제거). Gold: 분석 및 추천 신호 파생 (OCR, 감성 분석, ABSA, popularity_score, 건강 관심사 태그). 결과물은 PostgreSQL 및 Qdrant에 직접 적재. |
 | NFR-004 | 추천 시스템 | NF-REC-01 | 추천 알고리즘 | Matrix Factorization (MF), Factorization Machines (FM), 딥러닝 기반 추천 모델 중 선택 또는 앙상블. 추천 시스템 조사 및 비교 후 결정. |
 | NFR-004 | 추천 시스템 | NF-REC-02 | 추천 입력 데이터 | 유저 프로필(종, 나이, 건강 관심사, 알레르기, 예산), 상품 리뷰 텍스트, 리뷰 평점 활용. |
 | NFR-004 | 추천 시스템 | NF-REC-03 | 추천 메타데이터 | 시계열 판매 실적 데이터, 클릭 로그, 클릭 후 구매 전환 로그를 추천 모델 보조 피처로 활용. |
@@ -85,27 +85,27 @@
 | NFR-006 | 멀티모달리티 | NF-MM-02 | 음성 입력 (STT) | 마이크 입력을 텍스트로 변환하여 챗봇에 전달. 구현 여부 및 STT API 선택 TBD. |
 | NFR-006 | 멀티모달리티 | NF-MM-03 | 음성 출력 (TTS) | LLM 응답을 음성으로 출력. 구현 여부 및 TTS API 선택 TBD. |
 | NFR-006 | 멀티모달리티 | NF-MM-04 | 영상 입력 | 영상 분석 기능 구현 여부 TBD. 프로토타입 범위 외로 분류. |
-| NFR-007 | 모니터링 | NF-MON-01 | 시스템 모니터링 | Prometheus + Grafana를 활용하여 API 응답 시간, 서버 리소스, 에러율 등 전체 시스템 지표 수집 및 대시보드 시각화. |
-| NFR-007 | 모니터링 | NF-MON-02 | 로그 수집 및 검색 | **Grafana Loki** 활용. 애플리케이션 로그, LLM 요청/응답 로그, 추천 결과 로그 수집. Prometheus + Grafana와 동일 스택으로 통합 운영. OpenSearch 대비 메모리 사용량 대폭 절감. |
+| NFR-007 | 모니터링 | NF-MON-01 | 시스템 모니터링 | **(TBD)** API 응답 시간, 서버 리소스, 에러율 등 전체 시스템 지표 수집 및 대시보드 시각화. 도구 미확정. |
+| NFR-007 | 모니터링 | NF-MON-02 | 로그 수집 및 검색 | **(TBD)** 애플리케이션 로그, LLM 요청/응답 로그, 추천 결과 로그 수집. 도구 미확정. |
 | NFR-007 | 모니터링 | NF-MON-03 | LLM 품질 모니터링 | 사용자 질의응답 내역 리스트 조회. 응답 품질 좋아요/싫어요 집계. 어드민 페이지에서 확인 가능. |
-| NFR-007 | 모니터링 | NF-MON-04 | 데이터 파이프라인 모니터링 | 크롤링 수집량, 전처리 완료량 지표 추적. |
-| NFR-007 | 모니터링 | NF-MON-05 | 보안 감사 로그 | 회원 탈퇴, 데이터 초기화, 주요 설정 변경 등 민감 액션에 대한 이력 관리. Loki에 별도 감사 로그 스트림으로 수집. |
+| NFR-007 | 모니터링 | NF-MON-04 | 서비스 로깅 | 챗봇 요청/응답, 추천 결과, API 에러 등 서비스 레벨 이벤트 로깅. **(TBD)** 도구 및 수집 범위 미확정. |
+| NFR-007 | 모니터링 | NF-MON-05 | 보안 감사 로그 | 회원 탈퇴, 데이터 초기화, 주요 설정 변경 등 민감 액션에 대한 이력 관리. **(TBD)** |
 | NFR-008 | 보안 | NF-SEC-01 | 인증 및 세션 관리 | JWT 기반 인증. HTTPS 통신 필수. 토큰 만료 및 갱신 처리. 로그아웃 시 토큰 즉시 폐기. |
 | NFR-008 | 보안 | NF-SEC-02 | PII 마스킹 | 사용자 입력 및 LLM 응답 내 개인정보(이름·연락처·주소 등) 마스킹 처리. 로그에 PII 미포함. |
-| NFR-008 | 보안 | NF-SEC-03 | 환경변수 및 시크릿 관리 | API 키, DB 접속 정보 등 민감 정보는 .env 파일 또는 AWS Secrets Manager로 관리. .env 파일 Git 커밋 금지. |
-| NFR-008 | 보안 | NF-SEC-04 | AWS 보안 | AWS IAM 최소 권한 원칙 적용. S3 버킷 퍼블릭 액세스 차단. 보안 그룹 규칙 최소화. |
+| NFR-008 | 보안 | NF-SEC-03 | 환경변수 및 시크릿 관리 | API 키, DB 접속 정보 등 민감 정보는 `.env` 파일로 관리. Git 커밋 금지. GitHub Actions Secret으로 CI/CD에 주입. |
+| NFR-008 | 보안 | NF-SEC-04 | AWS 보안 | AWS IAM 최소 권한 원칙 적용. 보안 그룹 규칙 최소화. |
 | NFR-008 | 보안 | NF-SEC-05 | 파일 업로드 보안 | 업로드 이미지(jpeg, png)에 대한 MIME Type 검증 및 악성 코드 스캔. 허용 확장자 외 업로드 차단. |
 | NFR-008 | 보안 | NF-SEC-06 | 접근 제어 (ACL) | 일반 사용자와 어드민 권한 분리. 어드민 전용 기능(추천 가중치 조절, 사용자 관리 등) API 접근 보호. |
 | NFR-009 | 인프라 | NF-INFRA-01 | DB 인프라 | **PostgreSQL on EC2 (Docker)** 확정. AWS RDS 미사용 (비용). Docker Compose `postgres:16` 서비스로 운영. 관계형 데이터 전담 (auth, user, pet, order, goods, review). 추후 RDS 마이그레이션 시 접속 정보만 교체. |
 | NFR-009 | 인프라 | NF-INFRA-04 | 외부 API 연동 | OAuth (Google / Kakao / Naver) 및 결제사(Vendor) 연동. 외부 API 장애 시 Fallback 처리 및 타임아웃 설정. |
 | NFR-009 | 인프라 | NF-INFRA-05 | 부하 분산 (LB) | 트래픽 증가 시 챗봇 서비스 가용성 확보를 위한 로드 밸런싱 적용. **Nginx** 확정. |
 | NFR-009 | 인프라 | NF-INFRA-06 | 레이턴시 최적화 | RAG 기반 상품 추천 응답 속도 최적화. Qdrant 검색 + LLM 호출 구간별 타임아웃 관리. 병목 구간 프로파일링 및 캐싱 전략 수립. |
-| NFR-009 | 인프라 | NF-INFRA-02 | CI/CD | CI 전략 수립 (테스트 자동화 포함). CD는 Jenkins 또는 Crontab 기반 자동 배포. 전략 TBD. |
+| NFR-009 | 인프라 | NF-INFRA-02 | CI/CD | GitHub Actions. PR → main: Build & Test (CI). push → main: DockerHub push → AWS EC2 (Elastic Beanstalk) 배포 (CD). |
 
 | NFR-011 | 데이터 관리 | NF-DM-01 | 실시간 데이터 동기화 | 반려동물 프로필 변경 시 챗봇 시스템 프롬프트에 실시간 반영. 프로필 업데이트 이벤트 발생 시 세션 컨텍스트 즉시 갱신. |
 | NFR-011 | 데이터 관리 | NF-DM-02 | 대화 이력 보존 및 요약 | 대화 세션별 토큰 제한 초과 시 이전 대화 요약본 저장 및 컨텍스트 유지. 요약 전략 및 Max Token 기준 TBD. |
 | NFR-011 | 데이터 관리 | NF-DM-03 | 구매 및 주문 데이터 정합성 | 구매 완료 후 주문 내역을 PostgreSQL에 안전하게 저장. 트랜잭션 처리 및 실패 시 롤백 보장. 주문 이력 조회 기능 제공. |
-| NFR-011 | 데이터 관리 | NF-DM-04 | 비정형 데이터 처리 | 사용자 업로드 이미지(jpeg, png) 및 음성 데이터를 **AWS S3**에 저장 및 관리. 파일명 UUID 치환, 경로 DB 저장. |
+| NFR-011 | 데이터 관리 | NF-DM-04 | 비정형 데이터 처리 | 사용자 업로드 이미지(jpeg, png) 저장 및 관리. 파일명 UUID 치환, 경로 DB 저장. S3 연동은 미구현 (TBD). |
 | NFR-010 | 개발 협업 | — | 개발 협업 컨벤션 | Git 브랜치 전략, 커밋/PR 컨벤션, 코드 컨벤션, 기술 스택 문서화. 별도 문서 참고: `planning/06_dev_convention.md` |
 
 ---
@@ -116,8 +116,8 @@
 
 | 기술 | 용도 | 상태 |
 |---|---|---|
-| Next.js | UI 프레임워크 | 확정 |
-| Zustand | 클라이언트 상태 관리 | 확정 |
+| Django Template (MVT) | UI 렌더링 (서버사이드) | 확정 |
+| Vanilla JS + Tailwind CSS | 인터랙션 · 스타일 | 확정 |
 | OAuth (Google / Kakao / Naver) | 소셜 로그인 리다이렉트 플로우 | 확정 |
 
 ### Backend - 이신재
@@ -155,7 +155,7 @@
 |---|---|---|
 | PostgreSQL on EC2 (Docker) | 관계형 데이터 (user, pet, order, goods, review) | 확정 |
 | Qdrant | Vector DB, Hybrid Search (Dense + Sparse) + RRF | 확정 |
-| AWS S3 | 이미지 스토리지 (펫 프로필, OCR 원본) | 확정 |
+| AWS S3 | 이미지 스토리지 (펫 프로필, OCR 원본) | 미구현 (TBD) |
 
 ### Data Pipeline - 임도형
 
@@ -167,11 +167,10 @@
 
 | 기술 | 용도 | 상태 |
 |---|---|---|
-| AWS | 클라우드 인프라 (EC2, S3, IAM, Secrets Manager) | 확정 |
+| AWS EC2 (Elastic Beanstalk) | 앱 서버 (EB로 EC2 프로비저닝, Docker Compose 배포) | 확정 |
+| AWS IAM | 최소 권한 관리 | 확정 |
 | Docker Compose | 컨테이너 오케스트레이션 | 확정 |
-| Jenkins | CI/CD | 확정 |
-| Prometheus + Grafana | 시스템 모니터링 및 대시보드 | 확정 |
-| Grafana Loki | 로그 수집 및 감사 로그 | 확정 |
+| GitHub Actions | CI (Build & Test) + CD (DockerHub → EC2 배포, Elastic Beanstalk) | 확정 |
 
 ---
 
