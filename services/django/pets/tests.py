@@ -86,7 +86,7 @@ class PetApiTests(TestCase):
         self.assertEqual(response.status_code, status.HTTP_400_BAD_REQUEST)
         self.assertEqual(response.data["detail"], "vaccination_date must be a valid date.")
 
-    def test_post_pets_rejects_empty_vaccination_date(self):
+    def test_post_pets_allows_empty_vaccination_date(self):
         response = self.client.post(
             "/api/pets/",
             {
@@ -98,8 +98,9 @@ class PetApiTests(TestCase):
             format="json",
         )
 
-        self.assertEqual(response.status_code, status.HTTP_400_BAD_REQUEST)
-        self.assertEqual(response.data["detail"], "vaccination_date must be a valid date.")
+        self.assertEqual(response.status_code, status.HTTP_201_CREATED)
+        pet = Pet.objects.get(user=self.user, name="Bori")
+        self.assertIsNone(pet.vaccination_date)
 
     def test_post_pets_rejects_vaccination_date_before_minimum(self):
         response = self.client.post(

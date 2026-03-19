@@ -70,7 +70,7 @@ def _parse_boolean(value):
 
 def _parse_vaccination_date(value):
     if value in (None, ""):
-        raise ValueError("vaccination_date must be a valid date.")
+        return None
 
     if not isinstance(value, str):
         raise ValueError("vaccination_date must be a valid date.")
