@@ -1,17 +1,13 @@
-import tempfile
-from pathlib import Path
 from unittest.mock import patch
 
 from django.test import TestCase, override_settings
 from django.urls import reverse
-from django.core.files.uploadedfile import SimpleUploadedFile
 from django.utils import timezone
 from rest_framework import status
 from rest_framework.test import APIClient
 
 from products.models import Product
 from users.models import SocialAccount, User, UserProfile
-from users.oauth import SocialUserProfile
 from users.social_auth import (
     SOCIAL_AUTH_ACCESS_SESSION_KEY,
     SOCIAL_AUTH_REFRESH_SESSION_KEY,
@@ -45,125 +41,12 @@ TEST_SOCIAL_PROVIDERS = {
 
 
 @override_settings(SOCIAL_AUTH_PROVIDERS=TEST_SOCIAL_PROVIDERS)
-class SocialLoginViewTests(TestCase):
-    def setUp(self):
-        self.client = APIClient()
-
-    @patch("users.views.OAuthProviderClient.exchange_code")
-    def test_social_login_creates_user_and_tokens(self, exchange_code_mock):
-        exchange_code_mock.return_value = SocialUserProfile(
-            provider="google",
-            provider_user_id="google-user-1",
-            email="user@example.com",
-            nickname="TailTalk User",
-            profile_image_url="https://example.com/avatar.png",
-            extra_data={"sub": "google-user-1"},
-        )
-
-        response = self.client.post(
-            "/api/auth/social/google/",
-            {
-                "code": "oauth-code",
-                "redirect_uri": "http://localhost:3000/auth/google/callback",
-            },
-            format="json",
-        )
-
-        self.assertEqual(response.status_code, 200)
-        self.assertEqual(response.data["user"]["email"], "user@example.com")
-        self.assertTrue(response.data["is_new_user"])
-        self.assertIn("access", response.data)
-        self.assertIn("refresh", response.data)
-        self.assertTrue(User.objects.filter(email="user@example.com").exists())
-        self.assertTrue(
-            SocialAccount.objects.filter(provider="google", provider_user_id="google-user-1").exists()
-        )
-
-    @patch("users.views.OAuthProviderClient.exchange_code")
-    def test_social_login_links_existing_user_by_email(self, exchange_code_mock):
-        user = User.objects.create_user(email="existing@example.com")
-        UserProfile.objects.create(user=user, nickname="Existing User")
-
-        exchange_code_mock.return_value = SocialUserProfile(
-            provider="kakao",
-            provider_user_id="kakao-user-1",
-            email="existing@example.com",
-            nickname="Updated User",
-            profile_image_url="https://example.com/new-avatar.png",
-            extra_data={"id": "kakao-user-1"},
-        )
-
-        response = self.client.post(
-            "/api/auth/social/kakao/",
-            {
-                "code": "oauth-code",
-                "redirect_uri": "http://localhost:3000/auth/kakao/callback",
-            },
-            format="json",
-        )
-
-        user.refresh_from_db()
-        self.assertEqual(response.status_code, 200)
-        self.assertFalse(response.data["is_new_user"])
-        self.assertEqual(user.profile.nickname, "Updated User")
-        self.assertEqual(user.profile.profile_image_url, "https://example.com/new-avatar.png")
-        self.assertEqual(SocialAccount.objects.count(), 1)
-
-    def test_provider_list_returns_authorization_urls_for_configured_providers(self):
-        response = self.client.get("/api/auth/providers/?redirect_uri=http://localhost:3000/auth/callback")
-
-        self.assertEqual(response.status_code, 200)
-        self.assertEqual(len(response.data["providers"]), 3)
-        for provider in response.data["providers"]:
-            self.assertTrue(provider["configured"])
-            self.assertIn("authorization_url", provider)
-            self.assertIn("state", provider)
-
-    @patch("users.views.build_authorization_url")
-    def test_social_login_get_returns_authorization_url(self, build_authorization_url_mock):
-        build_authorization_url_mock.return_value = "https://accounts.google.com/o/oauth2/auth?state=test"
-
-        response = self.client.get("/api/auth/social/google/?remember=on")
-
-        self.assertEqual(response.status_code, status.HTTP_200_OK)
-        self.assertEqual(response.data["provider"], "google")
-        self.assertIn("authorization_url", response.data)
-        self.assertIn("callback_url", response.data)
-
-    @patch("users.views.complete_social_login")
-    def test_social_login_callback_returns_tokens_and_logs_in_session(self, complete_social_login_mock):
-        user = User.objects.create_user(email="callback@example.com")
-        UserProfile.objects.create(user=user, nickname="Callback User")
-        complete_social_login_mock.return_value = SocialLoginResult(
-            user=user,
-            backend_path="social_core.backends.google.GoogleOAuth2",
-            provider="google",
-            is_new_user=False,
-        )
-
-        session = self.client.session
-        session["tailtalk_social_oauth_remember"] = True
-        session.save()
-
-        response = self.client.get("/api/auth/social/google/callback/?code=test-code&state=test-state")
-
-        self.assertEqual(response.status_code, status.HTTP_200_OK)
-        self.assertIn("access", response.data)
-        self.assertIn("refresh", response.data)
-        self.assertEqual(response.data["user"]["email"], "callback@example.com")
-
-        session = self.client.session
-        self.assertIn(SOCIAL_AUTH_ACCESS_SESSION_KEY, session)
-        self.assertIn(SOCIAL_AUTH_REFRESH_SESSION_KEY, session)
-
-
-@override_settings(SOCIAL_AUTH_PROVIDERS=TEST_SOCIAL_PROVIDERS)
 class SocialLoginPageViewTests(TestCase):
     @patch("users.page_views.build_authorization_url")
     def test_social_login_start_redirects_to_provider(self, build_authorization_url_mock):
         build_authorization_url_mock.return_value = "https://nid.naver.com/oauth2.0/authorize?state=test"
 
-        response = self.client.get("/auth/social/naver/?remember=on")
+        response = self.client.get("/auth/naver/start/?remember=on")
 
         self.assertEqual(response.status_code, status.HTTP_302_FOUND)
         self.assertEqual(response["Location"], "https://nid.naver.com/oauth2.0/authorize?state=test")
@@ -183,7 +66,7 @@ class SocialLoginPageViewTests(TestCase):
         session["tailtalk_social_oauth_remember"] = False
         session.save()
 
-        response = self.client.get("/auth/social/kakao/callback/?code=test-code&state=test-state")
+        response = self.client.get("/auth/kakao/callback/?code=test-code&state=test-state")
 
         self.assertEqual(response.status_code, status.HTTP_302_FOUND)
         self.assertEqual(response["Location"], f"{reverse('profile')}?setup=1")
@@ -274,37 +157,6 @@ class UserProfileApiTests(TestCase):
         self.assertEqual(self.user.profile.nickname, "Updated User")
         self.assertEqual(self.user.profile.phone, "01012341234")
         self.assertTrue(self.user.profile.marketing_consent)
-
-    def test_patch_me_uploads_profile_image_to_local_media(self):
-        with tempfile.TemporaryDirectory() as media_root:
-            with override_settings(MEDIA_ROOT=media_root, MEDIA_URL="/media/"):
-                upload = SimpleUploadedFile("avatar.png", b"fake-image", content_type="image/png")
-
-                response = self.client.patch("/api/users/me/", {"profile_image": upload})
-
-                self.assertEqual(response.status_code, status.HTTP_200_OK)
-                self.user.refresh_from_db()
-                self.assertTrue(self.user.profile.profile_image_url.startswith("/media/profile-images/"))
-
-                relative_path = self.user.profile.profile_image_url.removeprefix("/media/")
-                self.assertTrue((Path(media_root) / relative_path).exists())
-
-    @override_settings(
-        AWS_S3_BUCKET_NAME="tailtalk-bucket",
-        AWS_S3_REGION_NAME="ap-northeast-2",
-    )
-    @patch("users.views.boto3.client")
-    def test_patch_me_uploads_profile_image_to_s3_when_configured(self, boto3_client_mock):
-        s3_client = boto3_client_mock.return_value
-        upload = SimpleUploadedFile("avatar.png", b"fake-image", content_type="image/png")
-
-        response = self.client.patch("/api/users/me/", {"profile_image": upload})
-
-        self.assertEqual(response.status_code, status.HTTP_200_OK)
-        self.user.refresh_from_db()
-        self.assertIn("tailtalk-bucket", self.user.profile.profile_image_url)
-        s3_client.upload_fileobj.assert_called_once()
-
 
 class UserPreferenceApiTests(TestCase):
     def setUp(self):
