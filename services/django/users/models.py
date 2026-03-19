@@ -50,3 +50,33 @@ class UserProfile(models.Model):
 
     class Meta:
         db_table = "user_profile"
+
+
+class SocialAccount(models.Model):
+    PROVIDER_GOOGLE = "google"
+    PROVIDER_NAVER = "naver"
+    PROVIDER_KAKAO = "kakao"
+
+    PROVIDER_CHOICES = [
+        (PROVIDER_GOOGLE, "Google"),
+        (PROVIDER_NAVER, "Naver"),
+        (PROVIDER_KAKAO, "Kakao"),
+    ]
+
+    id = models.BigAutoField(primary_key=True)
+    user = models.ForeignKey(User, on_delete=models.CASCADE, related_name="social_accounts")
+    provider = models.CharField(max_length=20, choices=PROVIDER_CHOICES)
+    provider_user_id = models.CharField(max_length=255)
+    email = models.EmailField(blank=True)
+    extra_data = models.JSONField(default=dict, blank=True)
+    created_at = models.DateTimeField(auto_now_add=True)
+    updated_at = models.DateTimeField(auto_now=True)
+
+    class Meta:
+        db_table = "social_account"
+        constraints = [
+            models.UniqueConstraint(
+                fields=["provider", "provider_user_id"],
+                name="uniq_social_account_provider_user_id",
+            )
+        ]

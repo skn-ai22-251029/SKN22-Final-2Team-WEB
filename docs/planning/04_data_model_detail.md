@@ -32,6 +32,17 @@ erDiagram
         datetime updated_at
     }
 
+    SOCIAL_ACCOUNT {
+        int     id                PK
+        int     user_id           FK
+        string  provider          "google|naver|kakao"
+        string  provider_user_id
+        string  email             "blank 허용"
+        jsonb   extra_data
+        datetime created_at
+        datetime updated_at
+    }
+
     PET {
         uuid    pet_id          PK
         int     user_id         FK
@@ -185,7 +196,7 @@ erDiagram
         uuid    id               PK
         int     user_id          FK
         string  product_id       FK
-        uuid    session_id       FK  "nullable"
+        uuid    session_id       "nullable. FK 미적용"
         string  interaction_type "click|cart|purchase|reject"
         int     weight           "click=1|cart=3|purchase=5|reject=-1"
         datetime created_at
@@ -193,6 +204,7 @@ erDiagram
 
     USER            ||--o{ PET                  : "1:N"
     USER            ||--o|  USER_PROFILE         : "1:1(optional before onboarding)"
+    USER            ||--o{ SOCIAL_ACCOUNT       : "1:N"
     USER            ||--o{ CHAT_SESSION          : "1:N"
     USER            ||--o|  CART                 : "1:1"
     USER            ||--o{ ORDER                 : "1:N"
@@ -224,9 +236,9 @@ erDiagram
 
 ## 1. User
 
-> OAuth 전용 인증. 자체 가입(이메일+비밀번호) 미지원.
 > Django `AbstractBaseUser` + `PermissionsMixin` 기반 커스텀 유저 모델.
-> OAuth provider 정보는 `social_auth_usersocialauth` 테이블에서 관리 (`social-auth-app-django`).
+> 현재 구현에는 이메일/비밀번호 로그인과 OAuth 로그인이 모두 존재한다.
+> OAuth 계정 연결 정보는 프로젝트 커스텀 `social_account` 테이블에서 관리한다.
 
 ```json
 {
@@ -236,7 +248,7 @@ erDiagram
   "is_active":      "boolean",
 
   // Django AbstractBaseUser 자동 관리 필드 (직접 사용 X)
-  "password":       "string",   // unusable password로 설정 — OAuth이므로 실제 비밀번호 없음
+  "password":       "string",
   "last_login":     "datetime | null",  // Django 로그인 시 자동 갱신
   "is_superuser":   "boolean",  // Django Admin 권한
   "is_staff":       "boolean"   // Django Admin 접근 제어
@@ -245,20 +257,38 @@ erDiagram
 
 ### USER_PROFILE
 
-> 온보딩 완료 시 생성되는 1:1 프로필 엔티티.
-> 로그인만 완료된 회원은 `user`만 존재할 수 있으며, `user_profile`이 생성되기 전까지 채팅/장바구니/구매 기능을 사용할 수 없다.
+> 사용자 기본 프로필을 저장하는 1:1 엔티티.
+> 현재 구현의 소셜 로그인 흐름에서는 최초 로그인 시점에 함께 생성될 수 있다.
 
 ```json
 {
   "user_id":           "int",            // PK, FK → USER.id (1:1)
-  "nickname":          "string",         // OAuth provider에서 pre-fill 후 수정 가능
+  "nickname":          "string",
   "age":               "int | null",
   "gender":            "string | null",
-  "address":           "string | null",  // 기본 배송지. 주문 시 pre-fill 용도
+  "address":           "string | null",
   "phone":             "string | null",
-  "marketing_consent": "boolean",        // 기본 false
+  "marketing_consent": "boolean",
   "profile_image_url": "string | null",
   "updated_at":        "datetime"
+}
+```
+
+### SOCIAL_ACCOUNT
+
+> OAuth provider 계정과 우리 서비스 `user`를 연결하는 테이블.
+> `provider + provider_user_id` 조합에 유니크 제약이 걸려 있다.
+
+```json
+{
+  "id":               "bigint",
+  "user_id":          "int",            // FK → USER.id
+  "provider":         "google | naver | kakao",
+  "provider_user_id": "string",
+  "email":            "string",         // blank 허용
+  "extra_data":       "object",         // provider 원본 프로필 payload
+  "created_at":       "datetime",
+  "updated_at":       "datetime"
 }
 ```
 
@@ -289,19 +319,17 @@ erDiagram
 
 ## 3. Chat Session
 
-> 온보딩이 완료되어 `user_profile`이 생성된 회원만 사용할 수 있다.
-
 ```json
 {
   "session_id":    "uuid",
   "user_id":       "int",
-  "title":         "string",             // 첫 메시지 기반 LLM 자동 생성
-  "target_pet_id": "uuid | null",        // 대화 대상 펫. 미선택 시 null
+  "title":         "string",
+  "target_pet_id": "uuid | null",
   "messages": [
     {
+      "message_id":     "uuid",
       "role":          "user | assistant",
       "content":       "string",
-      "product_cards": ["goods_id"],     // MESSAGE_PRODUCT_CARD. 어시스턴트 메시지만 존재
       "created_at":    "datetime"
     }
   ],
@@ -346,22 +374,21 @@ erDiagram
 {
   "id":         "uuid",
   "product_id": "string",  // FK → PRODUCT (Django ORM 기준 컬럼명)
-  "tag":        "string"   // Gold 파생: disp_clsf_no → 헬스 태그 매핑 (관절|피부|소화|체중|요로|눈물|헤어볼|치아|면역)
+  "tag":        "string"   // Gold 파생: LLM 분류 (OCR 텍스트 기반, 식품류만) — 관절|피부|소화|체중|요로|눈물|헤어볼|치아|면역
 }
 ```
 
 ### PRODUCT_ADMIN_CONFIG
 
-> 파이프라인이 소유하는 PRODUCT와 분리된 어드민 전용 설정 테이블. TBD.
-> 추천 점수 계산: `effective_score = popularity_score × admin_weight`
+> `product`와 1:1로 연결되는 어드민 설정 테이블.
 
 ```json
 {
   "id":           "uuid",
-  "product_id":   "string",        // FK → PRODUCT (1:1). 설정 없는 상품은 행 없음 (admin_weight=1.0 기본값)
-  "admin_weight": "numeric",       // 추천 노출 가중치. 기본 1.0. >1.0 부스트, <1.0 다운랭크
-  "pinned":       "boolean",       // 추천 결과 최상단 고정. admin_weight와 별개
-  "memo":         "string | null", // 어드민 내부 메모. 사용자에게 노출 안 됨
+  "product_id":   "string",        // FK → PRODUCT (1:1)
+  "admin_weight": "numeric",       // default 1.0
+  "pinned":       "boolean",
+  "memo":         "string | null",
   "updated_at":   "datetime"
 }
 ```
@@ -391,16 +418,14 @@ erDiagram
 
 ---
 
-## 6. User Interaction (Phase 2 — CF 준비)
-
-> Day 1부터 로깅. CF 모델 학습 전에도 데이터 축적 목적.
+## 6. User Interaction
 
 ```json
 {
   "id":               "uuid",
   "user_id":          "int",              // FK → USER.id
   "goods_id":         "string",           // FK → PRODUCT
-  "session_id":       "uuid | null",      // FK → CHAT_SESSION
+  "session_id":       "uuid | null",      // 현재는 UUID만 저장, FK 제약 없음
   "interaction_type": "click | cart | purchase | reject",
   "weight":           "int",              // click=1 | cart=3 | purchase=5 | reject=-1
   "created_at":       "datetime"
@@ -411,18 +436,14 @@ erDiagram
 
 ## 7. Cart
 
-> 온보딩이 완료되어 `user_profile`이 생성된 회원만 사용할 수 있다.
-
 ```json
 {
   "cart_id":    "uuid",
-  "user_id":    "int",     // FK → USER.id. 온보딩 완료 회원 기준 1인 1카트
+  "user_id":    "int",     // FK → USER.id, 1:1
   "items": [
     {
+      "cart_item_id":   "uuid",
       "goods_id":      "string",
-      "goods_name":    "string",
-      "price":         "int",
-      "thumbnail_url": "string",
       "quantity":      "int",
       "added_at":      "datetime"
     }
@@ -433,14 +454,12 @@ erDiagram
 
 ## 8. Order
 
-> 온보딩이 완료되어 `user_profile`이 생성된 회원만 사용할 수 있다.
-
 ```json
 {
   "order_id":         "uuid",
   "user_id":          "int",
-  "recipient_name":   "string",   // 주문 시 스냅샷. user_profile.nickname 기본값
-  "delivery_address": "string",   // 주문 시 스냅샷. user_profile.address 기본값
+  "recipient_name":   "string",
+  "delivery_address": "string",
   "items":            ["OrderItem"],
   "total_price":      "int",
   "status":           "pending | completed | cancelled",

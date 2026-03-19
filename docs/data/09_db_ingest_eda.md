@@ -271,9 +271,9 @@ popularity_score, sentiment_avg, repeat_rate, thumbnail_url, product_url
 | # | 이슈 | 영향 | 현황 |
 |---|---|---|---|
 | 1 | `sentiment_avg`/`repeat_rate` null 52.6% (Qdrant), 35~47% (PG) | 리뷰 없는 상품 추천 피처 부재 | 리뷰 없는 상품 자체의 한계. popularity_score로 대체 |
-| 2 | `health_concern_tags` 12.1%만 보유 | 건강 관심사 필터링 제한 | OCR 키워드 매핑 보완 필요 |
-| 3 | GP 리뷰 sentiment/ABSA 미처리 (232,821건) | 추천 품질 저하 | GP 상품 Qdrant 미적재로 우회, 향후 처리 검토 |
-| 4 | `review content` 빈문자열 487건 | 감성 분석 노이즈 | 미해결 — Silver ETL 필터링 필요 |
-| 5 | `pet_weight_kg > 100` 이상값 258건 | 체중 기반 필터 오작동 | 미해결 — Silver ETL 상한 처리 필요 |
-| 6 | 5점 rating 편향 (77.5%) | 평점 단독 품질 지표 부적합 | sentiment_avg 보완 수단 확보 |
-| 7 | `main_ingredients` PG(1,912) vs Qdrant(1,221) 불일치 | — | Qdrant는 이전 parquet 기준 적재. 재적재 시 해소 |
+| 2 | `health_concern_tags` 12.1%만 보유 | 건강 관심사 필터링 제한 | 해결 — LLM 분류 전환, 28.1% 커버리지 (`scripts/gold/health_tags.py`) |
+| 3 | GP 리뷰 sentiment/ABSA 미처리 (232,821건) | 추천 품질 저하 | GP 추천 완전 제외 결정. GP 리뷰 수집 시 별도 적재 가능 |
+| 4 | `review content` 빈문자열 487건 | 감성 분석 노이즈 | 해결 — Silver ETL `review_text` 빈문자열 필터링 추가 |
+| 5 | `pet_weight_kg > 100` 이상값 258건 | 체중 기반 필터 오작동 | 해결 — Silver ETL 100kg 초과 시 null 처리 추가 |
+| 6 | 5점 rating 편향 (77.5%) | 평점 단독 품질 지표 부적합 | 추천 로직에서 `rating` 단독 사용 금지, `sentiment_avg` 우선 / `popularity_score` fallback |
+| 7 | `main_ingredients` PG(1,912) vs Qdrant(1,221) 불일치 | — | 해결 — Qdrant `--recreate` 재적재로 최신 parquet 기준 동기화 |

@@ -33,17 +33,16 @@
       />
 
       <div class="absolute left-[106px] top-[114px] flex h-[48px] w-[188px] items-center justify-between">
-        <a href="/api/auth/social/kakao/?next=/profile/" aria-label="카카오 로그인">
+        <a href="/auth/social/kakao/?remember=on" data-social-link aria-label="카카오 로그인">
           <img alt="" class="h-[40px] w-[40px]" src="https://www.figma.com/api/mcp/asset/d22d7edf-9f92-417d-8172-d0122cb9956e" />
         </a>
-        <a href="/api/auth/social/naver/?next=/profile/" aria-label="네이버 로그인">
+        <a href="/auth/social/naver/?remember=on" data-social-link aria-label="네이버 로그인">
           <img alt="" class="h-[40px] w-[40px]" src="https://www.figma.com/api/mcp/asset/7cfb3bd5-c1d7-42df-8155-0281c422f977" />
         </a>
-        <a href="/api/auth/social/google/?next=/profile/" aria-label="구글 로그인">
+        <a href="/auth/social/google/?remember=on" data-social-link aria-label="구글 로그인">
           <img alt="" class="h-[40px] w-[40px]" src="https://www.figma.com/api/mcp/asset/579f7bd6-15db-47cc-995e-1510a459db1d" />
         </a>
       </div>
-
       <button
         type="button"
         class="auth-legacy-remember absolute left-[126px] top-[186px] h-[26px] w-[148px]"
@@ -79,6 +78,7 @@
     let checked = true;
     const button = document.getElementById('rememberToggle');
     const check = document.getElementById('rememberCheck');
+    const links = card ? Array.from(card.querySelectorAll('[data-social-link]')) : [];
 
     function revealWhenReady() {
       if (!card) return;
@@ -106,6 +106,15 @@
       checked = !checked;
       button.setAttribute('aria-pressed', checked ? 'true' : 'false');
       check.classList.toggle('hidden', !checked);
+    });
+
+    links.forEach(function (link) {
+      link.addEventListener('click', function (event) {
+        event.preventDefault();
+        var url = new URL(link.getAttribute('href'), window.location.origin);
+        url.searchParams.set('remember', checked ? 'on' : 'off');
+        window.location.href = url.toString();
+      });
     });
 
     revealWhenReady();
