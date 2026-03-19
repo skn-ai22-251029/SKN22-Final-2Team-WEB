@@ -4,6 +4,7 @@ import logging
 
 from django.contrib import messages
 from django.contrib.auth import get_user_model, login, logout
+from django.db.models import ProtectedError
 from django.shortcuts import redirect, render
 from django.urls import reverse
 from social_core.exceptions import AuthCanceled, AuthConnectionError, AuthException, AuthForbidden, AuthMissingParameter
@@ -58,6 +59,9 @@ def profile_view(request):
 
     if preview_mode:
         preview_profile = SimpleNamespace(nickname="", phone="", marketing_consent=True)
+        preview_social_accounts = {
+            "kakao": SimpleNamespace(email="tailtalk_user@kakao.com"),
+        }
         if request.method == "POST":
             return redirect("pet_add")
         return render(
@@ -66,7 +70,7 @@ def profile_view(request):
             {
                 "profile": preview_profile,
                 "profile_preview": True,
-                "social_accounts": {},
+                "social_accounts": preview_social_accounts,
                 "setup_mode": request.GET.get("setup") == "1",
             },
         )
@@ -87,6 +91,25 @@ def profile_view(request):
         "profile_preview": False,
     }
     return render(request, "users/profile.html", context)
+
+
+def profile_withdraw_view(request):
+    if request.method != "POST":
+        return redirect("profile")
+
+    preview_mode = request.GET.get("preview") == "1" or not request.user.is_authenticated
+    if preview_mode:
+        return redirect("chat")
+
+    try:
+        request.user.delete()
+    except ProtectedError:
+        messages.error(request, "진행 중이거나 보존이 필요한 주문 데이터가 있어 탈퇴할 수 없습니다.")
+        return redirect("profile")
+
+    logout(request)
+    messages.success(request, "회원 탈퇴가 완료되었습니다.")
+    return redirect("chat")
 
 
 def social_login_start_view(request, provider):
