@@ -1,8 +1,9 @@
+from types import SimpleNamespace
+
 import logging
 
 from django.contrib import messages
-from django.contrib.auth import authenticate, get_user_model, login, logout
-from django.contrib.auth.decorators import login_required
+from django.contrib.auth import get_user_model, login, logout
 from django.shortcuts import redirect, render
 from django.urls import reverse
 from social_core.exceptions import AuthCanceled, AuthConnectionError, AuthException, AuthForbidden, AuthMissingParameter
@@ -36,43 +37,13 @@ def home(request):
 def login_view(request):
     if request.user.is_authenticated:
         return redirect("chat")
-
-    error = None
-    if request.method == "POST":
-        email = request.POST.get("email", "").strip()
-        password = request.POST.get("password", "")
-        remember_me = request.POST.get("remember_me") == "on"
-        user = authenticate(request, username=email, password=password)
-        if user is not None:
-            login(request, user)
-            if not remember_me:
-                request.session.set_expiry(0)
-            return redirect(request.GET.get("next", "chat"))
-        error = "이메일 또는 비밀번호가 올바르지 않습니다."
-
-    return render(request, "users/login.html", {"error": error})
+    return render(request, "users/login.html")
 
 
 def signup_view(request):
     if request.user.is_authenticated:
         return redirect("chat")
-
-    error = None
-    if request.method == "POST":
-        email = request.POST.get("email", "").strip()
-        password = request.POST.get("password", "")
-        nickname = request.POST.get("nickname", "").strip()
-        if User.objects.filter(email=email).exists():
-            error = "이미 사용 중인 이메일입니다."
-        elif password != request.POST.get("password2", ""):
-            error = "비밀번호가 일치하지 않습니다."
-        else:
-            user = User.objects.create_user(email=email, password=password)
-            UserProfile.objects.create(user=user, nickname=nickname or email.split("@")[0])
-            login(request, user)
-            return redirect("profile")
-
-    return render(request, "users/signup.html", {"error": error})
+    return render(request, "users/signup.html")
 
 
 def logout_view(request):
@@ -82,21 +53,38 @@ def logout_view(request):
     return redirect("login")
 
 
-@login_required
 def profile_view(request):
-    profile = _get_profile(request.user)
+    preview_mode = request.GET.get("preview") == "1" or not request.user.is_authenticated
 
+    if preview_mode:
+        preview_profile = SimpleNamespace(nickname="", phone="", marketing_consent=True)
+        if request.method == "POST":
+            return redirect("pet_add")
+        return render(
+            request,
+            "users/profile.html",
+            {
+                "profile": preview_profile,
+                "profile_preview": True,
+                "social_accounts": {},
+                "setup_mode": request.GET.get("setup") == "1",
+            },
+        )
+
+    profile = _get_profile(request.user)
     if request.method == "POST":
         profile.nickname = request.POST.get("nickname", "").strip() or profile.nickname
         profile.phone = request.POST.get("phone", "").strip()
         profile.marketing_consent = request.POST.get("marketing") == "on"
         profile.save(update_fields=["nickname", "phone", "marketing_consent", "updated_at"])
         messages.success(request, "프로필 정보가 저장되었습니다.")
-        return redirect("chat")
+        return redirect("pet_add")
 
     context = {
+        "profile": profile,
         "social_accounts": {account.provider: account for account in request.user.social_accounts.all()},
         "setup_mode": request.GET.get("setup") == "1",
+        "profile_preview": False,
     }
     return render(request, "users/profile.html", context)
 
