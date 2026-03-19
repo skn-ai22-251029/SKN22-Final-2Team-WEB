@@ -15,6 +15,7 @@ from .social_auth import (
     SOCIAL_AUTH_REFRESH_SESSION_KEY,
     SOCIAL_AUTH_REMEMBER_SESSION_KEY,
     SocialAuthServiceError,
+    build_callback_url,
     build_authorization_url,
     complete_social_login,
 )
@@ -114,7 +115,7 @@ def profile_withdraw_view(request):
 
 def social_login_start_view(request, provider):
     remember = request.GET.get("remember") == "on"
-    redirect_uri = request.build_absolute_uri(reverse("social-login-callback", kwargs={"provider": provider}))
+    redirect_uri = build_callback_url(request, "social-login-callback", provider)
     next_url = f"{reverse('profile')}?setup=1"
 
     try:
@@ -138,7 +139,7 @@ def social_login_callback_view(request, provider):
         messages.error(request, "소셜 로그인 인증이 취소되었거나 실패했습니다.")
         return redirect("login")
 
-    redirect_uri = request.build_absolute_uri(reverse("social-login-callback", kwargs={"provider": provider}))
+    redirect_uri = build_callback_url(request, "social-login-callback", provider)
 
     try:
         result = complete_social_login(

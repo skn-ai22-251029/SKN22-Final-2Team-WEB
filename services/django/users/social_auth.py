@@ -1,6 +1,8 @@
 from dataclasses import dataclass
 
+from django.conf import settings
 from django.http import HttpResponseBase
+from django.urls import reverse
 from social_django.utils import load_backend, load_strategy
 from social_core.exceptions import MissingBackend
 
@@ -39,6 +41,13 @@ def get_backend_name(provider: str) -> str:
 
 def get_provider_name(backend_name: str) -> str:
     return BACKEND_PROVIDER_NAMES.get(backend_name, backend_name)
+
+
+def build_callback_url(request, route_name: str, provider: str) -> str:
+    path = reverse(route_name, kwargs={"provider": provider})
+    if settings.APP_BASE_URL:
+        return f"{settings.APP_BASE_URL.rstrip('/')}{path}"
+    return request.build_absolute_uri(path)
 
 
 def build_authorization_url(request, provider: str, redirect_uri: str, next_url: str | None = None) -> str:
