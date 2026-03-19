@@ -18,7 +18,6 @@ from social_core.exceptions import AuthCanceled, AuthConnectionError, AuthExcept
 from products.models import Product
 
 from .models import SocialAccount, User, UserPreference, UserProfile, UserUsedProduct
-from .oauth import OAuthProviderClient, SocialAuthError
 from .social_auth import (
     SOCIAL_AUTH_ACCESS_SESSION_KEY,
     SOCIAL_AUTH_REFRESH_SESSION_KEY,
@@ -151,44 +150,46 @@ def serialize_used_product(used_product):
     }
 
 
-def upload_profile_image(file_obj):
-    extension = os.path.splitext(file_obj.name)[1].lower() or ".bin"
-    content_type = getattr(file_obj, "content_type", None) or "application/octet-stream"
-    key = f"profile-images/{uuid.uuid4()}{extension}"
-
-    if not settings.AWS_S3_BUCKET_NAME:
-        media_root = Path(settings.MEDIA_ROOT)
-        destination = media_root / key
-        destination.parent.mkdir(parents=True, exist_ok=True)
-
-        with destination.open("wb+") as output:
-            for chunk in file_obj.chunks():
-                output.write(chunk)
-
-        return f"{settings.MEDIA_URL.rstrip('/')}/{key}"
-
-    client_kwargs = {}
-    if settings.AWS_S3_REGION_NAME:
-        client_kwargs["region_name"] = settings.AWS_S3_REGION_NAME
-    if settings.AWS_S3_ENDPOINT_URL:
-        client_kwargs["endpoint_url"] = settings.AWS_S3_ENDPOINT_URL
-
-    s3 = boto3.client("s3", **client_kwargs)
-    s3.upload_fileobj(
-        file_obj,
-        settings.AWS_S3_BUCKET_NAME,
-        key,
-        ExtraArgs={"ContentType": content_type},
-    )
-
-    if settings.AWS_S3_CUSTOM_DOMAIN:
-        return f"https://{settings.AWS_S3_CUSTOM_DOMAIN}/{key}"
-
-    if settings.AWS_S3_ENDPOINT_URL:
-        return f"{settings.AWS_S3_ENDPOINT_URL.rstrip('/')}/{settings.AWS_S3_BUCKET_NAME}/{key}"
-
-    region = settings.AWS_S3_REGION_NAME or "us-east-1"
-    return f"https://{settings.AWS_S3_BUCKET_NAME}.s3.{region}.amazonaws.com/{key}"
+# Profile image upload is intentionally disabled for now.
+# Keep the helper here so the previous local/S3 flow can be restored quickly.
+# def upload_profile_image(file_obj):
+#     extension = os.path.splitext(file_obj.name)[1].lower() or ".bin"
+#     content_type = getattr(file_obj, "content_type", None) or "application/octet-stream"
+#     key = f"profile-images/{uuid.uuid4()}{extension}"
+#
+#     if not settings.AWS_S3_BUCKET_NAME:
+#         media_root = Path(settings.MEDIA_ROOT)
+#         destination = media_root / key
+#         destination.parent.mkdir(parents=True, exist_ok=True)
+#
+#         with destination.open("wb+") as output:
+#             for chunk in file_obj.chunks():
+#                 output.write(chunk)
+#
+#         return f"{settings.MEDIA_URL.rstrip('/')}/{key}"
+#
+#     client_kwargs = {}
+#     if settings.AWS_S3_REGION_NAME:
+#         client_kwargs["region_name"] = settings.AWS_S3_REGION_NAME
+#     if settings.AWS_S3_ENDPOINT_URL:
+#         client_kwargs["endpoint_url"] = settings.AWS_S3_ENDPOINT_URL
+#
+#     s3 = boto3.client("s3", **client_kwargs)
+#     s3.upload_fileobj(
+#         file_obj,
+#         settings.AWS_S3_BUCKET_NAME,
+#         key,
+#         ExtraArgs={"ContentType": content_type},
+#     )
+#
+#     if settings.AWS_S3_CUSTOM_DOMAIN:
+#         return f"https://{settings.AWS_S3_CUSTOM_DOMAIN}/{key}"
+#
+#     if settings.AWS_S3_ENDPOINT_URL:
+#         return f"{settings.AWS_S3_ENDPOINT_URL.rstrip('/')}/{settings.AWS_S3_BUCKET_NAME}/{key}"
+#
+#     region = settings.AWS_S3_REGION_NAME or "us-east-1"
+#     return f"https://{settings.AWS_S3_BUCKET_NAME}.s3.{region}.amazonaws.com/{key}"
 
 
 class RegisterView(APIView):
@@ -286,126 +287,6 @@ class AuthWithdrawView(APIView):
         return Response(status=status.HTTP_204_NO_CONTENT)
 
 
-class SocialProviderListView(APIView):
-    permission_classes = [AllowAny]
-
-    def get(self, request):
-        redirect_uri = request.query_params.get("redirect_uri")
-        response_data = []
-
-        for provider in settings.SOCIAL_AUTH_PROVIDERS:
-            provider_data = {
-                "provider": provider,
-                "configured": self._is_provider_configured(provider),
-            }
-            if redirect_uri and provider_data["configured"]:
-                client = OAuthProviderClient(provider)
-                provider_data.update(client.build_authorization_url(redirect_uri=redirect_uri))
-            response_data.append(provider_data)
-
-        return Response({"providers": response_data})
-
-    def _is_provider_configured(self, provider: str) -> bool:
-        provider_config = settings.SOCIAL_AUTH_PROVIDERS.get(provider, {})
-        return bool(provider_config.get("client_id") and provider_config.get("client_secret"))
-
-
-class SocialLoginView(APIView):
-    permission_classes = [AllowAny]
-
-    def get(self, request, provider):
-        remember = request.query_params.get("remember") == "on"
-        redirect_uri = build_callback_url(request, "social-login-callback-api", provider)
-
-        try:
-            authorization_url = build_authorization_url(
-                request=request,
-                provider=provider,
-                redirect_uri=redirect_uri,
-            )
-        except SocialAuthServiceError as exc:
-            return Response({"detail": str(exc)}, status=status.HTTP_400_BAD_REQUEST)
-
-        request.session[SOCIAL_AUTH_REMEMBER_SESSION_KEY] = remember
-        return Response(
-            {
-                "provider": provider,
-                "authorization_url": authorization_url,
-                "callback_url": redirect_uri,
-            }
-        )
-
-    def post(self, request, provider):
-        code = request.data.get("code")
-        redirect_uri = request.data.get("redirect_uri")
-        state = request.data.get("state")
-
-        if not code or not redirect_uri:
-            return Response(
-                {"detail": "code and redirect_uri are required."},
-                status=status.HTTP_400_BAD_REQUEST,
-            )
-
-        try:
-            profile = OAuthProviderClient(provider).exchange_code(
-                code=code,
-                redirect_uri=redirect_uri,
-                state=state,
-            )
-            user, is_new_user = get_or_create_social_user(profile)
-        except SocialAuthError as exc:
-            return Response({"detail": str(exc)}, status=status.HTTP_400_BAD_REQUEST)
-
-        tokens = issue_user_tokens(user)
-        return Response(
-            {
-                "provider": provider,
-                **tokens,
-                "is_new_user": is_new_user,
-                "user": serialize_user(user),
-            }
-        )
-
-
-class SocialLoginCallbackView(APIView):
-    permission_classes = [AllowAny]
-
-    def get(self, request, provider):
-        redirect_uri = build_callback_url(request, "social-login-callback-api", provider)
-
-        try:
-            result = complete_social_login(
-                request=request,
-                provider=provider,
-                redirect_uri=redirect_uri,
-            )
-        except (AuthCanceled, AuthConnectionError, AuthMissingParameter, AuthForbidden, AuthException, SocialAuthServiceError) as exc:
-            return Response(
-                {"detail": f"{provider} OAuth failed: {exc}"},
-                status=status.HTTP_400_BAD_REQUEST,
-            )
-
-        user = result.user
-        user.backend = result.backend_path
-        login(request, user)
-        if not request.session.get(SOCIAL_AUTH_REMEMBER_SESSION_KEY):
-            request.session.set_expiry(0)
-
-        tokens = issue_user_tokens(user)
-        request.session[SOCIAL_AUTH_ACCESS_SESSION_KEY] = tokens["access"]
-        request.session[SOCIAL_AUTH_REFRESH_SESSION_KEY] = tokens["refresh"]
-        request.session.pop(SOCIAL_AUTH_REMEMBER_SESSION_KEY, None)
-
-        return Response(
-            {
-                "provider": result.provider,
-                **tokens,
-                "is_new_user": result.is_new_user,
-                "user": serialize_user(user),
-            }
-        )
-
-
 class UserMeView(APIView):
     permission_classes = [IsAuthenticated]
 
@@ -441,13 +322,14 @@ class UserMeView(APIView):
                 profile.marketing_consent = marketing_consent
                 dirty_fields.append("marketing_consent")
 
-        profile_image = request.FILES.get("profile_image")
-        if profile_image is not None:
-            try:
-                profile.profile_image_url = upload_profile_image(profile_image)
-            except ValueError as exc:
-                return Response({"detail": str(exc)}, status=status.HTTP_400_BAD_REQUEST)
-            dirty_fields.append("profile_image_url")
+        # Profile image upload is intentionally disabled for now.
+        # profile_image = request.FILES.get("profile_image")
+        # if profile_image is not None:
+        #     try:
+        #         profile.profile_image_url = upload_profile_image(profile_image)
+        #     except ValueError as exc:
+        #         return Response({"detail": str(exc)}, status=status.HTTP_400_BAD_REQUEST)
+        #     dirty_fields.append("profile_image_url")
 
         if dirty_fields:
             profile.save(update_fields=[*dirty_fields, "updated_at"])
