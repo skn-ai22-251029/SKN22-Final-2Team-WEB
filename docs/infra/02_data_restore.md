@@ -9,7 +9,9 @@
 팀 공유 드라이브에서 아래 파일을 받아 레포 루트 `backup/` 디렉토리에 놓는다:
 
 - `data_<날짜>.dump` — PostgreSQL 덤프 (상품 4,902개 / 리뷰 전체)
-- `products-<uuid>.snapshot` — Qdrant products 컬렉션 스냅샷 (3,618개)
+- `qdrant/products/<파일명>.snapshot` — Qdrant products 컬렉션 스냅샷
+- `qdrant/domain_qna/<파일명>.snapshot` — Qdrant domain_qna 컬렉션 스냅샷 (2,411개)
+- `qdrant/breed_meta/<파일명>.snapshot` — Qdrant breed_meta 컬렉션 스냅샷 (1,125개)
 
 > `backup/` 디렉토리는 `.gitignore`에 포함되어 있어 커밋되지 않는다.
 
@@ -17,61 +19,41 @@
 
 ## 2. PostgreSQL 복원
 
+> `docker compose up -d` 시 Django 컨테이너가 `migrate`를 자동 실행하므로 별도 마이그레이션 불필요.
+
 ```bash
-# 1. DB 컨테이너 실행
-cd infra && docker compose up -d postgres
+# 1. 전체 서비스 실행 (migrate 자동 적용)
+cd infra && docker compose up -d
 
-# 2. 마이그레이션 먼저 적용 (테이블 스키마 생성)
-docker compose run --rm django python manage.py migrate
+# 2. 최신 덤프 자동 선택 복원
+./scripts/restore_postgres.sh
 
-# 3. 덤프 파일을 컨테이너에 복사 후 복원
-docker cp backup/data_<날짜>.dump tailtalk-postgres-1:/tmp/data_backup.dump
-docker exec tailtalk-postgres-1 pg_restore \
-  -U mungnyang -d tailtalk_db --data-only --disable-triggers \
-  /tmp/data_backup.dump
-
-# 4. 복원 확인
-docker compose run --rm django python -c "
-import django, os
-os.environ.setdefault('DJANGO_SETTINGS_MODULE', 'config.settings')
-django.setup()
-from django.db import connection
-cursor = connection.cursor()
-for table in ['product', 'review']:
-    cursor.execute(f'SELECT COUNT(*) FROM \"{table}\"')
-    print(f'{table}: {cursor.fetchone()[0]}건')
-"
+# 파일 직접 지정
+./scripts/restore_postgres.sh backup/data_20260319.dump
 ```
 
 ---
 
 ## 3. Qdrant 복원
 
+컬렉션별로 동일한 방식으로 복원한다. `<COLLECTION>`과 `<SNAPSHOT_FILE>`을 교체해서 실행.
+
+| 컬렉션 | 스냅샷 경로 | 예상 points_count |
+|---|---|---|
+| `products` | `backup/qdrant/products/<파일명>.snapshot` | 3,618 |
+| `domain_qna` | `backup/qdrant/domain_qna/<파일명>.snapshot` | 2,411 |
+| `breed_meta` | `backup/qdrant/breed_meta/<파일명>.snapshot` | 1,125 |
+
 ```bash
-# 1. Qdrant 컨테이너 실행
-cd infra && docker compose up -d qdrant
+# 1. 전체 서비스 실행 (docker compose up -d 이미 실행했다면 생략)
+cd infra && docker compose up -d
 
-# 2. 같은 네트워크의 python 컨테이너로 스냅샷 업로드
-SNAPSHOT=backup/products-<uuid>.snapshot
-docker run --rm \
-  --network tailtalk_default \
-  -v "$(pwd)/$SNAPSHOT:/tmp/snapshot.snapshot:ro" \
-  python:3.11-slim python -c "
-import urllib.request, json
-with open('/tmp/snapshot.snapshot', 'rb') as f:
-    data = f.read()
-boundary = 'FormBoundary'
-body = ('--' + boundary + '\r\nContent-Disposition: form-data; name=\"snapshot\"; filename=\"snapshot.snapshot\"\r\nContent-Type: application/octet-stream\r\n\r\n').encode() + data + ('\r\n--' + boundary + '--\r\n').encode()
-req = urllib.request.Request('http://qdrant:6333/collections/products/snapshots/upload?priority=snapshot', data=body, headers={'Content-Type': 'multipart/form-data; boundary=' + boundary}, method='POST')
-print(json.loads(urllib.request.urlopen(req).read()))
-"
+# 2. 전체 복원 (최신 스냅샷 자동 선택)
+./scripts/restore_qdrant.sh
 
-# 3. 복원 확인 (points_count: 3618 이면 정상)
-docker run --rm --network tailtalk_default python:3.11-slim python -c "
-import urllib.request, json
-resp = urllib.request.urlopen('http://qdrant:6333/collections/products')
-print('points_count:', json.loads(resp.read())['result']['points_count'])
-"
+# 단일 컬렉션만 복원
+./scripts/restore_qdrant.sh products
+./scripts/restore_qdrant.sh domain_qna breed_meta
 ```
 
 ---
@@ -93,16 +75,20 @@ docker cp tailtalk-postgres-1:/tmp/data_backup.dump backup/data_$(date +%Y%m%d).
 
 ### Qdrant 스냅샷
 
+3개 컬렉션 모두 재생성한다.
+
 ```bash
-# 스냅샷 생성 (컨테이너 내부 API 호출)
-docker run --rm --network tailtalk_default python:3.11-slim python -c "
-import urllib.request, json
-resp = urllib.request.urlopen(urllib.request.Request('http://qdrant:6333/collections/products/snapshots', method='POST'))
-result = json.loads(resp.read())
-print(result['result']['name'])
-"
-# 출력된 파일명으로 복사
-docker cp tailtalk-qdrant-1:/qdrant/snapshots/products/<출력된_파일명> backup/
+# 스냅샷 생성 및 로컬 저장
+for col in products domain_qna breed_meta; do
+  NAME=$(curl -s -X POST http://localhost:6333/collections/${col}/snapshots \
+    | python3 -c "import sys,json; print(json.load(sys.stdin)['result']['name'])")
+  mkdir -p backup/qdrant/${col}
+  docker cp tailtalk-qdrant-1:/qdrant/snapshots/${col}/${NAME} backup/qdrant/${col}/
+  docker cp tailtalk-qdrant-1:/qdrant/snapshots/${col}/${NAME}.checksum backup/qdrant/${col}/
+  # 컨테이너 내 스냅샷 삭제
+  curl -s -X DELETE http://localhost:6333/collections/${col}/snapshots/${NAME}
+  echo "${col}: ${NAME}"
+done
 ```
 
 > 재생성 후 팀 공유 드라이브 파일 교체 및 팀 공지 필요.

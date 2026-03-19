@@ -1,9 +1,9 @@
 # DB 적재 데이터 EDA
 
-> **분석 기준일**: 2026-03-17
+> **분석 기준일**: 2026-03-18
 > **적재 기준 파일**
-> - `output/gold/goods/20260317_goods_gold.parquet`
-> - `output/gold/reviews/20260316_reviews_gold.parquet`
+> - `output/gold/goods/20260318_goods_gold.parquet`
+> - `output/gold/reviews/20260316_reviews_gold.parquet` ※ Silver ETL 개선 미반영 상태
 
 ---
 
@@ -14,7 +14,7 @@
 | 테이블 | 행 수 |
 |---|---|
 | `product` | 4,902 |
-| `product_category_tag` | 659 |
+| `product_category_tag` | 2,856 |
 | `review` | 349,277 |
 
 ### 1-2. product — 기본 통계
@@ -34,7 +34,7 @@
 | `pet_type` | 4,902 (100%) | ✅ |
 | `category` | 4,902 (100%) | ✅ |
 | `subcategory` | 4,902 (100%) | ✅ |
-| `health_concern_tags` | 594 (12.1%) | ⚠️ 87.9% 미부여 |
+| `health_concern_tags` | 1,379 (28.1% / ocr_target 기준 45.3%) | ✅ LLM 분류 적용 (이전 12.1%) |
 
 **pet_type 분포:**
 
@@ -78,21 +78,24 @@
 | `ingredient_composition` | 1,134 | 23.1% |
 | `nutrition_info` | 848 | 17.3% |
 
+> PG `main_ingredients` 1,912에는 GP 상품(1,284개) 포함. GP 제외 기준 1,221건 — Qdrant와 일치
+
 ### 1-6. product — health_concern_tags 분포
 
 | 태그 | 상품 수 |
 |---|---|
-| 치아 | 313 |
-| 체중 | 68 |
-| 피부 | 67 |
-| 소화 | 65 |
-| 관절 | 51 |
-| 요로 | 29 |
-| 헤어볼 | 26 |
-| 눈물 | 24 |
-| 면역 | 16 |
+| 소화 | 508 |
+| 치아 | 486 |
+| 피부 | 473 |
+| 면역 | 414 |
+| 관절 | 394 |
+| 체중 | 316 |
+| 요로 | 115 |
+| 헤어볼 | 86 |
+| 눈물 | 64 |
 
-> `product_category_tag` 659행과 배열 unnest 합계 일치 → 정합성 정상
+> `product_category_tag` 2,856행과 배열 unnest 합계 일치 → 정합성 정상
+> LLM 분류(`scripts/gold/health_tags.py`) 적용 — ocr_target(식품류) 3,041개 기준 **45.3%** 커버리지 (전체 4,902 기준 28.1%)
 
 ### 1-7. review — 기본 통계
 
@@ -109,7 +112,7 @@
 
 | 필드 | NULL | 빈값/비고 |
 |---|---|---|
-| `content` | 0 | 빈문자열 175건 (0.2%) |
+| `content` | 0 | 빈문자열 487건 (0.4%) ⚠️ Silver ETL 개선 미반영 |
 | `score` | 0 | — |
 | `written_at` | 0 | — |
 | `sentiment_score` | 0 | **100% 처리 완료** ✅ |
@@ -166,7 +169,7 @@
 | `pet_weight_kg` | 41,266 | 35.4% |
 | `pet_gender` | 41,643 | 35.8% |
 | `pet_breed` | 40,443 | 34.7% |
-| `pet_weight_kg > 100` 이상값 | 118건 | — |
+| `pet_weight_kg > 100` 이상값 | 258건 | — ⚠️ Silver ETL 개선 미반영 |
 
 ### 1-11. FK 정합성
 
@@ -261,8 +264,10 @@ popularity_score, sentiment_avg, repeat_rate, thumbnail_url, product_url
 
 | 필드 | 값 있는 상품 | 비율 |
 |---|---|---|
-| `health_concern_tags` | 446 | 12.3% |
+| `health_concern_tags` | 940 | 26.0% |
 | `main_ingredients` | 1,221 | 33.7% |
+
+> PG non-GP 기준 hct 940, main_ingredients 1,221 — Qdrant와 정합 ✅
 
 ---
 
@@ -271,9 +276,9 @@ popularity_score, sentiment_avg, repeat_rate, thumbnail_url, product_url
 | # | 이슈 | 영향 | 현황 |
 |---|---|---|---|
 | 1 | `sentiment_avg`/`repeat_rate` null 52.6% (Qdrant), 35~47% (PG) | 리뷰 없는 상품 추천 피처 부재 | 리뷰 없는 상품 자체의 한계. popularity_score로 대체 |
-| 2 | `health_concern_tags` 12.1%만 보유 | 건강 관심사 필터링 제한 | 해결 — LLM 분류 전환, 28.1% 커버리지 (`scripts/gold/health_tags.py`) |
+| 2 | `health_concern_tags` 12.1%만 보유 | 건강 관심사 필터링 제한 | ✅ 해결 — LLM 분류 전환, ocr_target 기준 **45.3%** 커버리지 (`scripts/gold/health_tags.py`) |
 | 3 | GP 리뷰 sentiment/ABSA 미처리 (232,821건) | 추천 품질 저하 | GP 추천 완전 제외 결정. GP 리뷰 수집 시 별도 적재 가능 |
-| 4 | `review content` 빈문자열 487건 | 감성 분석 노이즈 | 해결 — Silver ETL `review_text` 빈문자열 필터링 추가 |
-| 5 | `pet_weight_kg > 100` 이상값 258건 | 체중 기반 필터 오작동 | 해결 — Silver ETL 100kg 초과 시 null 처리 추가 |
+| 4 | `review content` 빈문자열 487건 (0.4%) | 감성 분석 노이즈 | 미해결 — Silver ETL 코드 수정 완료, DB 재적재 미실행 |
+| 5 | `pet_weight_kg > 100` 이상값 258건 | 체중 기반 필터 오작동 | 미해결 — Silver ETL 코드 수정 완료, DB 재적재 미실행 |
 | 6 | 5점 rating 편향 (77.5%) | 평점 단독 품질 지표 부적합 | 추천 로직에서 `rating` 단독 사용 금지, `sentiment_avg` 우선 / `popularity_score` fallback |
-| 7 | `main_ingredients` PG(1,912) vs Qdrant(1,221) 불일치 | — | 해결 — Qdrant `--recreate` 재적재로 최신 parquet 기준 동기화 |
+| 7 | `main_ingredients` PG(1,912) vs Qdrant(1,221) 불일치 | — | ✅ 해결 — GP 제외 기준 PG(1,221) = Qdrant(1,221) 정합 확인 |
