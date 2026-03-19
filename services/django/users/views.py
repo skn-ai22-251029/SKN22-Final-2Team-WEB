@@ -1,15 +1,25 @@
 from django.conf import settings
-from django.contrib.auth import authenticate, logout
+from django.contrib.auth import authenticate, login, logout
 from django.db.models import ProtectedError
 from django.db import transaction
+from django.urls import reverse
 from rest_framework.views import APIView
 from rest_framework.response import Response
 from rest_framework.permissions import AllowAny, IsAuthenticated
 from rest_framework import status
 from rest_framework_simplejwt.tokens import RefreshToken
+from social_core.exceptions import AuthCanceled, AuthConnectionError, AuthException, AuthForbidden, AuthMissingParameter
 
 from .models import SocialAccount, User, UserProfile
 from .oauth import OAuthProviderClient, SocialAuthError
+from .social_auth import (
+    SOCIAL_AUTH_ACCESS_SESSION_KEY,
+    SOCIAL_AUTH_REFRESH_SESSION_KEY,
+    SOCIAL_AUTH_REMEMBER_SESSION_KEY,
+    SocialAuthServiceError,
+    build_authorization_url,
+    complete_social_login,
+)
 
 
 @transaction.atomic
@@ -80,6 +90,24 @@ def build_fallback_email(provider: str, provider_user_id: str) -> str:
     return f"{provider}_{provider_user_id}@oauth.local"
 
 
+def issue_user_tokens(user):
+    refresh = RefreshToken.for_user(user)
+    return {
+        "access": str(refresh.access_token),
+        "refresh": str(refresh),
+    }
+
+
+def serialize_user(user):
+    profile, _ = UserProfile.objects.get_or_create(user=user, defaults={"nickname": user.email.split("@")[0]})
+    return {
+        "id": user.id,
+        "email": user.email,
+        "nickname": profile.nickname,
+        "profile_image_url": profile.profile_image_url,
+    }
+
+
 class RegisterView(APIView):
     permission_classes = [AllowAny]
 
@@ -97,17 +125,11 @@ class RegisterView(APIView):
         user = User.objects.create_user(email=email, password=password)
         UserProfile.objects.create(user=user, nickname=nickname or email.split("@")[0])
 
-        refresh = RefreshToken.for_user(user)
+        tokens = issue_user_tokens(user)
         return Response(
             {
-                "access": str(refresh.access_token),
-                "refresh": str(refresh),
-                "user": {
-                    "id": user.id,
-                    "email": user.email,
-                    "nickname": user.profile.nickname,
-                    "profile_image_url": user.profile.profile_image_url,
-                },
+                **tokens,
+                "user": serialize_user(user),
             },
             status=status.HTTP_201_CREATED,
         )
@@ -127,17 +149,11 @@ class AuthLoginView(APIView):
         if user is None:
             return Response({"detail": "이메일 또는 비밀번호가 올바르지 않습니다."}, status=status.HTTP_401_UNAUTHORIZED)
 
-        refresh = RefreshToken.for_user(user)
+        tokens = issue_user_tokens(user)
         return Response(
             {
-                "access": str(refresh.access_token),
-                "refresh": str(refresh),
-                "user": {
-                    "id": user.id,
-                    "email": user.email,
-                    "nickname": user.profile.nickname,
-                    "profile_image_url": user.profile.profile_image_url,
-                },
+                **tokens,
+                "user": serialize_user(user),
             }
         )
 
@@ -214,6 +230,30 @@ class SocialProviderListView(APIView):
 class SocialLoginView(APIView):
     permission_classes = [AllowAny]
 
+    def get(self, request, provider):
+        remember = request.query_params.get("remember") == "on"
+        redirect_uri = request.build_absolute_uri(
+            reverse("social-login-callback-api", kwargs={"provider": provider})
+        )
+
+        try:
+            authorization_url = build_authorization_url(
+                request=request,
+                provider=provider,
+                redirect_uri=redirect_uri,
+            )
+        except SocialAuthServiceError as exc:
+            return Response({"detail": str(exc)}, status=status.HTTP_400_BAD_REQUEST)
+
+        request.session[SOCIAL_AUTH_REMEMBER_SESSION_KEY] = remember
+        return Response(
+            {
+                "provider": provider,
+                "authorization_url": authorization_url,
+                "callback_url": redirect_uri,
+            }
+        )
+
     def post(self, request, provider):
         code = request.data.get("code")
         redirect_uri = request.data.get("redirect_uri")
@@ -235,18 +275,53 @@ class SocialLoginView(APIView):
         except SocialAuthError as exc:
             return Response({"detail": str(exc)}, status=status.HTTP_400_BAD_REQUEST)
 
-        refresh = RefreshToken.for_user(user)
+        tokens = issue_user_tokens(user)
         return Response(
             {
                 "provider": provider,
-                "access": str(refresh.access_token),
-                "refresh": str(refresh),
+                **tokens,
                 "is_new_user": is_new_user,
-                "user": {
-                    "id": user.id,
-                    "email": user.email,
-                    "nickname": user.profile.nickname,
-                    "profile_image_url": user.profile.profile_image_url,
-                },
+                "user": serialize_user(user),
+            }
+        )
+
+
+class SocialLoginCallbackView(APIView):
+    permission_classes = [AllowAny]
+
+    def get(self, request, provider):
+        redirect_uri = request.build_absolute_uri(
+            reverse("social-login-callback-api", kwargs={"provider": provider})
+        )
+
+        try:
+            result = complete_social_login(
+                request=request,
+                provider=provider,
+                redirect_uri=redirect_uri,
+            )
+        except (AuthCanceled, AuthConnectionError, AuthMissingParameter, AuthForbidden, AuthException, SocialAuthServiceError) as exc:
+            return Response(
+                {"detail": f"{provider} OAuth failed: {exc}"},
+                status=status.HTTP_400_BAD_REQUEST,
+            )
+
+        user = result.user
+        user.backend = result.backend_path
+        login(request, user)
+        if not request.session.get(SOCIAL_AUTH_REMEMBER_SESSION_KEY):
+            request.session.set_expiry(0)
+
+        tokens = issue_user_tokens(user)
+        request.session[SOCIAL_AUTH_ACCESS_SESSION_KEY] = tokens["access"]
+        request.session[SOCIAL_AUTH_REFRESH_SESSION_KEY] = tokens["refresh"]
+        request.session.pop(SOCIAL_AUTH_REMEMBER_SESSION_KEY, None)
+
+        return Response(
+            {
+                "provider": result.provider,
+                **tokens,
+                "is_new_user": result.is_new_user,
+                "user": serialize_user(user),
             }
         )
