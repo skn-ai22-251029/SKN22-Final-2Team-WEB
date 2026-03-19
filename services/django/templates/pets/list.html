@@ -1,9 +1,50 @@
 {% extends "base.html" %}
 {% block title %}반려동물 정보 — TailTalk{% endblock %}
 
+{% block head %}
+<style>
+  #deletePetModal {
+    opacity: 0;
+    visibility: hidden;
+    transition: opacity 120ms ease;
+  }
+
+  #deletePetModal.is-open {
+    opacity: 1;
+    visibility: visible;
+  }
+</style>
+{% endblock %}
+
 {% block content %}
 <div class="min-h-screen bg-[#f7fafc]">
 <div class="relative flex h-screen w-full items-center justify-center px-4 py-8">
+
+  <div id="deletePetModal" class="absolute inset-0 z-[60] flex items-center justify-center bg-black/10"
+       onclick="closePetDeleteModal(event)">
+    <div class="relative h-[279px] w-[399px] rounded-[20px] border border-[#dbe7f5] bg-white shadow-[0_14px_36px_rgba(45,55,72,0.10)]"
+         onclick="event.stopPropagation()">
+      <div class="absolute left-1/2 top-[27px] flex h-[81px] w-[81px] -translate-x-1/2 items-center justify-center rounded-full border-[4px] border-[#ef4444]">
+        <span class="relative top-[-1px] text-[48px] font-bold leading-none text-[#ef4444]">!</span>
+      </div>
+      <p class="absolute left-1/2 top-[127px] -translate-x-1/2 whitespace-nowrap text-center text-[19px] font-bold leading-none text-[#2d3748]">
+        정말 삭제하시겠습니까?
+      </p>
+      <p class="absolute left-1/2 top-[171px] -translate-x-1/2 whitespace-nowrap text-center text-[14px] leading-none text-[#718096]">
+        반려동물 정보가 영구적으로 삭제됩니다
+      </p>
+      <div class="absolute bottom-[24px] left-[40px] right-[40px] flex h-[42px] items-center justify-between">
+        <button type="button" onclick="closePetDeleteModal()"
+                class="flex h-full w-[150px] items-center justify-center rounded-[8px] bg-[#edf2f7] text-[14px] font-bold text-[#4a5568]">
+          취소
+        </button>
+        <button type="button" id="confirmPetDeleteBtn"
+                class="flex h-full w-[150px] items-center justify-center rounded-[8px] bg-[#ef4444] text-[14px] font-bold text-white">
+          삭제하기
+        </button>
+      </div>
+    </div>
+  </div>
 
   <a href="/chat/" class="absolute left-8 top-8 text-[26px] font-bold leading-none text-[#2d3748]" aria-label="메인으로 이동">
     <span class="text-[#3182ce]">Tail</span><span>Talk</span>
@@ -14,17 +55,18 @@
       <div>
         <h1 class="text-[24px] font-bold text-[#2d3748]">반려동물 정보</h1>
         <p class="mt-2 text-[14px] text-[#718096]">
-          등록된 아이들의 정보를 수정하거나, 새로운 아이를 추가할 수 있습니다.
+          등록된 반려동물 정보를 수정하거나 새로운 반려동물을 추가할 수 있습니다
         </p>
       </div>
-      <div class="text-[14px] font-bold text-[#3182ce]">등록 현황: {{ pets|length }} / 5마리</div>
+      <div class="text-[14px] font-bold text-[#3182ce]">등록 현황: {{ pets|length }} / 5</div>
     </div>
 
     <div class="mt-5 h-px w-full bg-[#edf2f7]"></div>
 
-    <div class="mt-8 space-y-4">
+    <div class="mt-8 {% if pets|length >= 3 %}max-h-[372px] overflow-y-auto pr-2{% else %}space-y-4{% endif %}">
       {% for pet in pets %}
-      <div class="flex items-center gap-5 rounded-[14px] border border-[#e2e8f0] bg-white px-4 py-4 shadow-[0_1px_2px_rgba(45,55,72,0.02)]">
+      <div class="pet-card flex items-center gap-5 rounded-[14px] border border-[#e2e8f0] bg-white px-4 py-4 shadow-[0_1px_2px_rgba(45,55,72,0.02)] {% if pets|length >= 3 and not forloop.first %}mt-4{% endif %}"
+           data-pet-id="{{ pet.pet_id }}">
         <div class="flex h-[56px] w-[56px] items-center justify-center rounded-full bg-[#edf2f7] text-[24px]">
           {% if pet.species == "cat" %}🐱{% else %}🐶{% endif %}
         </div>
@@ -39,23 +81,35 @@
           </div>
         </div>
         <div class="flex items-center gap-3">
+          {% if is_preview_list %}
+          <a href="/pets/preview/{{ pet.pet_id }}/edit/"
+                  class="flex h-[36px] w-[58px] items-center justify-center rounded-[8px] bg-[#edf2f7] text-[14px] font-bold text-[#4a5568]">
+            수정
+          </a>
+          <button type="button"
+                  class="flex h-[36px] w-[58px] items-center justify-center rounded-[8px] border border-[#feb2b2] bg-white text-[14px] font-bold text-[#e53e3e]"
+                  onclick="openPetDeleteModal('{{ pet.pet_id }}', true)">
+            삭제
+          </button>
+          {% else %}
           <a href="/pets/{{ pet.pet_id }}/edit/"
              class="flex h-[36px] w-[58px] items-center justify-center rounded-[8px] bg-[#edf2f7] text-[14px] font-bold text-[#4a5568] transition-colors hover:bg-[#e2e8f0]">
             수정
           </a>
-          <form method="post" action="/api/pets/{{ pet.pet_id }}/" style="display:contents"
-                onsubmit="return confirm('정말 삭제하시겠습니까?')">
+          <form id="deletePetForm-{{ pet.pet_id }}" method="post" action="/api/pets/{{ pet.pet_id }}/" style="display:contents">
             {% csrf_token %}
             <input type="hidden" name="_method" value="DELETE" />
-            <button type="submit"
+            <button type="button"
                     class="flex h-[36px] w-[58px] items-center justify-center rounded-[8px] border border-[#feb2b2] bg-white text-[14px] font-bold text-[#e53e3e] transition-colors hover:bg-[#fff5f5]">
+                    onclick="openPetDeleteModal('{{ pet.pet_id }}', false)">
               삭제
             </button>
           </form>
+          {% endif %}
         </div>
       </div>
       {% empty %}
-      <p class="py-8 text-center text-[14px] text-[#a0aec0]">등록된 반려동물이 없습니다.</p>
+      <p class="py-8 text-center text-[14px] text-[#a0aec0]">등록된 반려동물이 없습니다</p>
       {% endfor %}
     </div>
 
@@ -69,4 +123,46 @@
 
 </div>
 </div>
+{% endblock %}
+
+{% block scripts %}
+<script>
+(function () {
+  var deletePetModal = document.getElementById('deletePetModal');
+  var confirmPetDeleteBtn = document.getElementById('confirmPetDeleteBtn');
+  var pendingPetDeleteId = null;
+  var pendingPetIsPreview = false;
+
+  window.openPetDeleteModal = function (petId, isPreview) {
+    if (!deletePetModal) return;
+    pendingPetDeleteId = petId;
+    pendingPetIsPreview = !!isPreview;
+    deletePetModal.classList.add('is-open');
+  };
+
+  window.closePetDeleteModal = function (e) {
+    if (!deletePetModal) return;
+    if (e && e.target !== deletePetModal) return;
+    deletePetModal.classList.remove('is-open');
+    pendingPetDeleteId = null;
+    pendingPetIsPreview = false;
+  };
+
+  if (confirmPetDeleteBtn) {
+    confirmPetDeleteBtn.addEventListener('click', function () {
+      if (!pendingPetDeleteId) return;
+
+      if (pendingPetIsPreview) {
+        var previewTarget = document.querySelector('.pet-card[data-pet-id="' + pendingPetDeleteId + '"]');
+        if (previewTarget) previewTarget.remove();
+        closePetDeleteModal();
+        return;
+      }
+
+      var form = document.getElementById('deletePetForm-' + pendingPetDeleteId);
+      if (form) form.submit();
+    });
+  }
+})();
+</script>
 {% endblock %}

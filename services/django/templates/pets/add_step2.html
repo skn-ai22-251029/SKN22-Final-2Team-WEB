@@ -8,26 +8,24 @@
       <span class="text-[#3182ce]">Tail</span><span>Talk</span>
     </a>
 
-    <div class="flex w-full max-w-[720px] flex-col rounded-[18px] border border-[#e2e8f0] bg-white px-5 pb-6 pt-0 shadow-[0_6px_20px_rgba(45,55,72,0.04)] md:h-[610px] md:px-[40px] md:pb-[32px]">
+    <div class="flex w-full max-w-[720px] flex-col rounded-[18px] border border-[#e2e8f0] bg-white px-5 pb-6 {% if is_edit %}pt-8{% else %}pt-0{% endif %} shadow-[0_6px_20px_rgba(45,55,72,0.04)] md:h-[610px] md:px-[40px] md:pb-[32px]">
+      {% if not is_edit %}
       <div class="grid grid-cols-3 gap-[10px]">
         <span class="h-[6px] rounded-full bg-[#3182ce]"></span>
         <span class="h-[6px] rounded-full bg-[#3182ce]"></span>
         <span class="h-[6px] rounded-full bg-[#e2e8f0]"></span>
       </div>
-      <div class="mt-[24px] text-[14px] font-bold leading-none text-[#3182ce]">{% if is_edit %}수정{% else %}STEP 2 / 3{% endif %}</div>
-      <div class="mt-[14px] flex items-center gap-[8px] text-[16px] font-bold leading-none text-[#2d3748] md:text-[18px]">
+      <div class="mt-[24px] text-[14px] font-bold leading-none text-[#3182ce]">STEP 2 / 3</div>
+      {% endif %}
+      <div class="{% if is_edit %}mt-[2px]{% else %}mt-[14px]{% endif %} flex items-center gap-[8px] text-[16px] font-bold leading-none text-[#2d3748] md:text-[18px]">
         <span class="text-[18px] md:text-[20px]">{% if species == "cat" %}🐱{% elif species == "future" %}🏠{% else %}🐶{% endif %}</span>
         <span>
-          {% if is_edit %}
-            {% if species == "cat" %}고양이 정보 수정{% else %}강아지 정보 수정{% endif %}
-          {% else %}
-            {% if species == "cat" %}고양이 기본 정보{% elif species == "future" %}예비 집사 기본 정보{% else %}강아지 기본 정보{% endif %}
-          {% endif %}
+          {% if species == "cat" %}고양이 기본 정보{% elif species == "future" %}예비 집사 기본 정보{% else %}강아지 기본 정보{% endif %}
         </span>
       </div>
       <p class="mt-[14px] text-[15px] leading-snug text-[#718096] md:text-[16px] md:leading-none">정확한 맞춤형 케어를 위해 빈칸을 채워주세요</p>
 
-      <form method="post" class="contents" {% if not is_edit %}action="/pets/add/health/"{% endif %}>
+      <form method="post" class="contents" action="{% if is_preview_edit %}/pets/preview/{{ pet.pet_id }}/edit/{% elif is_edit %}/pets/{{ pet.pet_id }}/edit/{% else %}/pets/add/health/{% endif %}">
         {% csrf_token %}
         <input type="hidden" name="species" value="{{ species }}" />
 
@@ -90,7 +88,7 @@
         <div class="mt-[28px] flex flex-col-reverse gap-[10px] pt-[8px] md:mt-auto md:flex-row md:items-end md:gap-[14px] md:pt-[40px]">
           {% if is_edit %}
           <a href="/pets/" class="flex h-[44px] w-full items-center justify-center rounded-[10px] bg-[#edf2f7] text-[16px] font-bold leading-none text-[#4a5568] transition-colors hover:bg-[#e2e8f0] md:w-[148px]">이전으로</a>
-          <button type="submit" class="flex h-[44px] flex-1 items-center justify-center rounded-[10px] bg-[#3182ce] text-[16px] font-bold leading-none text-white transition-colors hover:bg-[#2b6cb0]">저장하기</button>
+          <button type="submit" class="flex h-[44px] flex-1 items-center justify-center rounded-[10px] bg-[#3182ce] text-[16px] font-bold leading-none text-white transition-colors hover:bg-[#2b6cb0]">다음 단계로 (건강/식이 입력)</button>
           {% else %}
           <a href="/pets/add/" class="flex h-[44px] w-full items-center justify-center rounded-[10px] bg-[#edf2f7] text-[16px] font-bold leading-none text-[#4a5568] transition-colors hover:bg-[#e2e8f0] md:w-[148px]">이전으로</a>
           <button id="nextButton" type="submit" class="flex h-[44px] flex-1 items-center justify-center rounded-[10px] bg-[#3182ce] text-[16px] font-bold leading-none text-white transition-colors hover:bg-[#2b6cb0]">다음 단계로 (건강/식이 입력)</button>

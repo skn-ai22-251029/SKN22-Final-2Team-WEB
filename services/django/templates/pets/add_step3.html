@@ -1,5 +1,5 @@
 {% extends "base.html" %}
-{% block title %}반려동물 등록 — TailTalk{% endblock %}
+{% block title %}{% if is_edit %}반려동물 수정{% else %}반려동물 등록{% endif %} — TailTalk{% endblock %}
 
 {% block content %}
 <div class="min-h-screen bg-[#f7fafc]">
@@ -8,14 +8,16 @@
       <span class="text-[#3182ce]">Tail</span><span>Talk</span>
     </a>
 
-    <div class="w-full max-w-[720px] rounded-[20px] border border-[#e2e8f0] bg-white px-5 pb-6 pt-0 shadow-[0_6px_20px_rgba(45,55,72,0.04)] md:px-[40px] md:pb-[32px]">
+    <div class="w-full max-w-[720px] rounded-[20px] border border-[#e2e8f0] bg-white px-5 pb-6 {% if is_edit %}pt-8{% else %}pt-0{% endif %} shadow-[0_6px_20px_rgba(45,55,72,0.04)] md:px-[40px] md:pb-[32px]">
+      {% if not is_edit %}
       <div class="grid grid-cols-3 gap-[10px]">
         <span class="h-[6px] rounded-full bg-[#3182ce]"></span>
         <span class="h-[6px] rounded-full bg-[#3182ce]"></span>
         <span class="h-[6px] rounded-full bg-[#3182ce]"></span>
       </div>
       <div class="mt-[20px] text-[14px] font-bold leading-none text-[#3182ce]">STEP 3 / 3</div>
-      <div class="mt-[14px] flex items-center gap-[8px] text-[16px] font-bold leading-none text-[#2d3748] md:text-[18px]">
+      {% endif %}
+      <div class="{% if is_edit %}mt-[2px]{% else %}mt-[14px]{% endif %} flex items-center gap-[8px] text-[16px] font-bold leading-none text-[#2d3748] md:text-[18px]">
         <span class="text-[18px] md:text-[20px]">{% if species == "cat" %}🐱{% elif species == "future" %}🏠{% else %}🐶{% endif %}</span>
         <span>
           {% if species == "cat" %}고양이 건강/식이 정보{% elif species == "future" %}예비 집사 건강/식이 정보{% else %}강아지 건강/식이 정보{% endif %}
@@ -23,7 +25,7 @@
       </div>
       <p class="mt-[14px] text-[15px] leading-snug text-[#718096] md:text-[16px] md:leading-none">정확한 사료와 영양제 추천을 위해 빈칸을 채워주세요</p>
 
-      <form method="post" action="/pets/add/health/" class="mt-[18px]">
+      <form method="post" action="{% if is_preview_edit %}/pets/preview/{{ pet_id }}/edit/health/{% elif is_edit %}/pets/{{ pet_id }}/edit/health/{% else %}/pets/add/health/{% endif %}" class="mt-[18px]">
         {% csrf_token %}
         <input type="hidden" name="final_step" value="1" />
         <input type="hidden" name="species" value="{{ step2_data.species }}" />
@@ -104,7 +106,7 @@
 
         <div class="mt-[28px] flex flex-col-reverse gap-[10px] md:flex-row md:items-end md:gap-[14px]">
           <button type="button" onclick="history.back()" class="flex h-[44px] w-full items-center justify-center rounded-[10px] bg-[#edf2f7] text-[16px] font-bold text-[#4a5568] md:w-[128px]">이전으로</button>
-          <button type="submit" class="flex h-[44px] flex-1 items-center justify-center rounded-[10px] bg-[#3182ce] text-[16px] font-bold text-white">등록 완료</button>
+          <button type="submit" class="flex h-[44px] flex-1 items-center justify-center rounded-[10px] bg-[#3182ce] text-[16px] font-bold text-white">{% if is_edit %}수정 완료{% else %}등록 완료{% endif %}</button>
         </div>
       </form>
     </div>
