@@ -1,3 +1,4 @@
+from datetime import date
 from decimal import Decimal, InvalidOperation
 
 from django.shortcuts import get_object_or_404
@@ -65,6 +66,24 @@ def _parse_boolean(value):
     if normalized in {"0", "false", "no", "off"}:
         return False
     raise ValueError("neutered must be a boolean.")
+
+
+def _parse_vaccination_date(value):
+    if value in (None, ""):
+        raise ValueError("vaccination_date must be a valid date.")
+
+    if not isinstance(value, str):
+        raise ValueError("vaccination_date must be a valid date.")
+
+    try:
+        parsed = date.fromisoformat(value)
+    except ValueError as exc:
+        raise ValueError("vaccination_date must be a valid date.") from exc
+
+    if parsed < date(1900, 1, 1) or parsed > date.today():
+        raise ValueError("vaccination_date must be a valid date.")
+
+    return parsed
 
 
 def _get_list_value(request, field_name):
@@ -151,7 +170,7 @@ def _apply_pet_payload(pet, request, *, partial):
         "age_months": lambda value: _parse_integer(value, "age_months"),
         "weight_kg": lambda value: _parse_decimal(value, "weight_kg"),
         "neutered": _parse_boolean,
-        "vaccination_date": lambda value: value or None,
+        "vaccination_date": _parse_vaccination_date,
         "budget_range": lambda value: str(value).strip(),
         "special_notes": lambda value: str(value).strip() or None,
     }

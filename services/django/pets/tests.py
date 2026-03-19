@@ -1,3 +1,4 @@
+from datetime import date, timedelta
 from decimal import Decimal
 
 from django.test import TestCase
@@ -69,6 +70,66 @@ class PetApiTests(TestCase):
         self.assertEqual(set(pet.health_concerns.values_list("concern", flat=True)), {"skin", "joint"})
         self.assertEqual(set(pet.allergies.values_list("ingredient", flat=True)), {"chicken", "beef"})
         self.assertEqual(set(pet.food_preferences.values_list("food_type", flat=True)), {"dry", "wet_can"})
+
+    def test_post_pets_rejects_invalid_vaccination_date_format(self):
+        response = self.client.post(
+            "/api/pets/",
+            {
+                "name": "Bori",
+                "species": "dog",
+                "gender": "male",
+                "vaccination_date": "2026/03/01",
+            },
+            format="json",
+        )
+
+        self.assertEqual(response.status_code, status.HTTP_400_BAD_REQUEST)
+        self.assertEqual(response.data["detail"], "vaccination_date must be a valid date.")
+
+    def test_post_pets_rejects_empty_vaccination_date(self):
+        response = self.client.post(
+            "/api/pets/",
+            {
+                "name": "Bori",
+                "species": "dog",
+                "gender": "male",
+                "vaccination_date": "",
+            },
+            format="json",
+        )
+
+        self.assertEqual(response.status_code, status.HTTP_400_BAD_REQUEST)
+        self.assertEqual(response.data["detail"], "vaccination_date must be a valid date.")
+
+    def test_post_pets_rejects_vaccination_date_before_minimum(self):
+        response = self.client.post(
+            "/api/pets/",
+            {
+                "name": "Bori",
+                "species": "dog",
+                "gender": "male",
+                "vaccination_date": "1899-12-31",
+            },
+            format="json",
+        )
+
+        self.assertEqual(response.status_code, status.HTTP_400_BAD_REQUEST)
+        self.assertEqual(response.data["detail"], "vaccination_date must be a valid date.")
+
+    def test_post_pets_rejects_future_vaccination_date(self):
+        response = self.client.post(
+            "/api/pets/",
+            {
+                "name": "Bori",
+                "species": "dog",
+                "gender": "male",
+                "vaccination_date": (date.today() + timedelta(days=1)).isoformat(),
+            },
+            format="json",
+        )
+
+        self.assertEqual(response.status_code, status.HTTP_400_BAD_REQUEST)
+        self.assertEqual(response.data["detail"], "vaccination_date must be a valid date.")
 
     def test_post_pets_rejects_more_than_five_pets(self):
         for index in range(5):
