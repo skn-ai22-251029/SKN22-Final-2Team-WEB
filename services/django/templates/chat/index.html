@@ -24,6 +24,74 @@
     opacity: 1;
     visibility: visible;
   }
+
+  #mainContent {
+    transition: left 300ms ease, width 300ms ease;
+  }
+
+  #workspaceShell {
+    position: absolute;
+    inset: 72px 0 0 0;
+    transition: left 300ms ease, width 300ms ease;
+  }
+
+  #headerLogo {
+    transition: left 300ms ease;
+  }
+
+  #chatSection {
+    position: relative;
+  }
+
+  #composerStage {
+    position: absolute;
+    left: 50%;
+    width: min(760px, calc(100% - 72px));
+    transform: translateX(-50%);
+    transition: top 280ms cubic-bezier(0.22, 1, 0.36, 1), width 260ms ease, opacity 180ms ease;
+    will-change: top;
+  }
+
+  #chatSection.is-empty #composerStage {
+    top: clamp(350px, 46vh, 440px);
+  }
+
+  #chatSection.has-session #composerStage {
+    top: calc(100% - 96px);
+  }
+
+  #productPanel {
+    width: 0;
+    opacity: 0;
+    overflow: hidden;
+    visibility: hidden;
+    pointer-events: none;
+    border-left-width: 0;
+    transition:
+      width 560ms cubic-bezier(0.22, 1, 0.36, 1),
+      opacity 360ms ease;
+  }
+
+  #productPanel.is-open {
+    width: 360px;
+    opacity: 1;
+    visibility: visible;
+    pointer-events: auto;
+  }
+
+  #productPanelInner {
+    opacity: 0;
+    transform: translateY(8px);
+    transition:
+      opacity 320ms ease,
+      transform 400ms cubic-bezier(0.22, 1, 0.36, 1);
+  }
+
+  #productPanel.is-open #productPanelInner {
+    opacity: 1;
+    transform: translateY(0);
+    transition-delay: 190ms;
+  }
 </style>
 {% endblock %}
 
@@ -145,7 +213,7 @@
 
         <div class="absolute left-[15.5px] top-[272px] flex w-[250px] flex-col gap-[12px]" id="chatHistoryList">
           {% for session in sessions %}
-          <div class="chat-history-item relative h-[40px] w-[250px] rounded-[8px] transition-colors duration-150"
+          <div class="chat-history-item relative h-[40px] w-[250px] cursor-pointer rounded-[8px] transition-colors duration-150"
                data-id="{{ session.session_id }}">
             <img alt="" class="history-bg absolute inset-0 h-[40px] w-[250px] transition-opacity duration-150"
                  src="https://www.figma.com/api/mcp/asset/6630cc6d-cbd9-471a-8587-bd6e56070487" />
@@ -158,9 +226,9 @@
               </span>
               <div class="history-actions absolute right-0 top-0 hidden flex items-center justify-end gap-[7px]">
                 <button type="button" class="flex h-[18px] w-[18px] items-center justify-center text-[12px]"
-                        aria-label="수정" onclick="editHistory(this)">✏️</button>
+                        aria-label="수정" onclick="event.stopPropagation(); editHistory(this)">✏️</button>
                 <button type="button" class="flex h-[18px] w-[18px] items-center justify-center text-[12px]"
-                        aria-label="삭제" onclick="openDeleteModal('{{ session.session_id }}')">🗑️</button>
+                        aria-label="삭제" onclick="event.stopPropagation(); openDeleteModal('{{ session.session_id }}')">🗑️</button>
               </div>
             </div>
           </div>
@@ -225,20 +293,21 @@
     </aside>
 
     <div id="mainContent"
-         class="absolute inset-0 z-10 transition-transform duration-300 ease-[cubic-bezier(0.22,1,0.36,1)]">
-      <header class="absolute left-0 top-0 h-[80px] w-full border-b border-[#e2e8f0] bg-white">
-        <div class="absolute left-[87.5px] top-1/2 -translate-y-1/2 text-[26px] font-bold leading-none text-[#2d3748]">
+         class="absolute inset-0 z-10">
+      <header class="absolute left-0 top-0 h-[72px] w-full border-b border-[#e2e8f0] bg-white">
+        <div id="headerLogo" class="absolute left-[87.5px] top-1/2 -translate-y-1/2 text-[26px] font-bold leading-none text-[#2d3748]">
           <span class="text-[#3182ce]">Tail</span><span>Talk</span>
         </div>
       </header>
 
+      <div id="workspaceShell">
       <div id="workspace"
-           class="absolute bottom-0 left-0 right-0 top-[80px] flex overflow-hidden bg-[#f7fafc]">
-        <section id="chatSection" class="flex min-w-0 flex-1 flex-col bg-[#f7fafc]">
-          <div id="chatScrollArea" class="relative flex-1 overflow-y-auto px-[36px] pb-[24px] pt-[28px]">
+           class="absolute inset-0 flex overflow-hidden bg-[#f7fafc]">
+        <section id="chatSection" class="is-empty flex min-w-0 flex-1 flex-col bg-[#f7fafc]">
+          <div id="chatScrollArea" class="relative flex-1 overflow-y-auto px-[36px] pb-[180px] pt-[28px]">
             <div id="chatEmptyState"
                  class="absolute left-1/2 text-center"
-                 style="top: clamp(160px, 23vh, 240px); width: min(760px, 90vw); transform: translateX(-50%);">
+                 style="top: clamp(160px, 23vh, 240px); width: min(760px, calc(100% - 72px)); transform: translateX(-50%);">
               <div class="text-[32px] font-bold leading-[1.2] text-[#1a202c]">
                 <span class="text-[#3182ce]">Tail</span><span>Talk 와 함께하는 스마트한 집사 생활 </span>
               </div>
@@ -262,13 +331,12 @@
               {% endif %}
             </div>
 
-            <div id="chatThread" class="mx-auto hidden max-w-[760px] space-y-[18px] pt-[24px]">
+            <div id="chatThread" class="mx-auto hidden w-full max-w-[760px] space-y-[18px] pt-[24px]">
               <div id="chatMessages" class="space-y-[18px]"></div>
             </div>
           </div>
 
-          <div class="absolute left-1/2"
-               style="top: clamp(350px, 46vh, 440px); width: min(801px, 90vw); transform: translateX(-50%);">
+          <div id="composerStage">
             <div id="composerWrap"
                  class="relative overflow-hidden rounded-full border border-[#e2e8f0] bg-white shadow-[0_8px_20px_rgba(45,55,72,0.06)]"
                  style="height: 61px">
@@ -315,59 +383,73 @@
           </div>
         </section>
 
-        <aside id="productPanel" class="hidden w-[360px] shrink-0 bg-[#fbfdff]">
-          <div class="flex h-full flex-col">
-            <div class="border-b border-[#e2e8f0] px-[24px] pb-[18px] pt-[24px]">
-              <div class="text-[20px] font-bold text-[#2d3748]">상품 패널</div>
-              <p class="mt-[6px] text-[13px] leading-[1.6] text-[#718096]">
-                {% if is_member_view %}
-                대화 맥락에 맞는 추천 상품과 장바구니를 이 영역에서 확인합니다.
-                {% else %}
-                로그인 후 추천 상품과 장바구니 패널이 함께 활성화됩니다.
-                {% endif %}
-              </p>
-
-              <div class="mt-[18px] flex rounded-full bg-[#edf2f7] p-[4px]">
-                <button type="button" id="tabRecommended"
-                        class="product-tab active flex-1 rounded-full px-[14px] py-[10px] text-[13px] font-bold text-[#2d3748]"
-                        onclick="switchProductTab('recommended')">
-                  추천 상품
-                </button>
-                <button type="button" id="tabCart"
-                        class="product-tab flex-1 rounded-full px-[14px] py-[10px] text-[13px] font-bold text-[#718096]"
-                        onclick="switchProductTab('cart')">
-                  장바구니
-                </button>
-              </div>
-            </div>
-
+        <aside id="productPanel" class="shrink-0 bg-[#fbfdff]">
+          <div id="productPanelInner" class="flex h-full flex-col">
             <div class="flex-1 overflow-y-auto px-[20px] py-[20px]">
-              {% if is_member_view %}
-              <div id="recommendedPanel" class="space-y-[14px]">
-                {% for product in recommended_products %}
-                <div class="rounded-[24px] border border-[#dbe7f5] bg-white p-[16px] shadow-[0_10px_24px_rgba(45,55,72,0.06)]">
-                  <div class="flex gap-[14px]">
-                    <div class="flex h-[92px] w-[92px] shrink-0 items-center justify-center rounded-[18px] bg-gradient-to-br from-[#dbeafe] via-[#eff6ff] to-[#f8fafc] text-[32px]">🐾</div>
-                    <div class="min-w-0 flex-1">
-                      <span class="inline-flex rounded-full px-[10px] py-[4px] text-[11px] font-bold {{ product.accent }}">{{ product.badge }}</span>
-                      <div class="mt-[10px] text-[15px] font-bold leading-[1.5] text-[#2d3748]">{{ product.name }}</div>
-                      <div class="mt-[6px] text-[12px] leading-[1.6] text-[#718096]">{{ product.summary }}</div>
+      {% if is_member_view %}
+      <div id="recommendedPanel" class="space-y-[12px]">
+                <div class="space-y-[12px] pb-[2px]">
+                  <div class="relative overflow-hidden rounded-[16px] bg-[#3182ce] px-[18px] py-[14px] text-white shadow-[0_10px_24px_rgba(49,130,206,0.18)]">
+                    <div class="pr-[78px]">
+                      <p class="text-[14px] font-bold leading-none">봄맞이 알레르기 케어</p>
+                      <p class="mt-[8px] text-[11px] leading-none text-white/80">인기 사료 최대 30% 할인</p>
+                    </div>
+                    <div class="absolute right-[18px] top-[16px] text-[40px] leading-none">🎁</div>
+                  </div>
+
+                  <div>
+                    <p class="text-[14px] font-bold text-[#2d3748]">최근 구매 상품</p>
+                    <div class="mt-[8px] flex items-center gap-[12px] rounded-[18px] border border-[#dbe7f5] bg-white px-[12px] py-[10px] shadow-[0_8px_20px_rgba(45,55,72,0.05)]">
+                      <div class="flex h-[58px] w-[58px] shrink-0 items-center justify-center rounded-[12px] bg-[#edf2f7] text-[22px]">🦴</div>
+                      <div class="min-w-0 flex-1">
+                        <p class="truncate text-[12px] font-bold text-[#2d3748]">관절 튼튼 칼슘 껌</p>
+                        <p class="mt-[4px] text-[10px] text-[#a0aec0]">02.15 구매완료</p>
+                      </div>
+                      <button type="button"
+                              class="flex h-[30px] w-[30px] items-center justify-center rounded-full bg-[#edf7ff] text-[14px]">
+                        🛒
+                      </button>
                     </div>
                   </div>
-                  <div class="mt-[14px] flex items-end justify-between">
-                    <div>
-                      <div class="text-[16px] font-bold text-[#2d3748]">{{ product.price }}</div>
-                      <div class="mt-[4px] text-[12px] text-[#a0aec0]">★ {{ product.rating }} · {{ product.reviews }}</div>
+
+                  <div class="border-b border-dashed border-[#dbe7f5]"></div>
+                </div>
+
+                <div class="flex items-end gap-[18px] border-b border-[#e2e8f0] pb-[10px]">
+                  <button type="button" id="tabRecommended"
+                          class="product-tab active relative pb-[2px] text-[13px] font-bold text-[#3182ce]"
+                          onclick="switchProductTab('recommended')">
+                    추천 상품
+                    <span class="absolute bottom-[-11px] left-0 right-0 h-[2px] rounded-full bg-[#3182ce]"></span>
+                  </button>
+                  <button type="button" id="tabCart"
+                          class="product-tab relative pb-[2px] text-[13px] font-bold text-[#a0aec0]"
+                          onclick="switchProductTab('cart')">
+                    장바구니
+                    <span class="absolute bottom-[-11px] left-0 right-0 hidden h-[2px] rounded-full bg-[#3182ce]"></span>
+                  </button>
+                </div>
+
+                <div class="space-y-[12px]">
+                {% for product in recommended_products %}
+                <div class="rounded-[20px] border border-[#dbe7f5] bg-white px-[14px] py-[13px] shadow-[0_8px_20px_rgba(45,55,72,0.05)]">
+                  <div class="flex items-center gap-[13px]">
+                    <div class="flex h-[72px] w-[72px] shrink-0 items-center justify-center rounded-[14px] bg-gradient-to-br from-[#dbeafe] via-[#eff6ff] to-[#f8fafc] text-[28px]">🐾</div>
+                    <div class="min-w-0 flex-1">
+                      <div class="truncate text-[13px] font-bold leading-[1.5] text-[#2d3748]">{{ product.name }}</div>
+                      <div class="mt-[5px] text-[15px] font-bold text-[#3182ce]">{{ product.price }}</div>
+                      <div class="mt-[7px] text-[11px] text-[#a0aec0]">★ {{ product.rating }} · {{ product.reviews }}</div>
                     </div>
                     <button type="button"
-                            class="flex h-[36px] w-[36px] items-center justify-center rounded-full bg-[#3182ce] text-[20px] font-semibold text-white"
+                            class="flex h-[36px] w-[36px] shrink-0 items-center justify-center rounded-full bg-[#3182ce] text-[20px] font-semibold text-white"
                             aria-label="장바구니 추가">+</button>
                   </div>
                 </div>
                 {% endfor %}
+                </div>
               </div>
 
-              <div id="cartPanel" class="hidden space-y-[14px]">
+              <div id="cartPanel" class="hidden space-y-[12px]">
                 {% for product in cart_products %}
                 <div class="rounded-[24px] border border-[#dbe7f5] bg-white p-[16px] shadow-[0_10px_24px_rgba(45,55,72,0.06)]">
                   <div class="flex gap-[14px]">
@@ -407,10 +489,11 @@
           </div>
         </aside>
       </div>
+      </div>
     </div>
 
-    <div class="absolute left-0 top-0 z-30 h-[80px] w-full pointer-events-none">
-      <div class="absolute right-[32px] top-[20px] flex h-[40px] items-center gap-[17px] pointer-events-auto">
+    <div class="absolute left-0 top-0 z-30 h-[72px] w-full pointer-events-none">
+      <div class="absolute right-[32px] top-[16px] flex h-[40px] items-center gap-[17px] pointer-events-auto">
         <div class="h-[36px] w-[72px] rounded-full border border-[#e2e8f0] bg-white">
           <div class="flex h-full w-full items-center justify-between px-[10px] text-[16px]">
             <span class="text-[#f6ad55]">☀️</span>
@@ -456,6 +539,7 @@
 {% endblock %}
 
 {% block scripts %}
+{{ session_threads|json_script:"sessionThreadsData" }}
 <script>
 (function () {
   var DRAWER_WIDTH = 281;
@@ -466,7 +550,8 @@
   var sidebarOpen = document.getElementById('sidebarOpen');
   var sidebarColl = document.getElementById('sidebarCollapsed');
   var overlay = document.getElementById('sidebarOverlay');
-  var mainContent = document.getElementById('mainContent');
+  var workspaceShell = document.getElementById('workspaceShell');
+  var headerLogo = document.getElementById('headerLogo');
   var pageGate = document.getElementById('pageGate');
   var deleteModal = document.getElementById('deleteModal');
   var profileMenu = document.getElementById('profileMenu');
@@ -493,16 +578,25 @@
   var petDropdownName = document.getElementById('petDropdownName');
   var petDropdownSummary = document.getElementById('petDropdownSummary');
   var petDropdownEmoji = document.getElementById('petDropdownEmoji');
+  var chatHistoryList = document.getElementById('chatHistoryList');
+  var sessionThreadsNode = document.getElementById('sessionThreadsData');
+  var sessionThreads = sessionThreadsNode ? JSON.parse(sessionThreadsNode.textContent) : {};
 
   var isOpen = false;
   var pendingDeleteId = null;
   var isPetDropdownOpen = false;
+  var activeSessionId = null;
+  var draftSessionCount = 0;
 
   function applyLayout() {
-    if (!sidebar || !mainContent || !sidebarOpen || !sidebarColl || !overlay) return;
+    if (!sidebar || !workspaceShell || !sidebarOpen || !sidebarColl || !overlay) return;
 
     sidebar.style.transform = 'translateX(' + (isOpen ? 0 : -SHIFT) + 'px)';
-    mainContent.style.transform = 'translateX(' + (isOpen ? SHIFT : 0) + 'px)';
+    workspaceShell.style.left = (isOpen ? DRAWER_WIDTH : 0) + 'px';
+    workspaceShell.style.width = isOpen ? 'calc(100% - ' + DRAWER_WIDTH + 'px)' : '100%';
+    if (headerLogo) {
+      headerLogo.style.left = (isOpen ? (87.5 + SHIFT) : 87.5) + 'px';
+    }
 
     if (isOpen) {
       sidebarOpen.style.opacity = '1';
@@ -652,15 +746,118 @@
     chatMessages.appendChild(wrapper);
   }
 
+  function updateChatSectionState(hasSession) {
+    if (!chatSection) return;
+    chatSection.classList.toggle('is-empty', !hasSession);
+    chatSection.classList.toggle('has-session', hasSession);
+  }
+
+  function updateSessionItemStyles() {
+    document.querySelectorAll('.chat-history-item').forEach(function (item) {
+      var bg = item.querySelector('.history-bg');
+      var title = item.querySelector('.history-title');
+      var isActive = item.getAttribute('data-id') === activeSessionId;
+
+      item.classList.toggle('bg-[#e8f1fb]', isActive);
+      item.classList.toggle('shadow-[0_4px_12px_rgba(49,130,206,0.10)]', isActive);
+      if (bg) bg.style.opacity = isActive ? '0' : '1';
+      if (title) title.style.color = isActive ? '#2563eb' : '#2d3748';
+    });
+  }
+
+  function renderSessionThread(sessionId) {
+    if (!chatMessages || !chatThread || !chatEmptyState) return;
+
+    var session = sessionThreads[sessionId];
+    chatMessages.innerHTML = '';
+    chatEmptyState.classList.add('hidden');
+    chatThread.classList.remove('hidden');
+    updateChatSectionState(true);
+
+    if (!session || !session.messages) {
+      scrollToBottom();
+      return;
+    }
+
+    session.messages.forEach(function (message) {
+      appendMessage(message.role, message.text);
+    });
+
+    scrollToBottom();
+  }
+
+  function activateSession(sessionId) {
+    activeSessionId = sessionId;
+    renderSessionThread(sessionId);
+    updateSessionItemStyles();
+    openProductPanel();
+    switchProductTab('recommended');
+  }
+
+  function createDraftSession(title) {
+    if (!chatHistoryList) return null;
+
+    draftSessionCount += 1;
+    var sessionId = 'draft-session-' + Date.now() + '-' + draftSessionCount;
+    var item = document.createElement('div');
+    item.className = 'chat-history-item relative h-[40px] w-[250px] cursor-pointer rounded-[8px] transition-colors duration-150 text-left';
+    item.setAttribute('data-id', sessionId);
+    item.onclick = function () {
+      activateSession(sessionId);
+    };
+    item.innerHTML = ''
+      + '<img alt="" class="history-bg absolute inset-0 h-[40px] w-[250px] transition-opacity duration-150" src="https://www.figma.com/api/mcp/asset/6630cc6d-cbd9-471a-8587-bd6e56070487" />'
+      + '<span class="history-title absolute left-[10.5px] right-[66px] top-[11.8px] overflow-hidden text-ellipsis whitespace-nowrap text-[12px] font-semibold leading-none text-[#2d3748]">' + title + '</span>'
+      + '<div class="absolute right-[10px] top-[11px] h-[18px] w-[62px]">'
+      + '  <span class="history-date absolute right-0 top-[1px] w-full whitespace-nowrap text-right text-[11px] leading-none tabular-nums text-[#a0aec0]">오늘</span>'
+      + '  <div class="history-actions absolute right-0 top-0 hidden flex items-center justify-end gap-[7px]"></div>'
+      + '</div>';
+
+    var actions = item.querySelector('.history-actions');
+    if (actions) {
+      var editBtn = document.createElement('button');
+      editBtn.type = 'button';
+      editBtn.className = 'flex h-[18px] w-[18px] items-center justify-center text-[12px]';
+      editBtn.setAttribute('aria-label', '수정');
+      editBtn.textContent = '✏️';
+      editBtn.addEventListener('click', function (e) {
+        e.stopPropagation();
+        editHistory(editBtn);
+      });
+
+      var deleteBtn = document.createElement('button');
+      deleteBtn.type = 'button';
+      deleteBtn.className = 'flex h-[18px] w-[18px] items-center justify-center text-[12px]';
+      deleteBtn.setAttribute('aria-label', '삭제');
+      deleteBtn.textContent = '🗑️';
+      deleteBtn.addEventListener('click', function (e) {
+        e.stopPropagation();
+        openDeleteModal(sessionId);
+      });
+
+      actions.appendChild(editBtn);
+      actions.appendChild(deleteBtn);
+    }
+
+    var emptyStateCard = chatHistoryList.querySelector('.border-dashed');
+    if (emptyStateCard) {
+      emptyStateCard.remove();
+    }
+    chatHistoryList.insertBefore(item, chatHistoryList.firstChild);
+    bindHistoryItemInteractions(item);
+    sessionThreads[sessionId] = { messages: [] };
+    return sessionId;
+  }
+
   function openProductPanel() {
     if (!productPanel || !chatSection) return;
-    productPanel.classList.remove('hidden');
+    productPanel.classList.add('is-open');
     chatSection.classList.add('border-r', 'border-[#e2e8f0]');
   }
 
   function hideProductPanel() {
     if (!productPanel || !chatSection) return;
-    productPanel.classList.add('hidden');
+    productPanel.classList.remove('is-open');
     chatSection.classList.remove('border-r', 'border-[#e2e8f0]');
   }
 
@@ -668,6 +865,9 @@
     if (chatMessages) chatMessages.innerHTML = '';
     if (chatThread) chatThread.classList.add('hidden');
     if (chatEmptyState) chatEmptyState.classList.remove('hidden');
+    updateChatSectionState(false);
+    activeSessionId = null;
+    updateSessionItemStyles();
     if (messageInput) {
       messageInput.value = '';
       updateComposerState(messageInput);
@@ -683,33 +883,54 @@
     var msg = messageInput.value.trim();
     if (!msg) return;
 
+    if (!activeSessionId) {
+      var derivedTitle = msg.length > 18 ? msg.slice(0, 18) + '...' : msg;
+      activeSessionId = createDraftSession(derivedTitle) || activeSessionId;
+    }
+
+    if (!sessionThreads[activeSessionId]) {
+      sessionThreads[activeSessionId] = { messages: [] };
+    }
+
     if (chatEmptyState) chatEmptyState.classList.add('hidden');
     if (chatThread) chatThread.classList.remove('hidden');
-    openProductPanel();
 
     appendMessage('user', msg);
-    appendMessage('assistant', '입력한 조건을 바탕으로 추천 상품을 정리하고 있습니다. 우측 상품 패널에서 추천 결과를 함께 확인해 주세요.');
+    sessionThreads[activeSessionId].messages.push({ role: 'user', text: msg });
+
+    updateChatSectionState(true);
+    updateSessionItemStyles();
 
     messageInput.value = '';
     updateComposerState(messageInput);
-    switchProductTab('recommended');
     scrollToBottom();
+
+    var assistantReply = '입력한 조건을 바탕으로 추천 상품을 정리하고 있습니다. 우측 상품 패널에서 추천 결과를 함께 확인해 주세요.';
+    window.setTimeout(function () {
+      appendMessage('assistant', assistantReply);
+      sessionThreads[activeSessionId].messages.push({ role: 'assistant', text: assistantReply });
+      openProductPanel();
+      switchProductTab('recommended');
+      scrollToBottom();
+    }, 460);
   };
 
   window.switchProductTab = function (tab) {
     if (!recommendedPanel || !cartPanel || !tabRecommended || !tabCart) return;
 
     var isRecommended = tab === 'recommended';
+    var recommendedUnderline = tabRecommended.querySelector('span');
+    var cartUnderline = tabCart.querySelector('span');
     recommendedPanel.classList.toggle('hidden', !isRecommended);
     cartPanel.classList.toggle('hidden', isRecommended);
     tabRecommended.classList.toggle('active', isRecommended);
     tabCart.classList.toggle('active', !isRecommended);
-    tabRecommended.classList.toggle('bg-white', isRecommended);
-    tabCart.classList.toggle('bg-white', !isRecommended);
-    tabRecommended.classList.toggle('text-[#2d3748]', isRecommended);
-    tabCart.classList.toggle('text-[#2d3748]', !isRecommended);
-    tabRecommended.classList.toggle('text-[#718096]', !isRecommended);
-    tabCart.classList.toggle('text-[#718096]', isRecommended);
+    tabRecommended.classList.toggle('text-[#3182ce]', isRecommended);
+    tabCart.classList.toggle('text-[#3182ce]', !isRecommended);
+    tabRecommended.classList.toggle('text-[#a0aec0]', !isRecommended);
+    tabCart.classList.toggle('text-[#a0aec0]', isRecommended);
+    if (recommendedUnderline) recommendedUnderline.classList.toggle('hidden', !isRecommended);
+    if (cartUnderline) cartUnderline.classList.toggle('hidden', isRecommended);
   };
 
   window.openDeleteModal = function (sessionId) {
@@ -750,25 +971,35 @@
     });
   }
 
-  document.querySelectorAll('.chat-history-item').forEach(function (item) {
+  function bindHistoryItemInteractions(item) {
     var bg = item.querySelector('.history-bg');
     var date = item.querySelector('.history-date');
     var actions = item.querySelector('.history-actions');
 
+    item.addEventListener('click', function () {
+      activateSession(item.getAttribute('data-id'));
+    });
+
     item.addEventListener('mouseenter', function () {
-      item.style.backgroundColor = '#e2e8f0';
-      if (bg) bg.style.opacity = '0';
+      if (item.getAttribute('data-id') !== activeSessionId) {
+        item.style.backgroundColor = '#e2e8f0';
+        if (bg) bg.style.opacity = '0';
+      }
       if (date) date.style.display = 'none';
       if (actions) actions.style.display = 'flex';
     });
 
     item.addEventListener('mouseleave', function () {
-      item.style.backgroundColor = '';
-      if (bg) bg.style.opacity = '1';
+      if (item.getAttribute('data-id') !== activeSessionId) {
+        item.style.backgroundColor = '';
+        if (bg) bg.style.opacity = '1';
+      }
       if (date) date.style.display = '';
       if (actions) actions.style.display = 'none';
     });
-  });
+  }
+
+  document.querySelectorAll('.chat-history-item').forEach(bindHistoryItemInteractions);
 
   window.editHistory = function (btn) {
     var item = btn.closest('.chat-history-item');
@@ -814,6 +1045,8 @@
   hideProductPanel();
   applyLayout();
   closePetDropdown();
+  updateChatSectionState(false);
+  updateSessionItemStyles();
 
   function revealPage() {
     if (!pageGate) return;

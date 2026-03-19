@@ -85,6 +85,38 @@ def _preview_sessions():
     ]
 
 
+def _preview_session_threads():
+    return {
+        "preview-session-1": {
+            "messages": [
+                {"role": "user", "text": "콩이가 피부를 계속 긁는데 사료를 바꿔야 할까?"},
+                {
+                    "role": "assistant",
+                    "text": "가려움이 반복된다면 원료를 단순화한 사료를 먼저 검토해볼 수 있습니다. 우측 패널에 피부 민감 아이에게 맞는 후보 상품을 정리해두었습니다.",
+                },
+            ]
+        },
+        "preview-session-2": {
+            "messages": [
+                {"role": "user", "text": "모찌가 습식 사료를 잘 안 먹는데 입문용 추천해줘"},
+                {
+                    "role": "assistant",
+                    "text": "기호성이 높은 습식 위주로 먼저 시도해보는 게 좋습니다. 부담이 적은 제품부터 우측 추천 상품으로 확인해 주세요.",
+                },
+            ]
+        },
+        "preview-session-3": {
+            "messages": [
+                {"role": "user", "text": "눈물 자국 관리에 도움 되는 간식이나 영양제가 있을까?"},
+                {
+                    "role": "assistant",
+                    "text": "알레르기 유발 가능성이 낮은 간식과 피부·모질 영양제를 함께 보는 편이 좋습니다. 관련 추천을 우측 패널에 정리해두었습니다.",
+                },
+            ]
+        },
+    }
+
+
 def chat_view(request):
     sessions = []
     preview_member = request.GET.get("preview") == "member"
@@ -144,6 +176,8 @@ def chat_view(request):
     if preview_member and not sessions:
         sessions = _preview_sessions()
 
+    session_threads = _preview_session_threads() if preview_member else {}
+
     active_pet_id = request.GET.get("pet") or (member_pets[0]["id"] if member_pets else "")
     active_pet = next((pet for pet in member_pets if pet["id"] == active_pet_id), member_pets[0] if member_pets else None)
     return render(
@@ -158,5 +192,6 @@ def chat_view(request):
             "active_pet": active_pet,
             "recommended_products": recommended_products,
             "cart_products": cart_products,
+            "session_threads": session_threads,
         },
     )
