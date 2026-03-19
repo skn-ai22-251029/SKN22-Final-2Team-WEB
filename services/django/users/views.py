@@ -1,3 +1,7 @@
+import os
+import uuid
+
+import boto3
 from django.conf import settings
 from django.contrib.auth import authenticate, login, logout
 from django.db.models import ProtectedError
@@ -10,7 +14,9 @@ from rest_framework import status
 from rest_framework_simplejwt.tokens import RefreshToken
 from social_core.exceptions import AuthCanceled, AuthConnectionError, AuthException, AuthForbidden, AuthMissingParameter
 
-from .models import SocialAccount, User, UserProfile
+from products.models import Product
+
+from .models import SocialAccount, User, UserPreference, UserProfile, UserUsedProduct
 from .oauth import OAuthProviderClient, SocialAuthError
 from .social_auth import (
     SOCIAL_AUTH_ACCESS_SESSION_KEY,
@@ -106,6 +112,73 @@ def serialize_user(user):
         "nickname": profile.nickname,
         "profile_image_url": profile.profile_image_url,
     }
+
+
+def serialize_user_profile(user):
+    profile, _ = UserProfile.objects.get_or_create(user=user, defaults={"nickname": user.email.split("@")[0]})
+    return {
+        "id": user.id,
+        "email": user.email,
+        "nickname": profile.nickname,
+        "age": profile.age,
+        "gender": profile.gender,
+        "address": profile.address,
+        "phone": profile.phone,
+        "marketing_consent": profile.marketing_consent,
+        "profile_image_url": profile.profile_image_url,
+    }
+
+
+def serialize_user_preferences(user):
+    preferences, _ = UserPreference.objects.get_or_create(user=user)
+    return {
+        "theme": preferences.theme,
+        "updated_at": preferences.updated_at,
+    }
+
+
+def serialize_used_product(used_product):
+    product = used_product.product
+    return {
+        "id": str(used_product.id),
+        "product_id": product.goods_id,
+        "goods_name": product.goods_name,
+        "brand_name": product.brand_name,
+        "thumbnail_url": product.thumbnail_url,
+        "created_at": used_product.created_at,
+    }
+
+
+def upload_profile_image_to_s3(file_obj):
+    if not settings.AWS_S3_BUCKET_NAME:
+        raise ValueError("AWS_S3_BUCKET_NAME is not configured.")
+
+    extension = os.path.splitext(file_obj.name)[1].lower() or ".bin"
+    content_type = getattr(file_obj, "content_type", None) or "application/octet-stream"
+    key = f"profile-images/{uuid.uuid4()}{extension}"
+
+    client_kwargs = {}
+    if settings.AWS_S3_REGION_NAME:
+        client_kwargs["region_name"] = settings.AWS_S3_REGION_NAME
+    if settings.AWS_S3_ENDPOINT_URL:
+        client_kwargs["endpoint_url"] = settings.AWS_S3_ENDPOINT_URL
+
+    s3 = boto3.client("s3", **client_kwargs)
+    s3.upload_fileobj(
+        file_obj,
+        settings.AWS_S3_BUCKET_NAME,
+        key,
+        ExtraArgs={"ContentType": content_type},
+    )
+
+    if settings.AWS_S3_CUSTOM_DOMAIN:
+        return f"https://{settings.AWS_S3_CUSTOM_DOMAIN}/{key}"
+
+    if settings.AWS_S3_ENDPOINT_URL:
+        return f"{settings.AWS_S3_ENDPOINT_URL.rstrip('/')}/{settings.AWS_S3_BUCKET_NAME}/{key}"
+
+    region = settings.AWS_S3_REGION_NAME or "us-east-1"
+    return f"https://{settings.AWS_S3_BUCKET_NAME}.s3.{region}.amazonaws.com/{key}"
 
 
 class RegisterView(APIView):
@@ -325,3 +398,101 @@ class SocialLoginCallbackView(APIView):
                 "user": serialize_user(user),
             }
         )
+
+
+class UserMeView(APIView):
+    permission_classes = [IsAuthenticated]
+
+    def get(self, request):
+        return Response({"user": serialize_user_profile(request.user)})
+
+    def patch(self, request):
+        profile, _ = UserProfile.objects.get_or_create(
+            user=request.user,
+            defaults={"nickname": request.user.email.split("@")[0]},
+        )
+
+        dirty_fields = []
+        for field in ["nickname", "age", "gender", "address", "phone"]:
+            if field not in request.data:
+                continue
+            value = request.data.get(field)
+            if value == "":
+                value = None if field != "nickname" else profile.nickname
+            if field == "age" and value is not None:
+                try:
+                    value = int(value)
+                except (TypeError, ValueError):
+                    return Response({"detail": "age must be an integer."}, status=status.HTTP_400_BAD_REQUEST)
+            if getattr(profile, field) != value:
+                setattr(profile, field, value)
+                dirty_fields.append(field)
+
+        if "marketing_consent" in request.data:
+            raw_value = request.data.get("marketing_consent")
+            marketing_consent = raw_value if isinstance(raw_value, bool) else str(raw_value).lower() in {"1", "true", "on", "yes"}
+            if profile.marketing_consent != marketing_consent:
+                profile.marketing_consent = marketing_consent
+                dirty_fields.append("marketing_consent")
+
+        profile_image = request.FILES.get("profile_image")
+        if profile_image is not None:
+            try:
+                profile.profile_image_url = upload_profile_image_to_s3(profile_image)
+            except ValueError as exc:
+                return Response({"detail": str(exc)}, status=status.HTTP_400_BAD_REQUEST)
+            dirty_fields.append("profile_image_url")
+
+        if dirty_fields:
+            profile.save(update_fields=[*dirty_fields, "updated_at"])
+
+        return Response({"user": serialize_user_profile(request.user)})
+
+
+class UserMePreferenceView(APIView):
+    permission_classes = [IsAuthenticated]
+
+    def get(self, request):
+        return Response({"preferences": serialize_user_preferences(request.user)})
+
+    def patch(self, request):
+        preferences, _ = UserPreference.objects.get_or_create(user=request.user)
+        theme = request.data.get("theme")
+        if theme not in {choice for choice, _ in UserPreference.THEME_CHOICES}:
+            return Response({"detail": "theme must be one of: system, light, dark."}, status=status.HTTP_400_BAD_REQUEST)
+
+        if preferences.theme != theme:
+            preferences.theme = theme
+            preferences.save(update_fields=["theme", "updated_at"])
+
+        return Response({"preferences": serialize_user_preferences(request.user)})
+
+
+class UserMeUsedProductView(APIView):
+    permission_classes = [IsAuthenticated]
+
+    def post(self, request):
+        product_id = request.data.get("product_id")
+        if not product_id:
+            return Response({"detail": "product_id is required."}, status=status.HTTP_400_BAD_REQUEST)
+
+        product = Product.objects.filter(goods_id=product_id).first()
+        if product is None:
+            return Response({"detail": "product not found."}, status=status.HTTP_404_NOT_FOUND)
+
+        used_product, created = UserUsedProduct.objects.get_or_create(user=request.user, product=product)
+        return Response(
+            {"used_product": serialize_used_product(used_product)},
+            status=status.HTTP_201_CREATED if created else status.HTTP_200_OK,
+        )
+
+    def delete(self, request):
+        product_id = request.data.get("product_id")
+        if not product_id:
+            return Response({"detail": "product_id is required."}, status=status.HTTP_400_BAD_REQUEST)
+
+        deleted, _ = UserUsedProduct.objects.filter(user=request.user, product_id=product_id).delete()
+        if not deleted:
+            return Response({"detail": "used product not found."}, status=status.HTTP_404_NOT_FOUND)
+
+        return Response(status=status.HTTP_204_NO_CONTENT)
