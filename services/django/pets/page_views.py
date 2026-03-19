@@ -16,9 +16,12 @@ def pet_list(request):
     return render(request, "pets/list.html", {"pets": pets})
 
 
-@login_required
 def pet_add(request):
+    preview_mode = request.GET.get("preview") == "1" or not request.user.is_authenticated
+
     if request.method == "POST":
+        if preview_mode:
+            return redirect("/pets/?preview=filled")
         species = request.POST.get("species")
         if species not in ("dog", "cat"):
             return redirect("pet_add")
@@ -35,7 +38,14 @@ def pet_add(request):
             budget_range="",
         )
         return redirect("pet_list")
-    return render(request, "pets/form.html", {"species_options": SPECIES_OPTIONS})
+    return render(
+        request,
+        "pets/form.html",
+        {
+            "species_options": SPECIES_OPTIONS,
+            "preview_mode": preview_mode,
+        },
+    )
 
 
 @login_required

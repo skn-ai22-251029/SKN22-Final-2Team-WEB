@@ -60,7 +60,7 @@
         <div>
           <div class="mb-2 text-[14px] font-bold text-[#4a5568]">닉네임</div>
           <div class="flex gap-3">
-            <input name="nickname" value="{{ user.profile.nickname|default:'' }}"
+            <input name="nickname" value="{{ profile.nickname|default:'' }}"
                    class="h-[36px] flex-1 rounded-[8px] border border-[#e2e8f0] px-3 text-[14px] outline-none focus:border-[#3182ce]" />
             <button type="button"
                     class="h-[36px] w-[90px] rounded-[8px] border border-[#3182ce] text-[14px] font-bold text-[#3182ce]">중복확인</button>
@@ -69,7 +69,7 @@
         <div>
           <div class="mb-2 text-[14px] font-bold text-[#4a5568]">연락처</div>
           <div class="flex gap-3">
-            <input name="phone" value="{{ user.profile.phone|default:'' }}" placeholder="- 없이 숫자만 입력해주세요"
+            <input name="phone" value="{{ profile.phone|default:'' }}" placeholder="- 없이 숫자만 입력해주세요"
                    class="h-[36px] flex-1 rounded-[8px] border border-[#e2e8f0] px-3 text-[12px] text-[#718096] outline-none focus:border-[#3182ce]" />
             <button type="button"
                     class="h-[36px] w-[90px] rounded-[8px] border border-[#3182ce] text-[14px] font-bold text-[#3182ce]">인증요청</button>

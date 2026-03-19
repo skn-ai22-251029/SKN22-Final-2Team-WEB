@@ -3,6 +3,7 @@ from django.conf.urls.static import static
 from django.contrib import admin
 from django.urls import path, include
 from rest_framework_simplejwt.views import TokenObtainPairView, TokenRefreshView
+from django.views.static import serve
 
 urlpatterns = [
     # ── Admin ────────────────────────────────────────────────────────────────
@@ -25,4 +26,7 @@ urlpatterns = [
 ]
 
 if settings.DEBUG:
+    urlpatterns += [
+        path("static/<path:path>", serve, {"document_root": settings.STATICFILES_DIRS[0]}),
+    ]
     urlpatterns += static(settings.MEDIA_URL, document_root=settings.MEDIA_ROOT)
