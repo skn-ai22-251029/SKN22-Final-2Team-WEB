@@ -1,11 +1,17 @@
 from unittest.mock import patch
 
 from django.test import TestCase, override_settings
+from django.urls import reverse
 from rest_framework import status
 from rest_framework.test import APIClient
 
 from users.models import SocialAccount, User, UserProfile
 from users.oauth import SocialUserProfile
+from users.social_auth import (
+    SOCIAL_AUTH_ACCESS_SESSION_KEY,
+    SOCIAL_AUTH_REFRESH_SESSION_KEY,
+    SocialLoginResult,
+)
 
 
 TEST_SOCIAL_PROVIDERS = {
@@ -107,6 +113,79 @@ class SocialLoginViewTests(TestCase):
             self.assertTrue(provider["configured"])
             self.assertIn("authorization_url", provider)
             self.assertIn("state", provider)
+
+    @patch("users.views.build_authorization_url")
+    def test_social_login_get_returns_authorization_url(self, build_authorization_url_mock):
+        build_authorization_url_mock.return_value = "https://accounts.google.com/o/oauth2/auth?state=test"
+
+        response = self.client.get("/api/auth/social/google/?remember=on")
+
+        self.assertEqual(response.status_code, status.HTTP_200_OK)
+        self.assertEqual(response.data["provider"], "google")
+        self.assertIn("authorization_url", response.data)
+        self.assertIn("callback_url", response.data)
+
+    @patch("users.views.complete_social_login")
+    def test_social_login_callback_returns_tokens_and_logs_in_session(self, complete_social_login_mock):
+        user = User.objects.create_user(email="callback@example.com")
+        UserProfile.objects.create(user=user, nickname="Callback User")
+        complete_social_login_mock.return_value = SocialLoginResult(
+            user=user,
+            backend_path="social_core.backends.google.GoogleOAuth2",
+            provider="google",
+            is_new_user=False,
+        )
+
+        session = self.client.session
+        session["tailtalk_social_oauth_remember"] = True
+        session.save()
+
+        response = self.client.get("/api/auth/social/google/callback/?code=test-code&state=test-state")
+
+        self.assertEqual(response.status_code, status.HTTP_200_OK)
+        self.assertIn("access", response.data)
+        self.assertIn("refresh", response.data)
+        self.assertEqual(response.data["user"]["email"], "callback@example.com")
+
+        session = self.client.session
+        self.assertIn(SOCIAL_AUTH_ACCESS_SESSION_KEY, session)
+        self.assertIn(SOCIAL_AUTH_REFRESH_SESSION_KEY, session)
+
+
+@override_settings(SOCIAL_AUTH_PROVIDERS=TEST_SOCIAL_PROVIDERS)
+class SocialLoginPageViewTests(TestCase):
+    @patch("users.page_views.build_authorization_url")
+    def test_social_login_start_redirects_to_provider(self, build_authorization_url_mock):
+        build_authorization_url_mock.return_value = "https://nid.naver.com/oauth2.0/authorize?state=test"
+
+        response = self.client.get("/auth/social/naver/?remember=on")
+
+        self.assertEqual(response.status_code, status.HTTP_302_FOUND)
+        self.assertEqual(response["Location"], "https://nid.naver.com/oauth2.0/authorize?state=test")
+
+    @patch("users.page_views.complete_social_login")
+    def test_social_login_callback_redirects_to_profile_and_stores_jwt(self, complete_social_login_mock):
+        user = User.objects.create_user(email="page@example.com")
+        UserProfile.objects.create(user=user, nickname="Page User")
+        complete_social_login_mock.return_value = SocialLoginResult(
+            user=user,
+            backend_path="social_core.backends.kakao.KakaoOAuth2",
+            provider="kakao",
+            is_new_user=True,
+        )
+
+        session = self.client.session
+        session["tailtalk_social_oauth_remember"] = False
+        session.save()
+
+        response = self.client.get("/auth/social/kakao/callback/?code=test-code&state=test-state")
+
+        self.assertEqual(response.status_code, status.HTTP_302_FOUND)
+        self.assertEqual(response["Location"], f"{reverse('profile')}?setup=1")
+
+        session = self.client.session
+        self.assertIn(SOCIAL_AUTH_ACCESS_SESSION_KEY, session)
+        self.assertIn(SOCIAL_AUTH_REFRESH_SESSION_KEY, session)
 
 
 @override_settings(SOCIAL_AUTH_PROVIDERS=TEST_SOCIAL_PROVIDERS)
