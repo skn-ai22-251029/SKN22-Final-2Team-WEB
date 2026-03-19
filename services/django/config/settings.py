@@ -20,6 +20,7 @@ INSTALLED_APPS = [
     "rest_framework",
     "rest_framework_simplejwt",
     "rest_framework_simplejwt.token_blacklist",
+    "social_django",
     "corsheaders",
     "users",
     "pets",
@@ -29,6 +30,13 @@ INSTALLED_APPS = [
 ]
 
 AUTH_USER_MODEL = "users.User"
+
+AUTHENTICATION_BACKENDS = (
+    "social_core.backends.google.GoogleOAuth2",
+    "social_core.backends.kakao.KakaoOAuth2",
+    "social_core.backends.naver.NaverOAuth2",
+    "django.contrib.auth.backends.ModelBackend",
+)
 
 MIDDLEWARE = [
     "corsheaders.middleware.CorsMiddleware",
@@ -54,6 +62,7 @@ TEMPLATES = [
                 "django.template.context_processors.request",
                 "django.contrib.auth.context_processors.auth",
                 "django.contrib.messages.context_processors.messages",
+                "social_django.context_processors.backends",
             ],
         },
     },
@@ -62,10 +71,11 @@ TEMPLATES = [
 WSGI_APPLICATION = "config.wsgi.application"
 
 if USE_SQLITE:
+    SQLITE_NAME = config("SQLITE_NAME", default=str(Path("/tmp") / "SKN22-129-db.sqlite3"))
     DATABASES = {
         "default": {
             "ENGINE": "django.db.backends.sqlite3",
-            "NAME": BASE_DIR / "db.sqlite3",
+            "NAME": SQLITE_NAME,
         }
     }
 else:
@@ -108,6 +118,36 @@ CSRF_COOKIE_SECURE = config("DJANGO_CSRF_COOKIE_SECURE", default=False, cast=boo
 
 CORS_ALLOWED_ORIGINS = [origin for origin in config("CORS_ALLOWED_ORIGINS", default="").split(",") if origin]
 
+SOCIAL_AUTH_GOOGLE_OAUTH2_KEY = config("GOOGLE_CLIENT_ID", default="")
+SOCIAL_AUTH_GOOGLE_OAUTH2_SECRET = config("GOOGLE_CLIENT_SECRET", default="")
+SOCIAL_AUTH_GOOGLE_OAUTH2_SCOPE = ["openid", "email", "profile"]
+SOCIAL_AUTH_GOOGLE_OAUTH2_USE_UNIQUE_USER_ID = True
+
+SOCIAL_AUTH_NAVER_KEY = config("NAVER_CLIENT_ID", default="")
+SOCIAL_AUTH_NAVER_SECRET = config("NAVER_CLIENT_SECRET", default="")
+
+SOCIAL_AUTH_KAKAO_KEY = config("KAKAO_CLIENT_ID", default="")
+SOCIAL_AUTH_KAKAO_SECRET = config("KAKAO_CLIENT_SECRET", default="")
+SOCIAL_AUTH_KAKAO_SCOPE = ["account_email", "profile_nickname", "profile_image"]
+
+SOCIAL_AUTH_REQUESTS_TIMEOUT = config("SOCIAL_AUTH_REQUESTS_TIMEOUT", default=10, cast=int)
+SOCIAL_AUTH_RAISE_EXCEPTIONS = False
+SOCIAL_AUTH_LOGIN_ERROR_URL = "/login/"
+SOCIAL_AUTH_USER_FIELDS = ["email"]
+SOCIAL_AUTH_PIPELINE = (
+    "social_core.pipeline.social_auth.social_details",
+    "social_core.pipeline.social_auth.social_uid",
+    "users.social_pipeline.ensure_email",
+    "social_core.pipeline.social_auth.auth_allowed",
+    "social_core.pipeline.social_auth.social_user",
+    "social_core.pipeline.social_auth.associate_by_email",
+    "social_core.pipeline.user.create_user",
+    "social_core.pipeline.social_auth.associate_user",
+    "social_core.pipeline.social_auth.load_extra_data",
+    "social_core.pipeline.user.user_details",
+    "users.social_pipeline.sync_tailtalk_social_data",
+)
+
 SOCIAL_AUTH_PROVIDERS = {
     "google": {
         "client_id": config("GOOGLE_CLIENT_ID", default=""),
@@ -145,7 +185,7 @@ MEDIA_URL = "/media/"
 MEDIA_ROOT = BASE_DIR / "media"
 
 LOGIN_URL = "/login/"
-LOGIN_REDIRECT_URL = "/"
+LOGIN_REDIRECT_URL = "/profile/"
 LOGOUT_REDIRECT_URL = "/login/"
 
 DEFAULT_AUTO_FIELD = "django.db.models.BigAutoField"

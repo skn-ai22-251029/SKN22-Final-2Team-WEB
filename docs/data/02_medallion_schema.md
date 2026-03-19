@@ -48,7 +48,7 @@ flowchart TD
         G4 --> GO4[(gold/reviews/<br>YYYYMMDD_reviews_gold.parquet)]
     end
 
-    subgraph DB["📦 적재 → 상세: docs/data/10_ingest_pipeline.md"]
+    subgraph DB["📦 적재 → 상세: docs/data/03_ingest_pipeline.md"]
         GO3 --> PG_INGEST[ingest_postgres.py<br>GP 포함 전체 적재]
         GO4 --> PG_INGEST
         GO3 --> QD_INGEST[ingest_qdrant.py<br>GP 제외 + 임베딩 생성]
@@ -58,7 +58,7 @@ flowchart TD
 ```
 
 > ingest 단계 처리 로직(GP 필터링, 임베딩 텍스트 조합, 컬렉션 설정, FK 필터 등) 및 실행 명령 상세:
-> **[docs/data/10_ingest_pipeline.md](10_ingest_pipeline.md)**
+> **[docs/data/03_ingest_pipeline.md](03_ingest_pipeline.md)**
 
 ---
 
