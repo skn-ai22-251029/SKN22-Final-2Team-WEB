@@ -1,3 +1,5 @@
+import tempfile
+from pathlib import Path
 from unittest.mock import patch
 
 from django.test import TestCase, override_settings
@@ -273,12 +275,26 @@ class UserProfileApiTests(TestCase):
         self.assertEqual(self.user.profile.phone, "01012341234")
         self.assertTrue(self.user.profile.marketing_consent)
 
+    def test_patch_me_uploads_profile_image_to_local_media(self):
+        with tempfile.TemporaryDirectory() as media_root:
+            with override_settings(MEDIA_ROOT=media_root, MEDIA_URL="/media/"):
+                upload = SimpleUploadedFile("avatar.png", b"fake-image", content_type="image/png")
+
+                response = self.client.patch("/api/users/me/", {"profile_image": upload})
+
+                self.assertEqual(response.status_code, status.HTTP_200_OK)
+                self.user.refresh_from_db()
+                self.assertTrue(self.user.profile.profile_image_url.startswith("/media/profile-images/"))
+
+                relative_path = self.user.profile.profile_image_url.removeprefix("/media/")
+                self.assertTrue((Path(media_root) / relative_path).exists())
+
     @override_settings(
         AWS_S3_BUCKET_NAME="tailtalk-bucket",
         AWS_S3_REGION_NAME="ap-northeast-2",
     )
     @patch("users.views.boto3.client")
-    def test_patch_me_uploads_profile_image_to_s3(self, boto3_client_mock):
+    def test_patch_me_uploads_profile_image_to_s3_when_configured(self, boto3_client_mock):
         s3_client = boto3_client_mock.return_value
         upload = SimpleUploadedFile("avatar.png", b"fake-image", content_type="image/png")
 

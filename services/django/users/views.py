@@ -1,5 +1,6 @@
 import os
 import uuid
+from pathlib import Path
 
 import boto3
 from django.conf import settings
@@ -23,6 +24,7 @@ from .social_auth import (
     SOCIAL_AUTH_REFRESH_SESSION_KEY,
     SOCIAL_AUTH_REMEMBER_SESSION_KEY,
     SocialAuthServiceError,
+    build_callback_url,
     build_authorization_url,
     complete_social_login,
 )
@@ -149,13 +151,21 @@ def serialize_used_product(used_product):
     }
 
 
-def upload_profile_image_to_s3(file_obj):
-    if not settings.AWS_S3_BUCKET_NAME:
-        raise ValueError("AWS_S3_BUCKET_NAME is not configured.")
-
+def upload_profile_image(file_obj):
     extension = os.path.splitext(file_obj.name)[1].lower() or ".bin"
     content_type = getattr(file_obj, "content_type", None) or "application/octet-stream"
     key = f"profile-images/{uuid.uuid4()}{extension}"
+
+    if not settings.AWS_S3_BUCKET_NAME:
+        media_root = Path(settings.MEDIA_ROOT)
+        destination = media_root / key
+        destination.parent.mkdir(parents=True, exist_ok=True)
+
+        with destination.open("wb+") as output:
+            for chunk in file_obj.chunks():
+                output.write(chunk)
+
+        return f"{settings.MEDIA_URL.rstrip('/')}/{key}"
 
     client_kwargs = {}
     if settings.AWS_S3_REGION_NAME:
@@ -305,9 +315,7 @@ class SocialLoginView(APIView):
 
     def get(self, request, provider):
         remember = request.query_params.get("remember") == "on"
-        redirect_uri = request.build_absolute_uri(
-            reverse("social-login-callback-api", kwargs={"provider": provider})
-        )
+        redirect_uri = build_callback_url(request, "social-login-callback-api", provider)
 
         try:
             authorization_url = build_authorization_url(
@@ -363,9 +371,7 @@ class SocialLoginCallbackView(APIView):
     permission_classes = [AllowAny]
 
     def get(self, request, provider):
-        redirect_uri = request.build_absolute_uri(
-            reverse("social-login-callback-api", kwargs={"provider": provider})
-        )
+        redirect_uri = build_callback_url(request, "social-login-callback-api", provider)
 
         try:
             result = complete_social_login(
@@ -438,7 +444,7 @@ class UserMeView(APIView):
         profile_image = request.FILES.get("profile_image")
         if profile_image is not None:
             try:
-                profile.profile_image_url = upload_profile_image_to_s3(profile_image)
+                profile.profile_image_url = upload_profile_image(profile_image)
             except ValueError as exc:
                 return Response({"detail": str(exc)}, status=status.HTTP_400_BAD_REQUEST)
             dirty_fields.append("profile_image_url")
