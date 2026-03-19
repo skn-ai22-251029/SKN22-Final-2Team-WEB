@@ -1,10 +1,15 @@
+import tempfile
+from pathlib import Path
 from unittest.mock import patch
 
 from django.test import TestCase, override_settings
 from django.urls import reverse
+from django.core.files.uploadedfile import SimpleUploadedFile
+from django.utils import timezone
 from rest_framework import status
 from rest_framework.test import APIClient
 
+from products.models import Product
 from users.models import SocialAccount, User, UserProfile
 from users.oauth import SocialUserProfile
 from users.social_auth import (
@@ -237,3 +242,134 @@ class AuthApiTests(TestCase):
 
         self.assertEqual(response.status_code, status.HTTP_204_NO_CONTENT)
         self.assertFalse(User.objects.filter(email="auth@example.com").exists())
+
+
+class UserProfileApiTests(TestCase):
+    def setUp(self):
+        self.client = APIClient()
+        self.user = User.objects.create_user(email="profile@example.com", password="Password123!")
+        UserProfile.objects.create(user=self.user, nickname="Profile User")
+        self.client.force_authenticate(self.user)
+
+    def test_get_me_returns_profile(self):
+        response = self.client.get("/api/users/me/")
+
+        self.assertEqual(response.status_code, status.HTTP_200_OK)
+        self.assertEqual(response.data["user"]["email"], "profile@example.com")
+        self.assertEqual(response.data["user"]["nickname"], "Profile User")
+
+    def test_patch_me_updates_profile_fields(self):
+        response = self.client.patch(
+            "/api/users/me/",
+            {
+                "nickname": "Updated User",
+                "phone": "01012341234",
+                "marketing_consent": True,
+            },
+            format="json",
+        )
+
+        self.assertEqual(response.status_code, status.HTTP_200_OK)
+        self.user.refresh_from_db()
+        self.assertEqual(self.user.profile.nickname, "Updated User")
+        self.assertEqual(self.user.profile.phone, "01012341234")
+        self.assertTrue(self.user.profile.marketing_consent)
+
+    def test_patch_me_uploads_profile_image_to_local_media(self):
+        with tempfile.TemporaryDirectory() as media_root:
+            with override_settings(MEDIA_ROOT=media_root, MEDIA_URL="/media/"):
+                upload = SimpleUploadedFile("avatar.png", b"fake-image", content_type="image/png")
+
+                response = self.client.patch("/api/users/me/", {"profile_image": upload})
+
+                self.assertEqual(response.status_code, status.HTTP_200_OK)
+                self.user.refresh_from_db()
+                self.assertTrue(self.user.profile.profile_image_url.startswith("/media/profile-images/"))
+
+                relative_path = self.user.profile.profile_image_url.removeprefix("/media/")
+                self.assertTrue((Path(media_root) / relative_path).exists())
+
+    @override_settings(
+        AWS_S3_BUCKET_NAME="tailtalk-bucket",
+        AWS_S3_REGION_NAME="ap-northeast-2",
+    )
+    @patch("users.views.boto3.client")
+    def test_patch_me_uploads_profile_image_to_s3_when_configured(self, boto3_client_mock):
+        s3_client = boto3_client_mock.return_value
+        upload = SimpleUploadedFile("avatar.png", b"fake-image", content_type="image/png")
+
+        response = self.client.patch("/api/users/me/", {"profile_image": upload})
+
+        self.assertEqual(response.status_code, status.HTTP_200_OK)
+        self.user.refresh_from_db()
+        self.assertIn("tailtalk-bucket", self.user.profile.profile_image_url)
+        s3_client.upload_fileobj.assert_called_once()
+
+
+class UserPreferenceApiTests(TestCase):
+    def setUp(self):
+        self.client = APIClient()
+        self.user = User.objects.create_user(email="preferences@example.com", password="Password123!")
+        UserProfile.objects.create(user=self.user, nickname="Preference User")
+        self.client.force_authenticate(self.user)
+
+    def test_get_preferences_returns_default_theme(self):
+        response = self.client.get("/api/users/me/preferences/")
+
+        self.assertEqual(response.status_code, status.HTTP_200_OK)
+        self.assertEqual(response.data["preferences"]["theme"], "system")
+
+    def test_patch_preferences_updates_theme(self):
+        response = self.client.patch(
+            "/api/users/me/preferences/",
+            {"theme": "dark"},
+            format="json",
+        )
+
+        self.assertEqual(response.status_code, status.HTTP_200_OK)
+        self.assertEqual(response.data["preferences"]["theme"], "dark")
+
+
+class UserUsedProductApiTests(TestCase):
+    def setUp(self):
+        self.client = APIClient()
+        self.user = User.objects.create_user(email="used-products@example.com", password="Password123!")
+        UserProfile.objects.create(user=self.user, nickname="Used Product User")
+        self.client.force_authenticate(self.user)
+        self.product = Product.objects.create(
+            goods_id="GI0001",
+            goods_name="테스트 상품",
+            brand_name="테스트 브랜드",
+            price=10000,
+            discount_price=9000,
+            thumbnail_url="https://example.com/thumb.png",
+            product_url="https://example.com/product",
+            crawled_at=timezone.now(),
+        )
+
+    def test_post_used_products_creates_relation(self):
+        response = self.client.post(
+            "/api/users/me/used-products/",
+            {"product_id": self.product.goods_id},
+            format="json",
+        )
+
+        self.assertEqual(response.status_code, status.HTTP_201_CREATED)
+        self.assertEqual(response.data["used_product"]["product_id"], self.product.goods_id)
+        self.assertTrue(self.user.used_products.filter(product=self.product).exists())
+
+    def test_delete_used_products_removes_relation(self):
+        self.client.post(
+            "/api/users/me/used-products/",
+            {"product_id": self.product.goods_id},
+            format="json",
+        )
+
+        response = self.client.delete(
+            "/api/users/me/used-products/",
+            {"product_id": self.product.goods_id},
+            format="json",
+        )
+
+        self.assertEqual(response.status_code, status.HTTP_204_NO_CONTENT)
+        self.assertFalse(self.user.used_products.filter(product=self.product).exists())

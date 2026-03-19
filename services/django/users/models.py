@@ -1,3 +1,5 @@
+import uuid
+
 from django.contrib.auth.models import AbstractBaseUser, BaseUserManager, PermissionsMixin
 from django.db import models
 
@@ -80,3 +82,33 @@ class SocialAccount(models.Model):
                 name="uniq_social_account_provider_user_id",
             )
         ]
+
+
+class UserPreference(models.Model):
+    THEME_SYSTEM = "system"
+    THEME_LIGHT = "light"
+    THEME_DARK = "dark"
+
+    THEME_CHOICES = [
+        (THEME_SYSTEM, "System"),
+        (THEME_LIGHT, "Light"),
+        (THEME_DARK, "Dark"),
+    ]
+
+    user = models.OneToOneField(User, on_delete=models.CASCADE, primary_key=True, related_name="preferences")
+    theme = models.CharField(max_length=10, choices=THEME_CHOICES, default=THEME_SYSTEM)
+    updated_at = models.DateTimeField(auto_now=True)
+
+    class Meta:
+        db_table = "user_preference"
+
+
+class UserUsedProduct(models.Model):
+    id = models.UUIDField(primary_key=True, default=uuid.uuid4, editable=False)
+    user = models.ForeignKey(User, on_delete=models.CASCADE, related_name="used_products")
+    product = models.ForeignKey("products.Product", on_delete=models.CASCADE, related_name="used_by_users")
+    created_at = models.DateTimeField(auto_now_add=True)
+
+    class Meta:
+        db_table = "user_used_product"
+        unique_together = [("user", "product")]
