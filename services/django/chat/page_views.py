@@ -1,6 +1,10 @@
 from django.shortcuts import render
 
 
+def _format_price(value):
+    return f"{value:,}원"
+
+
 def _serialize_pet(pet):
     age_parts = []
     if pet.age_years:
@@ -129,6 +133,7 @@ def chat_view(request):
             "name": "닥터독 하이포알러지 연어 사료",
             "summary": "민감한 아이를 위한 저알러지 레시피",
             "price": "39,800원",
+            "emoji": "🐟",
             "rating": "4.8",
             "reviews": "리뷰 312",
             "badge": "추천",
@@ -138,6 +143,7 @@ def chat_view(request):
             "name": "벨버드 덴탈 케어 껌",
             "summary": "치석 관리와 구취 케어에 적합",
             "price": "12,900원",
+            "emoji": "🦴",
             "rating": "4.7",
             "reviews": "리뷰 188",
             "badge": "인기",
@@ -147,22 +153,126 @@ def chat_view(request):
             "name": "뉴트리플랜 피부/모질 영양제",
             "summary": "오메가 밸런스 중심 영양 보충",
             "price": "27,500원",
+            "emoji": "💊",
             "rating": "4.6",
             "reviews": "리뷰 96",
             "badge": "영양",
             "accent": "bg-[#fef3c7] text-[#d97706]",
+        },
+        {
+            "name": "웰츠 스킨 케어 오리 사료",
+            "summary": "피부 민감도를 고려한 저자극 레시피",
+            "price": "31,200원",
+            "emoji": "🦆",
+            "rating": "4.5",
+            "reviews": "리뷰 142",
+            "badge": "추천",
+            "accent": "bg-[#dbeafe] text-[#2563eb]",
+        },
+        {
+            "name": "더리얼 소고기 트릿",
+            "summary": "기호성이 좋은 훈련용 간식",
+            "price": "9,800원",
+            "emoji": "🥩",
+            "rating": "4.7",
+            "reviews": "리뷰 251",
+            "badge": "인기",
+            "accent": "bg-[#dcfce7] text-[#16a34a]",
+        },
+        {
+            "name": "리얼펫 프로바이오틱스",
+            "summary": "소화 밸런스를 위한 유산균 보충",
+            "price": "22,900원",
+            "emoji": "🧴",
+            "rating": "4.6",
+            "reviews": "리뷰 87",
+            "badge": "영양",
+            "accent": "bg-[#fef3c7] text-[#d97706]",
+        },
+        {
+            "name": "베러펫 눈물 케어 영양제",
+            "summary": "눈물 자국 관리 보조 영양제",
+            "price": "18,500원",
+            "emoji": "👀",
+            "rating": "4.4",
+            "reviews": "리뷰 64",
+            "badge": "추천",
+            "accent": "bg-[#dbeafe] text-[#2563eb]",
         },
     ]
     cart_products = [
         {
             "name": "하림 더리얼 퍼피 사료",
             "summary": "장바구니에 담긴 상품",
-            "price": "34,900원",
+            "price": _format_price(34900),
+            "emoji": "🐶",
             "rating": "4.8",
             "reviews": "리뷰 421",
+            "quantity": 1,
+            "unit_price": 34900,
             "badge": "장바구니",
             "accent": "bg-[#e9d5ff] text-[#7c3aed]",
-        }
+        },
+        {
+            "name": "뉴트리플랜 피부/모질 영양제",
+            "summary": "장바구니에 담긴 상품",
+            "price": _format_price(27500),
+            "emoji": "💊",
+            "rating": "4.6",
+            "reviews": "리뷰 96",
+            "quantity": 2,
+            "unit_price": 27500,
+            "badge": "장바구니",
+            "accent": "bg-[#e9d5ff] text-[#7c3aed]",
+        },
+        {
+            "name": "벨버드 덴탈 케어 껌",
+            "summary": "장바구니에 담긴 상품",
+            "price": _format_price(12900),
+            "emoji": "🦴",
+            "rating": "4.7",
+            "reviews": "리뷰 188",
+            "quantity": 1,
+            "unit_price": 12900,
+            "badge": "장바구니",
+            "accent": "bg-[#e9d5ff] text-[#7c3aed]",
+        },
+        {
+            "name": "베러펫 눈물 케어 영양제",
+            "summary": "장바구니에 담긴 상품",
+            "price": _format_price(18500),
+            "emoji": "👀",
+            "rating": "4.4",
+            "reviews": "리뷰 64",
+            "quantity": 1,
+            "unit_price": 18500,
+            "badge": "장바구니",
+            "accent": "bg-[#e9d5ff] text-[#7c3aed]",
+        },
+    ]
+    cart_total = sum(product["unit_price"] * product["quantity"] for product in cart_products)
+    promo_banners = [
+        {
+            "eyebrow": "기획전",
+            "title": "봄맞이 알레르기 케어",
+            "subtitle": "인기 사료 최대 30% 할인",
+            "emoji": "🎁",
+            "style": "background: linear-gradient(135deg, #3182ce 0%, #63b3ed 100%);",
+        },
+        {
+            "eyebrow": "모음전",
+            "title": "눈물 자국 케어 추천전",
+            "subtitle": "영양제와 간식을 모아보기",
+            "emoji": "✨",
+            "style": "background: linear-gradient(135deg, #2d3748 0%, #4a5568 100%);",
+        },
+        {
+            "eyebrow": "이벤트",
+            "title": "첫 구매 고객 혜택",
+            "subtitle": "추천 상품 장바구니 담기만 해도 쿠폰 지급",
+            "emoji": "🎉",
+            "style": "background: linear-gradient(135deg, #dd6b20 0%, #f6ad55 100%);",
+        },
     ]
     if is_authenticated:
         sessions = list(
@@ -178,8 +288,8 @@ def chat_view(request):
 
     session_threads = _preview_session_threads() if preview_member else {}
 
-    active_pet_id = request.GET.get("pet") or (member_pets[0]["id"] if member_pets else "")
-    active_pet = next((pet for pet in member_pets if pet["id"] == active_pet_id), member_pets[0] if member_pets else None)
+    active_pet_id = request.GET.get("pet", "")
+    active_pet = next((pet for pet in member_pets if pet["id"] == active_pet_id), None)
     return render(
         request,
         "chat/index.html",
@@ -192,6 +302,8 @@ def chat_view(request):
             "active_pet": active_pet,
             "recommended_products": recommended_products,
             "cart_products": cart_products,
+            "cart_total": _format_price(cart_total),
+            "promo_banners": promo_banners,
             "session_threads": session_threads,
         },
     )

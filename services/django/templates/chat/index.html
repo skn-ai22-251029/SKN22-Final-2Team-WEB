@@ -35,12 +35,32 @@
     transition: left 300ms ease, width 300ms ease;
   }
 
+  #workspaceShell.no-transition {
+    transition: none;
+  }
+
   #headerLogo {
     transition: left 300ms ease;
   }
 
+  #headerLogo.no-transition {
+    transition: none;
+  }
+
   #chatSection {
     position: relative;
+  }
+
+  #chatEmptyState {
+    transition: opacity 180ms ease;
+  }
+
+  #chatEmptyState.is-fading-in {
+    opacity: 0;
+  }
+
+  #chatEmptyState.no-transition {
+    transition: none;
   }
 
   #composerStage {
@@ -50,6 +70,10 @@
     transform: translateX(-50%);
     transition: top 280ms cubic-bezier(0.22, 1, 0.36, 1), width 260ms ease, opacity 180ms ease;
     will-change: top;
+  }
+
+  #composerStage.no-transition {
+    transition: none;
   }
 
   #chatSection.is-empty #composerStage {
@@ -69,7 +93,8 @@
     border-left-width: 0;
     transition:
       width 560ms cubic-bezier(0.22, 1, 0.36, 1),
-      opacity 360ms ease;
+      opacity 360ms ease,
+      visibility 0s linear 560ms;
   }
 
   #productPanel.is-open {
@@ -77,6 +102,19 @@
     opacity: 1;
     visibility: visible;
     pointer-events: auto;
+    transition:
+      width 560ms cubic-bezier(0.22, 1, 0.36, 1),
+      opacity 360ms ease,
+      visibility 0s linear 0s;
+  }
+
+  #productPanel.is-closing {
+    visibility: visible;
+    pointer-events: none;
+    transition:
+      width 560ms cubic-bezier(0.22, 1, 0.36, 1),
+      opacity 360ms ease,
+      visibility 0s linear 0s;
   }
 
   #productPanelInner {
@@ -91,6 +129,17 @@
     opacity: 1;
     transform: translateY(0);
     transition-delay: 190ms;
+  }
+
+  #productPanel.is-closing #productPanelInner {
+    opacity: 0;
+    transform: translateY(8px);
+    transition-delay: 0s;
+  }
+
+  #productPanel.no-transition,
+  #productPanel.no-transition #productPanelInner {
+    transition: none !important;
   }
 </style>
 {% endblock %}
@@ -162,28 +211,47 @@
           </div>
 
           <div class="relative mt-[12px]" id="petDropdown">
-            {% if active_pet %}
             <button type="button"
                     id="petDropdownButton"
-                    class="flex w-full items-center gap-[10px] rounded-[12px] border border-[#90cdf4] bg-[#eff8ff] px-[10px] py-[9px] text-left shadow-[0_6px_16px_rgba(49,130,206,0.08)] transition-colors duration-150"
+                    class="flex w-full items-center gap-[10px] rounded-[12px] border px-[10px] py-[9px] text-left transition-colors duration-150 {% if active_pet %}border-[#90cdf4] bg-[#eff8ff] shadow-[0_6px_16px_rgba(49,130,206,0.08)]{% else %}border-[#dbe7f5] bg-white{% endif %}"
                     aria-label="상담 기준 반려동물 선택"
                     aria-expanded="false"
                     onclick="togglePetDropdown()">
-              <div id="petDropdownEmoji" class="flex h-[32px] w-[32px] shrink-0 items-center justify-center rounded-full bg-white text-[18px] shadow-[0_1px_2px_rgba(45,55,72,0.08)]">
-                {{ active_pet.emoji }}
+              <div id="petDropdownEmoji" class="flex h-[32px] w-[32px] shrink-0 items-center justify-center rounded-full {% if active_pet %}bg-white text-[18px] shadow-[0_1px_2px_rgba(45,55,72,0.08)]{% else %}bg-[#f8fafc] text-[16px]{% endif %}">
+                {% if active_pet %}{{ active_pet.emoji }}{% else %}○{% endif %}
               </div>
               <div class="min-w-0 flex-1">
-                <p id="petDropdownName" class="truncate text-[12px] font-bold leading-none text-[#2d3748]">{{ active_pet.name }}</p>
-                <p id="petDropdownSummary" class="mt-[5px] truncate text-[11px] leading-none text-[#718096]">{{ active_pet.summary }}</p>
+                <p id="petDropdownName" class="truncate text-[12px] font-bold leading-none text-[#2d3748]">
+                  {% if active_pet %}{{ active_pet.name }}{% else %}선택 안 함{% endif %}
+                </p>
+                <p id="petDropdownSummary" class="mt-[5px] truncate text-[11px] leading-none text-[#718096]">
+                  {% if active_pet %}{{ active_pet.summary }}{% else %}일반 상담으로 진행{% endif %}
+                </p>
               </div>
               <div id="petDropdownChevron" class="flex h-[28px] w-[28px] items-center justify-center rounded-full bg-white text-[12px] text-[#4a5568] transition-transform duration-200">
                 ▼
               </div>
             </button>
 
+            {% if member_pets %}
             <div id="petDropdownMenu"
                  class="pointer-events-none absolute left-0 right-0 top-[calc(100%+8px)] z-20 overflow-hidden rounded-[14px] border border-[#dbe7f5] bg-white opacity-0 shadow-[0_14px_30px_rgba(45,55,72,0.10)] transition-all duration-200">
               <div class="max-h-[248px] overflow-y-auto p-[6px]">
+                <button type="button"
+                        class="flex w-full items-center gap-[10px] rounded-[10px] px-[10px] py-[9px] text-left transition-colors duration-150 hover:bg-[#f8fbff] {% if not active_pet_id %}bg-[#eff8ff]{% endif %}"
+                        data-pet-id=""
+                        data-pet-name="선택 안 함"
+                        data-pet-summary="일반 상담으로 진행"
+                        data-pet-emoji="○"
+                        onclick="selectPet(this)">
+                  <div class="flex h-[30px] w-[30px] shrink-0 items-center justify-center rounded-full bg-[#f8fafc] text-[16px]">
+                    ○
+                  </div>
+                  <div class="min-w-0 flex-1">
+                    <p class="truncate text-[12px] font-bold leading-none text-[#2d3748]">선택 안 함</p>
+                    <p class="mt-[5px] truncate text-[11px] leading-none text-[#718096]">일반 상담으로 진행</p>
+                  </div>
+                </button>
                 {% for pet in member_pets %}
                 <button type="button"
                         class="flex w-full items-center gap-[10px] rounded-[10px] px-[10px] py-[9px] text-left transition-colors duration-150 hover:bg-[#f8fbff] {% if pet.id == active_pet_id %}bg-[#eff8ff]{% endif %}"
@@ -204,7 +272,7 @@
               </div>
             </div>
             {% else %}
-            <div class="rounded-[12px] border border-dashed border-[#cbd5e0] px-[10px] py-[12px] text-center text-[11px] leading-[1.5] text-[#718096]">
+            <div class="mt-[8px] rounded-[12px] border border-dashed border-[#cbd5e0] px-[10px] py-[12px] text-center text-[11px] leading-[1.5] text-[#718096]">
               등록된 반려동물이 없습니다
             </div>
             {% endif %}
@@ -344,8 +412,10 @@
               <div class="absolute bottom-[10.5px] left-[10.5px] h-[40px] w-[40px]">
                 <img alt="" class="absolute inset-0 h-full w-full"
                      src="https://www.figma.com/api/mcp/asset/bf9036d0-fa6a-4951-8bf1-87121fd476c3" />
-                <img alt="추가" class="absolute left-[14px] top-[14px] h-[12px] w-[12px]"
-                     src="https://www.figma.com/api/mcp/asset/ce465e75-6e82-4e2a-88c9-c2fd47a455ac" />
+                <div class="absolute inset-0 flex items-center justify-center">
+                  <img alt="추가" class="h-[12px] w-[12px]"
+                       src="https://www.figma.com/api/mcp/asset/ce465e75-6e82-4e2a-88c9-c2fd47a455ac" />
+                </div>
               </div>
 
               <textarea id="messageInput" rows="1"
@@ -387,90 +457,157 @@
           <div id="productPanelInner" class="flex h-full flex-col">
             <div class="flex-1 overflow-y-auto px-[20px] py-[20px]">
       {% if is_member_view %}
-      <div id="recommendedPanel" class="space-y-[12px]">
-                <div class="space-y-[12px] pb-[2px]">
-                  <div class="relative overflow-hidden rounded-[16px] bg-[#3182ce] px-[18px] py-[14px] text-white shadow-[0_10px_24px_rgba(49,130,206,0.18)]">
-                    <div class="pr-[78px]">
-                      <p class="text-[14px] font-bold leading-none">봄맞이 알레르기 케어</p>
-                      <p class="mt-[8px] text-[11px] leading-none text-white/80">인기 사료 최대 30% 할인</p>
-                    </div>
-                    <div class="absolute right-[18px] top-[16px] text-[40px] leading-none">🎁</div>
-                  </div>
-
-                  <div>
-                    <p class="text-[14px] font-bold text-[#2d3748]">최근 구매 상품</p>
-                    <div class="mt-[8px] flex items-center gap-[12px] rounded-[18px] border border-[#dbe7f5] bg-white px-[12px] py-[10px] shadow-[0_8px_20px_rgba(45,55,72,0.05)]">
-                      <div class="flex h-[58px] w-[58px] shrink-0 items-center justify-center rounded-[12px] bg-[#edf2f7] text-[22px]">🦴</div>
-                      <div class="min-w-0 flex-1">
-                        <p class="truncate text-[12px] font-bold text-[#2d3748]">관절 튼튼 칼슘 껌</p>
-                        <p class="mt-[4px] text-[10px] text-[#a0aec0]">02.15 구매완료</p>
+      <div class="flex h-full min-h-0 flex-col gap-[12px]">
+                <div class="flex-none space-y-[10px] pb-[2px]">
+                  <div class="group relative overflow-visible">
+                    <div class="overflow-hidden rounded-[18px] shadow-[0_10px_24px_rgba(45,55,72,0.10)]">
+                      <div id="promoCarouselTrack"
+                           class="flex transition-transform duration-[420ms] ease-[cubic-bezier(0.22,1,0.36,1)]">
+                        {% for banner in promo_banners %}
+                        <button type="button"
+                                class="relative w-full shrink-0 overflow-hidden px-[20px] py-[18px] text-left text-white"
+                                style="{{ banner.style }}">
+                          <div class="pr-[94px] pl-[6px]">
+                            <p class="text-[11px] font-bold uppercase tracking-[0.08em] text-white/70">{{ banner.eyebrow }}</p>
+                            <p class="mt-[10px] text-[15px] font-bold leading-none">{{ banner.title }}</p>
+                            <p class="mt-[8px] text-[12px] leading-[1.4] text-white/80">{{ banner.subtitle }}</p>
+                          </div>
+                          <div class="absolute right-[20px] top-[16px] text-[38px] leading-none">{{ banner.emoji }}</div>
+                        </button>
+                        {% endfor %}
                       </div>
-                      <button type="button"
-                              class="flex h-[30px] w-[30px] items-center justify-center rounded-full bg-[#edf7ff] text-[14px]">
-                        🛒
-                      </button>
+                    </div>
+
+                    <button type="button" onclick="movePromoSlide(-1)"
+                            class="absolute left-[-18px] top-1/2 z-10 flex h-[38px] w-[38px] -translate-y-1/2 items-center justify-center rounded-full border border-[#dbe7f5] bg-white text-[#2d3748] shadow-[0_8px_18px_rgba(45,55,72,0.14)] opacity-0 transition-opacity duration-200 group-hover:opacity-100"
+                            aria-label="이전 기획전 보기">
+                      <span class="relative left-[-1px] top-[-1px] text-[28px] font-semibold leading-none">‹</span>
+                    </button>
+                    <button type="button" onclick="movePromoSlide(1)"
+                            class="absolute right-[-18px] top-1/2 z-10 flex h-[38px] w-[38px] -translate-y-1/2 items-center justify-center rounded-full border border-[#dbe7f5] bg-white text-[#2d3748] shadow-[0_8px_18px_rgba(45,55,72,0.14)] opacity-0 transition-opacity duration-200 group-hover:opacity-100"
+                            aria-label="다음 기획전 보기">
+                      <span class="relative left-[1px] top-[-1px] text-[28px] font-semibold leading-none">›</span>
+                    </button>
+
+                    <div class="pointer-events-none absolute bottom-[12px] left-1/2 flex -translate-x-1/2 items-center gap-[6px]">
+                      {% for banner in promo_banners %}
+                      <button type="button" data-promo-dot
+                              onclick="goPromoSlide({{ forloop.counter0 }})"
+                              class="pointer-events-auto h-[6px] w-[6px] rounded-full bg-white/45 transition-all duration-200"
+                              aria-label="기획전 {{ forloop.counter }}번 보기"></button>
+                      {% endfor %}
                     </div>
                   </div>
-
-                  <div class="border-b border-dashed border-[#dbe7f5]"></div>
                 </div>
 
-                <div class="flex items-end gap-[18px] border-b border-[#e2e8f0] pb-[10px]">
+                <div class="flex-none flex items-end justify-center gap-[26px] border-b border-[#dbe7f5] pb-[11px]">
                   <button type="button" id="tabRecommended"
-                          class="product-tab active relative pb-[2px] text-[13px] font-bold text-[#3182ce]"
+                          class="product-tab active relative inline-flex items-center pb-[2px] text-[14px] font-bold text-[#2d6cdf]"
                           onclick="switchProductTab('recommended')">
                     추천 상품
-                    <span class="absolute bottom-[-11px] left-0 right-0 h-[2px] rounded-full bg-[#3182ce]"></span>
+                    <span data-tab-underline class="absolute bottom-[-12px] left-0 right-0 h-[2px] rounded-full bg-[#2d6cdf]"></span>
                   </button>
                   <button type="button" id="tabCart"
-                          class="product-tab relative pb-[2px] text-[13px] font-bold text-[#a0aec0]"
+                          class="product-tab relative inline-flex items-center pb-[2px] text-[13px] font-semibold text-[#718096]"
                           onclick="switchProductTab('cart')">
-                    장바구니
-                    <span class="absolute bottom-[-11px] left-0 right-0 hidden h-[2px] rounded-full bg-[#3182ce]"></span>
+                    <span class="leading-none">장바구니</span>
+                    <span id="cartCountBadge"
+                          class="relative top-[1px] ml-[6px] inline-flex h-[16px] min-w-[16px] items-center justify-center rounded-full bg-[#2d3748] px-[5px] text-[9px] font-bold leading-none text-white transition-all duration-150">
+                      0
+                    </span>
+                    <span data-tab-underline class="absolute bottom-[-12px] left-0 right-0 hidden h-[2px] rounded-full bg-[#2d6cdf]"></span>
                   </button>
                 </div>
 
+                <div class="min-h-0 flex-1">
+                <div id="recommendedPanel" class="h-full min-h-0 overflow-y-auto pr-[4px]">
                 <div class="space-y-[12px]">
                 {% for product in recommended_products %}
                 <div class="rounded-[20px] border border-[#dbe7f5] bg-white px-[14px] py-[13px] shadow-[0_8px_20px_rgba(45,55,72,0.05)]">
-                  <div class="flex items-center gap-[13px]">
-                    <div class="flex h-[72px] w-[72px] shrink-0 items-center justify-center rounded-[14px] bg-gradient-to-br from-[#dbeafe] via-[#eff6ff] to-[#f8fafc] text-[28px]">🐾</div>
+                  <div class="flex items-center gap-[10px]">
+                    <div class="flex h-[68px] w-[68px] shrink-0 items-center justify-center rounded-[14px] bg-gradient-to-br from-[#dbeafe] via-[#eff6ff] to-[#f8fafc] text-[26px]">{{ product.emoji }}</div>
                     <div class="min-w-0 flex-1">
                       <div class="truncate text-[13px] font-bold leading-[1.5] text-[#2d3748]">{{ product.name }}</div>
                       <div class="mt-[5px] text-[15px] font-bold text-[#3182ce]">{{ product.price }}</div>
-                      <div class="mt-[7px] text-[11px] text-[#a0aec0]">★ {{ product.rating }} · {{ product.reviews }}</div>
+                      <div class="mt-[7px] flex items-center gap-[6px] text-[11px]">
+                        <span class="font-bold text-[#d69e2e]">★ {{ product.rating }}</span>
+                        <span class="text-[#a0aec0]">{{ product.reviews }}</span>
+                      </div>
                     </div>
                     <button type="button"
-                            class="flex h-[36px] w-[36px] shrink-0 items-center justify-center rounded-full bg-[#3182ce] text-[20px] font-semibold text-white"
-                            aria-label="장바구니 추가">+</button>
+                            class="flex h-[36px] w-[36px] shrink-0 items-center justify-center rounded-full bg-[#3182ce] text-white"
+                            data-product-name="{{ product.name }}"
+                            data-product-price="{{ product.price }}"
+                            data-product-rating="{{ product.rating }}"
+                            data-product-reviews="{{ product.reviews }}"
+                            data-product-emoji="{{ product.emoji }}"
+                            onclick="addRecommendedToCart(this)"
+                            aria-label="장바구니 추가">
+                      <span class="relative top-[-1px] text-[20px] font-semibold leading-none">+</span>
+                    </button>
                   </div>
                 </div>
                 {% endfor %}
                 </div>
-              </div>
-
-              <div id="cartPanel" class="hidden space-y-[12px]">
+                </div>
+              <div id="cartPanel" class="hidden h-full min-h-0 flex-col">
+                <div class="min-h-0 flex-1 overflow-y-auto pr-[4px]">
+                <div id="cartPanelList" class="space-y-[12px]">
                 {% for product in cart_products %}
-                <div class="rounded-[24px] border border-[#dbe7f5] bg-white p-[16px] shadow-[0_10px_24px_rgba(45,55,72,0.06)]">
-                  <div class="flex gap-[14px]">
-                    <div class="flex h-[92px] w-[92px] shrink-0 items-center justify-center rounded-[18px] bg-gradient-to-br from-[#ede9fe] via-[#f5f3ff] to-[#faf5ff] text-[32px]">🛒</div>
+                <div class="group relative rounded-[20px] border border-[#dbe7f5] bg-white px-[14px] py-[13px] shadow-[0_8px_20px_rgba(45,55,72,0.05)]"
+                     data-cart-item data-unit-price="{{ product.unit_price }}" data-product-name="{{ product.name }}">
+                  <button type="button"
+                          class="absolute right-[10px] top-[10px] flex h-[28px] w-[28px] items-center justify-center rounded-full border border-[#e2e8f0] bg-white text-[14px] text-[#a0aec0] opacity-0 transition-opacity duration-150 group-hover:opacity-100"
+                          onclick="removeCartItem(this)"
+                          aria-label="장바구니 상품 삭제">
+                    <span class="relative top-[-1px]">×</span>
+                  </button>
+                  <div class="flex items-center gap-[10px]">
+                    <div class="flex h-[68px] w-[68px] shrink-0 items-center justify-center rounded-[14px] bg-gradient-to-br from-[#ede9fe] via-[#f5f3ff] to-[#faf5ff] text-[26px]">{{ product.emoji }}</div>
                     <div class="min-w-0 flex-1">
-                      <span class="inline-flex rounded-full px-[10px] py-[4px] text-[11px] font-bold {{ product.accent }}">{{ product.badge }}</span>
-                      <div class="mt-[10px] text-[15px] font-bold leading-[1.5] text-[#2d3748]">{{ product.name }}</div>
-                      <div class="mt-[6px] text-[12px] leading-[1.6] text-[#718096]">{{ product.summary }}</div>
+                      <div class="truncate pr-[34px] text-[13px] font-bold leading-[1.5] text-[#2d3748]">{{ product.name }}</div>
+                      <div class="mt-[5px] text-[15px] font-bold text-[#3182ce]">{{ product.price }}</div>
+                      <div class="mt-[7px] flex items-center gap-[6px] text-[11px]">
+                        <span class="font-bold text-[#d69e2e]">★ {{ product.rating }}</span>
+                        <span class="text-[#a0aec0]">{{ product.reviews }}</span>
+                      </div>
                     </div>
                   </div>
-                  <div class="mt-[14px] flex items-end justify-between">
+                  <div class="absolute bottom-[13px] right-[14px] flex h-[36px] items-center rounded-full border border-[#dbe7f5] bg-[#f8fbff] px-[4px]">
+                    <button type="button"
+                            class="flex h-[28px] w-[28px] items-center justify-center rounded-full text-[18px] font-semibold leading-none text-[#4a5568] hover:bg-white"
+                            onclick="adjustCartQuantity(this, -1)"
+                            aria-label="수량 감소">
+                      <span class="relative top-[-1px]">-</span>
+                    </button>
+                    <span class="min-w-[22px] text-center text-[13px] font-bold text-[#2d3748]" data-cart-quantity>{{ product.quantity }}</span>
+                    <button type="button"
+                            class="flex h-[28px] w-[28px] items-center justify-center rounded-full text-[18px] font-semibold leading-none text-[#2d3748] hover:bg-white"
+                            onclick="adjustCartQuantity(this, 1)"
+                            aria-label="수량 증가">
+                      <span class="relative top-[-1px]">+</span>
+                    </button>
+                  </div>
+                </div>
+                {% endfor %}
+                </div>
+                </div>
+
+                <div class="mt-[12px] flex-none border-t border-[#dbe7f5] bg-[#fbfdff] pt-[12px]">
+                  <div class="flex items-center justify-between">
                     <div>
-                      <div class="text-[16px] font-bold text-[#2d3748]">{{ product.price }}</div>
-                      <div class="mt-[4px] text-[12px] text-[#a0aec0]">★ {{ product.rating }} · {{ product.reviews }}</div>
+                      <div class="text-[11px] font-medium text-[#a0aec0]">총 결제 예정 금액</div>
+                      <div id="cartTotalAmount" class="mt-[4px] text-[18px] font-bold text-[#2d3748]">{{ cart_total }}</div>
                     </div>
-                    <a href="{% if is_preview_member %}#{% else %}/orders/{% endif %}" class="rounded-full bg-[#2d3748] px-[14px] py-[9px] text-[12px] font-bold text-white" {% if is_preview_member %}onclick="return false"{% endif %}>
-                      주문 보기
+                    <a href="{% if is_preview_member %}#{% else %}/orders/{% endif %}"
+                       class="flex h-[40px] items-center justify-center rounded-full bg-[#2d3748] px-[18px] text-[13px] font-bold text-white"
+                       {% if is_preview_member %}onclick="return false"{% endif %}>
+                      주문하기
                     </a>
                   </div>
                 </div>
-                {% endfor %}
+              </div>
+                </div>
               </div>
               {% else %}
               <div class="rounded-[24px] border border-dashed border-[#cbd5e0] bg-white px-[18px] py-[22px] text-center shadow-[0_10px_24px_rgba(45,55,72,0.04)]">
@@ -571,6 +708,9 @@
   var cartPanel = document.getElementById('cartPanel');
   var tabRecommended = document.getElementById('tabRecommended');
   var tabCart = document.getElementById('tabCart');
+  var promoCarouselTrack = document.getElementById('promoCarouselTrack');
+  var promoDots = document.querySelectorAll('[data-promo-dot]');
+  var promoCarouselGroup = promoCarouselTrack ? promoCarouselTrack.closest('.group') : null;
   var petDropdown = document.getElementById('petDropdown');
   var petDropdownButton = document.getElementById('petDropdownButton');
   var petDropdownMenu = document.getElementById('petDropdownMenu');
@@ -587,6 +727,8 @@
   var isPetDropdownOpen = false;
   var activeSessionId = null;
   var draftSessionCount = 0;
+  var promoIndex = 0;
+  var promoTimer = null;
 
   function applyLayout() {
     if (!sidebar || !workspaceShell || !sidebarOpen || !sidebarColl || !overlay) return;
@@ -620,9 +762,19 @@
     applyLayout();
   };
 
-  window.closeSidebar = function () {
+  window.closeSidebar = function (freezeWorkspace) {
+    if (freezeWorkspace) {
+      if (workspaceShell) workspaceShell.classList.add('no-transition');
+      if (headerLogo) headerLogo.classList.add('no-transition');
+    }
     isOpen = false;
     applyLayout();
+    if (freezeWorkspace) {
+      window.setTimeout(function () {
+        if (workspaceShell) workspaceShell.classList.remove('no-transition');
+        if (headerLogo) headerLogo.classList.remove('no-transition');
+      }, 20);
+    }
   };
 
   window.toggleProfileMenu = function () {
@@ -674,8 +826,9 @@
   };
 
   window.selectPet = function (el) {
-    if (!el || !petDropdownName || !petDropdownSummary || !petDropdownEmoji) return;
+    if (!el || !petDropdownName || !petDropdownSummary || !petDropdownEmoji || !petDropdownButton) return;
 
+    var nextId = el.getAttribute('data-pet-id') || '';
     var nextName = el.getAttribute('data-pet-name') || '';
     var nextSummary = el.getAttribute('data-pet-summary') || '';
     var nextEmoji = el.getAttribute('data-pet-emoji') || '';
@@ -683,6 +836,15 @@
     petDropdownName.textContent = nextName;
     petDropdownSummary.textContent = nextSummary;
     petDropdownEmoji.textContent = nextEmoji;
+    if (nextId) {
+      petDropdownEmoji.className = 'flex h-[32px] w-[32px] shrink-0 items-center justify-center rounded-full bg-white text-[18px] shadow-[0_1px_2px_rgba(45,55,72,0.08)]';
+      petDropdownButton.classList.remove('border-[#dbe7f5]', 'bg-white');
+      petDropdownButton.classList.add('border-[#90cdf4]', 'bg-[#eff8ff]', 'shadow-[0_6px_16px_rgba(49,130,206,0.08)]');
+    } else {
+      petDropdownEmoji.className = 'flex h-[32px] w-[32px] shrink-0 items-center justify-center rounded-full bg-[#f8fafc] text-[16px]';
+      petDropdownButton.classList.remove('border-[#90cdf4]', 'bg-[#eff8ff]', 'shadow-[0_6px_16px_rgba(49,130,206,0.08)]');
+      petDropdownButton.classList.add('border-[#dbe7f5]', 'bg-white');
+    }
 
     document.querySelectorAll('[data-pet-id]').forEach(function (item) {
       item.classList.remove('bg-[#eff8ff]');
@@ -694,6 +856,17 @@
   function scrollToBottom() {
     if (!chatScrollArea) return;
     chatScrollArea.scrollTop = chatScrollArea.scrollHeight;
+  }
+
+  function showEmptyStateWithFade() {
+    if (!chatEmptyState) return;
+    chatEmptyState.classList.remove('hidden');
+    chatEmptyState.classList.add('is-fading-in');
+    window.requestAnimationFrame(function () {
+      window.requestAnimationFrame(function () {
+        chatEmptyState.classList.remove('is-fading-in');
+      });
+    });
   }
 
   function updateComposerState(el) {
@@ -770,6 +943,7 @@
 
     var session = sessionThreads[sessionId];
     chatMessages.innerHTML = '';
+    chatEmptyState.classList.remove('is-fading-in');
     chatEmptyState.classList.add('hidden');
     chatThread.classList.remove('hidden');
     updateChatSectionState(true);
@@ -851,31 +1025,68 @@
 
   function openProductPanel() {
     if (!productPanel || !chatSection) return;
+    productPanel.classList.remove('is-closing');
     productPanel.classList.add('is-open');
     chatSection.classList.add('border-r', 'border-[#e2e8f0]');
   }
 
-  function hideProductPanel() {
+  function hideProductPanel(onDone) {
     if (!productPanel || !chatSection) return;
-    productPanel.classList.remove('is-open');
-    chatSection.classList.remove('border-r', 'border-[#e2e8f0]');
+    if (!productPanel.classList.contains('is-open')) {
+      if (typeof onDone === 'function') onDone();
+      return;
+    }
+
+    productPanel.classList.add('is-closing');
+    window.setTimeout(function () {
+      productPanel.classList.remove('is-open');
+      chatSection.classList.remove('border-r', 'border-[#e2e8f0]');
+    }, 190);
+    window.setTimeout(function () {
+      productPanel.classList.remove('is-closing');
+      if (typeof onDone === 'function') onDone();
+    }, 580);
   }
 
   window.resetChatState = function (closeDrawer) {
-    if (chatMessages) chatMessages.innerHTML = '';
-    if (chatThread) chatThread.classList.add('hidden');
-    if (chatEmptyState) chatEmptyState.classList.remove('hidden');
-    updateChatSectionState(false);
-    activeSessionId = null;
-    updateSessionItemStyles();
-    if (messageInput) {
-      messageInput.value = '';
-      updateComposerState(messageInput);
+    function performReset() {
+      if (chatMessages) chatMessages.innerHTML = '';
+      if (chatThread) chatThread.classList.add('hidden');
+      if (closeDrawer) {
+        if (chatEmptyState) {
+          chatEmptyState.classList.remove('is-fading-in');
+          chatEmptyState.classList.remove('hidden');
+        }
+      } else {
+        showEmptyStateWithFade();
+      }
+      updateChatSectionState(false);
+      activeSessionId = null;
+      updateSessionItemStyles();
+      if (messageInput) {
+        messageInput.value = '';
+        updateComposerState(messageInput);
+      }
+      hideProductPanel();
+      switchProductTab('recommended');
+      if (chatScrollArea) chatScrollArea.scrollTop = 0;
     }
-    hideProductPanel();
-    switchProductTab('recommended');
-    if (chatScrollArea) chatScrollArea.scrollTop = 0;
-    if (closeDrawer) closeSidebar();
+
+    if (closeDrawer) {
+      if (composerStage) composerStage.classList.add('no-transition');
+      if (productPanel) productPanel.classList.add('no-transition');
+      if (chatEmptyState) chatEmptyState.classList.add('no-transition');
+      closeSidebar(true);
+      performReset();
+      window.setTimeout(function () {
+        if (composerStage) composerStage.classList.remove('no-transition');
+        if (productPanel) productPanel.classList.remove('no-transition');
+        if (chatEmptyState) chatEmptyState.classList.remove('no-transition');
+      }, 20);
+      return;
+    }
+
+    performReset();
   };
 
   window.sendMessage = function () {
@@ -919,18 +1130,193 @@
     if (!recommendedPanel || !cartPanel || !tabRecommended || !tabCart) return;
 
     var isRecommended = tab === 'recommended';
-    var recommendedUnderline = tabRecommended.querySelector('span');
-    var cartUnderline = tabCart.querySelector('span');
+    var recommendedUnderline = tabRecommended.querySelector('[data-tab-underline]');
+    var cartUnderline = tabCart.querySelector('[data-tab-underline]');
+    var cartBadge = document.getElementById('cartCountBadge');
     recommendedPanel.classList.toggle('hidden', !isRecommended);
     cartPanel.classList.toggle('hidden', isRecommended);
+    cartPanel.classList.toggle('flex', !isRecommended);
     tabRecommended.classList.toggle('active', isRecommended);
     tabCart.classList.toggle('active', !isRecommended);
-    tabRecommended.classList.toggle('text-[#3182ce]', isRecommended);
-    tabCart.classList.toggle('text-[#3182ce]', !isRecommended);
-    tabRecommended.classList.toggle('text-[#a0aec0]', !isRecommended);
-    tabCart.classList.toggle('text-[#a0aec0]', isRecommended);
+    tabRecommended.classList.toggle('text-[#2d6cdf]', isRecommended);
+    tabCart.classList.toggle('text-[#2d6cdf]', !isRecommended);
+    tabRecommended.classList.toggle('text-[#718096]', !isRecommended);
+    tabCart.classList.toggle('text-[#718096]', isRecommended);
+    tabRecommended.classList.toggle('text-[14px]', isRecommended);
+    tabCart.classList.toggle('text-[14px]', !isRecommended);
+    tabRecommended.classList.toggle('text-[13px]', !isRecommended);
+    tabCart.classList.toggle('text-[13px]', isRecommended);
+    tabRecommended.classList.toggle('font-bold', isRecommended);
+    tabCart.classList.toggle('font-bold', !isRecommended);
+    tabRecommended.classList.toggle('font-semibold', !isRecommended);
+    tabCart.classList.toggle('font-semibold', isRecommended);
     if (recommendedUnderline) recommendedUnderline.classList.toggle('hidden', !isRecommended);
     if (cartUnderline) cartUnderline.classList.toggle('hidden', isRecommended);
+    if (cartBadge) {
+      cartBadge.classList.toggle('h-[18px]', !isRecommended);
+      cartBadge.classList.toggle('min-w-[18px]', !isRecommended);
+      cartBadge.classList.toggle('px-[6px]', !isRecommended);
+      cartBadge.classList.toggle('text-[10px]', !isRecommended);
+      cartBadge.classList.toggle('top-0', !isRecommended);
+      cartBadge.classList.toggle('h-[16px]', isRecommended);
+      cartBadge.classList.toggle('min-w-[16px]', isRecommended);
+      cartBadge.classList.toggle('px-[5px]', isRecommended);
+      cartBadge.classList.toggle('text-[9px]', isRecommended);
+      cartBadge.classList.toggle('top-[1px]', isRecommended);
+    }
+  };
+
+  function formatPrice(value) {
+    return new Intl.NumberFormat('ko-KR').format(value) + '원';
+  }
+
+  function parsePrice(value) {
+    return Number(String(value || '0').replace(/[^\d]/g, '')) || 0;
+  }
+
+  function buildCartItem(product) {
+    var item = document.createElement('div');
+    item.className = 'group relative rounded-[20px] border border-[#dbe7f5] bg-white px-[14px] py-[13px] shadow-[0_8px_20px_rgba(45,55,72,0.05)]';
+    item.setAttribute('data-cart-item', '');
+    item.setAttribute('data-unit-price', String(product.unitPrice));
+    item.setAttribute('data-product-name', product.name);
+    item.innerHTML = ''
+      + '<button type="button"'
+      + ' class="absolute right-[10px] top-[10px] flex h-[28px] w-[28px] items-center justify-center rounded-full border border-[#e2e8f0] bg-white text-[14px] text-[#a0aec0] opacity-0 transition-opacity duration-150 group-hover:opacity-100"'
+      + ' onclick="removeCartItem(this)"'
+      + ' aria-label="장바구니 상품 삭제">'
+      + '  <span class="relative top-[-1px]">×</span>'
+      + '</button>'
+      + '<div class="flex items-center gap-[10px]">'
+      + '  <div class="flex h-[68px] w-[68px] shrink-0 items-center justify-center rounded-[14px] bg-gradient-to-br from-[#ede9fe] via-[#f5f3ff] to-[#faf5ff] text-[26px]">' + product.emoji + '</div>'
+      + '  <div class="min-w-0 flex-1">'
+      + '    <div class="truncate pr-[34px] text-[13px] font-bold leading-[1.5] text-[#2d3748]">' + product.name + '</div>'
+      + '    <div class="mt-[5px] text-[15px] font-bold text-[#3182ce]">' + product.price + '</div>'
+      + '    <div class="mt-[7px] flex items-center gap-[6px] text-[11px]">'
+      + '      <span class="font-bold text-[#d69e2e]">★ ' + product.rating + '</span>'
+      + '      <span class="text-[#a0aec0]">' + product.reviews + '</span>'
+      + '    </div>'
+      + '  </div>'
+      + '</div>'
+      + '<div class="absolute bottom-[13px] right-[14px] flex h-[36px] items-center rounded-full border border-[#dbe7f5] bg-[#f8fbff] px-[4px]">'
+      + '  <button type="button"'
+      + '          class="flex h-[28px] w-[28px] items-center justify-center rounded-full text-[18px] font-semibold leading-none text-[#4a5568] hover:bg-white"'
+      + '          onclick="adjustCartQuantity(this, -1)"'
+      + '          aria-label="수량 감소">'
+      + '    <span class="relative top-[-1px]">-</span>'
+      + '  </button>'
+      + '  <span class="min-w-[22px] text-center text-[13px] font-bold text-[#2d3748]" data-cart-quantity>1</span>'
+      + '  <button type="button"'
+      + '          class="flex h-[28px] w-[28px] items-center justify-center rounded-full text-[18px] font-semibold leading-none text-[#2d3748] hover:bg-white"'
+      + '          onclick="adjustCartQuantity(this, 1)"'
+      + '          aria-label="수량 증가">'
+      + '    <span class="relative top-[-1px]">+</span>'
+      + '  </button>'
+      + '</div>';
+    return item;
+  }
+
+  function updateCartTotal() {
+    var totalNode = document.getElementById('cartTotalAmount');
+    var badgeNode = document.getElementById('cartCountBadge');
+    if (!totalNode) return;
+
+    var total = 0;
+    var count = 0;
+    document.querySelectorAll('[data-cart-item]').forEach(function (item) {
+      var unitPrice = Number(item.getAttribute('data-unit-price') || '0');
+      var quantityNode = item.querySelector('[data-cart-quantity]');
+      var quantity = quantityNode ? Number(quantityNode.textContent || '0') : 0;
+      total += unitPrice * quantity;
+      count += quantity;
+    });
+
+    totalNode.textContent = formatPrice(total);
+    if (badgeNode) badgeNode.textContent = String(count);
+  }
+
+  window.adjustCartQuantity = function (button, delta) {
+    var item = button.closest('[data-cart-item]');
+    if (!item) return;
+    var quantityNode = item.querySelector('[data-cart-quantity]');
+    if (!quantityNode) return;
+
+    var current = Number(quantityNode.textContent || '1');
+    var next = Math.max(1, current + delta);
+    quantityNode.textContent = String(next);
+    updateCartTotal();
+  };
+
+  window.removeCartItem = function (button) {
+    var item = button.closest('[data-cart-item]');
+    if (!item) return;
+    item.remove();
+    updateCartTotal();
+  };
+
+  window.addRecommendedToCart = function (button) {
+    var list = document.getElementById('cartPanelList');
+    if (!list || !button) return;
+
+    var product = {
+      name: button.getAttribute('data-product-name') || '추천 상품',
+      price: button.getAttribute('data-product-price') || '0원',
+      rating: button.getAttribute('data-product-rating') || '0.0',
+      reviews: button.getAttribute('data-product-reviews') || '리뷰 0',
+      emoji: button.getAttribute('data-product-emoji') || '🛍️',
+      unitPrice: parsePrice(button.getAttribute('data-product-price')),
+    };
+
+    var existingItem = list.querySelector('[data-product-name="' + CSS.escape(product.name) + '"]');
+    if (existingItem) {
+      var quantityNode = existingItem.querySelector('[data-cart-quantity]');
+      if (quantityNode) {
+        quantityNode.textContent = String(Number(quantityNode.textContent || '0') + 1);
+      }
+    } else {
+      list.insertBefore(buildCartItem(product), list.firstChild);
+    }
+    updateCartTotal();
+  };
+
+  function renderPromoSlide() {
+    if (!promoCarouselTrack) return;
+    promoCarouselTrack.style.transform = 'translateX(-' + (promoIndex * 100) + '%)';
+    promoDots.forEach(function (dot, index) {
+      dot.classList.toggle('bg-white', index === promoIndex);
+      dot.classList.toggle('w-[18px]', index === promoIndex);
+      dot.classList.toggle('bg-white/45', index !== promoIndex);
+      dot.classList.toggle('w-[6px]', index !== promoIndex);
+    });
+  }
+
+  function stopPromoAutoSlide() {
+    if (!promoTimer) return;
+    window.clearInterval(promoTimer);
+    promoTimer = null;
+  }
+
+  function startPromoAutoSlide() {
+    if (!promoDots.length) return;
+    stopPromoAutoSlide();
+    promoTimer = window.setInterval(function () {
+      promoIndex = (promoIndex + 1) % promoDots.length;
+      renderPromoSlide();
+    }, 4500);
+  }
+
+  window.movePromoSlide = function (direction) {
+    if (!promoDots.length) return;
+    promoIndex = (promoIndex + direction + promoDots.length) % promoDots.length;
+    renderPromoSlide();
+    startPromoAutoSlide();
+  };
+
+  window.goPromoSlide = function (index) {
+    if (!promoDots.length) return;
+    promoIndex = index;
+    renderPromoSlide();
+    startPromoAutoSlide();
   };
 
   window.openDeleteModal = function (sessionId) {
@@ -1039,7 +1425,19 @@
       }
     });
     updateComposerState(messageInput);
+    window.setTimeout(function () {
+      messageInput.focus();
+    }, 0);
   }
+
+  renderPromoSlide();
+  updateCartTotal();
+
+  if (promoCarouselGroup) {
+    promoCarouselGroup.addEventListener('mouseenter', stopPromoAutoSlide);
+    promoCarouselGroup.addEventListener('mouseleave', startPromoAutoSlide);
+  }
+  startPromoAutoSlide();
 
   switchProductTab('recommended');
   hideProductPanel();
