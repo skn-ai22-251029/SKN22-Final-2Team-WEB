@@ -61,3 +61,9 @@ backup/
 
 # Issues / internal notes (로컬 전용)
 docs/issues/
+
+# Notebooks data (로컬 데이터셋, 모델 캐시 등)
+notebooks/**/data/
+
+# 도메인 데이터셋 (domain_qa)
+domain-data/
