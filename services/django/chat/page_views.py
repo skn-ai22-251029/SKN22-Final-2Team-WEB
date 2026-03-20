@@ -13,12 +13,31 @@ def _serialize_pet(pet):
         age_parts.append(f"{pet.age_months}개월")
     age_label = " ".join(age_parts) if age_parts else "나이 정보 없음"
     breed = pet.breed or pet.get_species_display()
+
+    def _list(val):
+        if not val:
+            return []
+        if isinstance(val, list):
+            return val
+        return [v.strip() for v in val.split(",") if v.strip()]
+
     return {
         "id": str(pet.pet_id),
         "name": pet.name,
         "species": pet.species,
         "emoji": "🐱" if pet.species == "cat" else "🐶",
         "summary": f"{breed} · {age_label}",
+        # FastAPI로 넘길 전체 프로필
+        "profile": {
+            "species": pet.species,
+            "breed": pet.breed or "",
+            "age": age_label,
+            "gender": pet.gender if hasattr(pet, "gender") else "",
+            "weight": str(pet.weight_kg) if pet.weight_kg else "",
+        },
+        "health_concerns": _list(getattr(pet, "health_concerns", None)),
+        "allergies": _list(getattr(pet, "allergies", None)),
+        "food_preferences": _list(getattr(pet, "food_preferences", None)),
     }
 
 

@@ -259,6 +259,10 @@
                         data-pet-name="{{ pet.name }}"
                         data-pet-summary="{{ pet.summary }}"
                         data-pet-emoji="{{ pet.emoji }}"
+                        data-pet-profile='{{ pet.profile|default:"{}" }}'
+                        data-pet-health-concerns='{{ pet.health_concerns|default:"[]"|join:"," }}'
+                        data-pet-allergies='{{ pet.allergies|default:"[]"|join:"," }}'
+                        data-pet-food-preferences='{{ pet.food_preferences|default:"[]"|join:"," }}'
                         onclick="selectPet(this)">
                   <div class="flex h-[30px] w-[30px] shrink-0 items-center justify-center rounded-full bg-[#f8fafc] text-[17px]">
                     {{ pet.emoji }}
@@ -729,6 +733,11 @@
   var draftSessionCount = 0;
   var promoIndex = 0;
   var promoTimer = null;
+  // 선택된 펫 프로필 (FastAPI 요청에 사용)
+  var activePetProfile = null;
+  var activePetHealthConcerns = [];
+  var activePetAllergies = [];
+  var activePetFoodPreferences = [];
 
   function applyLayout() {
     if (!sidebar || !workspaceShell || !sidebarOpen || !sidebarColl || !overlay) return;
@@ -833,6 +842,15 @@
     var nextSummary = el.getAttribute('data-pet-summary') || '';
     var nextEmoji = el.getAttribute('data-pet-emoji') || '';
 
+    // 펫 프로필 캡처
+    try { activePetProfile = JSON.parse(el.getAttribute('data-pet-profile') || 'null'); } catch(e) { activePetProfile = null; }
+    var hc = el.getAttribute('data-pet-health-concerns') || '';
+    var al = el.getAttribute('data-pet-allergies') || '';
+    var fp = el.getAttribute('data-pet-food-preferences') || '';
+    activePetHealthConcerns = hc ? hc.split(',').filter(Boolean) : [];
+    activePetAllergies = al ? al.split(',').filter(Boolean) : [];
+    activePetFoodPreferences = fp ? fp.split(',').filter(Boolean) : [];
+
     petDropdownName.textContent = nextName;
     petDropdownSummary.textContent = nextSummary;
     petDropdownEmoji.textContent = nextEmoji;
@@ -913,10 +931,19 @@
     bubble.className = role === 'user'
       ? 'max-w-[540px] rounded-[24px] rounded-br-[8px] bg-[#3182ce] px-[18px] py-[14px] text-[15px] leading-[1.7] text-white shadow-[0_10px_24px_rgba(49,130,206,0.18)]'
       : 'max-w-[620px] rounded-[24px] rounded-bl-[8px] border border-[#dbe7f5] bg-white px-[20px] py-[16px] text-[15px] leading-[1.8] text-[#2d3748] shadow-[0_10px_24px_rgba(45,55,72,0.06)]';
-    bubble.textContent = text;
+
+    if (role === 'assistant') {
+      var p = document.createElement('p');
+      p.className = 'assistant-text';
+      p.textContent = text;
+      bubble.appendChild(p);
+    } else {
+      bubble.textContent = text;
+    }
 
     wrapper.appendChild(bubble);
     chatMessages.appendChild(wrapper);
+    return wrapper;
   }
 
   function updateChatSectionState(hasSession) {
@@ -1030,6 +1057,28 @@
     chatSection.classList.add('border-r', 'border-[#e2e8f0]');
   }
 
+  function renderProductCards(cards) {
+    if (!recommendedPanel) return;
+    recommendedPanel.innerHTML = '';
+    cards.forEach(function (card) {
+      var price = card.price ? Number(card.price).toLocaleString('ko-KR') + '원' : '';
+      var discount = card.discount_price ? Number(card.discount_price).toLocaleString('ko-KR') + '원' : '';
+      var priceHtml = discount
+        ? '<span class="text-[13px] font-bold text-[#e53e3e]">' + discount + '</span> <span class="ml-[4px] text-[12px] text-[#a0aec0] line-through">' + price + '</span>'
+        : '<span class="text-[13px] font-bold text-[#2d3748]">' + price + '</span>';
+      var el = document.createElement('div');
+      el.className = 'flex gap-[12px] rounded-[12px] border border-[#e2e8f0] bg-white p-[12px] shadow-[0_2px_8px_rgba(45,55,72,0.06)]';
+      el.innerHTML = '<img src="' + (card.thumbnail_url || '') + '" alt="" class="h-[72px] w-[72px] shrink-0 rounded-[8px] object-cover bg-[#f8fafc]" onerror="this.style.display=\'none\'">'
+        + '<div class="min-w-0 flex-1">'
+        + '<p class="truncate text-[13px] font-bold text-[#2d3748]">' + (card.product_name || '') + '</p>'
+        + '<p class="mt-[2px] truncate text-[11px] text-[#718096]">' + (card.brand_name || '') + '</p>'
+        + '<div class="mt-[6px]">' + priceHtml + '</div>'
+        + (card.product_url ? '<a href="' + card.product_url + '" target="_blank" class="mt-[6px] inline-block rounded-[6px] bg-[#3182ce] px-[10px] py-[4px] text-[11px] font-bold text-white">구매하기</a>' : '')
+        + '</div>';
+      recommendedPanel.appendChild(el);
+    });
+  }
+
   function hideProductPanel(onDone) {
     if (!productPanel || !chatSection) return;
     if (!productPanel.classList.contains('is-open')) {
@@ -1116,14 +1165,68 @@
     updateComposerState(messageInput);
     scrollToBottom();
 
-    var assistantReply = '입력한 조건을 바탕으로 추천 상품을 정리하고 있습니다. 우측 상품 패널에서 추천 결과를 함께 확인해 주세요.';
-    window.setTimeout(function () {
-      appendMessage('assistant', assistantReply);
-      sessionThreads[activeSessionId].messages.push({ role: 'assistant', text: assistantReply });
-      openProductPanel();
-      switchProductTab('recommended');
-      scrollToBottom();
-    }, 460);
+    // FastAPI SSE 스트리밍 호출
+    var assistantEl = appendMessage('assistant', '');
+    var assistantText = '';
+
+    fetch('/api/chat/', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        message: msg,
+        thread_id: activeSessionId || 'default',
+        pet_profile: activePetProfile,
+        health_concerns: activePetHealthConcerns,
+        allergies: activePetAllergies,
+        food_preferences: activePetFoodPreferences,
+      }),
+    }).then(function (res) {
+      var reader = res.body.getReader();
+      var decoder = new TextDecoder();
+      var buf = '';
+
+      function read() {
+        reader.read().then(function (result) {
+          if (result.done) return;
+          buf += decoder.decode(result.value, { stream: true });
+          var lines = buf.split('\n\n');
+          buf = lines.pop();
+          lines.forEach(function (line) {
+            if (!line.startsWith('data: ')) return;
+            try {
+              var evt = JSON.parse(line.slice(6));
+              if (evt.type === 'token') {
+                assistantText += evt.content;
+                if (assistantEl) {
+                  var p = assistantEl.querySelector('.assistant-text');
+                  if (p) p.textContent = assistantText;
+                }
+                scrollToBottom();
+              } else if (evt.type === 'products' && evt.cards && evt.cards.length) {
+                openProductPanel();
+                switchProductTab('recommended');
+                renderProductCards(evt.cards);
+              } else if (evt.type === 'done') {
+                sessionThreads[activeSessionId].messages.push({ role: 'assistant', text: assistantText });
+              } else if (evt.type === 'error') {
+                assistantText = '죄송합니다, 오류가 발생했습니다.';
+                if (assistantEl) {
+                  var p = assistantEl.querySelector('.assistant-text');
+                  if (p) p.textContent = assistantText;
+                }
+              }
+            } catch(e) {}
+          });
+          read();
+        });
+      }
+      read();
+    }).catch(function () {
+      if (assistantEl) {
+        var p = assistantEl.querySelector('.assistant-text');
+        if (p) p.textContent = '서버 연결에 실패했습니다.';
+      }
+    });
   };
 
   window.switchProductTab = function (tab) {
