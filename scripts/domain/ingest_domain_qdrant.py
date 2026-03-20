@@ -83,11 +83,19 @@ def build_breed_text(row) -> str:
 # ── payload 빌더 ──────────────────────────────────────────────────────────────
 
 def build_qna_payload(row) -> dict:
+    def safe_str(v):
+        if v is None or (isinstance(v, float) and v != v):
+            return None
+        return str(v).strip() or None
+
     return {
         "no":       int(row["no"]),
         "species":  row.get("species"),
         "category": row.get("category"),
         "source":   row.get("source"),
+        "question": safe_str(row.get("question")),
+        "answer":   safe_str(row.get("answer")),
+        "notes":    safe_str(row.get("notes")),
     }
 
 
