@@ -73,6 +73,7 @@ services:
       POSTGRES_PORT: ${POSTGRES_PORT:-5432}
       QDRANT_HOST: ${QDRANT_HOST:-qdrant}
       QDRANT_PORT: ${QDRANT_PORT:-6333}
+      OPENAI_API_KEY: ${OPENAI_API_KEY}
     expose:
       - "8001"
     depends_on:
