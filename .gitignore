@@ -65,6 +65,9 @@ backup/
 # Issues / internal notes (로컬 전용)
 docs/issues/
 
+# 발표 자료 (로컬 전용)
+docs/presentation/
+
 # Notebooks data (로컬 데이터셋, 모델 캐시 등)
 notebooks/**/data/
 
