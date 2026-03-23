@@ -43,16 +43,12 @@
       <p class="mb-4 text-center text-[13px] {% if msg.tags == 'error' %}text-red-500{% else %}text-green-600{% endif %}">{{ msg }}</p>
       {% endfor %}
       {% endif %}
-      {% if setup_mode %}
-      <p class="mb-4 text-center text-[13px] text-[#3182ce]">소셜 로그인 완료. 추가 정보를 입력하고 저장해 주세요.</p>
-      {% endif %}
-
       <div class="text-[18px] font-bold text-[#2d3748]">1. 프로필 관리</div>
 
       <!-- 닉네임 / 연락처 -->
       <div class="mt-6 grid grid-cols-1 gap-4 md:grid-cols-2">
         <div>
-          <div class="mb-2 text-[14px] font-bold text-[#4a5568]">닉네임</div>
+          <div class="mb-2 text-[14px] font-bold text-[#4a5568]">닉네임 <span class="text-[12px] font-medium text-[#e53e3e]">(필수)</span></div>
           <div class="flex items-start gap-3">
             <div class="relative flex-1">
               <input name="nickname" value="{{ profile.nickname|default:'' }}"
@@ -67,10 +63,13 @@
           </div>
         </div>
         <div>
-          <div class="mb-2 text-[14px] font-bold text-[#4a5568]">연락처</div>
-          <div class="flex gap-3">
-            <input name="phone" value="{{ profile.phone|default:'' }}" placeholder="- 없이 숫자만 입력해주세요"
-                   class="h-[36px] flex-1 rounded-[8px] border border-[#e2e8f0] px-3 text-[12px] text-[#718096] outline-none focus:border-[#3182ce]" />
+          <div class="mb-2 text-[14px] font-bold text-[#4a5568]">연락처 <span class="text-[12px] font-medium text-[#a0aec0]">(선택)</span></div>
+          <div class="flex items-start gap-3">
+            <div class="relative flex-1">
+              <input name="phone" value="{{ profile.phone|default:'' }}" id="phoneInput" placeholder="- 없이 숫자만 입력해주세요" maxlength="11" inputmode="numeric"
+                     class="h-[36px] w-full rounded-[8px] border border-[#e2e8f0] px-3 text-[12px] text-[#718096] outline-none focus:border-[#3182ce]" />
+              <p id="phoneStatus" class="absolute right-0 top-[42px] min-h-[18px] text-right text-[12px]"></p>
+            </div>
             <button type="button"
                     class="h-[36px] w-[90px] rounded-[8px] border border-[#3182ce] text-[14px] font-bold text-[#3182ce]">인증요청</button>
           </div>
@@ -78,17 +77,18 @@
       </div>
 
       <div class="mt-4">
-        <div class="mb-2 text-[14px] font-bold text-[#4a5568]">주소</div>
+        <div class="mb-2 text-[14px] font-bold text-[#4a5568]">주소 <span class="text-[12px] font-medium text-[#a0aec0]">(선택)</span></div>
         <div class="flex gap-3">
-          <input name="zipcode" placeholder="우편번호"
+          <input name="zipcode" id="zipcodeInput" placeholder="우편번호"
                  class="h-[36px] w-[140px] rounded-[8px] border border-[#e2e8f0] px-3 text-[12px] text-[#718096] outline-none focus:border-[#3182ce] placeholder:text-[#718096]" />
-          <button type="button"
+          <button type="button" id="postcodeButton"
                   class="h-[36px] w-[110px] rounded-[8px] border border-[#3182ce] text-[14px] font-bold text-[#3182ce]">우편번호 찾기</button>
         </div>
-        <input name="address_main" placeholder="기본 주소"
+        <input name="address_main" id="addressMainInput" placeholder="기본 주소"
                class="mt-3 h-[36px] w-full rounded-[8px] border border-[#e2e8f0] px-3 text-[12px] text-[#718096] outline-none focus:border-[#3182ce] placeholder:text-[#718096]" />
-        <input name="address_detail" placeholder="상세 주소"
+        <input name="address_detail" id="addressDetailInput" placeholder="상세 주소"
                class="mt-3 h-[36px] w-full rounded-[8px] border border-[#e2e8f0] px-3 text-[12px] text-[#718096] outline-none focus:border-[#3182ce] placeholder:text-[#718096]" />
+        <p id="addressStatus" class="mt-2 min-h-[18px] text-right text-[12px]"></p>
       </div>
 
       <!-- 알림 설정 -->
@@ -97,25 +97,25 @@
           <span class="text-[13px] font-medium leading-none text-[#4a5568]">마케팅 푸시 동의</span>
           <div class="ml-auto flex h-[20px] items-center">
             <button type="button" id="marketingToggle"
-                    class="flex h-[20px] w-[36px] items-center rounded-full p-[2px] transition bg-[#3182ce]"
-                    onclick="toggleMarketing(this)" aria-pressed="true">
-              <span id="marketingThumb" class="block h-[16px] w-[16px] rounded-full bg-white transition translate-x-[16px]"></span>
+                    class="flex h-[20px] w-[36px] items-center rounded-full p-[2px] transition {% if profile.marketing_consent %}bg-[#3182ce]{% else %}bg-[#cbd5e0]{% endif %}"
+                    onclick="toggleMarketing(this)" aria-pressed="{% if profile.marketing_consent %}true{% else %}false{% endif %}">
+              <span id="marketingThumb" class="block h-[16px] w-[16px] rounded-full bg-white transition {% if profile.marketing_consent %}translate-x-[16px]{% else %}translate-x-[0]{% endif %}"></span>
             </button>
-            <input type="hidden" name="marketing" id="marketingInput" value="on" />
+            <input type="hidden" name="marketing" id="marketingInput" value="{% if profile.marketing_consent %}on{% endif %}" />
           </div>
         </div>
       </div>
 
       <div class="mt-8 h-px w-full bg-[#e2e8f0]"></div>
 
-      <!-- 계정 관리 -->
-      <div class="mt-6 text-[18px] font-bold text-[#2d3748]">2. 계정 관리</div>
+      <!-- 로그인 계정 -->
+      <div class="mt-6 text-[18px] font-bold text-[#2d3748]">2. 로그인 계정</div>
       <div class="mt-4 w-full max-w-[250px] rounded-[10px] border border-[#e2e8f0] bg-[#f7fafc] px-3 py-2.5">
         {% if social_accounts.kakao %}
         <div class="flex items-center gap-3">
           <img alt="Kakao" class="h-7 w-7" src="https://www.figma.com/api/mcp/asset/527049c9-ee7f-443c-a0c6-0e70f4b905e3" />
           <div class="flex-1">
-            <div class="text-[13px] font-bold text-[#2d3748]">카카오로 로그인됨</div>
+            <div class="text-[13px] font-bold text-[#2d3748]">카카오</div>
             <div class="text-[12px] text-[#718096]">{{ social_accounts.kakao.email }}</div>
           </div>
         </div>
@@ -123,7 +123,7 @@
         <div class="flex items-center gap-3">
           <img alt="Naver" class="h-7 w-7" src="https://www.figma.com/api/mcp/asset/7a5a2941-cee1-4c91-a571-7ad9b01bcfc6" />
           <div class="flex-1">
-            <div class="text-[13px] font-bold text-[#2d3748]">네이버로 로그인됨</div>
+            <div class="text-[13px] font-bold text-[#2d3748]">네이버</div>
             <div class="text-[12px] text-[#718096]">{{ social_accounts.naver.email }}</div>
           </div>
         </div>
@@ -131,7 +131,7 @@
         <div class="flex items-center gap-3">
           <img alt="Google" class="h-7 w-7" src="https://www.figma.com/api/mcp/asset/e3eff93a-1607-4896-8a57-8b1125091b0a" />
           <div class="flex-1">
-            <div class="text-[13px] font-bold text-[#2d3748]">구글로 로그인됨</div>
+            <div class="text-[13px] font-bold text-[#2d3748]">구글</div>
             <div class="text-[12px] text-[#718096]">{{ social_accounts.google.email }}</div>
           </div>
         </div>
@@ -139,16 +139,20 @@
       </div>
 
       <!-- 버튼 -->
-      <div class="mt-6 flex flex-col gap-3 md:flex-row">
+      <div class="mt-6 flex {% if setup_mode %}justify-center{% else %}flex-col gap-3 md:flex-row{% endif %}">
+        {% if not setup_mode %}
         <a href="/chat/" class="flex h-[44px] flex-1 items-center justify-center rounded-[10px] bg-[#edf2f7] text-[16px] font-bold text-[#4a5568]">취소</a>
+        {% endif %}
         <button type="submit"
-                class="flex h-[44px] flex-1 items-center justify-center rounded-[10px] bg-[#3182ce] text-[16px] font-bold text-white hover:bg-[#2b6cb0]">
+                class="flex h-[44px] {% if setup_mode %}w-full max-w-[320px]{% else %}flex-1{% endif %} items-center justify-center rounded-[10px] bg-[#3182ce] text-[16px] font-bold text-white hover:bg-[#2b6cb0]">
           저장
         </button>
       </div>
 
+      {% if not setup_mode %}
       <button type="button" onclick="document.getElementById('withdrawModal').style.display='flex'"
               class="mt-4 text-[13px] font-bold text-[#c53030]">회원 탈퇴</button>
+      {% endif %}
 
     </form>
   </div>
@@ -158,6 +162,7 @@
 {% endblock %}
 
 {% block scripts %}
+<script src="//t1.daumcdn.net/mapjsapi/bundle/postcode/prod/postcode.v2.js"></script>
 <script>
   window.closeWithdrawModal = function (e) {
     if (e && e.target !== document.getElementById('withdrawModal')) return;
@@ -175,10 +180,18 @@
 
   (function () {
     var input = document.getElementById('nicknameInput');
+    var form = input ? input.closest('form') : null;
     var button = document.getElementById('nicknameCheckButton');
     var status = document.getElementById('nicknameStatus');
+    var phoneInput = document.getElementById('phoneInput');
+    var phoneStatus = document.getElementById('phoneStatus');
+    var postcodeButton = document.getElementById('postcodeButton');
+    var zipcodeInput = document.getElementById('zipcodeInput');
+    var addressMainInput = document.getElementById('addressMainInput');
+    var addressDetailInput = document.getElementById('addressDetailInput');
+    var addressStatus = document.getElementById('addressStatus');
 
-    if (!input || !button || !status) return;
+    if (!input || !button || !status || !form) return;
 
     var defaultMessage = '한글, 영문, 숫자만 2~12자';
     var mockTakenNames = ['콩이', '모찌', '보리'];
@@ -196,6 +209,35 @@
         input.value = sanitized;
       }
     }
+
+    function validateNickname(showSuccessMessage) {
+      sanitizeNickname();
+      var nickname = input.value.trim();
+
+      if (!nickname) {
+        setStatus('닉네임을 입력해 주세요', '#e53e3e');
+        return false;
+      }
+
+      if (nickname.length < 2 || nickname.length > 12) {
+        setStatus(defaultMessage, '#e53e3e');
+        return false;
+      }
+
+      if (mockTakenNames.indexOf(nickname) !== -1) {
+        setStatus('이미 사용 중인 닉네임입니다', '#e53e3e');
+        return false;
+      }
+
+      if (showSuccessMessage) {
+        setStatus('사용 가능한 닉네임입니다', '#38a169');
+      } else {
+        status.textContent = '';
+      }
+      return true;
+    }
+
+    sanitizeNickname();
 
     input.addEventListener('compositionstart', function () {
       isComposing = true;
@@ -220,25 +262,112 @@
     });
 
     button.addEventListener('click', function () {
-      var nickname = input.value.trim();
-
-      if (!nickname) {
-        setStatus('닉네임을 입력해 주세요', '#e53e3e');
-        return;
-      }
-
-      if (nickname.length < 2 || nickname.length > 12) {
-        setStatus(defaultMessage, '#e53e3e');
-        return;
-      }
-
-      if (mockTakenNames.indexOf(nickname) !== -1) {
-        setStatus('이미 사용 중인 닉네임입니다', '#e53e3e');
-        return;
-      }
-
-      setStatus('사용 가능한 닉네임입니다', '#38a169');
+      validateNickname(true);
     });
+
+    form.addEventListener('submit', function (e) {
+      if (!validateNickname(false)) {
+        e.preventDefault();
+        input.focus();
+        return;
+      }
+
+      if (phoneInput && phoneStatus) {
+        phoneInput.value = phoneInput.value.replace(/\D/g, '').slice(0, 11);
+        phoneStatus.textContent = '';
+
+        if (phoneInput.value && !/^\d{10,11}$/.test(phoneInput.value)) {
+          e.preventDefault();
+          phoneStatus.textContent = '10~11자리 숫자만 입력해 주세요';
+          phoneStatus.style.color = '#e53e3e';
+          phoneInput.focus();
+        }
+      }
+
+      if (zipcodeInput && addressMainInput && addressDetailInput && addressStatus) {
+        var zipcode = zipcodeInput.value.trim();
+        var addressMain = addressMainInput.value.trim();
+        var addressDetail = addressDetailInput.value.trim();
+        var hasAnyAddress = zipcode || addressMain || addressDetail;
+        var hasFullAddress = zipcode && addressMain && addressDetail;
+
+        addressStatus.textContent = '';
+
+        if (hasAnyAddress && !hasFullAddress) {
+          e.preventDefault();
+          addressStatus.textContent = '주소를 모두 입력해 주세요';
+          addressStatus.style.color = '#e53e3e';
+          if (!zipcode) {
+            zipcodeInput.focus();
+          } else if (!addressMain) {
+            addressMainInput.focus();
+          } else {
+            addressDetailInput.focus();
+          }
+        }
+      }
+    });
+
+    if (phoneInput && phoneStatus) {
+      phoneInput.value = phoneInput.value.replace(/\D/g, '').slice(0, 11);
+      phoneInput.addEventListener('input', function () {
+        phoneInput.value = phoneInput.value.replace(/\D/g, '').slice(0, 11);
+        if (phoneInput.value) {
+          phoneStatus.textContent = '';
+        }
+      });
+    }
+
+    if (
+      postcodeButton &&
+      zipcodeInput &&
+      addressMainInput &&
+      addressDetailInput &&
+      addressStatus &&
+      window.daum &&
+      window.daum.Postcode
+    ) {
+      postcodeButton.addEventListener('click', function () {
+        new window.daum.Postcode({
+          oncomplete: function (data) {
+            var extraAddress = '';
+
+            if (data.userSelectedType === 'R') {
+              if (data.bname && /[동|로|가]$/g.test(data.bname)) {
+                extraAddress += data.bname;
+              }
+              if (data.buildingName && data.apartment === 'Y') {
+                extraAddress += extraAddress ? ', ' + data.buildingName : data.buildingName;
+              }
+            }
+
+            zipcodeInput.value = data.zonecode || '';
+            addressMainInput.value = data.roadAddress || data.jibunAddress || '';
+
+            if (extraAddress) {
+              addressMainInput.value += ' (' + extraAddress + ')';
+            }
+
+            addressStatus.textContent = '';
+            addressDetailInput.focus();
+          }
+        }).open();
+      });
+    }
+
+    if (addressDetailInput && addressStatus) {
+      addressDetailInput.addEventListener('input', function () {
+        if (
+          zipcodeInput &&
+          addressMainInput &&
+          zipcodeInput.value.trim() &&
+          addressMainInput.value.trim() &&
+          addressDetailInput.value.trim()
+        ) {
+          addressStatus.textContent = '';
+        }
+      });
+    }
   })();
 </script>
 {% endblock %}
