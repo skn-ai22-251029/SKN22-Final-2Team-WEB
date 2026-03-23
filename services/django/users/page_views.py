@@ -59,7 +59,7 @@ def profile_view(request):
     preview_mode = request.GET.get("preview") == "1" or not request.user.is_authenticated
 
     if preview_mode:
-        preview_profile = SimpleNamespace(nickname="", phone="", marketing_consent=True)
+        preview_profile = SimpleNamespace(nickname="", phone="", marketing_consent=False)
         preview_social_accounts = {
             "kakao": SimpleNamespace(email="tailtalk_user@kakao.com"),
         }
@@ -78,12 +78,15 @@ def profile_view(request):
 
     profile = _get_profile(request.user)
     if request.method == "POST":
+        setup_mode = request.GET.get("setup") == "1"
         profile.nickname = request.POST.get("nickname", "").strip() or profile.nickname
         profile.phone = request.POST.get("phone", "").strip()
         profile.marketing_consent = request.POST.get("marketing") == "on"
         profile.save(update_fields=["nickname", "phone", "marketing_consent", "updated_at"])
         messages.success(request, "프로필 정보가 저장되었습니다.")
-        return redirect("pet_add")
+        if setup_mode:
+            return redirect("pet_add")
+        return redirect("profile")
 
     context = {
         "profile": profile,
