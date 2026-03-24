@@ -1,5 +1,6 @@
 from unittest.mock import patch
 
+from django.db import IntegrityError, transaction
 from django.test import TestCase, override_settings
 from django.urls import reverse
 from django.utils import timezone
@@ -54,7 +55,7 @@ class SocialLoginPageViewTests(TestCase):
     @patch("users.page_views.complete_social_login")
     def test_social_login_callback_redirects_to_profile_and_stores_jwt(self, complete_social_login_mock):
         user = User.objects.create_user(email="page@example.com")
-        UserProfile.objects.create(user=user, nickname="Page User")
+        UserProfile.objects.create(user=user, nickname="PageUser")
         complete_social_login_mock.return_value = SocialLoginResult(
             user=user,
             backend_path="social_core.backends.kakao.KakaoOAuth2",
@@ -81,7 +82,7 @@ class AuthApiTests(TestCase):
     def setUp(self):
         self.client = APIClient()
         self.user = User.objects.create_user(email="auth@example.com", password="Password123!")
-        UserProfile.objects.create(user=self.user, nickname="Auth User")
+        UserProfile.objects.create(user=self.user, nickname="AuthUser")
 
     def test_login_returns_access_and_refresh_tokens(self):
         response = self.client.post(
@@ -127,11 +128,33 @@ class AuthApiTests(TestCase):
         self.assertFalse(User.objects.filter(email="auth@example.com").exists())
 
 
+class ProfilePageViewTests(TestCase):
+    def setUp(self):
+        self.user = User.objects.create_user(email="page-profile@example.com", password="Password123!")
+        UserProfile.objects.create(user=self.user, nickname="PageProfile")
+        self.other_user = User.objects.create_user(email="other-page@example.com", password="Password123!")
+        UserProfile.objects.create(user=self.other_user, nickname="TakenNick")
+        self.client.force_login(self.user)
+
+    def test_profile_post_rejects_duplicate_nickname(self):
+        response = self.client.post(
+            "/profile/",
+            {
+                "nickname": "TakenNick",
+                "phone": "01012341234",
+            },
+        )
+
+        self.assertEqual(response.status_code, status.HTTP_200_OK)
+        self.user.refresh_from_db()
+        self.assertEqual(self.user.profile.nickname, "PageProfile")
+
+
 class UserProfileApiTests(TestCase):
     def setUp(self):
         self.client = APIClient()
         self.user = User.objects.create_user(email="profile@example.com", password="Password123!")
-        UserProfile.objects.create(user=self.user, nickname="Profile User")
+        UserProfile.objects.create(user=self.user, nickname="ProfileUser")
         self.client.force_authenticate(self.user)
 
     def test_get_me_returns_profile(self):
@@ -139,13 +162,13 @@ class UserProfileApiTests(TestCase):
 
         self.assertEqual(response.status_code, status.HTTP_200_OK)
         self.assertEqual(response.data["user"]["email"], "profile@example.com")
-        self.assertEqual(response.data["user"]["nickname"], "Profile User")
+        self.assertEqual(response.data["user"]["nickname"], "ProfileUser")
 
     def test_patch_me_updates_profile_fields(self):
         response = self.client.patch(
             "/api/users/me/",
             {
-                "nickname": "Updated User",
+                "nickname": "UpdatedUser",
                 "phone": "01012341234",
                 "marketing_consent": True,
             },
@@ -154,15 +177,53 @@ class UserProfileApiTests(TestCase):
 
         self.assertEqual(response.status_code, status.HTTP_200_OK)
         self.user.refresh_from_db()
-        self.assertEqual(self.user.profile.nickname, "Updated User")
+        self.assertEqual(self.user.profile.nickname, "UpdatedUser")
         self.assertEqual(self.user.profile.phone, "01012341234")
         self.assertTrue(self.user.profile.marketing_consent)
+
+    def test_nickname_availability_returns_available_for_current_nickname(self):
+        response = self.client.get("/api/users/nickname-availability/?nickname=ProfileUser")
+
+        self.assertEqual(response.status_code, status.HTTP_200_OK)
+        self.assertTrue(response.data["valid"])
+        self.assertTrue(response.data["available"])
+
+    def test_nickname_availability_returns_unavailable_for_other_users_nickname(self):
+        other_user = User.objects.create_user(email="other@example.com", password="Password123!")
+        UserProfile.objects.create(user=other_user, nickname="TakenNick")
+
+        response = self.client.get("/api/users/nickname-availability/?nickname=TakenNick")
+
+        self.assertEqual(response.status_code, status.HTTP_200_OK)
+        self.assertTrue(response.data["valid"])
+        self.assertFalse(response.data["available"])
+        self.assertEqual(response.data["detail"], "이미 사용 중인 닉네임입니다.")
+
+    def test_patch_me_rejects_duplicate_nickname(self):
+        other_user = User.objects.create_user(email="other@example.com", password="Password123!")
+        UserProfile.objects.create(user=other_user, nickname="TakenNick")
+
+        response = self.client.patch(
+            "/api/users/me/",
+            {"nickname": "TakenNick"},
+            format="json",
+        )
+
+        self.assertEqual(response.status_code, status.HTTP_400_BAD_REQUEST)
+        self.assertEqual(response.data["detail"], "이미 사용 중인 닉네임입니다.")
+
+    def test_user_profile_nickname_is_unique_in_database(self):
+        other_user = User.objects.create_user(email="other@example.com", password="Password123!")
+
+        with self.assertRaises(IntegrityError):
+            with transaction.atomic():
+                UserProfile.objects.create(user=other_user, nickname="ProfileUser")
 
 class UserPreferenceApiTests(TestCase):
     def setUp(self):
         self.client = APIClient()
         self.user = User.objects.create_user(email="preferences@example.com", password="Password123!")
-        UserProfile.objects.create(user=self.user, nickname="Preference User")
+        UserProfile.objects.create(user=self.user, nickname="PreferenceUser")
         self.client.force_authenticate(self.user)
 
     def test_get_preferences_returns_default_theme(self):
@@ -186,7 +247,7 @@ class UserUsedProductApiTests(TestCase):
     def setUp(self):
         self.client = APIClient()
         self.user = User.objects.create_user(email="used-products@example.com", password="Password123!")
-        UserProfile.objects.create(user=self.user, nickname="Used Product User")
+        UserProfile.objects.create(user=self.user, nickname="UsedProduct")
         self.client.force_authenticate(self.user)
         self.product = Product.objects.create(
             goods_id="GI0001",

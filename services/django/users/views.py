@@ -5,19 +5,25 @@ from pathlib import Path
 import boto3
 from django.conf import settings
 from django.contrib.auth import authenticate, login, logout
+from django.db import IntegrityError, transaction
 from django.db.models import ProtectedError
-from django.db import transaction
 from django.urls import reverse
-from rest_framework.views import APIView
-from rest_framework.response import Response
-from rest_framework.permissions import AllowAny, IsAuthenticated
 from rest_framework import status
+from rest_framework.permissions import AllowAny, IsAuthenticated
+from rest_framework.response import Response
+from rest_framework.views import APIView
 from rest_framework_simplejwt.tokens import RefreshToken
 from social_core.exceptions import AuthCanceled, AuthConnectionError, AuthException, AuthForbidden, AuthMissingParameter
 
 from products.models import Product
 
 from .models import SocialAccount, User, UserPreference, UserProfile, UserUsedProduct
+from .nickname_utils import (
+    build_unique_nickname,
+    get_nickname_duplicate_error,
+    get_nickname_policy_error,
+    get_nickname_validation_error,
+)
 from .social_auth import (
     SOCIAL_AUTH_ACCESS_SESSION_KEY,
     SOCIAL_AUTH_REFRESH_SESSION_KEY,
@@ -49,7 +55,10 @@ def get_or_create_social_user(profile):
         user = User.objects.create_user(email=email)
         UserProfile.objects.create(
             user=user,
-            nickname=profile.nickname,
+            nickname=build_unique_nickname(
+                profile.nickname,
+                fallback_seed=email.split("@")[0],
+            ),
             profile_image_url=profile.profile_image_url,
         )
         is_new_user = True
@@ -57,7 +66,11 @@ def get_or_create_social_user(profile):
         UserProfile.objects.get_or_create(
             user=user,
             defaults={
-                "nickname": profile.nickname,
+                "nickname": build_unique_nickname(
+                    profile.nickname,
+                    fallback_seed=user.email.split("@")[0],
+                    exclude_user=user,
+                ),
                 "profile_image_url": profile.profile_image_url,
             },
         )
@@ -77,14 +90,23 @@ def get_or_create_social_user(profile):
 
 def sync_social_profile(user, profile):
     profile_defaults = {
-        "nickname": profile.nickname,
+        "nickname": build_unique_nickname(
+            profile.nickname,
+            fallback_seed=user.email.split("@")[0],
+            exclude_user=user,
+        ),
         "profile_image_url": profile.profile_image_url,
     }
     user_profile, _ = UserProfile.objects.get_or_create(user=user, defaults=profile_defaults)
 
     dirty_fields = []
-    if profile.nickname and user_profile.nickname != profile.nickname:
-        user_profile.nickname = profile.nickname
+    next_nickname = build_unique_nickname(
+        profile.nickname,
+        fallback_seed=user.email.split("@")[0],
+        exclude_user=user,
+    )
+    if next_nickname and user_profile.nickname != next_nickname:
+        user_profile.nickname = next_nickname
         dirty_fields.append("nickname")
     if profile.profile_image_url and user_profile.profile_image_url != profile.profile_image_url:
         user_profile.profile_image_url = profile.profile_image_url
@@ -106,7 +128,10 @@ def issue_user_tokens(user):
 
 
 def serialize_user(user):
-    profile, _ = UserProfile.objects.get_or_create(user=user, defaults={"nickname": user.email.split("@")[0]})
+    profile, _ = UserProfile.objects.get_or_create(
+        user=user,
+        defaults={"nickname": build_unique_nickname(user.email.split("@")[0], exclude_user=user)},
+    )
     return {
         "id": user.id,
         "email": user.email,
@@ -116,7 +141,10 @@ def serialize_user(user):
 
 
 def serialize_user_profile(user):
-    profile, _ = UserProfile.objects.get_or_create(user=user, defaults={"nickname": user.email.split("@")[0]})
+    profile, _ = UserProfile.objects.get_or_create(
+        user=user,
+        defaults={"nickname": build_unique_nickname(user.email.split("@")[0], exclude_user=user)},
+    )
     return {
         "id": user.id,
         "email": user.email,
@@ -206,8 +234,20 @@ class RegisterView(APIView):
         if User.objects.filter(email=email).exists():
             return Response({"detail": "이미 사용 중인 이메일입니다."}, status=status.HTTP_400_BAD_REQUEST)
 
-        user = User.objects.create_user(email=email, password=password)
-        UserProfile.objects.create(user=user, nickname=nickname or email.split("@")[0])
+        if nickname:
+            nickname_error = get_nickname_validation_error(nickname)
+            if nickname_error:
+                return Response({"detail": nickname_error}, status=status.HTTP_400_BAD_REQUEST)
+            profile_nickname = nickname
+        else:
+            profile_nickname = build_unique_nickname(email.split("@")[0])
+
+        try:
+            with transaction.atomic():
+                user = User.objects.create_user(email=email, password=password)
+                UserProfile.objects.create(user=user, nickname=profile_nickname)
+        except IntegrityError:
+            return Response({"detail": "이미 사용 중인 닉네임입니다."}, status=status.HTTP_400_BAD_REQUEST)
 
         tokens = issue_user_tokens(user)
         return Response(
@@ -287,6 +327,29 @@ class AuthWithdrawView(APIView):
         return Response(status=status.HTTP_204_NO_CONTENT)
 
 
+class NicknameAvailabilityView(APIView):
+    permission_classes = [AllowAny]
+
+    def get(self, request):
+        nickname = request.query_params.get("nickname", "").strip()
+        if not nickname:
+            return Response({"detail": "nickname is required."}, status=status.HTTP_400_BAD_REQUEST)
+
+        exclude_user = request.user if request.user.is_authenticated else None
+        policy_error = get_nickname_policy_error(nickname)
+        duplicate_error = None if policy_error else get_nickname_duplicate_error(nickname, exclude_user=exclude_user)
+        detail = policy_error or duplicate_error or "사용 가능한 닉네임입니다."
+
+        return Response(
+            {
+                "nickname": nickname,
+                "valid": policy_error is None,
+                "available": policy_error is None and duplicate_error is None,
+                "detail": detail,
+            }
+        )
+
+
 class UserMeView(APIView):
     permission_classes = [IsAuthenticated]
 
@@ -296,15 +359,23 @@ class UserMeView(APIView):
     def patch(self, request):
         profile, _ = UserProfile.objects.get_or_create(
             user=request.user,
-            defaults={"nickname": request.user.email.split("@")[0]},
+            defaults={"nickname": build_unique_nickname(request.user.email.split("@")[0], exclude_user=request.user)},
         )
+
+        if "nickname" in request.data:
+            nickname = (request.data.get("nickname") or "").strip()
+            nickname_error = get_nickname_validation_error(nickname, exclude_user=request.user)
+            if nickname_error:
+                return Response({"detail": nickname_error}, status=status.HTTP_400_BAD_REQUEST)
 
         dirty_fields = []
         for field in ["nickname", "age", "gender", "address", "phone"]:
             if field not in request.data:
                 continue
             value = request.data.get(field)
-            if value == "":
+            if field == "nickname":
+                value = (value or "").strip()
+            elif value == "":
                 value = None if field != "nickname" else profile.nickname
             if field == "age" and value is not None:
                 try:
@@ -332,7 +403,11 @@ class UserMeView(APIView):
         #     dirty_fields.append("profile_image_url")
 
         if dirty_fields:
-            profile.save(update_fields=[*dirty_fields, "updated_at"])
+            try:
+                with transaction.atomic():
+                    profile.save(update_fields=[*dirty_fields, "updated_at"])
+            except IntegrityError:
+                return Response({"detail": "이미 사용 중인 닉네임입니다."}, status=status.HTTP_400_BAD_REQUEST)
 
         return Response({"user": serialize_user_profile(request.user)})
 

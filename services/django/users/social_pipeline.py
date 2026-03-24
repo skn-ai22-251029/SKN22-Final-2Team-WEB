@@ -1,4 +1,5 @@
 from .models import SocialAccount, UserProfile
+from .nickname_utils import build_unique_nickname
 
 
 PROVIDER_NAME_MAP = {
@@ -31,7 +32,7 @@ def sync_tailtalk_social_data(backend, user=None, uid=None, response=None, *args
     provider = PROVIDER_NAME_MAP.get(backend.name, backend.name)
     profile, _ = UserProfile.objects.get_or_create(
         user=user,
-        defaults={"nickname": user.email.split("@")[0]},
+        defaults={"nickname": build_unique_nickname(user.email.split("@")[0], exclude_user=user)},
     )
 
     nickname = (
@@ -55,8 +56,13 @@ def sync_tailtalk_social_data(backend, user=None, uid=None, response=None, *args
     )
 
     dirty_fields = []
-    if nickname and profile.nickname != nickname:
-        profile.nickname = nickname
+    next_nickname = build_unique_nickname(
+        nickname,
+        fallback_seed=user.email.split("@")[0],
+        exclude_user=user,
+    )
+    if next_nickname and profile.nickname != next_nickname:
+        profile.nickname = next_nickname
         dirty_fields.append("nickname")
     if profile_image_url and profile.profile_image_url != profile_image_url:
         profile.profile_image_url = profile_image_url
