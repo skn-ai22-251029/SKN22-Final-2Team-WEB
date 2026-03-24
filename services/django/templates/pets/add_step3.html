@@ -23,7 +23,7 @@
           {% if species == "cat" %}고양이 건강/식이 정보{% elif species == "future" %}예비 집사 건강/식이 정보{% else %}강아지 건강/식이 정보{% endif %}
         </span>
       </div>
-      <p class="mt-[14px] text-[15px] leading-snug text-[#718096] md:text-[16px] md:leading-none">정확한 사료와 영양제 추천을 위해 빈칸을 채워주세요</p>
+      <p class="mt-[14px] text-[15px] leading-snug text-[#718096] md:text-[16px] md:leading-none">건강과 식이 정보를 입력하면 맞춤 추천에 반영할 수 있어요</p>
 
       <form method="post" action="{% if is_preview_edit %}/pets/preview/{{ pet_id }}/edit/health/{% elif is_edit %}/pets/{{ pet_id }}/edit/health/{% else %}/pets/add/health/{% endif %}" class="mt-[18px]">
         {% csrf_token %}
@@ -37,31 +37,9 @@
         <input type="hidden" name="weight_kg" value="{{ step2_data.weight_kg }}" />
         <input type="hidden" name="neutered" value="{{ step2_data.neutered }}" />
         <input type="hidden" name="allergies" id="allergiesInput" value="{{ step3_data.allergies }}" />
+        <input type="hidden" name="special_notes" value="{{ step3_data.special_notes }}" />
 
         <div class="grid grid-cols-1 gap-x-[28px] gap-y-[18px] md:grid-cols-2">
-          <div>
-            <label class="mb-[8px] block text-[14px] font-bold text-[#4a5568]">
-              마지막 접종일 <span class="text-[#a0aec0]">(선택)</span>
-            </label>
-            <div class="relative">
-              <input type="date" name="vaccination_date" value="{{ step3_data.vaccination_date }}" class="h-[42px] w-full rounded-[8px] border border-[#e2e8f0] bg-white px-[14px] text-[14px] text-[#2d3748] outline-none focus:border-[#90cdf4]" />
-            </div>
-          </div>
-
-          <div>
-            <div class="mb-[8px] text-[14px] font-bold text-[#4a5568]">
-              선호 사료 형태 <span class="text-[#a0aec0]">(다중 선택 가능)</span>
-            </div>
-            <div class="flex flex-wrap gap-[8px]">
-              {% for value, label in food_options %}
-              <label class="food-option flex h-[42px] flex-1 cursor-pointer items-center justify-center rounded-[8px] border text-[14px] {% if value in step3_data.food_preferences %}border-[#3182ce] bg-[#f7fbff] font-bold text-[#3182ce]{% else %}border-[#e2e8f0] bg-white text-[#4a5568]{% endif %}">
-                <input type="checkbox" class="hidden food-checkbox" name="food_preferences" value="{{ value }}" {% if value in step3_data.food_preferences %}checked{% endif %} />
-                {{ label }}
-              </label>
-              {% endfor %}
-            </div>
-          </div>
-
           <div class="md:col-span-2">
             <div class="mb-[8px] text-[14px] font-bold text-[#4a5568]">
               건강 관심사 <span class="text-[#a0aec0]">(다중 선택 가능)</span>
@@ -76,12 +54,62 @@
             </div>
           </div>
 
-          <div>
+          <div class="md:col-span-2">
+            <div class="mb-[8px] text-[14px] font-bold text-[#4a5568]">
+              선호 사료 형태 <span class="text-[#a0aec0]">(다중 선택 가능)</span>
+            </div>
+            <div class="flex flex-wrap gap-[8px]">
+              {% for value, label in food_options %}
+              <label class="food-option flex h-[42px] flex-1 cursor-pointer items-center justify-center rounded-[8px] border text-[14px] {% if value in step3_data.food_preferences %}border-[#3182ce] bg-[#f7fbff] font-bold text-[#3182ce]{% else %}border-[#e2e8f0] bg-white text-[#4a5568]{% endif %}">
+                <input type="checkbox" class="hidden food-checkbox" name="food_preferences" value="{{ value }}" {% if value in step3_data.food_preferences %}checked{% endif %} />
+                {{ label }}
+              </label>
+              {% endfor %}
+            </div>
+          </div>
+
+          <div class="md:col-span-2">
             <label class="mb-[8px] block text-[14px] font-bold text-[#4a5568]">
               알레르기 태그 <span class="text-[#a0aec0]">(선택)</span>
             </label>
             <input id="allergyTextInput" type="text" placeholder="알레르기 성분 입력 후 Enter (예: 닭고기)" class="h-[42px] w-full rounded-[8px] border border-[#e2e8f0] bg-white px-[14px] text-[13px] text-[#2d3748] outline-none placeholder:text-[#a0aec0] focus:border-[#90cdf4]" />
             <div id="allergyTags" class="mt-[8px] flex flex-wrap gap-[6px]"></div>
+          </div>
+
+          <div>
+            <label class="mb-[8px] block text-[14px] font-bold text-[#4a5568]">
+              마지막 접종일 <span class="text-[#a0aec0]">(선택)</span>
+            </label>
+            <div class="relative">
+              <input
+                type="text"
+                id="vaccinationDateInput"
+                name="vaccination_date"
+                value="{{ step3_data.vaccination_date }}"
+                inputmode="numeric"
+                maxlength="10"
+                placeholder="YYYY-MM-DD"
+                class="h-[42px] w-full rounded-[8px] border border-[#e2e8f0] bg-white px-[14px] pr-[52px] text-[14px] text-[#2d3748] outline-none placeholder:text-[#a0aec0] focus:border-[#90cdf4]"
+              />
+              <input
+                type="date"
+                id="vaccinationDatePicker"
+                value="{{ step3_data.vaccination_date }}"
+                min="2000-01-01"
+                tabindex="-1"
+                aria-hidden="true"
+                class="pointer-events-none absolute right-[10px] top-1/2 h-[1px] w-[1px] -translate-y-1/2 opacity-0"
+              />
+              <button
+                type="button"
+                id="vaccinationDatePickerButton"
+                class="absolute right-[10px] top-1/2 flex h-[28px] w-[28px] -translate-y-1/2 items-center justify-center rounded-[6px] text-[16px] text-[#718096] transition-colors hover:bg-[#edf2f7]"
+                aria-label="캘린더 열기"
+              >
+                <span aria-hidden="true">📅</span>
+              </button>
+            </div>
+            <p id="vaccinationDateStatus" class="mt-[6px] min-h-[16px] text-right text-[12px]"></p>
           </div>
 
           <div>
@@ -95,17 +123,10 @@
               {% endfor %}
             </select>
           </div>
-
-          <div class="md:col-span-2">
-            <label class="mb-[8px] block text-[14px] font-bold text-[#4a5568]">
-              특이사항 <span class="text-[#a0aec0]">(선택)</span>
-            </label>
-            <textarea name="special_notes" class="h-[88px] w-full resize-none rounded-[10px] border border-[#e2e8f0] bg-white px-[14px] py-[12px] text-[13px] text-[#2d3748] outline-none placeholder:text-[#a0aec0] focus:border-[#90cdf4]" placeholder="약 복용 여부, 기저질환 등 기타 특이사항을 자유롭게 적어주세요.">{{ step3_data.special_notes }}</textarea>
-          </div>
         </div>
 
         <div class="mt-[28px] flex flex-col-reverse gap-[10px] md:flex-row md:items-end md:gap-[14px]">
-          <button type="button" onclick="history.back()" class="flex h-[44px] w-full items-center justify-center rounded-[10px] bg-[#edf2f7] text-[16px] font-bold text-[#4a5568] md:w-[128px]">이전으로</button>
+          <a href="{% if is_preview_edit %}/pets/preview/{{ pet_id }}/edit/{% elif is_edit %}/pets/{{ pet_id }}/edit/{% else %}/pets/add/health/?species={{ step2_data.species|urlencode }}&name={{ step2_data.name|urlencode }}&breed={{ step2_data.breed|urlencode }}&gender={{ step2_data.gender|urlencode }}&age_years={{ step2_data.age_years|urlencode }}&age_months={{ step2_data.age_months|urlencode }}&weight_kg={{ step2_data.weight_kg|urlencode }}&neutered={{ step2_data.neutered|urlencode }}{% endif %}" class="flex h-[44px] w-full items-center justify-center rounded-[10px] bg-[#edf2f7] text-[16px] font-bold text-[#4a5568] md:w-[128px]">이전으로</a>
           <button type="submit" class="flex h-[44px] flex-1 items-center justify-center rounded-[10px] bg-[#3182ce] text-[16px] font-bold text-white">{% if is_edit %}수정 완료{% else %}등록 완료{% endif %}</button>
         </div>
       </form>
@@ -139,6 +160,152 @@
     var allergiesHidden = document.getElementById('allergiesInput');
     var tagsContainer = document.getElementById('allergyTags');
     var tags = allergiesHidden.value ? allergiesHidden.value.split(',').map(function (item) { return item.trim(); }).filter(Boolean) : [];
+    var vaccinationDateInput = document.getElementById('vaccinationDateInput');
+    var vaccinationDatePicker = document.getElementById('vaccinationDatePicker');
+    var vaccinationDatePickerButton = document.getElementById('vaccinationDatePickerButton');
+    var vaccinationDateStatus = document.getElementById('vaccinationDateStatus');
+
+    function clearStatus(node) {
+      if (!node) return;
+      node.textContent = '';
+      node.style.color = '';
+    }
+
+    function showStatus(node, message) {
+      if (!node) return;
+      node.textContent = message;
+      node.style.color = '#e53e3e';
+    }
+
+    function normalizeVaccinationDate(value) {
+      var digits = (value || '').replace(/\D/g, '').slice(0, 8);
+      if (digits.length <= 4) return digits;
+      if (digits.length <= 6) return digits.slice(0, 4) + '-' + digits.slice(4);
+      return digits.slice(0, 4) + '-' + digits.slice(4, 6) + '-' + digits.slice(6);
+    }
+
+    function getTodayParts() {
+      var today = new Date();
+      return {
+        year: today.getFullYear(),
+        month: today.getMonth() + 1,
+        day: today.getDate(),
+        iso: today.getFullYear() + '-' + String(today.getMonth() + 1).padStart(2, '0') + '-' + String(today.getDate()).padStart(2, '0'),
+      };
+    }
+
+    function clampVaccinationDigits(rawValue) {
+      var digits = (rawValue || '').replace(/\D/g, '').slice(0, 8);
+      var today = getTodayParts();
+
+      if (digits.length >= 4) {
+        var year = Number(digits.slice(0, 4));
+        if (year < 2000) {
+          digits = '2000' + digits.slice(4);
+        } else if (year > today.year) {
+          digits = String(today.year) + digits.slice(4);
+        }
+      }
+
+      if (digits.length >= 6) {
+        var month = Number(digits.slice(4, 6));
+        if (month < 1) month = 1;
+        if (month > 12) month = 12;
+        digits = digits.slice(0, 4) + String(month).padStart(2, '0') + digits.slice(6);
+      }
+
+      if (digits.length >= 8) {
+        var clampedYear = Number(digits.slice(0, 4));
+        var clampedMonth = Number(digits.slice(4, 6));
+        var day = Number(digits.slice(6, 8));
+        var maxDay = new Date(clampedYear, clampedMonth, 0).getDate();
+        if (day < 1) day = 1;
+        if (day > maxDay) day = maxDay;
+
+        if (clampedYear === today.year) {
+          if (clampedMonth > today.month) {
+            clampedMonth = today.month;
+            day = today.day;
+          } else if (clampedMonth === today.month && day > today.day) {
+            day = today.day;
+          }
+        }
+
+        digits =
+          digits.slice(0, 4) +
+          String(clampedMonth).padStart(2, '0') +
+          String(day).padStart(2, '0');
+      }
+
+      return digits;
+    }
+
+    function isValidVaccinationDate(value) {
+      if (!value) return true;
+      if (!/^\d{4}-\d{2}-\d{2}$/.test(value)) return false;
+      var parts = value.split('-');
+      var year = Number(parts[0]);
+      var month = Number(parts[1]);
+      var day = Number(parts[2]);
+      var date = new Date(year, month - 1, day);
+      return (
+        date.getFullYear() === year &&
+        date.getMonth() === month - 1 &&
+        date.getDate() === day
+      );
+    }
+
+    function isVaccinationDateInRange(value) {
+      if (!value) return true;
+      var min = '2000-01-01';
+      var max = getTodayParts().iso;
+      return value >= min && value <= max;
+    }
+
+    function syncVaccinationPickerBounds() {
+      if (!vaccinationDatePicker) return;
+      vaccinationDatePicker.min = '2000-01-01';
+      vaccinationDatePicker.max = getTodayParts().iso;
+    }
+
+    if (vaccinationDateInput) {
+      vaccinationDateInput.addEventListener('input', function () {
+        vaccinationDateInput.value = normalizeVaccinationDate(clampVaccinationDigits(vaccinationDateInput.value));
+        clearStatus(vaccinationDateStatus);
+      });
+
+      vaccinationDateInput.addEventListener('blur', function () {
+        vaccinationDateInput.value = normalizeVaccinationDate(clampVaccinationDigits(vaccinationDateInput.value));
+        if (!isValidVaccinationDate(vaccinationDateInput.value)) {
+          showStatus(vaccinationDateStatus, '날짜는 YYYY-MM-DD 형식으로 입력해 주세요');
+          return;
+        }
+        if (!isVaccinationDateInRange(vaccinationDateInput.value)) {
+          showStatus(vaccinationDateStatus, '날짜는 2000-01-01부터 오늘까지만 입력할 수 있어요');
+          return;
+        }
+        clearStatus(vaccinationDateStatus);
+        if (vaccinationDatePicker && vaccinationDateInput.value) {
+          vaccinationDatePicker.value = vaccinationDateInput.value;
+        }
+      });
+    }
+
+    if (vaccinationDatePickerButton && vaccinationDatePicker) {
+      vaccinationDatePickerButton.addEventListener('click', function () {
+        if (typeof vaccinationDatePicker.showPicker === 'function') {
+          vaccinationDatePicker.showPicker();
+          return;
+        }
+        vaccinationDatePicker.click();
+      });
+
+      vaccinationDatePicker.addEventListener('change', function () {
+        if (!vaccinationDateInput) return;
+        vaccinationDateInput.value = vaccinationDatePicker.value;
+        clearStatus(vaccinationDateStatus);
+      });
+    }
 
     function syncTags() {
       allergiesHidden.value = tags.join(',');
@@ -166,6 +333,24 @@
       syncTags();
     });
 
+    var form = document.querySelector('form');
+    if (form) {
+      form.addEventListener('submit', function (event) {
+        if (!vaccinationDateInput) return;
+        vaccinationDateInput.value = normalizeVaccinationDate(clampVaccinationDigits(vaccinationDateInput.value));
+        if (!isValidVaccinationDate(vaccinationDateInput.value)) {
+          event.preventDefault();
+          showStatus(vaccinationDateStatus, '날짜는 YYYY-MM-DD 형식으로 입력해 주세요');
+          return;
+        }
+        if (!isVaccinationDateInRange(vaccinationDateInput.value)) {
+          event.preventDefault();
+          showStatus(vaccinationDateStatus, '날짜는 2000-01-01부터 오늘까지만 입력할 수 있어요');
+        }
+      });
+    }
+
+    syncVaccinationPickerBounds();
     syncTags();
   })();
 </script>

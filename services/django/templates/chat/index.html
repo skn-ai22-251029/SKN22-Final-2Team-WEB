@@ -205,8 +205,8 @@
           <div class="pr-[8px]">
             <p class="text-[13px] font-bold leading-none text-[#2d3748]">상담 기준 반려동물</p>
             <p class="mt-[8px] max-w-[198px] break-keep text-[11px] leading-[1.65] text-[#718096]">
-              선택한 반려동물 정보를 기준으로
-              답변과 추천이 맞춰집니다
+              선택한 반려동물 정보를 기준으로<br>
+              답변과 추천이 제공됩니다
             </p>
           </div>
 
@@ -233,7 +233,7 @@
               </div>
             </button>
 
-            {% if member_pets %}
+            {% if member_pets or can_add_pet %}
             <div id="petDropdownMenu"
                  class="pointer-events-none absolute left-0 right-0 top-[calc(100%+8px)] z-20 overflow-hidden rounded-[14px] border border-[#dbe7f5] bg-white opacity-0 shadow-[0_14px_30px_rgba(45,55,72,0.10)] transition-all duration-200">
               <div class="max-h-[248px] overflow-y-auto p-[6px]">
@@ -243,6 +243,10 @@
                         data-pet-name="선택 안 함"
                         data-pet-summary="일반 상담으로 진행"
                         data-pet-emoji="○"
+                        data-pet-profile=""
+                        data-pet-health-concerns=""
+                        data-pet-allergies=""
+                        data-pet-food-preferences=""
                         onclick="selectPet(this)">
                   <div class="flex h-[30px] w-[30px] shrink-0 items-center justify-center rounded-full bg-[#f8fafc] text-[16px]">
                     ○
@@ -259,10 +263,10 @@
                         data-pet-name="{{ pet.name }}"
                         data-pet-summary="{{ pet.summary }}"
                         data-pet-emoji="{{ pet.emoji }}"
-                        data-pet-profile='{{ pet.profile|default:"{}" }}'
-                        data-pet-health-concerns='{{ pet.health_concerns|default:"[]"|join:"," }}'
-                        data-pet-allergies='{{ pet.allergies|default:"[]"|join:"," }}'
-                        data-pet-food-preferences='{{ pet.food_preferences|default:"[]"|join:"," }}'
+                        data-pet-profile='{{ pet.profile_json|default:"" }}'
+                        data-pet-health-concerns='{{ pet.health_concerns_csv|default:"" }}'
+                        data-pet-allergies='{{ pet.allergies_csv|default:"" }}'
+                        data-pet-food-preferences='{{ pet.food_preferences_csv|default:"" }}'
                         onclick="selectPet(this)">
                   <div class="flex h-[30px] w-[30px] shrink-0 items-center justify-center rounded-full bg-[#f8fafc] text-[17px]">
                     {{ pet.emoji }}
@@ -273,11 +277,20 @@
                   </div>
                 </button>
                 {% endfor %}
+                {% if can_add_pet %}
+                <div class="mx-[10px] my-[6px] h-px bg-[#edf2f7]"></div>
+                <a href="/pets/add/"
+                   class="flex w-full items-center gap-[10px] rounded-[10px] px-[10px] py-[9px] text-left transition-colors duration-150 hover:bg-[#f8fbff]">
+                  <div class="flex h-[30px] w-[30px] shrink-0 items-center justify-center rounded-full bg-[#eff8ff] text-[18px] font-semibold text-[#3182ce]">
+                    +
+                  </div>
+                  <div class="min-w-0 flex-1">
+                    <p class="truncate text-[12px] font-bold leading-none text-[#2d3748]">반려동물 추가</p>
+                    <p class="mt-[5px] truncate text-[11px] leading-none text-[#718096]">새 반려동물 등록하기</p>
+                  </div>
+                </a>
+                {% endif %}
               </div>
-            </div>
-            {% else %}
-            <div class="mt-[8px] rounded-[12px] border border-dashed border-[#cbd5e0] px-[10px] py-[12px] text-center text-[11px] leading-[1.5] text-[#718096]">
-              등록된 반려동물이 없습니다
             </div>
             {% endif %}
           </div>
@@ -303,11 +316,6 @@
                         aria-label="삭제" onclick="event.stopPropagation(); openDeleteModal('{{ session.session_id }}')">🗑️</button>
               </div>
             </div>
-          </div>
-          {% empty %}
-          <div class="rounded-[16px] border border-dashed border-[#cbd5e0] px-[18px] py-[16px] text-center text-[12px] leading-[1.6] text-[#718096]">
-            <p>아직 저장된 대화가 없습니다</p>
-            <p>새 대화를 시작해 주세요</p>
           </div>
           {% endfor %}
         </div>
@@ -730,6 +738,7 @@
   var pendingDeleteId = null;
   var isPetDropdownOpen = false;
   var activeSessionId = null;
+  var activePetId = '{{ active_pet_id|escapejs }}';
   var draftSessionCount = 0;
   var promoIndex = 0;
   var promoTimer = null;
@@ -1548,6 +1557,13 @@
   closePetDropdown();
   updateChatSectionState(false);
   updateSessionItemStyles();
+
+  if (activePetId) {
+    var initialPet = document.querySelector('[data-pet-id="' + activePetId + '"]');
+    if (initialPet) {
+      selectPet(initialPet);
+    }
+  }
 
   function revealPage() {
     if (!pageGate) return;
