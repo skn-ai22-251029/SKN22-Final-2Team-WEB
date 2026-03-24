@@ -1,6 +1,7 @@
 from dataclasses import dataclass
 
 from django.shortcuts import get_object_or_404, redirect, render
+from django.urls import reverse
 
 from .models import Pet, PetAllergy, PetFoodPreference, PetHealthConcern
 
@@ -15,6 +16,25 @@ FOOD_OPTIONS = [
     ("dry", "건식"),
     ("wet_can", "습식"),
     ("raw", "혼합/자연식"),
+]
+FUTURE_HOUSING_OPTIONS = [
+    ("studio", "원룸"),
+    ("apartment", "아파트"),
+    ("house", "주택"),
+    ("other", "기타"),
+]
+FUTURE_EXPERIENCE_OPTIONS = [
+    ("first", "처음"),
+    ("experienced", "경험 있음"),
+]
+FUTURE_INTEREST_OPTIONS = [
+    ("adoption", "입양 준비"),
+    ("breed_personality", "품종/성격"),
+    ("initial_cost", "초기 비용"),
+    ("starter_items", "필수 용품"),
+    ("food", "사료"),
+    ("health", "건강관리"),
+    ("training", "훈련/교육"),
 ]
 BUDGET_OPTIONS = [
     ("under_5", "5만 원 미만"),
@@ -172,19 +192,128 @@ def _pet_step3_data(pet):
     }
 
 
+def _future_pet_list_item(profile):
+    if not profile:
+        return None
+
+    housing_labels = {
+        "studio": "원룸",
+        "apartment": "아파트",
+        "house": "주택",
+        "other": "기타",
+    }
+    experience_labels = {
+        "first": "처음",
+        "experienced": "경험 있음",
+    }
+
+    preferred_species = profile.get("preferred_species", "")
+    if preferred_species == "dog":
+        summary = "강아지 준비 중"
+    elif preferred_species == "cat":
+        summary = "고양이 준비 중"
+    else:
+        summary = "입양 준비 중"
+
+    return {
+        "pet_id": "future-profile",
+        "name": "예비 집사",
+        "species": "future",
+        "emoji": "🏠",
+        "summary": summary,
+        "detail": " · ".join(
+            value
+            for value in [
+                housing_labels.get(profile.get("housing_type", ""), ""),
+                experience_labels.get(profile.get("experience_level", ""), ""),
+            ]
+            if value
+        )
+        or "입양 준비 상담 프로필",
+        "is_future_profile": True,
+    }
+
+
+def _sort_pet_list_items(pets):
+    def _species_of(pet):
+        return pet.get("species", "") if isinstance(pet, dict) else getattr(pet, "species", "")
+
+    def _created_at_of(pet):
+        return pet.get("created_at") if isinstance(pet, dict) else getattr(pet, "created_at", None)
+
+    return sorted(
+        pets,
+        key=lambda pet: (
+            _species_of(pet) == "future",
+            _created_at_of(pet),
+        ),
+    )
+
+
 def pet_list(request):
     is_preview_list = request.GET.get("preview") == "filled"
+    future_pet = None
     if is_preview_list:
         pets = _preview_pets()
+        actual_pet_count = len(pets)
     elif getattr(request.user, "is_authenticated", False):
-        pets = Pet.objects.filter(user=request.user)
+        pets = list(Pet.objects.filter(user=request.user))
+        actual_pet_count = len(pets)
+        future_pet = _future_pet_list_item(request.session.get("future_pet_profile"))
+        if future_pet:
+            pets.append(future_pet)
+        pets = _sort_pet_list_items(pets)
     else:
         pets = []
-    return render(request, "pets/list.html", {"pets": pets, "is_preview_list": is_preview_list})
+        actual_pet_count = 0
+    return render(
+        request,
+        "pets/list.html",
+        {
+            "pets": pets,
+            "is_preview_list": is_preview_list,
+            "actual_pet_count": actual_pet_count,
+            "has_future_pet": bool(future_pet),
+        },
+    )
 
 
 def pet_add(request):
     return render(request, "pets/add_step1.html", {"species_options": SPECIES_OPTIONS})
+
+
+def pet_add_future(request):
+    if request.method == "POST":
+        request.session["future_pet_profile"] = {
+            "preferred_species": request.POST.get("preferred_species", "").strip(),
+            "housing_type": request.POST.get("housing_type", "").strip(),
+            "experience_level": request.POST.get("experience_level", "").strip(),
+            "interests": request.POST.getlist("interests"),
+        }
+        return redirect(f"{reverse('chat')}?pet=future-profile")
+
+    future_profile = {
+        "preferred_species": "",
+        "housing_type": "",
+        "experience_level": "",
+        "interests": [],
+    } | request.session.get("future_pet_profile", {})
+    return render(
+        request,
+        "pets/add_future.html",
+        {
+            "future_profile": future_profile,
+            "housing_options": FUTURE_HOUSING_OPTIONS,
+            "experience_options": FUTURE_EXPERIENCE_OPTIONS,
+            "interest_options": FUTURE_INTEREST_OPTIONS,
+        },
+    )
+
+
+def pet_delete_future(request):
+    if request.method == "POST":
+        request.session.pop("future_pet_profile", None)
+    return redirect("pet_list")
 
 
 def pet_add_details(request):

@@ -55,10 +55,10 @@
       <div>
         <h1 class="text-[24px] font-bold text-[#2d3748]">반려동물 정보</h1>
         <p class="mt-2 text-[14px] text-[#718096]">
-          등록된 반려동물 정보를 수정하거나 새로운 반려동물을 추가할 수 있습니다
+          등록된 반려동물 정보와 예비 집사 프로필을 함께 관리할 수 있습니다
         </p>
       </div>
-      <div class="text-[14px] font-bold text-[#3182ce]">등록 현황: {{ pets|length }} / 5</div>
+      <div class="text-[14px] font-bold text-[#3182ce]">반려동물 등록 현황: {{ actual_pet_count }} / 5</div>
     </div>
 
     <div class="mt-5 h-px w-full bg-[#edf2f7]"></div>
@@ -68,20 +68,41 @@
       <div class="pet-card flex items-center gap-5 rounded-[14px] border border-[#e2e8f0] bg-white px-4 py-4 shadow-[0_1px_2px_rgba(45,55,72,0.02)] {% if pets|length >= 3 and not forloop.first %}mt-4{% endif %}"
            data-pet-id="{{ pet.pet_id }}">
         <div class="flex h-[56px] w-[56px] items-center justify-center rounded-full bg-[#edf2f7] text-[24px]">
-          {% if pet.species == "cat" %}🐱{% else %}🐶{% endif %}
+          {% if pet.species == "future" %}🏠{% elif pet.species == "cat" %}🐱{% else %}🐶{% endif %}
         </div>
         <div class="min-w-0 flex-1">
           <div class="text-[18px] font-bold text-[#2d3748]">
+            {% if pet.species == "future" %}
+            {{ pet.name }}
+            {% else %}
             {{ pet.name }} ({{ pet.get_species_display }})
+            {% endif %}
           </div>
           <div class="mt-1 text-[14px] text-[#718096]">
+            {% if pet.species == "future" %}
+            {{ pet.summary }}
+            {% else %}
             {{ pet.age_years }}년 {{ pet.age_months }}개월
             · {{ pet.get_gender_display }}
             {% if pet.breed %} · {{ pet.breed }}{% endif %}
+            {% endif %}
           </div>
         </div>
         <div class="flex items-center gap-3">
-          {% if is_preview_list %}
+          {% if pet.species == "future" %}
+          <a href="/pets/add/future/"
+             class="flex h-[36px] w-[58px] items-center justify-center rounded-[8px] bg-[#edf2f7] text-[14px] font-bold text-[#4a5568] transition-colors hover:bg-[#e2e8f0]">
+            수정
+          </a>
+          <form id="deletePetForm-{{ pet.pet_id }}" method="post" action="/pets/future/delete/" style="display:contents">
+            {% csrf_token %}
+            <button type="button"
+                    class="flex h-[36px] w-[58px] items-center justify-center rounded-[8px] border border-[#feb2b2] bg-white text-[14px] font-bold text-[#e53e3e] transition-colors hover:bg-[#fff5f5]"
+                    onclick="openPetDeleteModal('{{ pet.pet_id }}', false)">
+              삭제
+            </button>
+          </form>
+          {% elif is_preview_list %}
           <a href="/pets/preview/{{ pet.pet_id }}/edit/"
                   class="flex h-[36px] w-[58px] items-center justify-center rounded-[8px] bg-[#edf2f7] text-[14px] font-bold text-[#4a5568]">
             수정
@@ -100,7 +121,7 @@
             {% csrf_token %}
             <input type="hidden" name="_method" value="DELETE" />
             <button type="button"
-                    class="flex h-[36px] w-[58px] items-center justify-center rounded-[8px] border border-[#feb2b2] bg-white text-[14px] font-bold text-[#e53e3e] transition-colors hover:bg-[#fff5f5]">
+                    class="flex h-[36px] w-[58px] items-center justify-center rounded-[8px] border border-[#feb2b2] bg-white text-[14px] font-bold text-[#e53e3e] transition-colors hover:bg-[#fff5f5]"
                     onclick="openPetDeleteModal('{{ pet.pet_id }}', false)">
               삭제
             </button>
@@ -113,7 +134,7 @@
       {% endfor %}
     </div>
 
-    {% if pets|length < 5 %}
+    {% if actual_pet_count < 5 %}
     <a href="/pets/add/"
        class="mt-4 flex h-[44px] w-full items-center justify-center rounded-[12px] border border-dashed border-[#90cdf4] bg-[#f8fbff] text-[16px] font-bold text-[#3182ce] transition-colors hover:bg-[#eef7ff]">
       + 새로운 반려동물 추가하기

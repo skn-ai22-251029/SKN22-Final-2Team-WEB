@@ -23,24 +23,29 @@
           {% if species == "cat" %}고양이 기본 정보{% elif species == "future" %}예비 집사 기본 정보{% else %}강아지 기본 정보{% endif %}
         </span>
       </div>
-      <p class="mt-[14px] text-[15px] leading-snug text-[#718096] md:text-[16px] md:leading-none">정확한 맞춤형 케어를 위해 빈칸을 채워주세요</p>
+      <p class="mt-[14px] text-[15px] leading-snug text-[#718096] md:text-[16px] md:leading-none">정보를 입력하면 챗봇 상담과 추천에 반영할 수 있어요</p>
 
-      <form method="post" class="contents" action="{% if is_preview_edit %}/pets/preview/{{ pet.pet_id }}/edit/{% elif is_edit %}/pets/{{ pet.pet_id }}/edit/{% else %}/pets/add/health/{% endif %}">
+      <form method="post" class="contents" novalidate action="{% if is_preview_edit %}/pets/preview/{{ pet.pet_id }}/edit/{% elif is_edit %}/pets/{{ pet.pet_id }}/edit/{% else %}/pets/add/health/{% endif %}">
         {% csrf_token %}
         <input type="hidden" name="species" value="{{ species }}" />
 
-        <div class="mt-[30px] grid grid-cols-1 gap-x-[28px] gap-y-[20px] md:grid-cols-2 md:gap-y-[24px]">
-          <div class="space-y-[10px]">
+        <div class="mt-[30px] grid gap-x-[28px] gap-y-[24px] {% if is_edit %}grid-cols-2{% else %}grid-cols-1 sm:grid-cols-2{% endif %} {% if is_edit %}gap-y-[28px]{% else %}sm:gap-y-[28px]{% endif %}">
+          <div class="space-y-[12px]">
             <label class="block text-[14px] font-bold leading-none text-[#4a5568]">이름 <span class="text-[#e53e3e]">(필수)</span></label>
-            <input id="nameInput" name="name" value="{{ pet.name|default:'' }}" placeholder="반려동물의 이름을 입력해주세요" class="h-[42px] w-full rounded-[10px] border border-[#e2e8f0] bg-white px-[14px] text-[14px] leading-none text-[#2d3748] outline-none transition-colors placeholder:text-[#a0aec0] focus:border-[#90cdf4]" required />
+            <input id="nameInput" name="name" value="{{ pet.name|default:'' }}" maxlength="12" placeholder="반려동물의 이름을 입력해주세요" class="h-[42px] w-full rounded-[10px] border border-[#e2e8f0] bg-white px-[14px] text-[14px] leading-none text-[#2d3748] outline-none transition-colors placeholder:text-[#a0aec0] focus:border-[#90cdf4]" />
+            <p id="nameStatus" class="hidden text-right text-[12px]"></p>
           </div>
 
-          <div class="space-y-[10px]">
-            <label class="block text-[14px] font-bold leading-none text-[#4a5568]">품종 <span class="text-[#a0aec0]">(선택)</span></label>
-            <input id="breedInput" name="breed" value="{{ pet.breed|default:'' }}" placeholder="{% if species == 'cat' %}품종을 검색해주세요 (예: 코리안숏헤어){% else %}품종을 검색해주세요 (예: 말티즈){% endif %}" class="h-[42px] w-full rounded-[10px] border border-[#e2e8f0] bg-white px-[14px] text-[14px] leading-none text-[#2d3748] outline-none transition-colors placeholder:text-[#a0aec0] focus:border-[#90cdf4]" />
+          <div class="space-y-[12px]">
+            <label class="block text-[14px] font-bold leading-none text-[#4a5568]">품종 <span class="text-[#e53e3e]">(필수)</span></label>
+            <div class="relative">
+              <input id="breedInput" name="breed" value="{{ pet.breed|default:'' }}" autocomplete="off" placeholder="{% if species == 'cat' %}품종을 검색해주세요 (예: 벵갈, ㅂㄱ){% else %}품종을 검색해주세요 (예: 말티즈, ㅁㅌㅈ){% endif %}" class="h-[42px] w-full rounded-[10px] border border-[#e2e8f0] bg-white px-[14px] text-[14px] leading-none text-[#2d3748] outline-none transition-colors placeholder:text-[#a0aec0] focus:border-[#90cdf4]" />
+              <div id="breedSuggestions" class="pointer-events-none absolute left-0 right-0 top-[calc(100%+8px)] z-10 hidden max-h-[220px] overflow-y-auto rounded-[12px] border border-[#dbe7f5] bg-white p-[6px] opacity-0 shadow-[0_12px_24px_rgba(45,55,72,0.10)] transition-all duration-150"></div>
+            </div>
+            <p id="breedStatus" class="hidden text-right text-[12px]"></p>
           </div>
 
-          <div class="space-y-[10px]">
+          <div class="space-y-[12px]">
             <div class="text-[14px] font-bold leading-none text-[#4a5568]">성별 <span class="text-[#e53e3e]">(필수)</span></div>
             <div class="mt-2 flex gap-[6px]">
               <button type="button" id="genderMale" class="flex h-[42px] flex-1 items-center justify-center rounded-[10px] border text-[14px] leading-none transition-colors {% if pet.gender == 'female' %}border-[#e2e8f0] bg-white font-normal text-[#4a5568]{% else %}border-[#3182ce] bg-[#ebf8ff] font-bold text-[#3182ce]{% endif %}">수컷 (남아)</button>
@@ -49,8 +54,8 @@
             </div>
           </div>
 
-          <div class="space-y-[10px]">
-            <div class="text-[14px] font-bold leading-none text-[#4a5568]">나이 <span class="text-[#e53e3e]">(필수, 월령 포함)</span></div>
+          <div class="space-y-[12px]">
+            <div class="text-[14px] font-bold leading-none text-[#4a5568]">나이 <span class="text-[#e53e3e]">(필수)</span></div>
             <div class="flex flex-wrap items-center gap-[10px]">
               <select id="ageYearsInput" name="age_years" class="h-[42px] w-[96px] rounded-[10px] border border-[#e2e8f0] bg-white px-3 text-center text-[14px] leading-none text-[#2d3748] outline-none transition-colors focus:border-[#90cdf4] md:w-[104px]">
                 {% for option in age_year_options %}
@@ -65,17 +70,18 @@
               </select>
               <span class="text-[14px] leading-none text-[#4a5568]">개월</span>
             </div>
+            <p id="ageStatus" class="hidden text-right text-[12px]"></p>
           </div>
 
-          <div class="space-y-[10px]">
-            <label class="block text-[14px] font-bold leading-none text-[#4a5568]">체중 <span class="text-[#a0aec0]">(선택)</span></label>
+          <div class="space-y-[12px]">
+            <label class="block text-[14px] font-bold leading-none text-[#4a5568]">몸무게 <span class="text-[#a0aec0]">(선택)</span></label>
             <div class="relative">
-              <input id="weightInput" name="weight_kg" value="{{ pet.weight_kg|default:'' }}" placeholder="체중 입력" class="h-[42px] w-full rounded-[10px] border border-[#e2e8f0] bg-white px-[14px] pr-10 text-[14px] leading-none text-[#2d3748] outline-none transition-colors placeholder:text-[#a0aec0] focus:border-[#90cdf4]" />
+              <input id="weightInput" name="weight_kg" value="{{ pet.weight_kg|default:'' }}" maxlength="3" placeholder="몸무게를 입력해주세요" class="h-[42px] w-full rounded-[10px] border border-[#e2e8f0] bg-white px-[14px] pr-10 text-[14px] leading-none text-[#2d3748] outline-none transition-colors placeholder:text-[#a0aec0] focus:border-[#90cdf4]" />
               <span class="absolute right-[12px] top-1/2 -translate-y-1/2 text-[14px] leading-none text-[#4a5568]">kg</span>
             </div>
           </div>
 
-          <div class="space-y-[10px]">
+          <div class="space-y-[12px]">
             <div class="text-[14px] font-bold leading-none text-[#4a5568]">중성화 여부 <span class="text-[#a0aec0]">(선택)</span></div>
             <div class="flex gap-[6px]">
               <button type="button" id="neuteredYes" class="flex h-[42px] flex-1 items-center justify-center rounded-[10px] border text-[14px] leading-none transition-colors {% if pet.neutered == True %}border-[#3182ce] bg-[#ebf8ff] font-bold text-[#3182ce]{% else %}border-[#e2e8f0] bg-white font-normal text-[#4a5568]{% endif %}">예</button>
@@ -85,13 +91,13 @@
           </div>
         </div>
 
-        <div class="mt-[28px] flex flex-col-reverse gap-[10px] pt-[8px] md:mt-auto md:flex-row md:items-end md:gap-[14px] md:pt-[40px]">
+        <div class="mt-[20px] flex flex-col-reverse gap-[10px] pt-[4px] md:mt-auto md:flex-row md:items-end md:gap-[14px] md:pt-[24px]">
           {% if is_edit %}
-          <a href="/pets/" class="flex h-[44px] w-full items-center justify-center rounded-[10px] bg-[#edf2f7] text-[16px] font-bold leading-none text-[#4a5568] transition-colors hover:bg-[#e2e8f0] md:w-[148px]">이전으로</a>
-          <button type="submit" class="flex h-[44px] flex-1 items-center justify-center rounded-[10px] bg-[#3182ce] text-[16px] font-bold leading-none text-white transition-colors hover:bg-[#2b6cb0]">다음 단계로 (건강/식이 입력)</button>
+          <a href="/pets/" class="flex h-[44px] w-full items-center justify-center rounded-[10px] bg-[#edf2f7] text-[16px] font-bold leading-none text-[#4a5568] transition-colors hover:bg-[#e2e8f0] md:w-[148px]">취소</a>
+          <button id="nextButton" type="submit" class="flex h-[44px] flex-1 items-center justify-center rounded-[10px] bg-[#3182ce] text-[16px] font-bold leading-none text-white transition-colors hover:bg-[#2b6cb0]">다음으로</button>
           {% else %}
           <a href="/pets/add/" class="flex h-[44px] w-full items-center justify-center rounded-[10px] bg-[#edf2f7] text-[16px] font-bold leading-none text-[#4a5568] transition-colors hover:bg-[#e2e8f0] md:w-[148px]">이전으로</a>
-          <button id="nextButton" type="submit" class="flex h-[44px] flex-1 items-center justify-center rounded-[10px] bg-[#3182ce] text-[16px] font-bold leading-none text-white transition-colors hover:bg-[#2b6cb0]">다음 단계로 (건강/식이 입력)</button>
+          <button id="nextButton" type="submit" class="flex h-[44px] flex-1 items-center justify-center rounded-[10px] bg-[#3182ce] text-[16px] font-bold leading-none text-white transition-colors hover:bg-[#2b6cb0]">다음으로</button>
           {% endif %}
         </div>
       </form>
@@ -103,6 +109,8 @@
 {% block scripts %}
 <script>
   (function () {
+    var form = document.querySelector('form[action]');
+    var species = '{{ species|escapejs }}';
     var genderInput = document.getElementById('genderInput');
     var neuteredInput = document.getElementById('neuteredInput');
     var genderMale = document.getElementById('genderMale');
@@ -110,10 +118,24 @@
     var neuteredYes = document.getElementById('neuteredYes');
     var neuteredNo = document.getElementById('neuteredNo');
     var nameInput = document.getElementById('nameInput');
+    var nameStatus = document.getElementById('nameStatus');
     var ageYearsInput = document.getElementById('ageYearsInput');
     var ageMonthsInput = document.getElementById('ageMonthsInput');
+    var ageStatus = document.getElementById('ageStatus');
+    var breedInput = document.getElementById('breedInput');
+    var breedStatus = document.getElementById('breedStatus');
+    var breedSuggestions = document.getElementById('breedSuggestions');
     var weightInput = document.getElementById('weightInput');
     var nextButton = document.getElementById('nextButton');
+    var currentBreedItems = [];
+    var highlightedBreedIndex = -1;
+    var isNameComposing = false;
+    var allowedNamePattern = /[^가-힣A-Za-z0-9\s]/g;
+    var breedData = {
+      dog: ['말티즈', '푸들', '포메라니안', '비숑 프리제', '시바견', '웰시 코기', '리트리버', '치와와', '불독', '요크셔테리어'],
+      cat: ['코리안 숏헤어', '브리티시 숏헤어', '러시안 블루', '스코티시 폴드', '페르시안', '샴', '먼치킨', '랙돌', '노르웨이 숲', '벵갈'],
+    };
+    var CHOSEONG = ['ㄱ', 'ㄲ', 'ㄴ', 'ㄷ', 'ㄸ', 'ㄹ', 'ㅁ', 'ㅂ', 'ㅃ', 'ㅅ', 'ㅆ', 'ㅇ', 'ㅈ', 'ㅉ', 'ㅊ', 'ㅋ', 'ㅌ', 'ㅍ', 'ㅎ'];
 
     function paintToggle(button, active) {
       button.style.borderColor = active ? '#3182ce' : '#e2e8f0';
@@ -123,7 +145,148 @@
     }
 
     function keepWeight(input) {
-      input.value = input.value.replace(/[^0-9.]/g, '');
+      var digits = input.value.replace(/\D/g, '').slice(0, 3);
+      digits = digits.replace(/^0+(?=\d)/, '');
+      if (/^0+$/.test(digits)) {
+        digits = '';
+      }
+      input.value = digits;
+    }
+
+    function normalizeNameSpacing(value) {
+      return (value || '')
+        .replace(/\s+/g, ' ')
+        .replace(/^\s+/, '');
+    }
+
+    function sanitizeNameInput() {
+      var sanitized = normalizeNameSpacing(nameInput.value).replace(allowedNamePattern, '').slice(0, 12);
+      if (nameInput.value !== sanitized) {
+        nameInput.value = sanitized;
+      }
+    }
+
+    function isValidName(value) {
+      return /^[A-Za-z0-9가-힣\s]+$/.test(value || '');
+    }
+
+    function clearError(node) {
+      if (!node) return;
+      node.textContent = '';
+      node.classList.add('hidden');
+    }
+
+    function showError(node, message) {
+      if (!node) return;
+      node.textContent = message;
+      node.style.color = '#e53e3e';
+      node.classList.remove('hidden');
+    }
+
+    function normalizeText(value) {
+      return (value || '').toLowerCase().replace(/\s+/g, '');
+    }
+
+    function sanitizeBreedInput(value) {
+      return (value || '')
+        .replace(/[^A-Za-z가-힣ㄱ-ㅎ\s]/g, '')
+        .replace(/\s+/g, ' ')
+        .replace(/^\s+/, '');
+    }
+
+    function toChoseong(value) {
+      return Array.from(value || '').map(function (char) {
+        var code = char.charCodeAt(0) - 44032;
+        if (code < 0 || code > 11171) return char;
+        return CHOSEONG[Math.floor(code / 588)] || char;
+      }).join('');
+    }
+
+    function isChoseongQuery(value) {
+      return /^[ㄱ-ㅎ]+$/.test(value || '');
+    }
+
+    function getBreedOptions() {
+      return breedData[species] || [];
+    }
+
+    function closeBreedSuggestions() {
+      if (!breedSuggestions) return;
+      currentBreedItems = [];
+      highlightedBreedIndex = -1;
+      breedSuggestions.classList.add('hidden');
+      breedSuggestions.classList.remove('pointer-events-auto');
+      breedSuggestions.classList.add('pointer-events-none');
+      breedSuggestions.style.opacity = '0';
+      breedSuggestions.style.transform = 'translateY(-6px)';
+    }
+
+    function applyBreed(value) {
+      if (!breedInput) return;
+      breedInput.value = value;
+      closeBreedSuggestions();
+      breedInput.focus();
+    }
+
+    function paintBreedSuggestionState() {
+      if (!breedSuggestions) return;
+      Array.from(breedSuggestions.querySelectorAll('button')).forEach(function (button, index) {
+        if (index === highlightedBreedIndex) {
+          button.classList.add('bg-[#f8fbff]', 'text-[#3182ce]');
+        } else {
+          button.classList.remove('bg-[#f8fbff]', 'text-[#3182ce]');
+        }
+      });
+    }
+
+    function openBreedSuggestions(items) {
+      if (!breedSuggestions) return;
+      if (!items.length) {
+        closeBreedSuggestions();
+        return;
+      }
+      currentBreedItems = items.slice();
+      highlightedBreedIndex = -1;
+      breedSuggestions.innerHTML = '';
+      items.forEach(function (item) {
+        var button = document.createElement('button');
+        button.type = 'button';
+        button.className = 'flex w-full items-center rounded-[8px] px-[10px] py-[9px] text-left text-[13px] leading-none text-[#2d3748] transition-colors duration-150 hover:bg-[#f8fbff]';
+        button.textContent = item;
+        button.addEventListener('mouseenter', function () {
+          highlightedBreedIndex = items.indexOf(item);
+          paintBreedSuggestionState();
+        });
+        button.addEventListener('mousedown', function (event) {
+          event.preventDefault();
+          applyBreed(item);
+        });
+        breedSuggestions.appendChild(button);
+      });
+      breedSuggestions.classList.remove('hidden', 'pointer-events-none');
+      breedSuggestions.classList.add('pointer-events-auto');
+      breedSuggestions.style.opacity = '1';
+      breedSuggestions.style.transform = 'translateY(0)';
+      paintBreedSuggestionState();
+    }
+
+    function updateBreedSuggestions() {
+      if (!breedInput) return;
+      var keyword = breedInput.value.trim();
+      var options = getBreedOptions();
+      if (!keyword) {
+        closeBreedSuggestions();
+        return;
+      }
+      var normalizedKeyword = normalizeText(keyword);
+      var filtered = options.filter(function (item) {
+        var normalizedItem = normalizeText(item);
+        if (isChoseongQuery(normalizedKeyword)) {
+          return toChoseong(normalizedItem).indexOf(normalizedKeyword) === 0;
+        }
+        return normalizedItem.indexOf(normalizedKeyword) !== -1;
+      }).slice(0, 8);
+      openBreedSuggestions(filtered);
     }
 
     function syncNextButton() {
@@ -131,7 +294,7 @@
       var years = Number(ageYearsInput.value || '0');
       var months = Number(ageMonthsInput.value || '0');
       var hasMinimumAge = years > 0 || months > 0;
-      var ready = nameInput.value.trim() && hasMinimumAge;
+      var ready = nameInput.value.trim() && breedInput.value.trim() && hasMinimumAge;
       nextButton.disabled = !ready;
       nextButton.style.backgroundColor = ready ? '#3182ce' : '#cbd5e0';
       nextButton.style.cursor = ready ? 'pointer' : 'default';
@@ -151,17 +314,135 @@
 
     genderMale.addEventListener('click', function () { syncGender('male'); });
     genderFemale.addEventListener('click', function () { syncGender('female'); });
-    neuteredYes.addEventListener('click', function () { syncNeutered('yes'); });
-    neuteredNo.addEventListener('click', function () { syncNeutered('no'); });
+    neuteredYes.addEventListener('click', function () {
+      syncNeutered(neuteredInput.value === 'yes' ? '' : 'yes');
+    });
+    neuteredNo.addEventListener('click', function () {
+      syncNeutered(neuteredInput.value === 'no' ? '' : 'no');
+    });
     ageYearsInput.addEventListener('change', syncNextButton);
     ageMonthsInput.addEventListener('change', syncNextButton);
     weightInput.addEventListener('input', function () {
       keepWeight(weightInput);
     });
-    nameInput.addEventListener('input', syncNextButton);
+    nameInput.addEventListener('input', function () {
+      if (!isNameComposing) {
+        sanitizeNameInput();
+      }
+      clearError(nameStatus);
+      syncNextButton();
+    });
+    nameInput.addEventListener('compositionstart', function () {
+      isNameComposing = true;
+    });
+    nameInput.addEventListener('compositionend', function () {
+      isNameComposing = false;
+      sanitizeNameInput();
+      clearError(nameStatus);
+      syncNextButton();
+    });
+    nameInput.addEventListener('blur', function () {
+      sanitizeNameInput();
+      nameInput.value = nameInput.value.trim();
+      syncNextButton();
+    });
+    ageYearsInput.addEventListener('change', function () {
+      clearError(ageStatus);
+      syncNextButton();
+    });
+    ageMonthsInput.addEventListener('change', function () {
+      clearError(ageStatus);
+      syncNextButton();
+    });
+
+    if (breedInput) {
+      breedInput.addEventListener('focus', updateBreedSuggestions);
+      breedInput.addEventListener('input', function () {
+        breedInput.value = sanitizeBreedInput(breedInput.value);
+        clearError(breedStatus);
+        updateBreedSuggestions();
+        syncNextButton();
+      });
+      breedInput.addEventListener('keydown', function (event) {
+        var isOpen = breedSuggestions && !breedSuggestions.classList.contains('hidden') && currentBreedItems.length;
+        if (event.key === 'ArrowDown') {
+          if (!isOpen) {
+            updateBreedSuggestions();
+            isOpen = breedSuggestions && !breedSuggestions.classList.contains('hidden') && currentBreedItems.length;
+          }
+          if (!isOpen) return;
+          event.preventDefault();
+          highlightedBreedIndex = highlightedBreedIndex < currentBreedItems.length - 1 ? highlightedBreedIndex + 1 : 0;
+          paintBreedSuggestionState();
+          return;
+        }
+        if (event.key === 'ArrowUp' && isOpen) {
+          event.preventDefault();
+          highlightedBreedIndex = highlightedBreedIndex > 0 ? highlightedBreedIndex - 1 : currentBreedItems.length - 1;
+          paintBreedSuggestionState();
+          return;
+        }
+        if (event.key === 'Enter' && isOpen && highlightedBreedIndex >= 0) {
+          event.preventDefault();
+          applyBreed(currentBreedItems[highlightedBreedIndex]);
+          return;
+        }
+        if (event.key === 'Escape' && isOpen) {
+          event.preventDefault();
+          closeBreedSuggestions();
+        }
+      });
+      breedInput.addEventListener('blur', function () {
+        breedInput.value = sanitizeBreedInput(breedInput.value).trim();
+        syncNextButton();
+      });
+      breedInput.addEventListener('blur', function () {
+        window.setTimeout(closeBreedSuggestions, 120);
+      });
+    }
+
+    document.addEventListener('mousedown', function (event) {
+      if (!breedSuggestions || !breedInput) return;
+      if (breedSuggestions.contains(event.target) || breedInput.contains(event.target)) return;
+      closeBreedSuggestions();
+    });
+
+    if (form) {
+      form.addEventListener('submit', function (event) {
+        var valid = true;
+        sanitizeNameInput();
+        var cleanedName = nameInput.value.trim();
+        var years = Number(ageYearsInput.value || '0');
+        var months = Number(ageMonthsInput.value || '0');
+
+        clearError(nameStatus);
+        clearError(breedStatus);
+        clearError(ageStatus);
+
+        nameInput.value = cleanedName;
+
+        if (!cleanedName) {
+          valid = false;
+        }
+
+        if (!breedInput.value.trim()) {
+          valid = false;
+        }
+
+        if (!(years > 0 || months > 0)) {
+          valid = false;
+        }
+
+        if (!valid) {
+          event.preventDefault();
+        }
+      });
+    }
 
     syncGender(genderInput.value || 'male');
     syncNeutered(neuteredInput.value || '');
+    sanitizeNameInput();
+    nameInput.value = nameInput.value.trim();
     syncNextButton();
   })();
 </script>

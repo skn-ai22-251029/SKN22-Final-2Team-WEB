@@ -1,0 +1,186 @@
+{% extends "base.html" %}
+{% block title %}예비 집사 등록 — TailTalk{% endblock %}
+
+{% block content %}
+<div class="min-h-screen bg-[#f7fafc]">
+  <div class="relative flex min-h-screen w-full items-center justify-center px-4 py-8">
+    <a href="/chat/" class="absolute left-4 top-4 text-[22px] font-bold leading-none text-[#2d3748] md:left-8 md:top-8 md:text-[26px]" aria-label="메인으로 이동">
+      <span class="text-[#3182ce]">Tail</span><span>Talk</span>
+    </a>
+
+    <div class="flex w-full max-w-[720px] flex-col rounded-[18px] border border-[#e2e8f0] bg-white px-5 pb-6 pt-0 shadow-[0_6px_20px_rgba(45,55,72,0.04)] md:px-[40px] md:pb-[32px]">
+      <div class="grid grid-cols-2 gap-[10px]">
+        <span class="h-[6px] rounded-full bg-[#3182ce]"></span>
+        <span class="h-[6px] rounded-full bg-[#3182ce]"></span>
+      </div>
+      <div class="mt-[20px] text-[14px] font-bold leading-none text-[#3182ce]">STEP 2 / 2</div>
+      <div class="mt-[14px] flex items-center gap-[8px] text-[16px] font-bold leading-none text-[#2d3748] md:text-[18px]">
+        <span class="text-[18px] md:text-[20px]">🏠</span>
+        <span>예비 집사 정보</span>
+      </div>
+      <p class="mt-[14px] text-[15px] leading-snug text-[#718096] md:text-[16px] md:leading-none">
+        정보를 입력하면 챗봇 상담과 추천에 반영할 수 있어요
+      </p>
+
+      <form method="post" class="mt-[28px]">
+        {% csrf_token %}
+
+        <div class="grid grid-cols-1 gap-x-[28px] gap-y-[20px] md:grid-cols-2 md:gap-y-[24px]">
+          <div class="space-y-[10px] md:col-span-2">
+            <div class="text-[14px] font-bold leading-none text-[#4a5568]">
+              희망 반려동물 <span class="text-[#e53e3e]">(필수)</span>
+            </div>
+            <div class="flex gap-[6px]">
+              <button type="button" data-group="preferred_species" data-value="dog" class="future-toggle flex h-[42px] flex-1 items-center justify-center rounded-[10px] border text-[14px] leading-none transition-colors">
+                강아지
+              </button>
+              <button type="button" data-group="preferred_species" data-value="cat" class="future-toggle flex h-[42px] flex-1 items-center justify-center rounded-[10px] border text-[14px] leading-none transition-colors">
+                고양이
+              </button>
+              <button type="button" data-group="preferred_species" data-value="undecided" class="future-toggle flex h-[42px] flex-1 items-center justify-center rounded-[10px] border text-[14px] leading-none transition-colors">
+                미정
+              </button>
+            </div>
+            <input type="hidden" name="preferred_species" id="preferredSpeciesInput" value="{{ future_profile.preferred_species|default:'' }}" />
+            <p id="preferredSpeciesStatus" class="min-h-[8px] text-right text-[12px]"></p>
+          </div>
+
+          <div class="space-y-[10px]">
+            <label class="block text-[14px] font-bold leading-none text-[#4a5568]">
+              주거 형태 <span class="text-[#a0aec0]">(선택)</span>
+            </label>
+            <select name="housing_type" class="h-[42px] w-full rounded-[10px] border border-[#e2e8f0] bg-white px-3 text-[14px] leading-none text-[#2d3748] outline-none transition-colors focus:border-[#90cdf4]">
+              <option value="">선택해주세요</option>
+              {% for value, label in housing_options %}
+              <option value="{{ value }}" {% if future_profile.housing_type == value %}selected{% endif %}>{{ label }}</option>
+              {% endfor %}
+            </select>
+          </div>
+
+          <div class="space-y-[10px]">
+            <label class="block text-[14px] font-bold leading-none text-[#4a5568]">
+              양육 경험 <span class="text-[#a0aec0]">(선택)</span>
+            </label>
+            <select name="experience_level" class="h-[42px] w-full rounded-[10px] border border-[#e2e8f0] bg-white px-3 text-[14px] leading-none text-[#2d3748] outline-none transition-colors focus:border-[#90cdf4]">
+              <option value="">선택해주세요</option>
+              {% for value, label in experience_options %}
+              <option value="{{ value }}" {% if future_profile.experience_level == value %}selected{% endif %}>{{ label }}</option>
+              {% endfor %}
+            </select>
+          </div>
+
+          <div class="space-y-[10px] md:col-span-2">
+            <div class="text-[14px] font-bold leading-none text-[#4a5568]">
+              관심사 <span class="text-[#a0aec0]">(선택)</span>
+            </div>
+            <div class="flex flex-wrap gap-[8px]">
+              {% for value, label in interest_options %}
+              <label class="interest-option flex h-[38px] cursor-pointer items-center justify-center rounded-[10px] border px-[16px] text-[13px] {% if value in future_profile.interests|default:'' %}border-[#3182ce] bg-[#f7fbff] font-bold text-[#3182ce]{% else %}border-[#e2e8f0] bg-white text-[#4a5568]{% endif %}">
+                <input type="checkbox" class="hidden interest-checkbox" name="interests" value="{{ value }}" {% if value in future_profile.interests|default:'' %}checked{% endif %} />
+                {{ label }}
+              </label>
+              {% endfor %}
+            </div>
+          </div>
+        </div>
+
+        <div class="mt-[28px] flex flex-col-reverse gap-[10px] md:flex-row md:items-end md:gap-[14px]">
+          <a href="/pets/add/" class="flex h-[44px] w-full items-center justify-center rounded-[10px] bg-[#edf2f7] text-[16px] font-bold leading-none text-[#4a5568] transition-colors hover:bg-[#e2e8f0] md:w-[128px]">
+            이전으로
+          </a>
+          <button id="futureSubmitButton" type="submit" class="flex h-[44px] flex-1 items-center justify-center rounded-[10px] bg-[#cbd5e0] text-[16px] font-bold leading-none text-white transition-colors">
+            입력 완료
+          </button>
+        </div>
+      </form>
+    </div>
+  </div>
+</div>
+{% endblock %}
+
+{% block scripts %}
+<script>
+  (function () {
+    var preferredSpeciesInput = document.getElementById('preferredSpeciesInput');
+    var preferredSpeciesStatus = document.getElementById('preferredSpeciesStatus');
+    var submitButton = document.getElementById('futureSubmitButton');
+    var toggles = Array.from(document.querySelectorAll('.future-toggle'));
+    var form = submitButton ? submitButton.closest('form') : null;
+
+    function paintToggle(button, active) {
+      button.style.borderColor = active ? '#3182ce' : '#e2e8f0';
+      button.style.backgroundColor = active ? '#ebf8ff' : 'white';
+      button.style.color = active ? '#3182ce' : '#4a5568';
+      button.style.fontWeight = active ? '700' : '400';
+    }
+
+    function syncPreferredSpecies() {
+      toggles.forEach(function (button) {
+        paintToggle(button, button.getAttribute('data-value') === preferredSpeciesInput.value);
+      });
+    }
+
+    function syncSubmitButton() {
+      var ready = !!preferredSpeciesInput.value;
+      submitButton.disabled = !ready;
+      submitButton.style.backgroundColor = ready ? '#3182ce' : '#cbd5e0';
+      submitButton.style.cursor = ready ? 'pointer' : 'default';
+    }
+
+    function syncSelectable(className, inputClass, activeClass, inactiveClass) {
+      var labels = Array.from(document.querySelectorAll(className));
+      labels.forEach(function (label) {
+        var checkbox = label.querySelector(inputClass);
+        function paint() {
+          label.className = label.className.replace(activeClass, '').replace(inactiveClass, '').trim();
+          label.className += ' ' + (checkbox.checked ? activeClass : inactiveClass);
+        }
+        label.addEventListener('click', function () {
+          setTimeout(paint, 0);
+        });
+        paint();
+      });
+    }
+
+    function clearError(statusNode) {
+      if (!statusNode) return;
+      statusNode.textContent = '';
+    }
+
+    toggles.forEach(function (button) {
+      button.addEventListener('click', function () {
+        preferredSpeciesInput.value = button.getAttribute('data-value') || '';
+        clearError(preferredSpeciesStatus);
+        syncPreferredSpecies();
+        syncSubmitButton();
+      });
+    });
+
+    if (form) {
+      form.addEventListener('submit', function (event) {
+        var valid = true;
+        clearError(preferredSpeciesStatus);
+
+        if (!preferredSpeciesInput.value) {
+          preferredSpeciesStatus.textContent = '희망 반려동물 종류를 선택해 주세요';
+          preferredSpeciesStatus.style.color = '#e53e3e';
+          valid = false;
+        }
+
+        if (!valid) {
+          event.preventDefault();
+        }
+      });
+    }
+
+    syncSelectable(
+      '.interest-option',
+      '.interest-checkbox',
+      'border-[#3182ce] bg-[#f7fbff] font-bold text-[#3182ce]',
+      'border-[#e2e8f0] bg-white text-[#4a5568]'
+    );
+    syncPreferredSpecies();
+    syncSubmitButton();
+  })();
+</script>
+{% endblock %}

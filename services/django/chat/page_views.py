@@ -1,3 +1,5 @@
+import json
+
 from django.shortcuts import render
 
 
@@ -14,11 +16,13 @@ def _serialize_pet(pet):
     age_label = " ".join(age_parts) if age_parts else "나이 정보 없음"
     breed = pet.breed or pet.get_species_display()
 
-    def _list(val):
+    def _list(val, attr_name=None):
         if not val:
             return []
         if isinstance(val, list):
             return val
+        if attr_name and hasattr(val, "values_list"):
+            return list(val.values_list(attr_name, flat=True))
         return [v.strip() for v in val.split(",") if v.strip()]
 
     return {
@@ -35,10 +39,97 @@ def _serialize_pet(pet):
             "gender": pet.gender if hasattr(pet, "gender") else "",
             "weight": str(pet.weight_kg) if pet.weight_kg else "",
         },
-        "health_concerns": _list(getattr(pet, "health_concerns", None)),
-        "allergies": _list(getattr(pet, "allergies", None)),
-        "food_preferences": _list(getattr(pet, "food_preferences", None)),
+        "health_concerns": _list(getattr(pet, "health_concerns", None), "concern"),
+        "allergies": _list(getattr(pet, "allergies", None), "ingredient"),
+        "food_preferences": _list(getattr(pet, "food_preferences", None), "food_type"),
+        "profile_json": json.dumps(
+            {
+                "species": pet.species,
+                "breed": pet.breed or "",
+                "age": age_label,
+                "gender": pet.gender if hasattr(pet, "gender") else "",
+                "weight": str(pet.weight_kg) if pet.weight_kg else "",
+            },
+            ensure_ascii=False,
+        ),
+        "health_concerns_csv": ",".join(_list(getattr(pet, "health_concerns", None), "concern")),
+        "allergies_csv": ",".join(_list(getattr(pet, "allergies", None), "ingredient")),
+        "food_preferences_csv": ",".join(_list(getattr(pet, "food_preferences", None), "food_type")),
     }
+
+
+def _serialize_future_pet(profile):
+    if not profile:
+        return None
+
+    species_labels = {
+        "dog": "강아지",
+        "cat": "고양이",
+        "undecided": "미정",
+    }
+    housing_labels = {
+        "studio": "원룸",
+        "apartment": "아파트",
+        "house": "주택",
+        "other": "기타",
+    }
+    experience_labels = {
+        "first": "처음",
+        "experienced": "경험 있음",
+    }
+    interest_labels = {
+        "adoption": "입양 준비",
+        "breed_personality": "품종/성격",
+        "initial_cost": "초기 비용",
+        "starter_items": "필수 용품",
+        "food": "사료",
+        "health": "건강관리",
+        "training": "훈련/교육",
+    }
+
+    preferred_species = profile.get("preferred_species", "")
+    interests = [interest_labels[value] for value in profile.get("interests", []) if value in interest_labels]
+
+    future_profile = {
+        "species": preferred_species if preferred_species in {"dog", "cat"} else "",
+        "lifecycle": "future_guardian",
+        "preferred_species": preferred_species,
+        "housing_type": profile.get("housing_type", ""),
+        "experience_level": profile.get("experience_level", ""),
+        "interests": profile.get("interests", []),
+    }
+
+    if preferred_species == "dog":
+        future_summary = "강아지 준비 중"
+    elif preferred_species == "cat":
+        future_summary = "고양이 준비 중"
+    else:
+        future_summary = "입양 준비 중"
+
+    return {
+        "id": "future-profile",
+        "name": "예비 집사",
+        "species": "future",
+        "emoji": "🏠",
+        "summary": future_summary,
+        "profile": future_profile,
+        "health_concerns": [],
+        "allergies": [],
+        "food_preferences": [],
+        "profile_json": json.dumps(future_profile, ensure_ascii=False),
+        "health_concerns_csv": "",
+        "allergies_csv": "",
+        "food_preferences_csv": "",
+        "detail_lines": [
+            housing_labels.get(profile.get("housing_type", ""), ""),
+            experience_labels.get(profile.get("experience_level", ""), ""),
+            ", ".join(interests) if interests else "",
+        ],
+    }
+
+
+def _sort_member_pets(pets):
+    return sorted(pets, key=lambda pet: pet.get("species") == "future")
 
 
 def _preview_member_pets():
@@ -147,6 +238,7 @@ def chat_view(request):
     is_member_view = is_authenticated or preview_member
     is_preview_member = preview_member and not is_authenticated
     member_pets = []
+    registered_pet_count = 0
     recommended_products = [
         {
             "name": "닥터독 하이포알러지 연어 사료",
@@ -297,10 +389,17 @@ def chat_view(request):
         sessions = list(
             request.user.chat_sessions.order_by("-created_at").values("session_id", "title", "created_at")[:50]
         )
+        registered_pet_count = request.user.pets.count()
         member_pets = [_serialize_pet(pet) for pet in request.user.pets.order_by("created_at")[:5]]
+
+    future_pet = _serialize_future_pet(request.session.get("future_pet_profile"))
+    if future_pet:
+        member_pets.append(future_pet)
+        member_pets = _sort_member_pets(member_pets)
 
     if preview_member and not member_pets:
         member_pets = _preview_member_pets()
+        registered_pet_count = len(member_pets)
 
     if preview_member and not sessions:
         sessions = _preview_sessions()
@@ -317,6 +416,7 @@ def chat_view(request):
             "is_member_view": is_member_view,
             "is_preview_member": is_preview_member,
             "member_pets": member_pets,
+            "can_add_pet": is_member_view and registered_pet_count < 5,
             "active_pet_id": active_pet_id,
             "active_pet": active_pet,
             "recommended_products": recommended_products,
