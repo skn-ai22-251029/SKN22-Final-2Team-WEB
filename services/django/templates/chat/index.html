@@ -197,8 +197,11 @@
         </button>
         <button type="button" onclick="closeSidebar()"
                 class="absolute left-[242px] top-[32px] h-[16px] w-[24px]" aria-label="사이드바 닫기">
-          <img alt="" class="block h-full w-full"
-               src="https://www.figma.com/api/mcp/asset/5f81f82e-a391-4ba4-b447-0ac855e07b12" />
+          <svg viewBox="0 0 24 16" class="block h-full w-full text-[#4a5568]" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" aria-hidden="true">
+            <path d="M5 3H19"></path>
+            <path d="M5 8H19"></path>
+            <path d="M5 13H19"></path>
+          </svg>
         </button>
 
         <div class="absolute left-[20px] top-[88px] w-[240px] rounded-[18px] border border-[#dbe7f5] bg-white px-[14px] py-[14px] shadow-[0_10px_24px_rgba(45,55,72,0.06)]">
@@ -320,16 +323,13 @@
           {% endfor %}
         </div>
 
-        <img alt="" class="absolute bottom-[69.5px] left-[20.5px] h-px w-[240px]"
-             src="https://www.figma.com/api/mcp/asset/29c2734e-0f52-4f9b-80bf-a8e97d42dbc0" />
-        <a href="{% if is_preview_member %}#{% else %}/logout/{% endif %}" class="absolute bottom-[34.26px] left-[25.07px] h-[12.96px] w-[50.37px]" {% if is_preview_member %}onclick="return false"{% endif %}>
-          <img alt="로그아웃" class="block h-full w-full"
-               src="https://www.figma.com/api/mcp/asset/859bd012-3121-4646-8578-a808af8cfaf3" />
+        <div class="absolute bottom-[69.5px] left-[20.5px] h-px w-[240px] bg-[#d9e4f0]"></div>
+        <a href="{% if is_preview_member %}#{% else %}/logout/{% endif %}" class="absolute bottom-[30px] left-[24px] text-[13px] font-semibold text-[#ef4444]" {% if is_preview_member %}onclick="return false"{% endif %}>
+          로그아웃
         </a>
         <div class="absolute bottom-[30.9px] left-[237px] flex h-[19.1px] w-[18.68px] items-center justify-center text-[#718096]" aria-label="설정">
-          <svg viewBox="0 0 24 24" class="h-full w-full" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
-            <circle cx="12" cy="12" r="3.2"></circle>
-            <path d="M19.4 15a1 1 0 0 0 .2 1.1l.1.1a1.9 1.9 0 0 1-2.7 2.7l-.1-.1a1 1 0 0 0-1.1-.2 1 1 0 0 0-.6.9V20a1.9 1.9 0 0 1-3.8 0v-.2a1 1 0 0 0-.6-.9 1 1 0 0 0-1.1.2l-.1.1a1.9 1.9 0 1 1-2.7-2.7l.1-.1a1 1 0 0 0 .2-1.1 1 1 0 0 0-.9-.6H4a1.9 1.9 0 0 1 0-3.8h.2a1 1 0 0 0 .9-.6 1 1 0 0 0-.2-1.1l-.1-.1a1.9 1.9 0 1 1 2.7-2.7l.1.1a1 1 0 0 0 1.1.2 1 1 0 0 0 .6-.9V4a1.9 1.9 0 1 1 3.8 0v.2a1 1 0 0 0 .6.9 1 1 0 0 0 1.1-.2l.1-.1a1.9 1.9 0 0 1 2.7 2.7l-.1.1a1 1 0 0 0-.2 1.1 1 1 0 0 0 .9.6h.2a1.9 1.9 0 0 1 0 3.8h-.2a1 1 0 0 0-.9.6z"></path>
+          <svg viewBox="0 0 24 24" class="h-full w-full" fill="currentColor" aria-hidden="true">
+            <path fill-rule="evenodd" d="M9.594 3.94c.09-.542.56-.94 1.11-.94h2.592c.55 0 1.02.398 1.11.94l.213 1.277c.066.394.335.723.707.878.22.092.435.193.646.304.36.19.8.198 1.15.02l1.14-.57a1.125 1.125 0 0 1 1.422.42l1.296 2.244c.275.476.17 1.08-.248 1.433l-1.003.847a1.125 1.125 0 0 0-.36 1.094c.022.24.033.482.033.726 0 .244-.011.486-.034.726-.037.41.104.813.36 1.094l1.004.847c.418.353.522.957.247 1.433l-1.296 2.244a1.125 1.125 0 0 1-1.421.42l-1.141-.57a1.125 1.125 0 0 0-1.15.02c-.211.111-.426.212-.646.304-.372.155-.64.484-.707.878l-.213 1.277a1.125 1.125 0 0 1-1.11.94h-2.592a1.125 1.125 0 0 1-1.11-.94l-.213-1.277a1.125 1.125 0 0 0-.707-.878 8.208 8.208 0 0 1-.646-.304 1.125 1.125 0 0 0-1.15-.02l-1.14.57a1.125 1.125 0 0 1-1.422-.42L2.72 16.2a1.125 1.125 0 0 1 .247-1.433l1.004-.847c.256-.281.397-.684.36-1.094A7.78 7.78 0 0 1 4.296 12c0-.244.011-.486.034-.726a1.125 1.125 0 0 0-.36-1.094l-1.004-.847a1.125 1.125 0 0 1-.247-1.433L4.015 5.656a1.125 1.125 0 0 1 1.421-.42l1.141.57c.35.178.79.17 1.15-.02.211-.111.426-.212.646-.304.372-.155.64-.484.707-.878l.213-1.277ZM12 15.375A3.375 3.375 0 1 0 12 8.625a3.375 3.375 0 0 0 0 6.75Z" clip-rule="evenodd"></path>
           </svg>
         </div>
         {% else %}
@@ -337,8 +337,11 @@
              src="https://www.figma.com/api/mcp/asset/ad58345b-5dd6-4c4d-9add-d9ce93ab4236" />
         <button type="button" onclick="closeSidebar()"
                 class="absolute right-[15px] top-[31px] h-[16px] w-[24px]" aria-label="사이드바 닫기">
-          <img alt="" class="block h-full w-full"
-               src="https://www.figma.com/api/mcp/asset/915378dd-f8b9-43fe-9cf7-1933a9312d51" />
+          <svg viewBox="0 0 24 16" class="block h-full w-full text-[#4a5568]" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" aria-hidden="true">
+            <path d="M5 3H19"></path>
+            <path d="M5 8H19"></path>
+            <path d="M5 13H19"></path>
+          </svg>
         </button>
         <a href="/login/" class="absolute left-[16px] top-[20px] flex h-[37px] w-[207px] items-center justify-center">
           <img alt="" class="absolute inset-0 h-full w-full"
@@ -350,9 +353,8 @@
           <p class="mt-[2px] whitespace-nowrap">로그인을 진행해 주세요</p>
         </div>
         <div class="absolute bottom-[31px] right-[24px] flex h-[19.1px] w-[18.68px] items-center justify-center text-[#718096]" aria-label="설정">
-          <svg viewBox="0 0 24 24" class="h-full w-full" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
-            <circle cx="12" cy="12" r="3.2"></circle>
-            <path d="M19.4 15a1 1 0 0 0 .2 1.1l.1.1a1.9 1.9 0 0 1-2.7 2.7l-.1-.1a1 1 0 0 0-1.1-.2 1 1 0 0 0-.6.9V20a1.9 1.9 0 0 1-3.8 0v-.2a1 1 0 0 0-.6-.9 1 1 0 0 0-1.1.2l-.1.1a1.9 1.9 0 1 1-2.7-2.7l.1-.1a1 1 0 0 0 .2-1.1 1 1 0 0 0-.9-.6H4a1.9 1.9 0 0 1 0-3.8h.2a1 1 0 0 0 .9-.6 1 1 0 0 0-.2-1.1l-.1-.1a1.9 1.9 0 1 1 2.7-2.7l.1.1a1 1 0 0 0 1.1.2 1 1 0 0 0 .6-.9V4a1.9 1.9 0 1 1 3.8 0v.2a1 1 0 0 0 .6.9 1 1 0 0 0 1.1-.2l.1-.1a1.9 1.9 0 0 1 2.7 2.7l-.1.1a1 1 0 0 0-.2 1.1 1 1 0 0 0 .9.6h.2a1.9 1.9 0 0 1 0 3.8h-.2a1 1 0 0 0-.9.6z"></path>
+          <svg viewBox="0 0 24 24" class="h-full w-full" fill="currentColor" aria-hidden="true">
+            <path fill-rule="evenodd" d="M9.594 3.94c.09-.542.56-.94 1.11-.94h2.592c.55 0 1.02.398 1.11.94l.213 1.277c.066.394.335.723.707.878.22.092.435.193.646.304.36.19.8.198 1.15.02l1.14-.57a1.125 1.125 0 0 1 1.422.42l1.296 2.244c.275.476.17 1.08-.248 1.433l-1.003.847a1.125 1.125 0 0 0-.36 1.094c.022.24.033.482.033.726 0 .244-.011.486-.034.726-.037.41.104.813.36 1.094l1.004.847c.418.353.522.957.247 1.433l-1.296 2.244a1.125 1.125 0 0 1-1.421.42l-1.141-.57a1.125 1.125 0 0 0-1.15.02c-.211.111-.426.212-.646.304-.372.155-.64.484-.707.878l-.213 1.277a1.125 1.125 0 0 1-1.11.94h-2.592a1.125 1.125 0 0 1-1.11-.94l-.213-1.277a1.125 1.125 0 0 0-.707-.878 8.208 8.208 0 0 1-.646-.304 1.125 1.125 0 0 0-1.15-.02l-1.14.57a1.125 1.125 0 0 1-1.422-.42L2.72 16.2a1.125 1.125 0 0 1 .247-1.433l1.004-.847c.256-.281.397-.684.36-1.094A7.78 7.78 0 0 1 4.296 12c0-.244.011-.486.034-.726a1.125 1.125 0 0 0-.36-1.094l-1.004-.847a1.125 1.125 0 0 1-.247-1.433L4.015 5.656a1.125 1.125 0 0 1 1.421-.42l1.141.57c.35.178.79.17 1.15-.02.211-.111.426-.212.646-.304.372-.155.64-.484.707-.878l.213-1.277ZM12 15.375A3.375 3.375 0 1 0 12 8.625a3.375 3.375 0 0 0 0 6.75Z" clip-rule="evenodd"></path>
           </svg>
         </div>
         {% endif %}
@@ -363,22 +365,26 @@
         <button type="button" onclick="openSidebar()"
                 class="absolute left-1/2 top-[31px] h-[16px] w-[24px] -translate-x-1/2"
                 aria-label="사이드바 열기">
-          <img alt="" class="block h-full w-full"
-               src="https://www.figma.com/api/mcp/asset/8aa9f692-3df6-4a17-a9e8-f713d7d1a1ee" />
+          <svg viewBox="0 0 24 16" class="block h-full w-full text-[#4a5568]" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" aria-hidden="true">
+            <path d="M5 3H19"></path>
+            <path d="M5 8H19"></path>
+            <path d="M5 13H19"></path>
+          </svg>
         </button>
         {% if is_member_view %}
         <button type="button"
-           class="absolute left-1/2 top-[93.19px] flex h-[14.81px] w-[14.81px] -translate-x-1/2 items-center justify-center"
+           class="absolute left-1/2 top-[90px] flex h-[20px] w-[20px] -translate-x-1/2 items-center justify-center"
            aria-label="새 대화 시작"
            onclick="resetChatState(false)">
-          <img alt="" class="block h-full w-full"
-               src="https://www.figma.com/api/mcp/asset/d6bb3b36-3d28-4b12-874c-412da87095c8" />
+          <svg viewBox="0 0 20 20" class="block h-full w-full text-[#3182ce]" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+            <path d="M13.8 3.2l3 3-8.7 8.7-3.8.8.8-3.8 8.7-8.7Z"></path>
+            <path d="M11.9 5.1l3 3"></path>
+          </svg>
         </button>
         {% endif %}
         <div class="absolute bottom-[28.45px] left-1/2 flex h-[19.1px] w-[18.68px] -translate-x-1/2 items-center justify-center text-[#718096]" aria-label="설정">
-          <svg viewBox="0 0 24 24" class="h-full w-full" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
-            <circle cx="12" cy="12" r="3.2"></circle>
-            <path d="M19.4 15a1 1 0 0 0 .2 1.1l.1.1a1.9 1.9 0 0 1-2.7 2.7l-.1-.1a1 1 0 0 0-1.1-.2 1 1 0 0 0-.6.9V20a1.9 1.9 0 0 1-3.8 0v-.2a1 1 0 0 0-.6-.9 1 1 0 0 0-1.1.2l-.1.1a1.9 1.9 0 1 1-2.7-2.7l.1-.1a1 1 0 0 0 .2-1.1 1 1 0 0 0-.9-.6H4a1.9 1.9 0 0 1 0-3.8h.2a1 1 0 0 0 .9-.6 1 1 0 0 0-.2-1.1l-.1-.1a1.9 1.9 0 1 1 2.7-2.7l.1.1a1 1 0 0 0 1.1.2 1 1 0 0 0 .6-.9V4a1.9 1.9 0 1 1 3.8 0v.2a1 1 0 0 0 .6.9 1 1 0 0 0 1.1-.2l.1-.1a1.9 1.9 0 0 1 2.7 2.7l-.1.1a1 1 0 0 0-.2 1.1 1 1 0 0 0 .9.6h.2a1.9 1.9 0 0 1 0 3.8h-.2a1 1 0 0 0-.9.6z"></path>
+          <svg viewBox="0 0 24 24" class="h-full w-full" fill="currentColor" aria-hidden="true">
+            <path fill-rule="evenodd" d="M9.594 3.94c.09-.542.56-.94 1.11-.94h2.592c.55 0 1.02.398 1.11.94l.213 1.277c.066.394.335.723.707.878.22.092.435.193.646.304.36.19.8.198 1.15.02l1.14-.57a1.125 1.125 0 0 1 1.422.42l1.296 2.244c.275.476.17 1.08-.248 1.433l-1.003.847a1.125 1.125 0 0 0-.36 1.094c.022.24.033.482.033.726 0 .244-.011.486-.034.726-.037.41.104.813.36 1.094l1.004.847c.418.353.522.957.247 1.433l-1.296 2.244a1.125 1.125 0 0 1-1.421.42l-1.141-.57a1.125 1.125 0 0 0-1.15.02c-.211.111-.426.212-.646.304-.372.155-.64.484-.707.878l-.213 1.277a1.125 1.125 0 0 1-1.11.94h-2.592a1.125 1.125 0 0 1-1.11-.94l-.213-1.277a1.125 1.125 0 0 0-.707-.878 8.208 8.208 0 0 1-.646-.304 1.125 1.125 0 0 0-1.15-.02l-1.14.57a1.125 1.125 0 0 1-1.422-.42L2.72 16.2a1.125 1.125 0 0 1 .247-1.433l1.004-.847c.256-.281.397-.684.36-1.094A7.78 7.78 0 0 1 4.296 12c0-.244.011-.486.034-.726a1.125 1.125 0 0 0-.36-1.094l-1.004-.847a1.125 1.125 0 0 1-.247-1.433L4.015 5.656a1.125 1.125 0 0 1 1.421-.42l1.141.57c.35.178.79.17 1.15-.02.211-.111.426-.212.646-.304.372-.155.64-.484.707-.878l.213-1.277ZM12 15.375A3.375 3.375 0 1 0 12 8.625a3.375 3.375 0 0 0 0 6.75Z" clip-rule="evenodd"></path>
           </svg>
         </div>
       </div>
@@ -1143,16 +1149,8 @@
     }
 
     if (closeDrawer) {
-      if (composerStage) composerStage.classList.add('no-transition');
-      if (productPanel) productPanel.classList.add('no-transition');
-      if (chatEmptyState) chatEmptyState.classList.add('no-transition');
-      closeSidebar(true);
+      closeSidebar();
       performReset();
-      window.setTimeout(function () {
-        if (composerStage) composerStage.classList.remove('no-transition');
-        if (productPanel) productPanel.classList.remove('no-transition');
-        if (chatEmptyState) chatEmptyState.classList.remove('no-transition');
-      }, 20);
       return;
     }
 
