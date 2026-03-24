@@ -409,7 +409,7 @@
               <div class="text-[32px] font-bold leading-[1.2] text-[#1a202c]">
                 <span class="text-[#3182ce]">Tail</span><span>Talk 와 함께하는 스마트한 집사 생활 </span>
               </div>
-              {% if is_member_view %}
+              {% if chat_enabled %}
               <div class="mt-[24px] flex flex-wrap items-center justify-center gap-[12px]">
                 <button type="button" onclick="fillMessage('가수분해 사료란?')"
                         class="flex h-[36px] items-center justify-center rounded-full border border-[#3182ce] bg-white px-[18px] text-[13px] font-bold text-[#3182ce] shadow-[0_1px_2px_rgba(49,130,206,0.08)]">
@@ -438,7 +438,7 @@
             <div id="composerWrap"
                  class="relative overflow-hidden rounded-full border border-[#e2e8f0] bg-white shadow-[0_8px_20px_rgba(45,55,72,0.06)]"
                  style="height: 61px">
-              {% if is_member_view %}
+              {% if chat_enabled %}
               <div class="absolute bottom-[10.5px] left-[10.5px] h-[40px] w-[40px]">
                 <img alt="" class="absolute inset-0 h-full w-full"
                      src="https://www.figma.com/api/mcp/asset/bf9036d0-fa6a-4951-8bf1-87121fd476c3" />
@@ -751,20 +751,164 @@
   var chatHistoryList = document.getElementById('chatHistoryList');
   var sessionThreadsNode = document.getElementById('sessionThreadsData');
   var sessionThreads = sessionThreadsNode ? JSON.parse(sessionThreadsNode.textContent) : {};
+  var csrfToken = getCookie('csrftoken');
 
   var isOpen = false;
   var pendingDeleteId = null;
   var isPetDropdownOpen = false;
   var activeSessionId = null;
-  var activePetId = '{{ active_pet_id|escapejs }}';
-  var draftSessionCount = 0;
   var promoIndex = 0;
   var promoTimer = null;
+  var activePetId = '{{ active_pet_id|escapejs }}';
   // 선택된 펫 프로필 (FastAPI 요청에 사용)
   var activePetProfile = null;
   var activePetHealthConcerns = [];
   var activePetAllergies = [];
   var activePetFoodPreferences = [];
+
+  function getCookie(name) {
+    var cookieValue = null;
+    if (!document.cookie) return cookieValue;
+    document.cookie.split(';').forEach(function (cookie) {
+      var trimmed = cookie.trim();
+      if (trimmed.startsWith(name + '=')) {
+        cookieValue = decodeURIComponent(trimmed.slice(name.length + 1));
+      }
+    });
+    return cookieValue;
+  }
+
+  function escapeHtml(value) {
+    return String(value || '')
+      .replace(/&/g, '&amp;')
+      .replace(/</g, '&lt;')
+      .replace(/>/g, '&gt;')
+      .replace(/"/g, '&quot;')
+      .replace(/'/g, '&#39;');
+  }
+
+  function ensureSessionState(sessionId) {
+    if (!sessionThreads[sessionId]) {
+      sessionThreads[sessionId] = { messages: [], loaded: false };
+    }
+    if (!Array.isArray(sessionThreads[sessionId].messages)) {
+      sessionThreads[sessionId].messages = [];
+    }
+    if (typeof sessionThreads[sessionId].loaded === 'undefined') {
+      sessionThreads[sessionId].loaded = sessionThreads[sessionId].messages.length > 0;
+    }
+    return sessionThreads[sessionId];
+  }
+
+  function readJsonResponse(res) {
+    return res.text().then(function (text) {
+      if (!text) return {};
+      try {
+        return JSON.parse(text);
+      } catch (e) {
+        return { detail: text };
+      }
+    });
+  }
+
+  function ensureSessionItem(session) {
+    if (!chatHistoryList || !session || !session.session_id) return null;
+
+    var sessionId = session.session_id;
+    var existing = chatHistoryList.querySelector('[data-id="' + CSS.escape(sessionId) + '"]');
+    var emptyStateCard = chatHistoryList.querySelector('.border-dashed');
+    if (emptyStateCard) emptyStateCard.remove();
+
+    if (!existing) {
+      existing = document.createElement('div');
+      existing.className = 'chat-history-item relative h-[40px] w-[250px] cursor-pointer rounded-[8px] transition-colors duration-150 text-left';
+      existing.setAttribute('data-id', sessionId);
+      existing.innerHTML = ''
+        + '<img alt="" class="history-bg absolute inset-0 h-[40px] w-[250px] transition-opacity duration-150" src="https://www.figma.com/api/mcp/asset/6630cc6d-cbd9-471a-8587-bd6e56070487" />'
+        + '<span class="history-title absolute left-[10.5px] right-[66px] top-[11.8px] overflow-hidden text-ellipsis whitespace-nowrap text-[12px] font-semibold leading-none text-[#2d3748]"></span>'
+        + '<div class="absolute right-[10px] top-[11px] h-[18px] w-[62px]">'
+        + '  <span class="history-date absolute right-0 top-[1px] w-full whitespace-nowrap text-right text-[11px] leading-none tabular-nums text-[#a0aec0]"></span>'
+        + '  <div class="history-actions absolute right-0 top-0 hidden flex items-center justify-end gap-[7px]">'
+        + '    <button type="button" class="flex h-[18px] w-[18px] items-center justify-center text-[12px]" aria-label="수정">✏️</button>'
+        + '    <button type="button" class="flex h-[18px] w-[18px] items-center justify-center text-[12px]" aria-label="삭제">🗑️</button>'
+        + '  </div>'
+        + '</div>';
+      chatHistoryList.insertBefore(existing, chatHistoryList.firstChild);
+
+      var actions = existing.querySelector('.history-actions');
+      if (actions) {
+        var editBtn = actions.querySelector('button[aria-label="수정"]');
+        var deleteBtn = actions.querySelector('button[aria-label="삭제"]');
+        if (editBtn) {
+          editBtn.addEventListener('click', function (e) {
+            e.stopPropagation();
+            editHistory(editBtn);
+          });
+        }
+        if (deleteBtn) {
+          deleteBtn.addEventListener('click', function (e) {
+            e.stopPropagation();
+            openDeleteModal(sessionId);
+          });
+        }
+      }
+      bindHistoryItemInteractions(existing);
+    } else {
+      chatHistoryList.insertBefore(existing, chatHistoryList.firstChild);
+    }
+
+    var titleNode = existing.querySelector('.history-title');
+    var dateNode = existing.querySelector('.history-date');
+    if (titleNode) titleNode.textContent = session.title || '새 대화';
+    if (dateNode) dateNode.textContent = session.display_date || '오늘';
+
+    ensureSessionState(sessionId);
+    return existing;
+  }
+
+  function createSessionForMessage(message) {
+    var derivedTitle = message.length > 18 ? message.slice(0, 18) + '...' : message;
+    return fetch('/api/chat/sessions/', {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        'X-CSRFToken': csrfToken || '',
+      },
+      body: JSON.stringify({
+        title: derivedTitle,
+        target_pet_id: activePetId || null,
+      }),
+    }).then(function (res) {
+      return readJsonResponse(res).then(function (data) {
+        if (!res.ok) {
+          throw new Error((data && data.detail) || '세션 생성에 실패했습니다.');
+        }
+        ensureSessionItem(data);
+        activeSessionId = data.session_id;
+        return data;
+      });
+    });
+  }
+
+  function loadSessionMessages(sessionId) {
+    var session = ensureSessionState(sessionId);
+    if (session.loaded) {
+      return Promise.resolve(session.messages);
+    }
+
+    return fetch('/api/chat/sessions/' + sessionId + '/messages/').then(function (res) {
+      return readJsonResponse(res).then(function (data) {
+        if (!res.ok) {
+          throw new Error((data && data.detail) || '대화 기록을 불러오지 못했습니다.');
+        }
+        session.messages = (data.messages || []).map(function (message) {
+          return { role: message.role, text: message.content };
+        });
+        session.loaded = true;
+        return session.messages;
+      });
+    });
+  }
 
   function applyLayout() {
     if (!sidebar || !workspaceShell || !sidebarOpen || !sidebarColl || !overlay) return;
@@ -877,6 +1021,7 @@
     activePetHealthConcerns = hc ? hc.split(',').filter(Boolean) : [];
     activePetAllergies = al ? al.split(',').filter(Boolean) : [];
     activePetFoodPreferences = fp ? fp.split(',').filter(Boolean) : [];
+    activePetId = nextId;
 
     petDropdownName.textContent = nextName;
     petDropdownSummary.textContent = nextSummary;
@@ -995,7 +1140,7 @@
   function renderSessionThread(sessionId) {
     if (!chatMessages || !chatThread || !chatEmptyState) return;
 
-    var session = sessionThreads[sessionId];
+    var session = ensureSessionState(sessionId);
     chatMessages.innerHTML = '';
     chatEmptyState.classList.remove('is-fading-in');
     chatEmptyState.classList.add('hidden');
@@ -1016,65 +1161,16 @@
 
   function activateSession(sessionId) {
     activeSessionId = sessionId;
-    renderSessionThread(sessionId);
     updateSessionItemStyles();
     openProductPanel();
     switchProductTab('recommended');
-  }
-
-  function createDraftSession(title) {
-    if (!chatHistoryList) return null;
-
-    draftSessionCount += 1;
-    var sessionId = 'draft-session-' + Date.now() + '-' + draftSessionCount;
-    var item = document.createElement('div');
-    item.className = 'chat-history-item relative h-[40px] w-[250px] cursor-pointer rounded-[8px] transition-colors duration-150 text-left';
-    item.setAttribute('data-id', sessionId);
-    item.onclick = function () {
-      activateSession(sessionId);
-    };
-    item.innerHTML = ''
-      + '<img alt="" class="history-bg absolute inset-0 h-[40px] w-[250px] transition-opacity duration-150" src="https://www.figma.com/api/mcp/asset/6630cc6d-cbd9-471a-8587-bd6e56070487" />'
-      + '<span class="history-title absolute left-[10.5px] right-[66px] top-[11.8px] overflow-hidden text-ellipsis whitespace-nowrap text-[12px] font-semibold leading-none text-[#2d3748]">' + title + '</span>'
-      + '<div class="absolute right-[10px] top-[11px] h-[18px] w-[62px]">'
-      + '  <span class="history-date absolute right-0 top-[1px] w-full whitespace-nowrap text-right text-[11px] leading-none tabular-nums text-[#a0aec0]">오늘</span>'
-      + '  <div class="history-actions absolute right-0 top-0 hidden flex items-center justify-end gap-[7px]"></div>'
-      + '</div>';
-
-    var actions = item.querySelector('.history-actions');
-    if (actions) {
-      var editBtn = document.createElement('button');
-      editBtn.type = 'button';
-      editBtn.className = 'flex h-[18px] w-[18px] items-center justify-center text-[12px]';
-      editBtn.setAttribute('aria-label', '수정');
-      editBtn.textContent = '✏️';
-      editBtn.addEventListener('click', function (e) {
-        e.stopPropagation();
-        editHistory(editBtn);
-      });
-
-      var deleteBtn = document.createElement('button');
-      deleteBtn.type = 'button';
-      deleteBtn.className = 'flex h-[18px] w-[18px] items-center justify-center text-[12px]';
-      deleteBtn.setAttribute('aria-label', '삭제');
-      deleteBtn.textContent = '🗑️';
-      deleteBtn.addEventListener('click', function (e) {
-        e.stopPropagation();
-        openDeleteModal(sessionId);
-      });
-
-      actions.appendChild(editBtn);
-      actions.appendChild(deleteBtn);
-    }
-
-    var emptyStateCard = chatHistoryList.querySelector('.border-dashed');
-    if (emptyStateCard) {
-      emptyStateCard.remove();
-    }
-    chatHistoryList.insertBefore(item, chatHistoryList.firstChild);
-    bindHistoryItemInteractions(item);
-    sessionThreads[sessionId] = { messages: [] };
-    return sessionId;
+    loadSessionMessages(sessionId).then(function () {
+      if (activeSessionId === sessionId) {
+        renderSessionThread(sessionId);
+      }
+    }).catch(function (error) {
+      window.alert(error.message || '대화 기록을 불러오지 못했습니다.');
+    });
   }
 
   function openProductPanel() {
@@ -1162,89 +1258,108 @@
     var msg = messageInput.value.trim();
     if (!msg) return;
 
-    if (!activeSessionId) {
-      var derivedTitle = msg.length > 18 ? msg.slice(0, 18) + '...' : msg;
-      activeSessionId = createDraftSession(derivedTitle) || activeSessionId;
-    }
+    var ensureSessionPromise = activeSessionId
+      ? Promise.resolve({ session_id: activeSessionId })
+      : createSessionForMessage(msg);
 
-    if (!sessionThreads[activeSessionId]) {
-      sessionThreads[activeSessionId] = { messages: [] };
-    }
+    ensureSessionPromise.then(function (sessionData) {
+      var sessionId = sessionData.session_id;
+      activeSessionId = sessionId;
+      var sessionState = ensureSessionState(sessionId);
 
-    if (chatEmptyState) chatEmptyState.classList.add('hidden');
-    if (chatThread) chatThread.classList.remove('hidden');
+      if (chatEmptyState) chatEmptyState.classList.add('hidden');
+      if (chatThread) chatThread.classList.remove('hidden');
 
-    appendMessage('user', msg);
-    sessionThreads[activeSessionId].messages.push({ role: 'user', text: msg });
+      appendMessage('user', msg);
+      sessionState.messages.push({ role: 'user', text: msg });
+      sessionState.loaded = true;
 
-    updateChatSectionState(true);
-    updateSessionItemStyles();
+      updateChatSectionState(true);
+      updateSessionItemStyles();
 
-    messageInput.value = '';
-    updateComposerState(messageInput);
-    scrollToBottom();
+      messageInput.value = '';
+      updateComposerState(messageInput);
+      scrollToBottom();
 
-    // FastAPI SSE 스트리밍 호출
-    var assistantEl = appendMessage('assistant', '');
-    var assistantText = '';
+      var assistantEl = appendMessage('assistant', '');
+      var assistantText = '';
 
-    fetch('/api/chat/', {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({
-        message: msg,
-        thread_id: activeSessionId || 'default',
-        pet_profile: activePetProfile,
-        health_concerns: activePetHealthConcerns,
-        allergies: activePetAllergies,
-        food_preferences: activePetFoodPreferences,
-      }),
-    }).then(function (res) {
-      var reader = res.body.getReader();
-      var decoder = new TextDecoder();
-      var buf = '';
-
-      function read() {
-        reader.read().then(function (result) {
-          if (result.done) return;
-          buf += decoder.decode(result.value, { stream: true });
-          var lines = buf.split('\n\n');
-          buf = lines.pop();
-          lines.forEach(function (line) {
-            if (!line.startsWith('data: ')) return;
-            try {
-              var evt = JSON.parse(line.slice(6));
-              if (evt.type === 'token') {
-                assistantText += evt.content;
-                if (assistantEl) {
-                  var p = assistantEl.querySelector('.assistant-text');
-                  if (p) p.textContent = assistantText;
-                }
-                scrollToBottom();
-              } else if (evt.type === 'products' && evt.cards && evt.cards.length) {
-                openProductPanel();
-                switchProductTab('recommended');
-                renderProductCards(evt.cards);
-              } else if (evt.type === 'done') {
-                sessionThreads[activeSessionId].messages.push({ role: 'assistant', text: assistantText });
-              } else if (evt.type === 'error') {
-                assistantText = '죄송합니다, 오류가 발생했습니다.';
-                if (assistantEl) {
-                  var p = assistantEl.querySelector('.assistant-text');
-                  if (p) p.textContent = assistantText;
-                }
-              }
-            } catch(e) {}
+      fetch('/api/chat/sessions/' + sessionId + '/messages/', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          'X-CSRFToken': csrfToken || '',
+        },
+        body: JSON.stringify({
+          message: msg,
+          pet_profile: activePetProfile,
+          health_concerns: activePetHealthConcerns,
+          allergies: activePetAllergies,
+          food_preferences: activePetFoodPreferences,
+        }),
+      }).then(function (res) {
+        if (!res.ok) {
+          return readJsonResponse(res).then(function (data) {
+            var message = (data && data.detail) || '죄송합니다, 오류가 발생했습니다.';
+            if (assistantEl) {
+              var errorText = assistantEl.querySelector('.assistant-text');
+              if (errorText) errorText.textContent = message;
+            }
           });
-          read();
-        });
-      }
-      read();
-    }).catch(function () {
-      if (assistantEl) {
-        var p = assistantEl.querySelector('.assistant-text');
-        if (p) p.textContent = '서버 연결에 실패했습니다.';
-      }
+        }
+
+        if (!res.body) {
+          throw new Error('Empty response body');
+        }
+
+        var reader = res.body.getReader();
+        var decoder = new TextDecoder();
+        var buf = '';
+
+        function read() {
+          reader.read().then(function (result) {
+            if (result.done) return;
+            buf += decoder.decode(result.value, { stream: true });
+            var lines = buf.split('\n\n');
+            buf = lines.pop();
+            lines.forEach(function (line) {
+              if (!line.startsWith('data: ')) return;
+              try {
+                var evt = JSON.parse(line.slice(6));
+                if (evt.type === 'token') {
+                  assistantText += evt.content;
+                  if (assistantEl) {
+                    var p = assistantEl.querySelector('.assistant-text');
+                    if (p) p.textContent = assistantText;
+                  }
+                  scrollToBottom();
+                } else if (evt.type === 'products' && evt.cards && evt.cards.length) {
+                  openProductPanel();
+                  switchProductTab('recommended');
+                  renderProductCards(evt.cards);
+                } else if (evt.type === 'done') {
+                  ensureSessionState(sessionId).messages.push({ role: 'assistant', text: assistantText });
+                } else if (evt.type === 'error') {
+                  assistantText = evt.message || '죄송합니다, 오류가 발생했습니다.';
+                  if (assistantEl) {
+                    var errorNode = assistantEl.querySelector('.assistant-text');
+                    if (errorNode) errorNode.textContent = assistantText;
+                  }
+                }
+              } catch(e) {}
+            });
+            read();
+          });
+        }
+        read();
+      }).catch(function () {
+        if (assistantEl) {
+          var p = assistantEl.querySelector('.assistant-text');
+          if (p) p.textContent = '서버 연결에 실패했습니다.';
+        }
+      });
+    }).catch(function (error) {
+      window.alert(error.message || '세션 생성에 실패했습니다.');
     });
   };
 
@@ -1467,12 +1582,22 @@
       {% endif %}
       fetch('/api/chat/sessions/' + pendingDeleteId + '/', {
         method: 'DELETE',
-        headers: { 'X-CSRFToken': '{{ csrf_token }}' },
-      }).then(function () {
-        var target = document.querySelector('[data-id="' + pendingDeleteId + '"]');
-        if (target) target.remove();
-        deleteModal.classList.remove('is-open');
-        pendingDeleteId = null;
+        headers: { 'X-CSRFToken': csrfToken || '' },
+      }).then(function (res) {
+        return readJsonResponse(res).then(function (data) {
+          if (!res.ok) {
+            throw new Error((data && data.detail) || '대화 기록 삭제에 실패했습니다.');
+          }
+          var deletedId = pendingDeleteId;
+          var target = document.querySelector('[data-id="' + deletedId + '"]');
+          if (target) target.remove();
+          delete sessionThreads[deletedId];
+          if (activeSessionId === deletedId) {
+            resetChatState(false);
+          }
+          deleteModal.classList.remove('is-open');
+          pendingDeleteId = null;
+        });
       }).catch(function () {
         window.alert('대화 기록 삭제에 실패했습니다. 잠시 후 다시 시도해 주세요.');
       });
@@ -1531,6 +1656,29 @@
       span.className = 'history-title absolute left-[10.5px] right-[66px] top-[11.8px] overflow-hidden text-ellipsis whitespace-nowrap text-[12px] font-semibold leading-none text-[#2d3748]';
       span.textContent = newTitle;
       input.replaceWith(span);
+
+      {% if not is_preview_member %}
+      if (newTitle !== current) {
+        fetch('/api/chat/sessions/' + item.getAttribute('data-id') + '/', {
+          method: 'PATCH',
+          headers: {
+            'Content-Type': 'application/json',
+            'X-CSRFToken': csrfToken || '',
+          },
+          body: JSON.stringify({ title: newTitle }),
+        }).then(function (res) {
+          return readJsonResponse(res).then(function (data) {
+            if (!res.ok) {
+              span.textContent = current;
+              throw new Error((data && data.detail) || '제목 수정에 실패했습니다.');
+            }
+            if (data && data.title) span.textContent = data.title;
+          });
+        }).catch(function () {
+          window.alert('제목 수정에 실패했습니다. 잠시 후 다시 시도해 주세요.');
+        });
+      }
+      {% endif %}
     }
 
     input.addEventListener('blur', done);
@@ -1554,6 +1702,7 @@
 
   renderPromoSlide();
   updateCartTotal();
+  Object.keys(sessionThreads).forEach(ensureSessionState);
 
   if (promoCarouselGroup) {
     promoCarouselGroup.addEventListener('mouseenter', stopPromoAutoSlide);
@@ -1564,6 +1713,10 @@
   switchProductTab('recommended');
   hideProductPanel();
   applyLayout();
+  if (activePetId) {
+    var initialPet = document.querySelector('[data-pet-id="' + CSS.escape(activePetId) + '"]');
+    if (initialPet) selectPet(initialPet);
+  }
   closePetDropdown();
   updateChatSectionState(false);
   updateSessionItemStyles();

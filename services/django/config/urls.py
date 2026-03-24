@@ -15,6 +15,7 @@ urlpatterns = [
     path("api/auth/", include("users.auth_urls")),
 
     # ── API — Resources ───────────────────────────────────────────────────────
+    path("api/chat/", include("chat.urls")),
     path("api/users/", include("users.urls")),
     path("api/pets/", include("pets.urls")),
     path("api/orders/", include("orders.urls")),

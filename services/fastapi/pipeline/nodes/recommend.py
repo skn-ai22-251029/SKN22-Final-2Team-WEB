@@ -4,7 +4,7 @@ from pathlib import Path
 sys.path.insert(0, str(Path(__file__).resolve().parents[1]))
 
 from qdrant_client.models import FieldCondition, Filter, MatchAny, MatchValue, Range
-from pipeline.utils import llm, LLM_MODEL, qdrant, hybrid_search, build_pet_context
+from pipeline.utils import llm, LLM_MODEL, qdrant, hybrid_search, build_pet_context, build_history_context
 from pipeline.state import ChatState
 
 
@@ -44,6 +44,7 @@ def profile_node(state: ChatState) -> dict:
 def query_node(state: ChatState) -> dict:
     """검색 쿼리 생성 + Qdrant 필터 빌드"""
     pet_ctx        = build_pet_context(state)
+    history_ctx    = build_history_context(state)
     filters        = state.get("filters") or {}
     health_concerns = state.get("health_concerns") or []
     relaxation     = state.get("filter_relaxation_count", 0)
@@ -54,6 +55,7 @@ def query_node(state: ChatState) -> dict:
 
     prompt = (
         f"반려동물 상품 검색을 위한 최적화된 한국어 검색어를 한 문장으로만 반환하세요.\n"
+        f"이전 대화 맥락: {history_ctx or '없음'}\n"
         f"펫 정보: {pet_ctx}\n"
         f"카테고리: {category_hint} / 세부: {subcategory_hint}\n"
         f"원래 질문: {state['user_input']}"

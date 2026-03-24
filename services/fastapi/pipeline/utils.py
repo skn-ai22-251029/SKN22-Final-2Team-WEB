@@ -79,3 +79,7 @@ def build_pet_context(state: ChatState) -> str:
     if state.get("allergies"):
         parts.append(f"알레르기: {', '.join(state['allergies'])}")
     return " / ".join(parts) if parts else "펫 프로필 없음"
+
+
+def build_history_context(state: ChatState) -> str:
+    return (state.get("conversation_history") or "").strip()

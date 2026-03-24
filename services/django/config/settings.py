@@ -184,6 +184,8 @@ STATIC_ROOT = BASE_DIR / "staticfiles"
 MEDIA_URL = "/media/"
 MEDIA_ROOT = BASE_DIR / "media"
 APP_BASE_URL = config("APP_BASE_URL", default="")
+FASTAPI_INTERNAL_CHAT_URL = config("FASTAPI_INTERNAL_CHAT_URL", default="http://fastapi:8001/api/chat/")
+INTERNAL_SERVICE_TOKEN = config("INTERNAL_SERVICE_TOKEN", default="dev-internal-token")
 
 AWS_S3_BUCKET_NAME = config("AWS_S3_BUCKET_NAME", default="")
 AWS_S3_REGION_NAME = config("AWS_S3_REGION_NAME", default="")
