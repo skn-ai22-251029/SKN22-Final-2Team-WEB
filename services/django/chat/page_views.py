@@ -1,6 +1,7 @@
 import json
 
 from django.shortcuts import render
+from django.views.decorators.csrf import ensure_csrf_cookie
 
 
 def _format_price(value):
@@ -24,7 +25,6 @@ def _serialize_pet(pet):
         if attr_name and hasattr(val, "values_list"):
             return list(val.values_list(attr_name, flat=True))
         return [v.strip() for v in val.split(",") if v.strip()]
-
     return {
         "id": str(pet.pet_id),
         "name": pet.name,
@@ -231,12 +231,14 @@ def _preview_session_threads():
     }
 
 
+@ensure_csrf_cookie
 def chat_view(request):
     sessions = []
     preview_member = request.GET.get("preview") == "member"
     is_authenticated = request.user.is_authenticated
     is_member_view = is_authenticated or preview_member
     is_preview_member = preview_member and not is_authenticated
+    chat_enabled = is_authenticated
     member_pets = []
     registered_pet_count = 0
     recommended_products = [
@@ -387,10 +389,11 @@ def chat_view(request):
     ]
     if is_authenticated:
         sessions = list(
-            request.user.chat_sessions.order_by("-created_at").values("session_id", "title", "created_at")[:50]
+            request.user.chat_sessions.order_by("-updated_at", "-created_at").values("session_id", "title", "created_at", "updated_at")[:50]
         )
         registered_pet_count = request.user.pets.count()
-        member_pets = [_serialize_pet(pet) for pet in request.user.pets.order_by("created_at")[:5]]
+        pets = request.user.pets.prefetch_related("health_concerns", "allergies", "food_preferences").order_by("created_at")[:5]
+        member_pets = [_serialize_pet(pet) for pet in pets]
 
     future_pet = _serialize_future_pet(request.session.get("future_pet_profile"))
     if future_pet:
@@ -415,6 +418,7 @@ def chat_view(request):
             "sessions": sessions,
             "is_member_view": is_member_view,
             "is_preview_member": is_preview_member,
+            "chat_enabled": chat_enabled,
             "member_pets": member_pets,
             "can_add_pet": is_member_view and registered_pet_count < 5,
             "active_pet_id": active_pet_id,

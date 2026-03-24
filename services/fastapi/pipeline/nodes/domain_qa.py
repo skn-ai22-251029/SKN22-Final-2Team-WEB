@@ -4,15 +4,17 @@ from pathlib import Path
 sys.path.insert(0, str(Path(__file__).resolve().parents[1]))
 
 from qdrant_client.models import FieldCondition, Filter, MatchAny, MatchValue
-from pipeline.utils import llm, LLM_MODEL, qdrant, hybrid_search, build_pet_context, DOMAIN_INTENT_TO_CATEGORY
+from pipeline.utils import llm, LLM_MODEL, qdrant, hybrid_search, build_pet_context, build_history_context, DOMAIN_INTENT_TO_CATEGORY
 from pipeline.state import ChatState
 
 
 def general_node(state: ChatState) -> dict:
     """쿼리 정제: 모호한 질문을 펫 프로필 기반으로 검색 최적화"""
     pet_ctx = build_pet_context(state)
+    history_ctx = build_history_context(state)
     prompt  = (
         f"다음 질문을 반려동물 정보를 반영해 검색에 최적화된 한 문장으로 재작성하세요.\n"
+        f"이전 대화 맥락: {history_ctx or '없음'}\n"
         f"펫 정보: {pet_ctx}\n질문: {state['user_input']}"
     )
     refined = llm.chat.completions.create(

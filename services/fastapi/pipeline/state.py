@@ -7,6 +7,7 @@ class ChatState(TypedDict):
     # 대화
     messages:   Annotated[list, add_messages]  # HumanMessage / AIMessage
     user_input: str                            # 현재 턴 원문
+    conversation_history: str                  # 축약된 이전 대화 히스토리
 
     # 사용자 / 펫 (API 요청 페이로드에서 주입, DB 조회 없음)
     user_id:          str | None

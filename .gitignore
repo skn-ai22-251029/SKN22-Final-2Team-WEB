@@ -12,6 +12,7 @@ __pycache__/
 *.py[cod]
 *.pyo
 .venv/
+.venv-pdf/
 venv/
 env/
 *.egg-info/
@@ -55,6 +56,7 @@ services/django/media/
 
 # Crawling output (로컬 데이터, S3 업로드 전)
 output/
+tmp/pdfs/
 
 # DB 백업 (팀 공유 드라이브로 배포)
 backup/
@@ -64,6 +66,7 @@ backup/
 
 # Issues / internal notes (로컬 전용)
 docs/issues/
+docs/shqkel/
 
 # 발표 자료 (로컬 전용)
 docs/presentation/

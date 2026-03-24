@@ -4,7 +4,7 @@ from pathlib import Path
 
 sys.path.insert(0, str(Path(__file__).resolve().parents[1]))
 
-from pipeline.utils import llm, LLM_MODEL
+from pipeline.utils import llm, LLM_MODEL, build_history_context
 from pipeline.state import ChatState
 
 CATEGORY_FILE = Path(__file__).resolve().parents[1] / "data" / "category.json"
@@ -37,17 +37,20 @@ health_disease / care_management / nutrition_diet / behavior_psychology / travel
 
 def intent_node(state: ChatState) -> dict:
     user_input = state["user_input"]
+    history_ctx = build_history_context(state)
 
     context = ""
     if state.get("clarification_count", 0) > 0 and state.get("intents"):
         prev = {k: state.get(k) for k in ["intents", "filters"]}
         context = f"\n이전 추출 정보: {json.dumps(prev, ensure_ascii=False)}"
 
+    history_block = f"\n이전 대화 맥락:\n{history_ctx}\n" if history_ctx else "\n"
+
     res = llm.chat.completions.create(
         model=LLM_MODEL,
         messages=[
             {"role": "system", "content": INTENT_SYSTEM + context},
-            {"role": "user",   "content": user_input},
+            {"role": "user",   "content": history_block + f"현재 사용자 입력:\n{user_input}"},
         ],
         response_format={"type": "json_object"},
         temperature=0,

@@ -4,7 +4,7 @@ from pathlib import Path
 sys.path.insert(0, str(Path(__file__).resolve().parents[1]))
 
 from langchain_core.messages import AIMessage
-from pipeline.utils import llm, LLM_MODEL, build_pet_context
+from pipeline.utils import llm, LLM_MODEL, build_pet_context, build_history_context
 from pipeline.state import ChatState
 
 RESPOND_SYSTEM = """\
@@ -25,6 +25,7 @@ def respond_node(state: ChatState) -> dict:
     domain_contexts  = state.get("domain_contexts")  or []
     reranked_results = state.get("reranked_results") or []
     pet_ctx          = build_pet_context(state)
+    history_ctx      = build_history_context(state)
     user_input       = state["user_input"]
     clarification_count = state.get("clarification_count", 0)
 
@@ -46,6 +47,7 @@ def respond_node(state: ChatState) -> dict:
     context_block = "\n\n".join(context_parts) if context_parts else "검색된 정보가 없습니다."
 
     user_msg = (
+        f"이전 대화 맥락: {history_ctx or '없음'}\n\n"
         f"펫 정보: {pet_ctx}\n\n"
         f"사용자 질문: {user_input}\n\n"
         f"{context_block}"
