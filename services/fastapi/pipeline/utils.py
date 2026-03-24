@@ -44,16 +44,22 @@ def embed(query: str):
 
 def hybrid_search(collection: str, query: str, top_k: int = 10, qdrant_filter=None):
     dv, sv = embed(query)
-    return qdrant.query_points(
-        collection_name=collection,
-        prefetch=[
-            Prefetch(query=dv, using="dense", limit=top_k * 3, filter=qdrant_filter),
-            Prefetch(query=sv, using="sparse", limit=top_k * 3, filter=qdrant_filter),
-        ],
-        query=FusionQuery(fusion=Fusion.RRF),
-        limit=top_k,
-        with_payload=True,
-    ).points
+    try:
+        return qdrant.query_points(
+            collection_name=collection,
+            prefetch=[
+                Prefetch(query=dv, using="dense", limit=top_k * 3, filter=qdrant_filter),
+                Prefetch(query=sv, using="sparse", limit=top_k * 3, filter=qdrant_filter),
+            ],
+            query=FusionQuery(fusion=Fusion.RRF),
+            limit=top_k,
+            with_payload=True,
+        ).points
+    except Exception as exc:
+        if "doesn't exist" in str(exc):
+            print(f"[QDRANT] 컬렉션 없음: {collection} — 빈 결과로 처리")
+            return []
+        raise
 
 
 # ── 공통 헬퍼 ───────────────────────────────────────────────────────────────────
