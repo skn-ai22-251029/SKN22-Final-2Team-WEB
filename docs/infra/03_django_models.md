@@ -165,11 +165,14 @@ class PetUsedProduct(models.Model):
 ```python
 import uuid
 from django.contrib.postgres.fields import ArrayField
+from django.contrib.postgres.search import SearchVectorField
 from django.db import models
+from pgvector.django import VectorField
 
 
 class Product(models.Model):
     goods_id               = models.CharField(max_length=20, primary_key=True)
+    prefix                 = models.CharField(max_length=5)  # GI/GP/GO/GS/PI
     goods_name             = models.TextField()
     brand_name             = models.CharField(max_length=200)
     price                  = models.IntegerField()
@@ -191,6 +194,9 @@ class Product(models.Model):
     ingredient_composition = models.JSONField(null=True, blank=True)
     nutrition_info         = models.JSONField(null=True, blank=True)
     ingredient_text_ocr    = models.TextField(null=True, blank=True)
+    embedding              = VectorField(dimensions=1024, null=True, blank=True)  # pgvector Dense
+    embedding_text         = models.TextField(null=True, blank=True)              # 임베딩 원본 텍스트
+    search_vector          = SearchVectorField(null=True)                         # Kiwi tsvector
     crawled_at             = models.DateTimeField()
 
     class Meta:
@@ -198,7 +204,9 @@ class Product(models.Model):
         indexes  = [
             models.Index(fields=["brand_name"]),
             models.Index(fields=["-popularity_score"]),
+            models.Index(fields=["prefix"]),
         ]
+    # HNSW(embedding), GIN(search_vector) 인덱스는 마이그레이션에서 RunSQL로 생성
 
 
 class ProductCategoryTag(models.Model):
@@ -394,6 +402,7 @@ INSTALLED_APPS = [
     "django.contrib.messages",
     "django.contrib.staticfiles",
     "django.contrib.postgres",
+    "pgvector",                 # pgvector Django 통합
     "rest_framework",
     "rest_framework_simplejwt",
     "corsheaders",

@@ -17,24 +17,24 @@
 | 필드 | 타입 | 설명 | 활용 |
 |---|---|---|---|
 | `goods_id` | str | 상품 고유 ID | 키 |
-| `prefix` | str | GI/GP/GO/GS/PI | GP = 기획전 전용, Qdrant 미적재 |
+| `prefix` | str | GI/GP/GO/GS/PI | GP = 기획전 전용, embedding = NULL (벡터 검색 제외) |
 | `product_name` | str | 상품명 | 임베딩 |
 | `brand_name` | str | 브랜드명 | 임베딩, 필터링 |
-| `price` / `discount_price` | int | 정가 / 할인가 | 예산 필터링, payload |
+| `price` / `discount_price` | int | 정가 / 할인가 | 예산 필터링 |
 | `rating` / `rating_5pt` | float | 10점 / 5점 평점 | popularity_score 계산 입력 (단독 사용 금지) |
 | `review_count` | int | 리뷰 수 | popularity_score |
 | `review_count_source` | str | direct / aggregated | GO 상품 집계 구분 |
-| `sold_out` | bool | 품절 여부 | Qdrant 필터링 |
+| `sold_out` | bool | 품절 여부 | SQL WHERE 필터링 |
 | `soldout_reliable` | bool | GO 상품 False | 필터 신뢰도 판단 |
 | `subcategory_names` | list[str] | `{pet_type}_{category}_{subcategory}` 태그 | 임베딩 |
-| `pet_type` | list[str] | 강아지/고양이 (Silver 파싱) | Qdrant 필터, payload |
-| `category` | list[str] | 사료/간식/용품/... (Silver 파싱) | Qdrant 필터, payload |
-| `subcategory` | list[str] | 전연령/퍼피/시니어/... (Silver 파싱) | Qdrant 필터, payload |
-| `health_concern_tags` | list[str] | 건강 관심사 태그 (Gold LLM 분류) | 임베딩, Qdrant 필터 |
+| `pet_type` | list[str] | 강아지/고양이 (Silver 파싱) | SQL WHERE 필터 |
+| `category` | list[str] | 사료/간식/용품/... (Silver 파싱) | SQL WHERE 필터 |
+| `subcategory` | list[str] | 전연령/퍼피/시니어/... (Silver 파싱) | SQL WHERE 필터 |
+| `health_concern_tags` | list[str] | 건강 관심사 태그 (Gold LLM 분류) | 임베딩, SQL WHERE 필터 |
 | `main_ingredients` | list[str] | 주요 원료 키워드 배열 (OCR 추출) | 임베딩, 알레르기 필터 |
 | `ingredient_composition` | dict\|null | `{원료명: 함량%}` (OCR LLM 파싱) | 임베딩 직렬화, 상품 상세 표시 (PostgreSQL) |
 | `nutrition_info` | dict\|null | `{영양성분명: 수치}` (OCR LLM 파싱) | 임베딩 직렬화, 상품 상세 표시 (PostgreSQL) |
-| `ingredient_text_ocr` | str\|null | OCR 원문 (식품류만) | Qdrant payload 저장 (알레르기 키워드 매칭). 임베딩 제외 |
+| `ingredient_text_ocr` | str\|null | OCR 원문 (식품류만) | product 테이블 저장 (알레르기 키워드 매칭). 임베딩 제외 |
 | `popularity_score` | float | log(review+1)×rating_5pt | 재랭킹 — null 7.2% (259/3,618) |
 | `sentiment_avg` | float | 상품별 sentiment_score 평균 (Gold 집계) | 재랭킹 품질 지표 — null 52.6% (1,903/3,618) |
 | `repeat_rate` | float | 재구매 리뷰 비율 (Gold 집계) | 재랭킹 implicit signal — null 52.6% (1,903/3,618) |
@@ -70,7 +70,7 @@ popularity_score = log(review_count + 1) × rating_5pt
 
 - `review_count_source = aggregated` (GO)인 경우 goods API의 `review_count` 그대로 사용
 - review_count = 0이면 popularity_score = 0
-- **null 비율**: Qdrant 7.2% (259/3,618) — 신상품 또는 rating 미수집 상품
+- **null 비율**: 7.2% (259/3,618) — 신상품 또는 rating 미수집 상품
 - **rating 단독 사용 금지**: 5점 편향 77.4%, 평균 4.73 → 품질 식별력 없음. `popularity_score` 형태(리뷰 수로 편향 보정)로만 활용.
 
 #### sentiment_avg (상품 단위 집계)
@@ -81,7 +81,7 @@ sentiment_avg = mean(sentiment_score per goods_id)
 
 - rating 편향(5점 77%) 보완용 실질 품질 지표
 - `gold/goods.py`에서 sentiment basic.parquet + silver reviews 조인으로 집계
-- **null 비율**: Qdrant 52.6% (1,903/3,618) — 리뷰 없는 상품(신상품, 저인기 등)
+- **null 비율**: 52.6% (1,903/3,618) — 리뷰 없는 상품(신상품, 저인기 등)
 - null 시 재랭킹에서 제외, `popularity_score`로 대체. 상세 fallback: `docs/planning/07_recommendation_architecture.md` 2-4절.
 
 #### repeat_rate (상품 단위)
@@ -92,7 +92,7 @@ repeat_rate = repeat 리뷰 수 / 전체 리뷰 수
 
 - `purchase_label = repeat` 비율 — 재구매 implicit signal
 - `gold/goods.py`에서 silver reviews `purchase_label` 집계
-- **null 비율**: Qdrant 52.6% (1,903/3,618) — `sentiment_avg` null 상품과 동일 집합
+- **null 비율**: 52.6% (1,903/3,618) — `sentiment_avg` null 상품과 동일 집합
 
 #### absa_aspect_score (속성 단위 집계)
 

@@ -1,8 +1,8 @@
 """
-Gold parquet → PostgreSQL 적재
+Gold parquet → PostgreSQL 적재 (pgvector + Kiwi tsvector 포함)
 
 대상 테이블:
-  - product           : gold/goods parquet
+  - product           : gold/goods parquet + embedding + search_vector
   - product_category_tag : health_concern_tags 배열 → 1행씩
   - review            : gold/reviews parquet
 
@@ -17,9 +17,11 @@ Gold parquet → PostgreSQL 적재
   POSTGRES_HOST=localhost conda run -n final-project python scripts/ingest_postgres.py
 
   # 옵션
-  ... --only goods      # 상품만
+  ... --only goods      # 상품만 (벡터 포함)
   ... --only reviews    # 리뷰만
+  ... --only vectors    # 벡터/tsvector만 재생성 (상품 메타 스킵)
   ... --truncate        # 기존 데이터 삭제 후 재적재
+  ... --batch N         # 임베딩 배치 크기 (기본 64)
 """
 
 import argparse
@@ -96,7 +98,7 @@ def batched(seq, n):
 
 PRODUCT_UPSERT = """
 INSERT INTO product (
-    goods_id, goods_name, brand_name, price, discount_price,
+    goods_id, prefix, goods_name, brand_name, price, discount_price,
     rating, review_count, thumbnail_url, product_url, soldout_yn,
     soldout_reliable, pet_type, category, subcategory, health_concern_tags,
     popularity_score, sentiment_avg, repeat_rate,
@@ -104,6 +106,7 @@ INSERT INTO product (
     crawled_at
 ) VALUES %s
 ON CONFLICT (goods_id) DO UPDATE SET
+    prefix                = EXCLUDED.prefix,
     goods_name            = EXCLUDED.goods_name,
     brand_name            = EXCLUDED.brand_name,
     price                 = EXCLUDED.price,
@@ -152,6 +155,7 @@ def ingest_goods(conn, truncate: bool) -> None:
         for _, r in tqdm(df.iterrows(), total=len(df), desc="  rows 변환", unit="행"):
             rows.append((
                 r["goods_id"],
+                str(r["goods_id"])[:2],  # prefix
                 r["product_name"],
                 r["brand_name"],
                 int(r["price"]),
@@ -258,18 +262,117 @@ def ingest_reviews(conn, truncate: bool) -> None:
     conn.commit()
 
 
+# ── 벡터 적재 (pgvector + Kiwi tsvector) ─────────────────────────────────────
+
+VECTOR_UPDATE = """
+UPDATE product
+SET embedding      = %s::vector,
+    embedding_text = %s,
+    search_vector  = to_tsvector('simple', %s)
+WHERE goods_id = %s
+"""
+
+
+def build_product_text(r) -> str:
+    """임베딩 대상 텍스트 조합"""
+    parts = [
+        r.get("product_name", ""),
+        r.get("brand_name", ""),
+    ]
+    for field in ("subcategory_names", "health_concern_tags", "main_ingredients"):
+        val = r.get(field)
+        if val is not None:
+            try:
+                parts.append(" ".join(str(v) for v in val))
+            except TypeError:
+                pass
+    for field in ("ingredient_composition", "nutrition_info"):
+        val = r.get(field)
+        if isinstance(val, dict):
+            parts.append(" ".join(f"{k} {v}" for k, v in val.items()))
+    return " ".join(p for p in parts if p).strip()
+
+
+def tokenize_korean(kiwi, text: str) -> str:
+    """Kiwi로 형태소 분석 → 명사/동사/형용사만 추출하여 공백 결합"""
+    tokens = []
+    for token in kiwi.tokenize(text):
+        if token.tag.startswith(("NN", "VV", "VA")):
+            tokens.append(token.form)
+    return " ".join(tokens)
+
+
+def ingest_vectors(conn, embed_batch_size: int) -> None:
+    """기존 product 행에 embedding + search_vector 채우기"""
+    path = latest(GOODS_GLOB)
+    print(f"[vectors] 로드: {path}")
+    df = pd.read_parquet(path)
+
+    # GP 상품 제외
+    df_embed = df[df["goods_id"].str[:2] != "GP"].copy()
+    print(f"  전체: {len(df):,}행 → GP 제외: {len(df_embed):,}행")
+
+    # 임베딩 텍스트 조합
+    print("  임베딩 텍스트 조합 중...")
+    from tqdm import tqdm
+    texts = []
+    goods_ids = []
+    for _, r in tqdm(df_embed.iterrows(), total=len(df_embed), desc="  텍스트 조합", unit="행"):
+        texts.append(build_product_text(r))
+        goods_ids.append(r["goods_id"])
+
+    # Kiwi 토큰화
+    print("  Kiwi 형태소 분석 중...")
+    from kiwipiepy import Kiwi
+    kiwi = Kiwi()
+    tokenized = [tokenize_korean(kiwi, t) for t in tqdm(texts, desc="  토큰화", unit="행")]
+
+    # Dense 임베딩 생성
+    print("  Dense 임베딩 생성 중 (multilingual-e5-large)...")
+    from fastembed import TextEmbedding
+    model = TextEmbedding("intfloat/multilingual-e5-large")
+    embeddings = list(model.embed(texts, batch_size=embed_batch_size))
+    print(f"  임베딩 {len(embeddings):,}개 생성 완료")
+
+    # DB UPDATE
+    print("  DB 업데이트 중...")
+    with conn.cursor() as cur:
+        for batch_start in tqdm(range(0, len(goods_ids), BATCH_SIZE), desc="  vector update", unit="batch"):
+            batch_end = min(batch_start + BATCH_SIZE, len(goods_ids))
+            for i in range(batch_start, batch_end):
+                vec_str = "[" + ",".join(str(float(v)) for v in embeddings[i]) + "]"
+                cur.execute(VECTOR_UPDATE, (
+                    vec_str,
+                    texts[i],
+                    tokenized[i],
+                    goods_ids[i],
+                ))
+            conn.commit()
+
+    print(f"  벡터 {len(goods_ids):,}행 업데이트 완료")
+
+
 # ── 메인 ──────────────────────────────────────────────────────────────────────
 
-def main(only: str | None, truncate: bool) -> None:
+def main(only: str | None, truncate: bool, embed_batch_size: int = 64) -> None:
     print(f"[ingest_postgres] 시작 — {datetime.now().strftime('%H:%M:%S')}")
     print(f"  DB: {DB_CONFIG['host']}:{DB_CONFIG['port']}/{DB_CONFIG['dbname']}")
 
     conn = psycopg2.connect(**DB_CONFIG)
     try:
-        if only != "reviews":
-            ingest_goods(conn, truncate)
-        if only != "goods":
-            ingest_reviews(conn, truncate)
+        # pgvector 확장 확인/생성
+        with conn.cursor() as cur:
+            cur.execute("CREATE EXTENSION IF NOT EXISTS vector")
+        conn.commit()
+
+        if only == "vectors":
+            ingest_vectors(conn, embed_batch_size)
+        else:
+            if only != "reviews":
+                ingest_goods(conn, truncate)
+                ingest_vectors(conn, embed_batch_size)
+            if only != "goods":
+                ingest_reviews(conn, truncate)
     finally:
         conn.close()
 
@@ -277,8 +380,9 @@ def main(only: str | None, truncate: bool) -> None:
 
 
 if __name__ == "__main__":
-    parser = argparse.ArgumentParser(description="Gold parquet → PostgreSQL 적재")
-    parser.add_argument("--only", choices=["goods", "reviews"], default=None)
+    parser = argparse.ArgumentParser(description="Gold parquet → PostgreSQL 적재 (pgvector + tsvector)")
+    parser.add_argument("--only", choices=["goods", "reviews", "vectors"], default=None)
     parser.add_argument("--truncate", action="store_true", help="기존 데이터 삭제 후 재적재")
+    parser.add_argument("--batch", type=int, default=64, help="임베딩 배치 크기 (기본 64)")
     args = parser.parse_args()
-    main(only=args.only, truncate=args.truncate)
+    main(only=args.only, truncate=args.truncate, embed_batch_size=args.batch)

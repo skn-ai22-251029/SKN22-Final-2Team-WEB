@@ -4,3 +4,6 @@ pandas==3.0.1
 pyarrow==23.0.1
 tqdm==4.67.1
 plotly==6.6.0
+kiwipiepy==0.21.1
+fastembed==0.6.1
+pgvector==0.3.6

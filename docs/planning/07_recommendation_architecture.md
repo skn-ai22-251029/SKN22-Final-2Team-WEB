@@ -70,17 +70,17 @@ flowchart TD
     subgraph domain_qa 플로우
         GENERAL[General 노드]
         GENERAL -->|"refined_query, subdomain"| RAG[RAG 노드]
-        RAG -.->|"filter: species, category"| QNA[(domain_qna)]
+        RAG -.->|"filter: species, category"| QNA[(domain_qna 테이블)]
         QNA -.->|"rag_context"| RAG
     end
 
     subgraph recommend 플로우
         PROFILE[breed_meta 조회]
-        PROFILE -.->|"payload filter: breed_name, age_group"| BREED[(breed_meta)]
+        PROFILE -.->|"SQL filter: breed_name, age_group"| BREED[(breed_meta 테이블)]
         BREED -.->|"health_concern_tags<br>preferred_food, health_products"| PROFILE
         PROFILE -->|"health_concern_tags"| QUERY[쿼리 생성]
         QUERY -->|"search_query<br>filter: species, size_class, pet_type"| SEARCH[상품 검색]
-        SEARCH -.->|Hybrid Search| PRODUCTS[(products)]
+        SEARCH -.->|"pgvector + tsvector\nHybrid Search"| PRODUCTS[(product 테이블)]
         PRODUCTS -.->|"product candidates"| SEARCH
         SEARCH -->|"product candidates"| RERANK[재랭킹]
         RERANK -->|"결과 부족 < 3개"| QUERY
@@ -128,7 +128,7 @@ flowchart TD
 | 상품 카드만 | 상품 추천만 |
 | RAG + 상품 카드 | 도메인 답변 + 상품 카드 통합 |
 
-**서브도메인 → Qdrant domain_qna category 필터 매핑**
+**서브도메인 → domain_qna category 필터 매핑**
 
 | 서브도메인 | QnA category 필터 | 설명 |
 |---|---|---|
@@ -146,23 +146,19 @@ flowchart TD
 | `CLARIFY → RESPOND` | clarification_count > 2 | 2회 재질문 후에도 불명확 / 잡담 지속 시 → 컨텍스트 기반 best-effort 응답 |
 | `RERANK → QUERY` | 검색 결과 < 3개 | 필터 조건 완화 후 재검색 |
 
-### 2-3. Qdrant Hybrid Search
+### 2-3. Hybrid Search (pgvector + tsvector)
 
-**컬렉션 설계**
+**상품 검색**: PostgreSQL `product` 테이블에서 pgvector Dense + Kiwi tsvector + RRF로 검색.
 
-| 컬렉션 | 임베딩 텍스트 소스 | payload 주요 필드 |
-|---|---|---|
-| `products` | `product_name + brand_name + subcategory_names + health_concern_tags + main_ingredients + ingredient_composition(직렬화) + nutrition_info(직렬화)` | goods_id, prefix, price, discount_price, sold_out, soldout_reliable, pet_type, category, subcategory, health_concern_tags, main_ingredients, ingredient_text_ocr, popularity_score, sentiment_avg, repeat_rate, thumbnail_url, product_url |
-| `domain_qna` | `질문 + 답변` | pet_type, category, source |
-| `breed_meta` | `품종명 + 수의 영양학적 메타 디스크립션` | pet_type, breed_name, group, health_keywords |
+**도메인 검색**: `domain_qna`, `breed_meta` 테이블에서 pgvector Dense + tsvector로 검색.
 
-> **GP 상품 (prefix=GP) 제외**: Qdrant `products` 컬렉션 미적재. PostgreSQL에만 저장.
+> **GP 상품 (prefix='GP') 제외**: `embedding = NULL`로 저장. 벡터 검색 대상에서 자동 제외.
 >
-> **`ingredient_composition` / `nutrition_info`**: PostgreSQL 전용 (상품 상세 모달). Qdrant 임베딩 텍스트 조합 시 직렬화 후 포함, payload 미저장.
+> **`ingredient_composition` / `nutrition_info`**: `product` 테이블에 JSONB로 저장 (상품 상세 모달). 인제스트 시 직렬화하여 `embedding_text`에 포함.
 >
-> **`ingredient_text_ocr`**: payload 저장 전용 (알레르기 키워드 매칭). 임베딩 제외 — OCR 원문 노이즈.
+> **`ingredient_text_ocr`**: `product` 테이블에 저장 (알레르기 키워드 매칭). `embedding_text` 제외 — OCR 원문 노이즈.
 
-**임베딩 텍스트 조합 (`ingest_qdrant.py`)**
+**임베딩 텍스트 조합 (`ingest_postgres.py`)**
 
 ```python
 product_text = " ".join([
@@ -173,23 +169,23 @@ product_text = " ".join([
     " ".join(f"{k} {v}" for k, v in (ingredient_composition or {}).items()),
     " ".join(f"{k} {v}" for k, v in (nutrition_info or {}).items()),
 ])
-# embed(product_text) → dense vector (multilingual-e5-large, 1024d)
-# BM25(product_text)  → sparse vector
+# embed(product_text) → dense vector (multilingual-e5-large, 1024d) → product.embedding
+# Kiwi(product_text) → 형태소 토큰 → to_tsvector('simple', 토큰) → product.search_vector
 ```
 
 **검색 방식**
 
 ```
-Dense:  multilingual-e5-large (1024d) — 의미 유사도
-Sparse: BM25 (Qdrant 내장) — 키워드 정밀 매칭
+Dense:  pgvector (multilingual-e5-large, 1024d) — 의미 유사도 (HNSW 인덱스)
+Sparse: Kiwi + tsvector (PostgreSQL 내장) — 한국어 키워드 정밀 매칭 (GIN 인덱스)
 융합:   RRF (Reciprocal Rank Fusion) — Dense + Sparse 점수 통합
 ```
 
-**필터링 조건 (우선순위 순)**
+**필터링 조건 (우선순위 순, SQL WHERE)**
 
 ```python
 1. sold_out = False  AND  (soldout_reliable = True OR soldout_reliable = False 허용 시)
-2. health_concern_tags ⊇ PET_HEALTH_CONCERN
+2. health_concern_tags @> ARRAY[PET_HEALTH_CONCERN]
 3. main_ingredients ∩ PET_ALLERGY = ∅  (+ ingredient_text_ocr 키워드 보완)
 4. category 매칭 PET_FOOD_PREFERENCE  OR  pet_type 매칭 (강아지/고양이)
 5. price ≤ 예산 상한  (챗봇에서 언급 시만 적용)
@@ -207,7 +203,7 @@ final_score = α × rrf_score
             + ε × absa_aspect_score[detected_aspect]  # 속성 감지 시만 적용
 
 기본 가중치 (Phase 1, 튜닝 필요):
-  α = 0.50  검색 적합도 (Qdrant RRF)
+  α = 0.50  검색 적합도 (pgvector + tsvector RRF)
   β = 0.25  인기도 (log(review_count+1) × rating_5pt)
   γ = 0.15  감성 품질 (상품별 sentiment_score 평균)
   δ = 0.10  재구매율 (repeat 리뷰 비율)
@@ -238,7 +234,7 @@ final_score = α × rrf_score
 | 케이스 | 전략 |
 |---|---|
 | 펫 프로필 없음 (온보딩 미완료) | 카테고리 인기 기반 추천 (`popularity_score` 상위) — Fallback B/C 기준 |
-| 펫 프로필 있음, 구매 이력 없음 | 품종 메타 → `health_concern_tags` 자동 매핑 → Qdrant 필터 검색 |
+| 펫 프로필 있음, 구매 이력 없음 | 품종 메타 → `health_concern_tags` 자동 매핑 → SQL WHERE 필터 검색 |
 | 신규 상품 (리뷰 0건) | Fallback C: `rrf_score`(α)만으로 랭킹 |
 | `health_concern_tags` null 상품 | 조건 2 필터 스킵, `pet_type` + `category` 필터만 적용 |
 
@@ -318,7 +314,7 @@ final_score = α × rrf_score
 [현재] Bronze 크롤링 → Silver ETL → Gold (OCR, 감성분석, 피처 집계)
                                             │
                                             ▼
-[Phase 1] PostgreSQL + Qdrant 적재 → LangGraph 구현 → 서비스 배포
+[Phase 1] PostgreSQL (pgvector + tsvector) 적재 → LangGraph 구현 → 서비스 배포
                                             │
                                             ▼ (런칭 후 수개월)
 [Phase 2] user_interaction 로그 축적 → CF 모델 학습 → 랭킹 레이어에 CF_score 추가
