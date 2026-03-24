@@ -49,15 +49,13 @@ flowchart TD
     end
 
     subgraph DB["📦 적재 → 상세: docs/data/03_ingest_pipeline.md"]
-        GO3 --> PG_INGEST[ingest_postgres.py<br>GP 포함 전체 적재]
+        GO3 --> PG_INGEST[ingest_postgres.py<br>GP 포함 전체 적재<br>+ pgvector 임베딩 생성<br>+ Kiwi tsvector 토큰화]
         GO4 --> PG_INGEST
-        GO3 --> QD_INGEST[ingest_qdrant.py<br>GP 제외 + 임베딩 생성]
-        PG_INGEST --> P[(PostgreSQL<br>product / product_category_tag / review)]
-        QD_INGEST --> Q[(Qdrant<br>products 컬렉션<br>Dense+Sparse Hybrid)]
+        PG_INGEST --> P[(PostgreSQL<br>product / product_category_tag / review<br>pgvector Dense + tsvector Hybrid Search)]
     end
 ```
 
-> ingest 단계 처리 로직(GP 필터링, 임베딩 텍스트 조합, 컬렉션 설정, FK 필터 등) 및 실행 명령 상세:
+> ingest 단계 처리 로직(GP 임베딩 제외, 임베딩 텍스트 조합, pgvector/tsvector 인덱스, FK 필터 등) 및 실행 명령 상세:
 > **[docs/data/03_ingest_pipeline.md](03_ingest_pipeline.md)**
 
 ---
@@ -166,28 +164,32 @@ classDiagram
     }
 
     class PRODUCT {
-        string  goods_id  PK
-        string  goods_name
-        string  brand_name
-        int     price
-        int     discount_price
-        float   rating
-        int     review_count
-        string  thumbnail_url
-        string  product_url
-        bool    soldout_yn
-        bool    soldout_reliable
+        string    goods_id  PK
+        string    prefix
+        string    goods_name
+        string    brand_name
+        int       price
+        int       discount_price
+        float     rating
+        int       review_count
+        string    thumbnail_url
+        string    product_url
+        bool      soldout_yn
+        bool      soldout_reliable
         string[]  pet_type
         string[]  category
         string[]  subcategory
         string[]  health_concern_tags
-        float   popularity_score
-        float   sentiment_avg
-        float   repeat_rate
-        jsonb   main_ingredients
-        jsonb   ingredient_composition
-        jsonb   nutrition_info
-        text    ingredient_text_ocr
+        float     popularity_score
+        float     sentiment_avg
+        float     repeat_rate
+        jsonb     main_ingredients
+        jsonb     ingredient_composition
+        jsonb     nutrition_info
+        text      ingredient_text_ocr
+        vector_1024  embedding
+        text      embedding_text
+        tsvector  search_vector
         timestamp crawled_at
     }
 
@@ -214,38 +216,14 @@ classDiagram
         string  pet_breed
     }
 
-    class Qdrant["🔍 Qdrant  (Hybrid Search)"] {
-        vector  dense
-        vector  sparse_bm25
-        string  goods_id
-        string  brand_name
-        string  prefix
-        int     price
-        int     discount_price
-        bool    sold_out
-        bool    soldout_reliable
-        string[]  pet_type
-        string[]  category
-        string[]  subcategory
-        string[]  health_concern_tags
-        string[]  main_ingredients
-        string  ingredient_text_ocr
-        float   popularity_score
-        float   sentiment_avg
-        float   repeat_rate
-        string  thumbnail_url
-        string  product_url
-    }
-
     BronzeGoods   --> SilverGoods    : silver/goods.py
     BronzeReviews --> SilverReviews  : silver/reviews.py
     SilverGoods   --> GoldGoods      : gold/ocr.py → gold/ingredients.py → gold/goods.py
     SilverReviews --> GoldGoods      : sentiment_avg / repeat_rate 집계
     SilverReviews --> GoldReviews    : gold/reviews.py
-    GoldGoods    --> PRODUCT       : goods
+    GoldGoods    --> PRODUCT       : goods + embedding + search_vector
     GoldGoods    --> PRODUCT_CATEGORY_TAG : tags → 1행씩
     GoldReviews  --> REVIEW        : reviews
-    GoldGoods    --> Qdrant        : 상품명+소분류+리뷰 임베딩
 ```
 
 ---
@@ -405,6 +383,7 @@ Silver reviews에 감성 분석 결과 추가.
 | Gold 컬럼 | PostgreSQL 테이블.컬럼 |
 |---|---|
 | `goods_id` | `PRODUCT.goods_id` |
+| `prefix` | `PRODUCT.prefix` |
 | `product_name` | `PRODUCT.goods_name` |
 | `brand_name` | `PRODUCT.brand_name` |
 | `price` | `PRODUCT.price` |
@@ -422,6 +401,9 @@ Silver reviews에 감성 분석 결과 추가.
 | `nutrition_info` | `PRODUCT.nutrition_info` (JSONB) |
 | `ingredient_text_ocr` | `PRODUCT.ingredient_text_ocr` |
 | `health_concern_tags[i]` | `PRODUCT_CATEGORY_TAG.tag` (1행씩 insert) |
+| *(인제스트 시 생성)* | `PRODUCT.embedding` (vector(1024)) |
+| *(인제스트 시 생성)* | `PRODUCT.embedding_text` |
+| *(인제스트 시 생성)* | `PRODUCT.search_vector` (tsvector) |
 | `review_id` | `REVIEW.review_id` |
 | `goods_id` | `REVIEW.goods_id` |
 | `rating_5pt` | `REVIEW.score` |
@@ -437,16 +419,17 @@ Silver reviews에 감성 분석 결과 추가.
 | `pet_gender` | `REVIEW.pet_gender` |
 | `pet_breed` | `REVIEW.pet_breed` |
 
-## Gold → Qdrant 매핑
+## Hybrid Search 구성 (pgvector + tsvector)
 
 | 항목 | 내용 |
 |---|---|
-| **임베딩 대상 텍스트** | `product_name + brand_name + subcategory_names + health_concern_tags + main_ingredients + ingredient_composition(직렬화) + nutrition_info(직렬화)` |
-| **payload** | `goods_id`, `product_name`, `brand_name`, `prefix`, `price`, `discount_price`, `sold_out`, `soldout_reliable`, `pet_type`, `category`, `subcategory`, `health_concern_tags`, `main_ingredients`, `ingredient_text_ocr`(알레르기 필터용), `popularity_score`, `sentiment_avg`, `repeat_rate`, `thumbnail_url`, `product_url` |
-| **Dense vector** | `multilingual-e5-large` 또는 `bge-m3` |
-| **Sparse vector** | BM25 (Qdrant 내장) |
-| **검색 방식** | Hybrid Search (Dense + Sparse + RRF) |
+| **임베딩 대상 텍스트** (`embedding_text`) | `product_name + brand_name + subcategory_names + health_concern_tags + main_ingredients + ingredient_composition(직렬화) + nutrition_info(직렬화)` |
+| **tsvector 대상 텍스트** (`search_vector`) | `embedding_text`를 Kiwi(kiwipiepy)로 형태소 분석 → 명사/동사/형용사 토큰 추출 → `to_tsvector('simple', 토큰)` |
+| **Dense vector** (`embedding`) | `intfloat/multilingual-e5-large` 1024d, Cosine |
+| **Dense 인덱스** | HNSW (`vector_cosine_ops`) |
+| **Sparse 인덱스** | GIN (`search_vector`) |
+| **검색 방식** | Hybrid Search (pgvector Cosine + tsvector ts_rank + RRF) |
 
-> `ingredient_composition` / `nutrition_info`: PostgreSQL 저장 + 인제스트 시 직렬화하여 임베딩 텍스트에 포함. Qdrant payload 미적재 (dict 그대로 저장 불필요).<br>
-> `ingredient_text_ocr`: payload 저장 (알레르기 키워드 매칭용). 임베딩 텍스트 제외.<br>
-> GP 상품 (prefix=GP): PostgreSQL 전량 적재, Qdrant 미적재 (기획전 카드 섹션 전용).
+> `ingredient_composition` / `nutrition_info`: PRODUCT 테이블에 JSONB로 저장 + 인제스트 시 직렬화하여 `embedding_text`에 포함.<br>
+> `ingredient_text_ocr`: PRODUCT 테이블에 저장 (알레르기 키워드 매칭용). `embedding_text` 제외.<br>
+> GP 상품 (`prefix='GP'`): 전체 컬럼 적재하되 `embedding = NULL` (벡터 검색 대상 제외, 기획전 카드 섹션 전용).

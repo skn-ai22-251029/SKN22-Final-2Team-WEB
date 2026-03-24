@@ -81,6 +81,7 @@ erDiagram
 
     PRODUCT {
         string  goods_id               PK
+        string  prefix                 "GI|GP|GO|GS|PI (goods_id 앞 2자리)"
         string  goods_name
         string  brand_name
         int     price
@@ -102,6 +103,9 @@ erDiagram
         jsonb   ingredient_composition "원료명별 함량 (nullable, 식품류만)"
         jsonb   nutrition_info         "영양성분 수치 (nullable, 식품류만)"
         text    ingredient_text_ocr    "상세 이미지 OCR 원문 (nullable, 식품류만)"
+        vector  embedding              "pgvector 1024d Dense (nullable, GP는 NULL)"
+        text    embedding_text         "임베딩 원본 텍스트 (nullable)"
+        tsvector search_vector         "Kiwi 형태소 분석 결과 (nullable)"
         datetime crawled_at
     }
 
@@ -343,6 +347,7 @@ erDiagram
 ```json
 {
   "goods_id":               "string",          // PK. 어바웃펫 상품 ID (GI/GP/GS/PI 접두사)
+  "prefix":                 "string",          // goods_id 앞 2자리 (GI/GP/GO/GS/PI). GP = 벡터 검색 제외
   "goods_name":             "string",
   "brand_name":             "string",
   "price":                  "int",             // 정가 원
@@ -364,6 +369,9 @@ erDiagram
   "ingredient_composition": "object | null",   // {원료명: 함량%} (식품류만)
   "nutrition_info":         "object | null",   // {영양성분명: 수치} (식품류만)
   "ingredient_text_ocr":    "string | null",   // 상세 이미지 OCR 원문 (식품류만)
+  "embedding":              "vector(1024) | null",  // pgvector Dense 벡터 (GP는 NULL)
+  "embedding_text":         "string | null",        // 임베딩 생성에 사용한 원본 텍스트
+  "search_vector":          "tsvector | null",      // Kiwi 형태소 분석 → tsvector (한국어 전문검색)
   "crawled_at":             "datetime"
 }
 ```

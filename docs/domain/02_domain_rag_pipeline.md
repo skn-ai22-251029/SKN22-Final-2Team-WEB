@@ -1,10 +1,10 @@
 # 도메인 데이터 RAG 파이프라인 명세
 
-> **범위**: `output/domain/` Parquet → 청크 텍스트 조합 → 임베딩 → Qdrant 적재
-> **스크립트**: `scripts/domain/ingest_domain_qdrant.py`
+> **범위**: `output/domain/` Parquet → 청크 텍스트 조합 → 임베딩 → PostgreSQL(pgvector) 적재
+> **스크립트**: `scripts/domain/ingest_domain_postgres.py`
 >
 > 연계 문서: `docs/domain/01_domain_preprocessing.md` (Excel → Parquet 전처리)
-> 연계 문서: `docs/planning/07_recommendation_architecture.md` (LangGraph 내 컬렉션 활용 맥락)
+> 연계 문서: `docs/planning/07_recommendation_architecture.md` (LangGraph 내 테이블 활용 맥락)
 
 ---
 
@@ -17,18 +17,18 @@ flowchart TD
         P2[(breed_meta.parquet<br>1,125행)]
     end
 
-    subgraph Ingest["🔄 ingest_domain_qdrant.py"]
+    subgraph Ingest["🔄 ingest_domain_postgres.py"]
         C1[QnA 청크 텍스트 조합<br>category + question + answer + notes]
         C2[품종 메타 청크 텍스트 조합<br>breed + age_group + traits + vet_nutrition_desc]
         E1[multilingual-e5-large<br>Dense 임베딩 1024d]
-        E2[BM25<br>Sparse 벡터]
+        E2[Kiwi 형태소 분석<br>→ tsvector]
         P1 --> C1 --> E1 & E2
         P2 --> C2 --> E1 & E2
     end
 
-    subgraph Qdrant["🔍 Qdrant"]
-        Q1[(domain_qna<br>2,412 points)]
-        Q2[(breed_meta<br>1,125 points)]
+    subgraph PostgreSQL["📦 PostgreSQL (pgvector)"]
+        Q1[(domain_qna 테이블<br>2,412행)]
+        Q2[(breed_meta 테이블<br>1,125행)]
         E1 & E2 --> Q1
         E1 & E2 --> Q2
     end
@@ -95,101 +95,111 @@ flowchart TD
 
 ---
 
-## Qdrant 컬렉션 스키마
+## PostgreSQL 테이블 스키마
 
 ### domain_qna
 
 ```mermaid
 classDiagram
-    class DomainQna["🔍 domain_qna (2,412 points)"] {
-        vector  dense_1024d
-        vector  sparse_bm25
+    class DomainQna["📦 domain_qna (2,412행)"] {
+        serial  id  PK
         int     no
         string  species
         string  category
         string  source
+        text    chunk_text
+        vector  embedding
+        tsvector search_vector
     }
 ```
 
 | 항목 | 값 |
 |---|---|
-| Dense 벡터 | multilingual-e5-large (1024d) |
-| Sparse 벡터 | BM25 (Qdrant 내장) |
-| 검색 방식 | Hybrid Search + RRF |
-| 총 포인트 수 | 2,412 |
+| Dense 벡터 | pgvector, multilingual-e5-large (1024d), HNSW 인덱스 |
+| Sparse 검색 | Kiwi + tsvector, GIN 인덱스 |
+| 검색 방식 | Hybrid Search (pgvector Cosine + ts_rank + RRF) |
+| 총 행 수 | 2,412 |
 
-**payload 상세**
+**컬럼 상세**
 
-| 필드 | 타입 | 값 예시 | 용도 |
+| 컬럼 | 타입 | 값 예시 | 용도 |
 |---|---|---|---|
 | `no` | int | 1, 2, ... | 식별자 |
 | `species` | str | `dog` / `cat` / `both` | 펫 종 필터 |
 | `category` | str | `건강 및 질병` | 서브도메인 필터 |
 | `source` | str | `bemypet` / `biteme` / `manual` | 출처 구분 |
+| `chunk_text` | text | 청크 원본 텍스트 | 디버깅/재생성용 |
+| `embedding` | vector(1024) | Dense 벡터 | 의미 유사도 검색 |
+| `search_vector` | tsvector | Kiwi 토큰화 결과 | 한국어 키워드 검색 |
 
 ### breed_meta
 
 ```mermaid
 classDiagram
-    class BreedMeta["🔍 breed_meta (1,125 points)"] {
-        vector  dense_1024d
-        vector  sparse_bm25
+    class BreedMeta["📦 breed_meta (1,125행)"] {
+        serial  id  PK
         string  species
         string  breed_name
         string  breed_name_en
         string  group
-        string  size_class
+        string[]  size_class
         string  age_group
         int     care_difficulty
         string  preferred_food
         string  health_products
+        text    chunk_text
+        vector  embedding
+        tsvector search_vector
     }
 ```
 
 | 항목 | 값 |
 |---|---|
-| Dense 벡터 | multilingual-e5-large (1024d) |
-| Sparse 벡터 | BM25 (Qdrant 내장) |
-| 검색 방식 | **payload filter** (breed_name + age_group exact match) |
-| 총 포인트 수 | 1,125 (강아지 900 + 고양이 225) |
+| Dense 벡터 | pgvector, multilingual-e5-large (1024d), HNSW 인덱스 |
+| Sparse 검색 | Kiwi + tsvector, GIN 인덱스 |
+| 검색 방식 | **SQL WHERE** (breed_name + age_group exact match) |
+| 총 행 수 | 1,125 (강아지 900 + 고양이 225) |
 
-> `breed_name`은 pet 등록 시 정규화된 값이므로 벡터 유사도 검색 불필요. Qdrant scroll + filter API로 exact match 조회.
+> `breed_name`은 pet 등록 시 정규화된 값이므로 벡터 유사도 검색 불필요. SQL `WHERE breed_name = ? AND age_group = ?` exact match 조회.
 
-**payload 상세**
+**컬럼 상세**
 
-| 필드 | 타입 | 값 예시 | 용도 |
+| 컬럼 | 타입 | 값 예시 | 용도 |
 |---|---|---|---|
 | `species` | str | `dog` / `cat` | 펫 종 필터 |
 | `breed_name` | str | `말티즈` | 품종 매칭 |
 | `breed_name_en` | str | `Maltese` | 영문 품종 매칭 |
 | `group` | str | `단모종` / `장모종` / `특이종` | 강아지/고양이 동일 분류 체계 |
-| `size_class` | list[str] | `["S"]` / `["S","M"]` | 체급 필터 (`HAS` 조건) |
+| `size_class` | text[] | `["S"]` / `["S","M"]` | 체급 필터 (`@>` 연산) |
 | `age_group` | str | `퍼피`/`어덜트`/`시니어` (강아지)<br>`키튼`/`어덜트`/`시니어` (고양이) | 연령대 필터 |
 | `care_difficulty` | int | 1~5 | 관리 난이도 |
 | `preferred_food` | str\|null | `소형견 전용 고단백 건식 사료` | 추천 참고 |
 | `health_products` | str\|null | `관절 보조제, 눈물 제거제` | 추천 참고 |
+| `chunk_text` | text | 청크 원본 텍스트 | 디버깅/재생성용 |
+| `embedding` | vector(1024) | Dense 벡터 | 의미 유사도 검색 |
+| `search_vector` | tsvector | Kiwi 토큰화 결과 | 한국어 키워드 검색 |
 
 ---
 
 ## 실행
 
 ```bash
-# Parquet → Qdrant 전체 적재
-conda run -n final-project python scripts/domain/ingest_domain_qdrant.py --collection all
+# Parquet → PostgreSQL 전체 적재
+conda run -n final-project python scripts/domain/ingest_domain_postgres.py --table all
 
-# 개별 컬렉션
-conda run -n final-project python scripts/domain/ingest_domain_qdrant.py --collection qna
-conda run -n final-project python scripts/domain/ingest_domain_qdrant.py --collection breed
+# 개별 테이블
+conda run -n final-project python scripts/domain/ingest_domain_postgres.py --table qna
+conda run -n final-project python scripts/domain/ingest_domain_postgres.py --table breed
 
-# 컬렉션 재생성 (기존 데이터 삭제 후 재적재)
-conda run -n final-project python scripts/domain/ingest_domain_qdrant.py --collection all --recreate
+# 테이블 재생성 (기존 데이터 삭제 후 재적재)
+conda run -n final-project python scripts/domain/ingest_domain_postgres.py --table all --truncate
 ```
 
 ---
 
 ## LangGraph 활용 맥락
 
-| 컬렉션 | 호출 노드 | 검색 필터 조건 |
+| 테이블 | 호출 노드 | 검색 필터 조건 |
 |---|---|---|
-| `domain_qna` | General 노드 (RAG) | `species` ∈ {펫 종, both} + `category` = 서브도메인 분류 결과 |
-| `breed_meta` | PROFILE 노드 | payload filter: `species` + `breed_name` exact match + `age_group` 필터 → `health_products` / `preferred_food`를 ChatState `health_concerns` 자동 매핑에 활용. Hybrid Search 미사용. |
+| `domain_qna` | General 노드 (RAG) | `WHERE species IN (펫 종, 'both') AND category = 서브도메인 분류 결과` + pgvector Hybrid Search |
+| `breed_meta` | PROFILE 노드 | `WHERE species = ? AND breed_name = ? AND age_group = ?` exact match → `health_products` / `preferred_food`를 ChatState `health_concerns` 자동 매핑에 활용. Hybrid Search 미사용. |

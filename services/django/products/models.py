@@ -1,10 +1,14 @@
 import uuid
 from django.contrib.postgres.fields import ArrayField
+from django.contrib.postgres.indexes import GinIndex
+from django.contrib.postgres.search import SearchVectorField
 from django.db import models
+from pgvector.django import VectorField, HnswIndex
 
 
 class Product(models.Model):
     goods_id               = models.CharField(max_length=20, primary_key=True)
+    prefix                 = models.CharField(max_length=5, default="")
     goods_name             = models.TextField()
     brand_name             = models.CharField(max_length=200)
     price                  = models.IntegerField()
@@ -26,6 +30,9 @@ class Product(models.Model):
     ingredient_composition = models.JSONField(null=True, blank=True)
     nutrition_info         = models.JSONField(null=True, blank=True)
     ingredient_text_ocr    = models.TextField(null=True, blank=True)
+    embedding              = VectorField(dimensions=1024, null=True, blank=True)
+    embedding_text         = models.TextField(null=True, blank=True)
+    search_vector          = SearchVectorField(null=True)
     crawled_at             = models.DateTimeField()
 
     class Meta:
@@ -33,6 +40,18 @@ class Product(models.Model):
         indexes = [
             models.Index(fields=["brand_name"]),
             models.Index(fields=["-popularity_score"]),
+            models.Index(fields=["prefix"]),
+            HnswIndex(
+                name="idx_product_embedding",
+                fields=["embedding"],
+                opclasses=["vector_cosine_ops"],
+                m=16,
+                ef_construction=64,
+            ),
+            GinIndex(
+                name="idx_product_search_vector",
+                fields=["search_vector"],
+            ),
         ]
 
 
