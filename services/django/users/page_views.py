@@ -4,12 +4,14 @@ import logging
 
 from django.contrib import messages
 from django.contrib.auth import get_user_model, login, logout
+from django.db import IntegrityError, transaction
 from django.db.models import ProtectedError
 from django.shortcuts import redirect, render
 from django.urls import reverse
 from social_core.exceptions import AuthCanceled, AuthConnectionError, AuthException, AuthForbidden, AuthMissingParameter
 
 from .models import UserProfile
+from .nickname_utils import build_unique_nickname, get_nickname_validation_error
 from .social_auth import (
     SOCIAL_AUTH_ACCESS_SESSION_KEY,
     SOCIAL_AUTH_REFRESH_SESSION_KEY,
@@ -26,8 +28,24 @@ logger = logging.getLogger(__name__)
 
 
 def _get_profile(user):
-    profile, _ = UserProfile.objects.get_or_create(user=user, defaults={"nickname": user.email.split("@")[0]})
+    profile, _ = UserProfile.objects.get_or_create(
+        user=user,
+        defaults={"nickname": build_unique_nickname(user.email.split("@")[0], exclude_user=user)},
+    )
     return profile
+
+
+def _render_profile(request, profile):
+    return render(
+        request,
+        "users/profile.html",
+        {
+            "profile": profile,
+            "social_accounts": {account.provider: account for account in request.user.social_accounts.all()},
+            "setup_mode": request.GET.get("setup") == "1",
+            "profile_preview": False,
+        },
+    )
 
 
 def home(request):
@@ -79,22 +97,25 @@ def profile_view(request):
     profile = _get_profile(request.user)
     if request.method == "POST":
         setup_mode = request.GET.get("setup") == "1"
-        profile.nickname = request.POST.get("nickname", "").strip() or profile.nickname
+        profile.nickname = request.POST.get("nickname", "").strip()
         profile.phone = request.POST.get("phone", "").strip()
         profile.marketing_consent = request.POST.get("marketing") == "on"
-        profile.save(update_fields=["nickname", "phone", "marketing_consent", "updated_at"])
+        nickname_error = get_nickname_validation_error(profile.nickname, exclude_user=request.user)
+        if nickname_error:
+            messages.error(request, nickname_error)
+            return _render_profile(request, profile)
+        try:
+            with transaction.atomic():
+                profile.save(update_fields=["nickname", "phone", "marketing_consent", "updated_at"])
+        except IntegrityError:
+            messages.error(request, "이미 사용 중인 닉네임입니다.")
+            return _render_profile(request, profile)
         messages.success(request, "프로필 정보가 저장되었습니다.")
         if setup_mode:
             return redirect("pet_add")
         return redirect("profile")
 
-    context = {
-        "profile": profile,
-        "social_accounts": {account.provider: account for account in request.user.social_accounts.all()},
-        "setup_mode": request.GET.get("setup") == "1",
-        "profile_preview": False,
-    }
-    return render(request, "users/profile.html", context)
+    return _render_profile(request, profile)
 
 
 def profile_withdraw_view(request):

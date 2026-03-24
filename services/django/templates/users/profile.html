@@ -194,7 +194,6 @@
     if (!input || !button || !status || !form) return;
 
     var defaultMessage = '한글, 영문, 숫자만 2~12자';
-    var mockTakenNames = ['콩이', '모찌', '보리'];
     var allowedNicknamePattern = /[^가-힣A-Za-z0-9]/g;
     var isComposing = false;
 
@@ -224,17 +223,47 @@
         return false;
       }
 
-      if (mockTakenNames.indexOf(nickname) !== -1) {
-        setStatus('이미 사용 중인 닉네임입니다', '#e53e3e');
-        return false;
-      }
-
       if (showSuccessMessage) {
-        setStatus('사용 가능한 닉네임입니다', '#38a169');
+        setStatus('중복확인 버튼으로 사용 가능 여부를 확인해 주세요', '#718096');
       } else {
         status.textContent = '';
       }
       return true;
+    }
+
+    function checkNicknameAvailability() {
+      if (!validateNickname(false)) {
+        return;
+      }
+
+      var nickname = input.value.trim();
+      button.disabled = true;
+      setStatus('확인 중...', '#718096');
+
+      fetch('/api/users/nickname-availability/?nickname=' + encodeURIComponent(nickname), {
+        headers: {
+          'Accept': 'application/json'
+        }
+      })
+        .then(function (response) {
+          return response.json().then(function (data) {
+            return { ok: response.ok, data: data };
+          });
+        })
+        .then(function (result) {
+          if (!result.ok) {
+            setStatus(result.data.detail || '닉네임 확인에 실패했습니다', '#e53e3e');
+            return;
+          }
+
+          setStatus(result.data.detail, result.data.available ? '#38a169' : '#e53e3e');
+        })
+        .catch(function () {
+          setStatus('닉네임 확인 중 오류가 발생했습니다', '#e53e3e');
+        })
+        .finally(function () {
+          button.disabled = false;
+        });
     }
 
     sanitizeNickname();
@@ -261,9 +290,7 @@
       }
     });
 
-    button.addEventListener('click', function () {
-      validateNickname(true);
-    });
+    button.addEventListener('click', checkNicknameAvailability);
 
     form.addEventListener('submit', function (e) {
       if (!validateNickname(false)) {
