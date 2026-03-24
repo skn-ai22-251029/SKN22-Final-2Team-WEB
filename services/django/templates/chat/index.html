@@ -187,12 +187,10 @@
            style="transform: translateX(-213px)">
       <div id="sidebarOpen" class="absolute inset-0 pointer-events-none opacity-0 transition-opacity duration-200">
         {% if is_member_view %}
-        <img alt="" class="absolute inset-0 h-full w-full"
-             src="https://www.figma.com/api/mcp/asset/0f914b5b-cc10-4bd1-b35c-23768f69ccb7" />
+        <div class="absolute inset-0 bg-[linear-gradient(180deg,#f3f8fd_0%,#eef5fb_42%,#e7f0f9_100%)]"></div>
+        <div class="absolute inset-y-0 right-0 w-[1px] bg-[#d4e2f0]"></div>
 
-        <button type="button" onclick="resetChatState(true)" class="absolute left-[16px] top-[21px] flex h-[37px] w-[207px] items-center justify-center">
-          <img alt="" class="absolute inset-0 h-full w-full"
-               src="https://www.figma.com/api/mcp/asset/df3ce098-f6c1-4139-a85f-f8777af8e86d" />
+        <button type="button" onclick="resetChatState(true)" class="absolute left-[16px] top-[21px] flex h-[37px] w-[207px] items-center justify-center overflow-hidden rounded-[12px] bg-[linear-gradient(135deg,#3b82f6_0%,#2563eb_100%)]">
           <span class="relative whitespace-nowrap text-[16px] font-bold leading-none text-white">새 대화 시작</span>
         </button>
         <button type="button" onclick="closeSidebar()"
@@ -299,17 +297,15 @@
           </div>
         </div>
 
-        <div class="absolute left-[15.5px] top-[272px] flex w-[250px] flex-col gap-[12px]" id="chatHistoryList">
+        <div class="absolute left-[16px] right-[15px] top-[272px] bottom-[86px] flex flex-col gap-[12px] overflow-x-hidden overflow-y-auto box-border" id="chatHistoryList">
           {% for session in sessions %}
-          <div class="chat-history-item relative h-[40px] w-[250px] cursor-pointer rounded-[8px] transition-colors duration-150"
+          <div class="chat-history-item relative h-[40px] w-full shrink-0 cursor-pointer border-b border-[#e7edf5] transition-colors duration-150 box-border"
                data-id="{{ session.session_id }}">
-            <img alt="" class="history-bg absolute inset-0 h-[40px] w-[250px] transition-opacity duration-150"
-                 src="https://www.figma.com/api/mcp/asset/6630cc6d-cbd9-471a-8587-bd6e56070487" />
-            <span class="history-title absolute left-[10.5px] right-[66px] top-[11.8px] overflow-hidden text-ellipsis whitespace-nowrap text-[12px] font-semibold leading-none text-[#2d3748]">
+            <span class="history-title absolute left-[6px] right-[72px] top-[12px] overflow-hidden text-ellipsis whitespace-nowrap text-[12px] font-semibold leading-none text-[#2d3748]">
               {{ session.title|default:"새 대화" }}
             </span>
-            <div class="absolute right-[10px] top-[11px] h-[18px] w-[62px]">
-              <span class="history-date absolute right-0 top-[1px] w-full whitespace-nowrap text-right text-[11px] leading-none tabular-nums text-[#a0aec0]">
+            <div class="absolute right-0 top-[12px] h-[16px] w-[66px]">
+              <span class="history-date absolute right-0 top-0 w-full whitespace-nowrap text-right text-[11px] leading-none tabular-nums text-[#a0aec0]">
                 {% if session.created_at|date:"y/m/d" != "" %}{{ session.created_at|date:"y/m/d" }}{% else %}{{ session.created_at }}{% endif %}
               </span>
               <div class="history-actions absolute right-0 top-0 hidden flex items-center justify-end gap-[7px]">
@@ -333,8 +329,8 @@
           </svg>
         </div>
         {% else %}
-        <img alt="" class="absolute inset-0 h-full w-full"
-             src="https://www.figma.com/api/mcp/asset/ad58345b-5dd6-4c4d-9add-d9ce93ab4236" />
+        <div class="absolute inset-0 bg-[linear-gradient(180deg,#f8fbff_0%,#eef4fb_48%,#e5eef8_100%)]"></div>
+        <div class="absolute inset-y-0 right-0 w-[1px] bg-[#d4e2f0]"></div>
         <button type="button" onclick="closeSidebar()"
                 class="absolute right-[15px] top-[31px] h-[16px] w-[24px]" aria-label="사이드바 닫기">
           <svg viewBox="0 0 24 16" class="block h-full w-full text-[#4a5568]" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" aria-hidden="true">
@@ -343,9 +339,7 @@
             <path d="M5 13H19"></path>
           </svg>
         </button>
-        <a href="/login/" class="absolute left-[16px] top-[20px] flex h-[37px] w-[207px] items-center justify-center">
-          <img alt="" class="absolute inset-0 h-full w-full"
-               src="https://www.figma.com/api/mcp/asset/20591019-64ca-4cd7-a3a1-6fea5ee43fa8" />
+        <a href="/login/" class="absolute left-[16px] top-[20px] flex h-[37px] w-[207px] items-center justify-center overflow-hidden rounded-[12px] bg-[linear-gradient(135deg,#3b82f6_0%,#2563eb_100%)]">
           <span class="relative text-[16px] font-bold text-white">로그인 / 회원가입</span>
         </a>
         <div class="absolute left-1/2 top-[72px] flex w-[232px] -translate-x-1/2 flex-col items-center text-center text-[12px] leading-[1.5] text-[#718096]">
@@ -440,11 +434,12 @@
                  style="height: 61px">
               {% if chat_enabled %}
               <div class="absolute bottom-[10.5px] left-[10.5px] h-[40px] w-[40px]">
-                <img alt="" class="absolute inset-0 h-full w-full"
-                     src="https://www.figma.com/api/mcp/asset/bf9036d0-fa6a-4951-8bf1-87121fd476c3" />
-                <div class="absolute inset-0 flex items-center justify-center">
-                  <img alt="추가" class="h-[12px] w-[12px]"
-                       src="https://www.figma.com/api/mcp/asset/ce465e75-6e82-4e2a-88c9-c2fd47a455ac" />
+                <div class="absolute inset-0 rounded-full bg-[#3182ce]"></div>
+                <div class="absolute inset-0 flex items-center justify-center text-white">
+                  <svg viewBox="0 0 20 20" class="h-[16px] w-[16px]" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" aria-hidden="true">
+                    <path d="M10 4V16"></path>
+                    <path d="M4 10H16"></path>
+                  </svg>
                 </div>
               </div>
 
@@ -459,8 +454,12 @@
                       aria-label="음성 입력" onclick="sendMessage()">
                 <div class="absolute inset-0 rounded-full bg-[#3182ce]"></div>
                 <div id="micIcon" class="pointer-events-none absolute flex items-center justify-center transition-all duration-[220ms] ease-[cubic-bezier(0.22,1,0.36,1)]">
-                  <img alt="마이크" class="h-[17px] w-[14px]"
-                       src="https://www.figma.com/api/mcp/asset/01523a82-0f56-457b-9208-3c76dc0b544b" />
+                  <svg viewBox="0 0 14 20" class="h-[18px] w-[14px]" fill="none" stroke="white" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+                    <rect x="3.5" y="2.5" width="7" height="10" rx="3.5"></rect>
+                    <path d="M1.75 9.75A5.25 5.25 0 0 0 12.25 9.75"></path>
+                    <path d="M7 15V18"></path>
+                    <path d="M4.5 18H9.5"></path>
+                  </svg>
                 </div>
                 <div id="sendIcon" class="pointer-events-none absolute inset-0 flex items-center justify-center transition-all duration-[220ms] ease-[cubic-bezier(0.22,1,0.36,1)] translate-y-[6px] scale-[0.8] opacity-0">
                   <svg aria-hidden="true" class="h-[20px] w-[14px]" viewBox="0 0 14 20" fill="none" xmlns="http://www.w3.org/2000/svg">
@@ -470,13 +469,19 @@
               </button>
               {% else %}
               <div class="absolute bottom-[10.5px] left-[10.5px] flex h-[40px] w-[40px] items-center justify-center rounded-full bg-[#e2e8f0]">
-                <img alt="추가" class="h-[12px] w-[12px]"
-                     src="https://www.figma.com/api/mcp/asset/1ff96a70-7f54-490e-9aaf-e8720798c90e" />
+                <svg viewBox="0 0 20 20" class="h-[16px] w-[16px] text-[#718096]" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" aria-hidden="true">
+                  <path d="M10 4V16"></path>
+                  <path d="M4 10H16"></path>
+                </svg>
               </div>
               <div class="absolute left-1/2 top-1/2 -translate-x-1/2 -translate-y-1/2 text-[14px] text-[#a0aec0]">로그인이 필요한 서비스입니다</div>
               <div class="absolute bottom-[10.5px] right-[10.5px] flex h-[40px] w-[40px] items-center justify-center rounded-full bg-[#e2e8f0]">
-                <img alt="마이크" class="h-[17px] w-[14px]"
-                     src="https://www.figma.com/api/mcp/asset/01523a82-0f56-457b-9208-3c76dc0b544b" />
+                <svg viewBox="0 0 14 20" class="h-[18px] w-[14px] text-[#718096]" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+                  <rect x="3.5" y="2.5" width="7" height="10" rx="3.5"></rect>
+                  <path d="M1.75 9.75A5.25 5.25 0 0 0 12.25 9.75"></path>
+                  <path d="M7 15V18"></path>
+                  <path d="M4.5 18H9.5"></path>
+                </svg>
               </div>
               {% endif %}
             </div>
@@ -669,14 +674,19 @@
         </div>
 
         {% if is_member_view %}
-        <div class="h-[40px] w-[40px]">
-          <img alt="장바구니" class="h-full w-full"
-               src="https://www.figma.com/api/mcp/asset/be02fb28-1930-43fb-ac3b-9fcf482e1f58" />
+        <div class="flex h-[40px] w-[40px] items-center justify-center rounded-full border border-[#e2e8f0] bg-white shadow-[0_2px_8px_rgba(45,55,72,0.05)]" aria-label="장바구니">
+          <svg viewBox="0 0 24 24" class="h-[24px] w-[24px] text-[#4a5568]" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+            <circle cx="9" cy="20" r="1.5"></circle>
+            <circle cx="18" cy="20" r="1.5"></circle>
+            <path d="M3 4h2l2.2 10.2a1 1 0 0 0 1 .8h8.9a1 1 0 0 0 1-.75L20 8H7"></path>
+          </svg>
         </div>
         <div class="relative h-[40px] w-[40px]" id="profileMenuWrapper">
-          <button type="button" class="h-[40px] w-[40px]" aria-label="프로필 메뉴 열기" onclick="toggleProfileMenu()">
-            <img alt="프로필" class="h-full w-full"
-                 src="https://www.figma.com/api/mcp/asset/ba733178-1524-4321-b48c-649741e0bb5f" />
+          <button type="button" class="flex h-[40px] w-[40px] items-center justify-center rounded-full border border-[#e2e8f0] bg-white shadow-[0_2px_8px_rgba(45,55,72,0.05)]" aria-label="프로필 메뉴 열기" onclick="toggleProfileMenu()">
+            <svg viewBox="0 0 24 24" class="h-[30px] w-[30px] text-[#4a5568]" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+              <circle cx="12" cy="8" r="3.2"></circle>
+              <path d="M5.5 19a6.5 6.5 0 0 1 13 0"></path>
+            </svg>
           </button>
           <div id="profileMenu"
                class="absolute right-0 top-[52px] w-[160px] origin-top-right rounded-[16px] border border-[#dbe7f5] bg-white shadow-[0_14px_36px_rgba(45,55,72,0.10)] transition-all duration-[180ms] ease-[cubic-bezier(0.22,1,0.36,1)] pointer-events-none translate-y-[-8px] scale-95 opacity-0">
@@ -824,7 +834,7 @@
       existing.className = 'chat-history-item relative h-[40px] w-[250px] cursor-pointer rounded-[8px] transition-colors duration-150 text-left';
       existing.setAttribute('data-id', sessionId);
       existing.innerHTML = ''
-        + '<img alt="" class="history-bg absolute inset-0 h-[40px] w-[250px] transition-opacity duration-150" src="https://www.figma.com/api/mcp/asset/6630cc6d-cbd9-471a-8587-bd6e56070487" />'
+        + '<div class="history-bg absolute inset-0 rounded-[8px] border border-[#e7edf5] bg-white transition-opacity duration-150"></div>'
         + '<span class="history-title absolute left-[10.5px] right-[66px] top-[11.8px] overflow-hidden text-ellipsis whitespace-nowrap text-[12px] font-semibold leading-none text-[#2d3748]"></span>'
         + '<div class="absolute right-[10px] top-[11px] h-[18px] w-[62px]">'
         + '  <span class="history-date absolute right-0 top-[1px] w-full whitespace-nowrap text-right text-[11px] leading-none tabular-nums text-[#a0aec0]"></span>'
@@ -1605,7 +1615,6 @@
   }
 
   function bindHistoryItemInteractions(item) {
-    var bg = item.querySelector('.history-bg');
     var date = item.querySelector('.history-date');
     var actions = item.querySelector('.history-actions');
 
@@ -1615,8 +1624,8 @@
 
     item.addEventListener('mouseenter', function () {
       if (item.getAttribute('data-id') !== activeSessionId) {
-        item.style.backgroundColor = '#e2e8f0';
-        if (bg) bg.style.opacity = '0';
+        item.style.backgroundColor = '#f8fbff';
+        item.style.borderRadius = '8px';
       }
       if (date) date.style.display = 'none';
       if (actions) actions.style.display = 'flex';
@@ -1625,7 +1634,7 @@
     item.addEventListener('mouseleave', function () {
       if (item.getAttribute('data-id') !== activeSessionId) {
         item.style.backgroundColor = '';
-        if (bg) bg.style.opacity = '1';
+        item.style.borderRadius = '';
       }
       if (date) date.style.display = '';
       if (actions) actions.style.display = 'none';
@@ -1645,7 +1654,7 @@
     var input = document.createElement('input');
     input.type = 'text';
     input.value = current;
-    input.className = 'absolute left-[10.5px] top-[7.8px] h-[24px] w-[175px] rounded border border-[#cbd5e0] bg-white px-[6px] text-[12px] font-semibold text-[#2d3748] outline-none';
+    input.className = 'absolute left-[6px] top-[8px] h-[24px] w-[172px] rounded border border-[#cbd5e0] bg-white px-[6px] text-[12px] font-semibold text-[#2d3748] outline-none';
     titleEl.replaceWith(input);
     input.focus();
     input.select();
@@ -1653,7 +1662,7 @@
     function done() {
       var newTitle = input.value.trim() || current;
       var span = document.createElement('span');
-      span.className = 'history-title absolute left-[10.5px] right-[66px] top-[11.8px] overflow-hidden text-ellipsis whitespace-nowrap text-[12px] font-semibold leading-none text-[#2d3748]';
+      span.className = 'history-title absolute left-[6px] right-[72px] top-[12px] overflow-hidden text-ellipsis whitespace-nowrap text-[12px] font-semibold leading-none text-[#2d3748]';
       span.textContent = newTitle;
       input.replaceWith(span);
 
