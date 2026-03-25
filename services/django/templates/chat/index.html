@@ -895,13 +895,20 @@
         </div>
 
         {% if is_member_view %}
-        <div class="flex h-[40px] w-[40px] items-center justify-center rounded-full border border-[#e2e8f0] bg-white shadow-[0_2px_8px_rgba(45,55,72,0.05)]" aria-label="장바구니">
+        <a href="{% if is_preview_member %}#{% else %}/products/{% endif %}"
+           class="relative flex h-[40px] w-[40px] items-center justify-center rounded-full border border-[#e2e8f0] bg-white shadow-[0_2px_8px_rgba(45,55,72,0.05)]"
+           aria-label="장바구니"
+           {% if is_preview_member %}onclick="return false"{% endif %}>
+          <span id="headerCartCountBadge"
+                class="absolute right-[-4px] top-[-5px] hidden h-[18px] min-w-[18px] items-center justify-center rounded-full bg-[#2d3748] px-[5px] text-[10px] font-bold leading-none text-white shadow-[0_4px_10px_rgba(45,55,72,0.16)]">
+            0
+          </span>
           <svg viewBox="0 0 24 24" class="h-[24px] w-[24px] text-[#4a5568]" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
             <circle cx="9" cy="20" r="1.5"></circle>
             <circle cx="18" cy="20" r="1.5"></circle>
             <path d="M3 4h2l2.2 10.2a1 1 0 0 0 1 .8h8.9a1 1 0 0 0 1-.75L20 8H7"></path>
           </svg>
-        </div>
+        </a>
         <div class="relative h-[40px] w-[40px]" id="profileMenuWrapper">
           <button type="button" class="flex h-[40px] w-[40px] items-center justify-center rounded-full border border-[#e2e8f0] bg-white shadow-[0_2px_8px_rgba(45,55,72,0.05)]" aria-label="프로필 메뉴 열기" onclick="toggleProfileMenu()">
             <svg viewBox="0 0 24 24" class="h-[30px] w-[30px] text-[#4a5568]" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
@@ -1806,6 +1813,7 @@
   function updateCartTotal() {
     var totalNode = document.getElementById('cartTotalAmount');
     var badgeNode = document.getElementById('cartCountBadge');
+    var headerBadgeNode = document.getElementById('headerCartCountBadge');
     if (!totalNode) return;
 
     var total = 0;
@@ -1820,6 +1828,17 @@
 
     totalNode.textContent = formatPrice(total);
     if (badgeNode) badgeNode.textContent = String(count);
+    if (headerBadgeNode) {
+      if (count > 0) {
+        headerBadgeNode.textContent = count > 9 ? '9+' : String(count);
+        headerBadgeNode.classList.remove('hidden');
+        headerBadgeNode.classList.add('inline-flex');
+      } else {
+        headerBadgeNode.textContent = '0';
+        headerBadgeNode.classList.add('hidden');
+        headerBadgeNode.classList.remove('inline-flex');
+      }
+    }
     if (quickOrderModal && quickOrderModal.classList.contains('is-open')) {
       renderQuickOrderSummary();
     }
