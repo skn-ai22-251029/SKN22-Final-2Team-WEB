@@ -92,9 +92,17 @@ def _load_product_panels():
         if len(selected_products) >= 9:
             break
 
+    cart_source = selected_products[:5]
+    wishlist_source = []
+    if len(cart_source) > 1:
+        wishlist_source.extend(cart_source[:2])
+    wishlist_source.extend(selected_products[5:7])
+
+    wishlist_goods_ids = {product.goods_id for product in wishlist_source}
+
     cart_items = []
     wishlist_items = []
-    for index, product in enumerate(selected_products[:5]):
+    for index, product in enumerate(cart_source):
         cart_items.append(
             {
                 "goods_id": product.goods_id,
@@ -106,10 +114,12 @@ def _load_product_panels():
                 "rating": product.rating,
                 "review_count": product.review_count,
                 "quantity": (index % 3) + 1,
+                "note": _recommended_note(index),
+                "is_wishlisted": product.goods_id in wishlist_goods_ids,
             }
         )
 
-    for index, product in enumerate(selected_products[5:9]):
+    for index, product in enumerate(wishlist_source):
         wishlist_items.append(
             {
                 "goods_id": product.goods_id,

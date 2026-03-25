@@ -10,6 +10,26 @@
   .product-tab-panel.is-active {
     display: block;
   }
+
+  .wishlist-heart svg:last-child {
+    display: none;
+  }
+
+  .wishlist-heart {
+    color: #4a5568;
+  }
+
+  .wishlist-heart.is-active {
+    color: #e53e3e;
+  }
+
+  .wishlist-heart.is-active svg:first-child {
+    display: none;
+  }
+
+  .wishlist-heart.is-active svg:last-child {
+    display: block;
+  }
 </style>
 {% endblock %}
 
@@ -24,69 +44,127 @@
 
     <div class="mt-8 flex items-center justify-start">
       <div class="inline-flex rounded-full border border-[#dbe7f5] bg-white p-[4px] shadow-[0_6px_18px_rgba(45,55,72,0.04)]">
-        <button type="button" id="productsTabCart" class="inline-flex h-[38px] min-w-[108px] items-center justify-center rounded-full bg-[#2d3748] px-4 text-[13px] font-semibold text-white transition-colors">
-          장바구니
+        <button type="button" id="productsTabCart" class="inline-flex h-[38px] min-w-[124px] items-center justify-center rounded-full bg-[#2d3748] px-4 text-[13px] font-semibold text-white transition-colors">
+          <span class="inline-flex h-[18px] items-center justify-center gap-3.5">
+            <span class="inline-flex h-[18px] items-center leading-none">장바구니</span>
+            <span id="productsTabCartCount" class="inline-flex h-[18px] min-w-[20px] items-center justify-center rounded-full bg-white/18 px-1.5 text-[11px] font-bold leading-none text-white {% if item_count == 0 %}hidden{% endif %}">
+              <span class="inline-flex h-[18px] items-center">{{ item_count }}</span>
+            </span>
+          </span>
         </button>
-        <button type="button" id="productsTabWishlist" class="inline-flex h-[38px] min-w-[108px] items-center justify-center rounded-full px-4 text-[13px] font-semibold text-[#718096] transition-colors hover:text-[#2d3748]">
-          관심 상품
+        <button type="button" id="productsTabWishlist" class="inline-flex h-[38px] min-w-[124px] items-center justify-center rounded-full px-4 text-[13px] font-semibold text-[#718096] transition-colors hover:text-[#2d3748]">
+          <span class="inline-flex h-[18px] items-center justify-center gap-3.5">
+            <span class="inline-flex h-[18px] items-center leading-none">관심 상품</span>
+            <span id="productsTabWishlistCount" class="inline-flex h-[18px] min-w-[20px] items-center justify-center rounded-full bg-[#edf2f7] px-1.5 text-[11px] font-bold leading-none text-[#4a5568] {% if wishlist_count == 0 %}hidden{% endif %}">
+              <span class="inline-flex h-[18px] items-center">{{ wishlist_count }}</span>
+            </span>
+          </span>
         </button>
-        <a href="/orders/" class="inline-flex h-[38px] min-w-[108px] items-center justify-center rounded-full px-4 text-[13px] font-semibold text-[#718096] transition-colors hover:text-[#2d3748]">
-          구매 내역
+        <a href="/orders/" class="inline-flex h-[38px] min-w-[124px] items-center justify-center rounded-full px-4 text-[13px] font-semibold leading-none text-[#718096] transition-colors hover:text-[#2d3748]">
+          <span class="inline-flex h-[18px] items-center justify-center gap-1.5 leading-none">
+            <span class="inline-flex h-[18px] items-center leading-none">구매 내역</span>
+          </span>
         </a>
       </div>
     </div>
 
     <div class="mt-8 grid gap-6 lg:grid-cols-[minmax(0,1fr)_340px]">
-      <section class="min-h-[720px] lg:max-h-[calc(100vh-220px)] lg:overflow-y-auto lg:pr-2">
-        <div id="productsPanelCart" class="product-tab-panel is-active space-y-3">
+      <section class="min-h-[720px]">
+        <div id="productsPanelCart" class="product-tab-panel is-active min-h-[720px] max-w-[650px] space-y-3 lg:max-h-[calc(100vh-220px)] lg:overflow-y-auto lg:pr-2">
         {% for item in cart_items %}
-        <article class="rounded-[20px] border border-[#dbe7f5] bg-white px-4 py-4 shadow-[0_6px_18px_rgba(45,55,72,0.04)]"
+        <article class="relative rounded-[20px] border border-[#dbe7f5] bg-white px-4 py-4 shadow-[0_6px_18px_rgba(45,55,72,0.04)]"
                  data-cart-item
-                 data-unit-price="{{ item.price }}">
-          <div class="flex flex-col gap-3 md:flex-row md:items-center">
-            <div class="flex h-[58px] w-[58px] shrink-0 items-center justify-center overflow-hidden rounded-[18px] bg-[#f8fbff] shadow-[0_4px_12px_rgba(49,130,206,0.08)]">
+                 data-goods-id="{{ item.goods_id }}"
+                 data-unit-price="{{ item.price }}"
+                 data-brand="{{ item.brand }}"
+                 data-name="{{ item.name }}"
+                 data-price-label="{{ item.price_label }}"
+                 data-rating="{{ item.rating|default:'-' }}"
+                 data-review-count="{{ item.review_count }}"
+                 data-thumbnail-url="{{ item.thumbnail_url|default:'' }}"
+                 data-note="{{ item.note }}">
+          <div class="absolute right-4 top-4 flex items-center gap-2">
+            <button type="button"
+                    class="wishlist-heart {% if item.is_wishlisted %}is-active {% endif %}inline-flex h-[18px] w-[18px] items-center justify-center leading-none text-[#4a5568] transition-colors hover:text-[#e53e3e]"
+                    aria-label="관심 상품 상태 변경"
+                    onclick="toggleWishlistHeart(this)">
+              <svg width="15" height="15" viewBox="0 0 24 24" fill="none" aria-hidden="true">
+                <path d="M12 20.4 4.9 13.8a4.8 4.8 0 0 1 6.8-6.8L12 7.3l.3-.3a4.8 4.8 0 0 1 6.8 6.8L12 20.4Z" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"/>
+              </svg>
+              <svg width="15" height="15" viewBox="0 0 24 24" fill="currentColor" aria-hidden="true">
+                <path d="M12 20.4 4.9 13.8a4.8 4.8 0 0 1 6.8-6.8L12 7.3l.3-.3a4.8 4.8 0 0 1 6.8 6.8L12 20.4Z"/>
+              </svg>
+            </button>
+            <button type="button"
+                    class="inline-flex h-[18px] w-[18px] items-center justify-center leading-none text-[14px] font-bold uppercase text-[#a0aec0] transition-colors hover:text-[#e53e3e]"
+                    aria-label="상품 삭제"
+                    onclick="removeCartItem(this)">X</button>
+          </div>
+          <div class="flex items-start gap-3">
+            <div class="flex h-[64px] w-[64px] shrink-0 items-center justify-center overflow-hidden rounded-[18px] bg-[#f8fbff] shadow-[0_4px_12px_rgba(49,130,206,0.08)]">
               {% if item.thumbnail_url %}
               <img src="{{ item.thumbnail_url }}" alt="{{ item.name }}" class="h-full w-full object-cover" />
               {% else %}
               <span class="text-[20px] font-bold text-[#90a4b8]">?</span>
               {% endif %}
             </div>
-            <div class="min-w-0 flex-1">
-              <p class="text-[12px] font-semibold text-[#90a4b8]">{{ item.brand }}</p>
+            <div class="min-w-0 flex-1 pr-14">
+              <div class="flex items-center justify-between gap-3">
+                <p class="truncate text-[12px] font-semibold text-[#90a4b8]">{{ item.brand }}</p>
+                <span class="shrink-0 text-[12px] text-[#90a4b8]">개당 {{ item.price_label }}</span>
+              </div>
               <p class="mt-1 truncate text-[16px] font-bold text-[#2d3748]">{{ item.name }}</p>
               <div class="mt-2 flex items-center gap-2 text-[11px]">
                 <span class="font-bold text-[#d69e2e]">★ {{ item.rating|default:"-" }}</span>
                 <span class="text-[#a0aec0]">리뷰 {{ item.review_count }}</span>
               </div>
             </div>
-            <div class="flex items-center justify-between gap-3 md:flex-col md:items-end">
-              <div class="inline-flex items-center rounded-full border border-[#dbe7f5] bg-[#f8fbff] px-[4px] py-[4px] text-[13px] font-semibold text-[#2d3748]">
-                <button type="button"
-                        class="flex h-[28px] w-[28px] items-center justify-center rounded-full bg-white text-[15px]"
-                        onclick="adjustCartQuantity(this, -1)">−</button>
-                <span class="inline-flex min-w-[34px] items-center justify-center" data-cart-quantity>{{ item.quantity }}</span>
-                <button type="button"
-                        class="flex h-[28px] w-[28px] items-center justify-center rounded-full bg-white text-[15px]"
-                        onclick="adjustCartQuantity(this, 1)">+</button>
-              </div>
-              <div class="text-right">
-                <p class="text-[12px] text-[#90a4b8]">{{ item.price_label }} / 개</p>
-                <p class="mt-1 text-[17px] font-bold text-[#2d3748]" data-cart-line-total>{{ item.line_total_label }}</p>
-              </div>
-            </div>
           </div>
-          <div class="mt-3 flex items-center justify-end border-t border-[#edf2f7] pt-3">
-            <button type="button" class="text-[13px] font-semibold text-[#e53e3e]" onclick="removeCartItem(this)">삭제</button>
+          <div class="mt-2.5 flex items-center justify-end gap-2.5 border-t border-[#edf2f7] pt-2.5">
+            <div class="inline-flex items-center rounded-full border border-[#dbe7f5] bg-[#f8fbff] px-[3px] py-[2px] text-[12px] font-semibold text-[#2d3748]">
+              <button type="button"
+                      class="flex h-[22px] w-[22px] items-center justify-center rounded-full bg-white text-[13px]"
+                      onclick="adjustCartQuantity(this, -1)">−</button>
+              <span class="inline-flex min-w-[28px] items-center justify-center px-1" data-cart-quantity>{{ item.quantity }}</span>
+              <button type="button"
+                      class="flex h-[22px] w-[22px] items-center justify-center rounded-full bg-white text-[13px]"
+                      onclick="adjustCartQuantity(this, 1)">+</button>
+            </div>
+            <div class="min-w-[96px] text-right">
+              <p class="text-[17px] font-bold text-[#2d3748]" data-cart-line-total>{{ item.line_total_label }}</p>
+            </div>
           </div>
         </article>
         {% endfor %}
         </div>
 
-        <div id="productsPanelWishlist" class="product-tab-panel space-y-3">
+        <div id="productsPanelWishlist" class="product-tab-panel min-h-[720px] max-w-[650px] space-y-3 lg:max-h-[calc(100vh-220px)] lg:overflow-y-auto lg:pr-2">
         {% for item in wishlist_items %}
-        <article class="rounded-[20px] border border-[#dbe7f5] bg-white px-4 py-4 shadow-[0_6px_18px_rgba(45,55,72,0.04)]">
+        <article class="relative rounded-[20px] border border-[#dbe7f5] bg-white px-4 py-4 shadow-[0_6px_18px_rgba(45,55,72,0.04)]"
+                 data-wishlist-item
+                 data-goods-id="{{ item.goods_id }}"
+                 data-brand="{{ item.brand }}"
+                 data-name="{{ item.name }}"
+                 data-price-label="{{ item.price_label }}"
+                 data-rating="{{ item.rating|default:'-' }}"
+                 data-review-count="{{ item.review_count }}"
+                 data-thumbnail-url="{{ item.thumbnail_url|default:'' }}"
+                 data-note="{{ item.note }}">
+          <div class="absolute right-4 top-4">
+            <button type="button"
+                    class="wishlist-heart is-active inline-flex h-[18px] w-[18px] items-center justify-center leading-none text-[#4a5568] transition-colors hover:text-[#e53e3e]"
+                    aria-label="관심 상품 상태 변경"
+                    onclick="toggleWishlistHeart(this)">
+              <svg width="15" height="15" viewBox="0 0 24 24" fill="none" aria-hidden="true">
+                <path d="M12 20.4 4.9 13.8a4.8 4.8 0 0 1 6.8-6.8L12 7.3l.3-.3a4.8 4.8 0 0 1 6.8 6.8L12 20.4Z" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"/>
+              </svg>
+              <svg width="15" height="15" viewBox="0 0 24 24" fill="currentColor" aria-hidden="true">
+                <path d="M12 20.4 4.9 13.8a4.8 4.8 0 0 1 6.8-6.8L12 7.3l.3-.3a4.8 4.8 0 0 1 6.8 6.8L12 20.4Z"/>
+              </svg>
+            </button>
+          </div>
           <div class="flex flex-col gap-3 md:flex-row md:items-center">
-            <div class="flex h-[58px] w-[58px] shrink-0 items-center justify-center overflow-hidden rounded-[18px] bg-[#f8fbff] shadow-[0_4px_12px_rgba(49,130,206,0.08)]">
+            <div class="flex h-[64px] w-[64px] shrink-0 items-center justify-center overflow-hidden rounded-[18px] bg-[#f8fbff] shadow-[0_4px_12px_rgba(49,130,206,0.08)]">
               {% if item.thumbnail_url %}
               <img src="{{ item.thumbnail_url }}" alt="{{ item.name }}" class="h-full w-full object-cover" />
               {% else %}
@@ -95,7 +173,7 @@
             </div>
             <div class="min-w-0 flex-1">
               <p class="text-[12px] font-semibold text-[#90a4b8]">{{ item.brand }}</p>
-              <p class="mt-1 truncate text-[16px] font-bold text-[#2d3748]">{{ item.name }}</p>
+              <p class="mt-1 max-w-[calc(100%-44px)] truncate text-[16px] font-bold text-[#2d3748] md:max-w-full">{{ item.name }}</p>
               <div class="mt-2 flex items-center gap-2 text-[11px]">
                 <span class="font-bold text-[#d69e2e]">★ {{ item.rating|default:"-" }}</span>
                 <span class="text-[#a0aec0]">리뷰 {{ item.review_count }}</span>
@@ -105,9 +183,6 @@
             <div class="flex items-center gap-3 md:flex-col md:items-end">
               <p class="text-[17px] font-bold text-[#2d3748]">{{ item.price_label }}</p>
               <div class="flex items-center gap-2">
-                <button type="button" class="inline-flex h-[34px] items-center justify-center rounded-full border border-[#dbe7f5] bg-white px-3 text-[12px] font-semibold text-[#4a5568]">
-                  삭제
-                </button>
                 <button type="button" class="inline-flex h-[34px] items-center justify-center rounded-full bg-[#2d3748] px-4 text-[12px] font-semibold text-white">
                   담기
                 </button>
@@ -203,6 +278,8 @@
   var wishlistTab = document.getElementById('productsTabWishlist');
   var cartPanel = document.getElementById('productsPanelCart');
   var wishlistPanel = document.getElementById('productsPanelWishlist');
+  var cartCountBadge = document.getElementById('productsTabCartCount');
+  var wishlistCountBadge = document.getElementById('productsTabWishlistCount');
   var discountTotalRaw = {{ discount_total_raw }};
   var shippingFeeRaw = {{ shipping_fee_raw }};
 
@@ -240,6 +317,105 @@
     if (finalTotalNode) finalTotalNode.textContent = formatPrice(finalTotal);
   }
 
+  function updateTabCounts() {
+    var cartCount = 0;
+    cartPanel.querySelectorAll('[data-cart-item]').forEach(function (item) {
+      var quantityNode = item.querySelector('[data-cart-quantity]');
+      var quantity = quantityNode ? Number(quantityNode.textContent || '0') : 0;
+      cartCount += quantity;
+    });
+    var wishlistCount = wishlistPanel.querySelectorAll('[data-wishlist-item]').length;
+
+    if (cartCountBadge) {
+      cartCountBadge.textContent = String(cartCount);
+      cartCountBadge.classList.toggle('hidden', cartCount === 0);
+    }
+
+    if (wishlistCountBadge) {
+      wishlistCountBadge.textContent = String(wishlistCount);
+      wishlistCountBadge.classList.toggle('hidden', wishlistCount === 0);
+    }
+  }
+
+  function escapeHtml(value) {
+    return String(value || '')
+      .replace(/&/g, '&amp;')
+      .replace(/</g, '&lt;')
+      .replace(/>/g, '&gt;')
+      .replace(/"/g, '&quot;')
+      .replace(/'/g, '&#39;');
+  }
+
+  function wishlistItemMarkup(data) {
+    var thumbnail = data.thumbnailUrl
+      ? '<img src="' + escapeHtml(data.thumbnailUrl) + '" alt="' + escapeHtml(data.name) + '" class="h-full w-full object-cover" />'
+      : '<span class="text-[20px] font-bold text-[#90a4b8]">?</span>';
+
+    return [
+      '<article class="relative rounded-[20px] border border-[#dbe7f5] bg-white px-4 py-4 shadow-[0_6px_18px_rgba(45,55,72,0.04)]" data-wishlist-item',
+      ' data-goods-id="' + escapeHtml(data.goodsId) + '"',
+      ' data-brand="' + escapeHtml(data.brand) + '"',
+      ' data-name="' + escapeHtml(data.name) + '"',
+      ' data-price-label="' + escapeHtml(data.priceLabel) + '"',
+      ' data-rating="' + escapeHtml(data.rating) + '"',
+      ' data-review-count="' + escapeHtml(data.reviewCount) + '"',
+      ' data-thumbnail-url="' + escapeHtml(data.thumbnailUrl) + '"',
+      ' data-note="' + escapeHtml(data.note) + '">',
+      '<div class="absolute right-4 top-4">',
+      '<button type="button" class="wishlist-heart is-active inline-flex h-[18px] w-[18px] items-center justify-center leading-none text-[#4a5568] transition-colors hover:text-[#e53e3e]" aria-label="관심 상품 상태 변경" onclick="toggleWishlistHeart(this)">',
+      '<svg width="15" height="15" viewBox="0 0 24 24" fill="none" aria-hidden="true"><path d="M12 20.4 4.9 13.8a4.8 4.8 0 0 1 6.8-6.8L12 7.3l.3-.3a4.8 4.8 0 0 1 6.8 6.8L12 20.4Z" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"/></svg>',
+      '<svg width="15" height="15" viewBox="0 0 24 24" fill="currentColor" aria-hidden="true"><path d="M12 20.4 4.9 13.8a4.8 4.8 0 0 1 6.8-6.8L12 7.3l.3-.3a4.8 4.8 0 0 1 6.8 6.8L12 20.4Z"/></svg>',
+      '</button></div>',
+      '<div class="flex flex-col gap-3 md:flex-row md:items-center">',
+      '<div class="flex h-[58px] w-[58px] shrink-0 items-center justify-center overflow-hidden rounded-[18px] bg-[#f8fbff] shadow-[0_4px_12px_rgba(49,130,206,0.08)]">',
+      thumbnail,
+      '</div>',
+      '<div class="min-w-0 flex-1"><p class="text-[12px] font-semibold text-[#90a4b8]">' + escapeHtml(data.brand) + '</p>',
+      '<p class="mt-1 max-w-[calc(100%-44px)] truncate text-[16px] font-bold text-[#2d3748] md:max-w-full">' + escapeHtml(data.name) + '</p>',
+      '<div class="mt-2 flex items-center gap-2 text-[11px]"><span class="font-bold text-[#d69e2e]">★ ' + escapeHtml(data.rating) + '</span><span class="text-[#a0aec0]">리뷰 ' + escapeHtml(data.reviewCount) + '</span></div>',
+      '<p class="mt-2 text-[12px] text-[#4a5568]">' + escapeHtml(data.note) + '</p></div>',
+      '<div class="flex items-center gap-3 md:flex-col md:items-end"><p class="text-[17px] font-bold text-[#2d3748]">' + escapeHtml(data.priceLabel) + '</p>',
+      '<div class="flex items-center gap-2"><button type="button" class="inline-flex h-[34px] items-center justify-center rounded-full bg-[#2d3748] px-4 text-[12px] font-semibold text-white">담기</button></div></div></div></article>'
+    ].join('');
+  }
+
+  function getCartItemData(item) {
+    return {
+      goodsId: item.getAttribute('data-goods-id') || '',
+      brand: item.getAttribute('data-brand') || '',
+      name: item.getAttribute('data-name') || '',
+      priceLabel: item.getAttribute('data-price-label') || '',
+      rating: item.getAttribute('data-rating') || '-',
+      reviewCount: item.getAttribute('data-review-count') || '0',
+      thumbnailUrl: item.getAttribute('data-thumbnail-url') || '',
+      note: item.getAttribute('data-note') || '가격 비교를 위해 보관한 상품',
+    };
+  }
+
+  function syncCartHeart(goodsId, active) {
+    var cartItem = cartPanel.querySelector('[data-cart-item][data-goods-id="' + goodsId + '"]');
+    if (!cartItem) return;
+    var button = cartItem.querySelector('.wishlist-heart');
+    if (!button) return;
+    button.classList.toggle('is-active', active);
+  }
+
+  function addWishlistItem(data) {
+    if (wishlistPanel.querySelector('[data-wishlist-item][data-goods-id="' + data.goodsId + '"]')) {
+      return;
+    }
+    wishlistPanel.insertAdjacentHTML('beforeend', wishlistItemMarkup(data));
+    updateTabCounts();
+  }
+
+  function removeWishlistItem(goodsId) {
+    var item = wishlistPanel.querySelector('[data-wishlist-item][data-goods-id="' + goodsId + '"]');
+    if (item) {
+      item.remove();
+      updateTabCounts();
+    }
+  }
+
   function setActiveTab(tab) {
     var cartActive = tab === 'cart';
     cartPanel.classList.toggle('is-active', cartActive);
@@ -254,7 +430,44 @@
     wishlistTab.classList.toggle('text-white', !cartActive);
     wishlistTab.classList.toggle('text-[#718096]', cartActive);
     wishlistTab.classList.toggle('hover:text-[#2d3748]', cartActive);
+
+    if (cartCountBadge) {
+      cartCountBadge.classList.toggle('bg-white/18', cartActive);
+      cartCountBadge.classList.toggle('text-white', cartActive);
+      cartCountBadge.classList.toggle('bg-[#edf2f7]', !cartActive);
+      cartCountBadge.classList.toggle('text-[#4a5568]', !cartActive);
+    }
+
+    if (wishlistCountBadge) {
+      wishlistCountBadge.classList.toggle('bg-white/18', !cartActive);
+      wishlistCountBadge.classList.toggle('text-white', !cartActive);
+      wishlistCountBadge.classList.toggle('bg-[#edf2f7]', cartActive);
+      wishlistCountBadge.classList.toggle('text-[#4a5568]', cartActive);
+    }
   }
+
+  window.toggleWishlistHeart = function (button) {
+    var cartItem = button.closest('[data-cart-item]');
+    var wishlistItem = button.closest('[data-wishlist-item]');
+
+    if (cartItem) {
+      var cartData = getCartItemData(cartItem);
+      var nextActive = !button.classList.contains('is-active');
+      button.classList.toggle('is-active', nextActive);
+      if (nextActive) {
+        addWishlistItem(cartData);
+      } else {
+        removeWishlistItem(cartData.goodsId);
+      }
+      return;
+    }
+
+    if (wishlistItem) {
+      var goodsId = wishlistItem.getAttribute('data-goods-id');
+      wishlistItem.remove();
+      syncCartHeart(goodsId, false);
+    }
+  };
 
   cartTab.addEventListener('click', function () {
     setActiveTab('cart');
@@ -274,6 +487,7 @@
     var next = Math.max(1, current + delta);
     quantityNode.textContent = String(next);
     updateCartSummary();
+    updateTabCounts();
   };
 
   window.removeCartItem = function (button) {
@@ -281,9 +495,11 @@
     if (!item) return;
     item.remove();
     updateCartSummary();
+    updateTabCounts();
   };
 
   updateCartSummary();
+  updateTabCounts();
 })();
 </script>
 {% endblock %}
