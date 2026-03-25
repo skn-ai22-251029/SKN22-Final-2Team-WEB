@@ -1,11 +1,94 @@
 import json
 
+from django.db.models import Q
 from django.shortcuts import render
 from django.views.decorators.csrf import ensure_csrf_cookie
+
+from orders.models import Cart
+from products.models import Product
 
 
 def _format_price(value):
     return f"{value:,}원"
+
+
+def _display_product_name(brand_name, goods_name):
+    if not goods_name:
+        return ""
+
+    normalized_brand = (brand_name or "").strip()
+    normalized_name = goods_name.strip()
+
+    if normalized_brand and normalized_name.lower().startswith(normalized_brand.lower()):
+        trimmed = normalized_name[len(normalized_brand):].lstrip(" -_/|")
+        if trimmed:
+            return trimmed
+
+    return normalized_name
+
+
+def _single_product_queryset():
+    excluded_terms = [
+        "모음",
+        "모아보기",
+        "세트",
+        "BEST",
+        "color",
+        "Color",
+        "S-XL",
+        "S-M",
+        "SM-",
+        "2XL",
+        "3XL",
+        "4XL",
+        "무료배송",
+        "샘플",
+        "스쿱",
+    ]
+    query = Product.objects.filter(
+        soldout_yn=False,
+    ).filter(
+        Q(goods_name__icontains="영양제") | Q(goods_name__icontains="사료")
+    )
+
+    for term in excluded_terms:
+        query = query.exclude(goods_name__icontains=term)
+
+    return query.order_by("-review_count", "-discount_price", "goods_id")
+
+
+def _serialize_recommended_product(product):
+    final_price = product.discount_price or product.price
+    return {
+        "product_id": product.goods_id,
+        "name": _display_product_name(product.brand_name, product.goods_name),
+        "price": _format_price(product.price),
+        "discount_price": _format_price(final_price) if final_price != product.price else "",
+        "brand_name": product.brand_name,
+        "thumbnail_url": product.thumbnail_url,
+        "product_url": product.product_url,
+        "rating": str(product.rating or "0.0"),
+        "reviews": f"리뷰 {product.review_count}",
+    }
+
+
+def _serialize_cart_product(item):
+    product = item.product
+    price = product.discount_price or product.price
+    return {
+        "product_id": product.goods_id,
+        "name": _display_product_name(product.brand_name, product.goods_name),
+        "summary": "장바구니에 담긴 상품",
+        "price": _format_price(price),
+        "thumbnail_url": product.thumbnail_url,
+        "brand_name": product.brand_name,
+        "rating": str(product.rating or "0.0"),
+        "reviews": f"리뷰 {product.review_count}",
+        "quantity": item.quantity,
+        "unit_price": price,
+        "badge": "장바구니",
+        "accent": "bg-[#e9d5ff] text-[#7c3aed]",
+    }
 
 
 def _serialize_pet(pet):
@@ -394,6 +477,17 @@ def chat_view(request):
         registered_pet_count = request.user.pets.count()
         pets = request.user.pets.prefetch_related("health_concerns", "allergies", "food_preferences").order_by("created_at")[:5]
         member_pets = [_serialize_pet(pet) for pet in pets]
+        recommended_source = list(_single_product_queryset()[:6])
+        if recommended_source:
+            recommended_products = [_serialize_recommended_product(product) for product in recommended_source]
+
+        cart = Cart.objects.filter(user=request.user).prefetch_related("items__product").first()
+        if cart:
+            cart_products = [_serialize_cart_product(item) for item in cart.items.all().order_by("-added_at")]
+            cart_total = sum(product["unit_price"] * product["quantity"] for product in cart_products)
+        else:
+            cart_products = []
+            cart_total = 0
 
     future_pet = _serialize_future_pet(request.session.get("future_pet_profile"))
     if future_pet:

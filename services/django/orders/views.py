@@ -1,8 +1,10 @@
 from django.db import transaction
+from rest_framework.authentication import SessionAuthentication
 from rest_framework import status
 from rest_framework.permissions import IsAuthenticated
 from rest_framework.response import Response
 from rest_framework.views import APIView
+from rest_framework_simplejwt.authentication import JWTAuthentication
 
 from products.models import Product
 
@@ -92,6 +94,7 @@ class OrderListView(APIView):
 
 
 class CartView(APIView):
+    authentication_classes = [JWTAuthentication, SessionAuthentication]
     permission_classes = [IsAuthenticated]
 
     def get(self, request):
@@ -160,6 +163,7 @@ class CartView(APIView):
 
 
 class WishlistView(APIView):
+    authentication_classes = [JWTAuthentication, SessionAuthentication]
     permission_classes = [IsAuthenticated]
 
     def get(self, request):

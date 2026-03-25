@@ -792,6 +792,7 @@
                     </div>
                     <button type="button"
                             class="flex h-[36px] w-[36px] shrink-0 items-center justify-center rounded-full bg-[#3182ce] text-white"
+                            data-product-id="{{ product.product_id|default:'' }}"
                             data-product-name="{{ product.name }}"
                             data-product-price="{{ product.price }}"
                             data-product-rating="{{ product.rating }}"
@@ -811,7 +812,7 @@
                 <div id="cartPanelList" class="space-y-[12px]">
                 {% for product in cart_products %}
                 <div class="group relative rounded-[20px] border border-[#dbe7f5] bg-white px-[14px] py-[13px] shadow-[0_8px_20px_rgba(45,55,72,0.05)]"
-                     data-cart-item data-unit-price="{{ product.unit_price }}" data-product-name="{{ product.name }}">
+                     data-cart-item data-unit-price="{{ product.unit_price }}" data-product-name="{{ product.name }}" data-goods-id="{{ product.product_id|default:'' }}" data-product-rating="{{ product.rating }}" data-product-reviews="{{ product.reviews }}">
                   <button type="button"
                           class="absolute right-[10px] top-[10px] flex h-[28px] w-[28px] items-center justify-center rounded-full border border-[#e2e8f0] bg-white text-[14px] text-[#a0aec0] opacity-0 transition-opacity duration-150 group-hover:opacity-100"
                           onclick="removeCartItem(this)"
@@ -1069,6 +1070,34 @@
         return { detail: text };
       }
     });
+  }
+
+  function requestJson(url, options) {
+    var fetchOptions = Object.assign(
+      {
+        headers: {
+          'Content-Type': 'application/json',
+          'X-CSRFToken': csrfToken || '',
+        },
+        credentials: 'same-origin',
+      },
+      options || {}
+    );
+
+    return fetch(url, fetchOptions).then(function (res) {
+      return readJsonResponse(res).then(function (data) {
+        if (!res.ok) {
+          throw new Error((data && data.detail) || '요청 처리에 실패했습니다.');
+        }
+        return data;
+      });
+    });
+  }
+
+  function saveSharedCartCount(count) {
+    try {
+      window.localStorage.setItem(SHARED_CART_COUNT_STORAGE_KEY, String(count));
+    } catch (e) {}
   }
 
   function ensureSessionItem(session) {
@@ -1517,6 +1546,7 @@
         + '</div>'
         + '<button type="button"'
         + ' class="flex h-[36px] w-[36px] shrink-0 items-center justify-center rounded-full bg-[#3182ce] text-white shadow-[0_8px_18px_rgba(49,130,206,0.18)]"'
+        + ' data-product-id="' + (card.product_id || card.goods_id || '') + '"'
         + ' data-product-name="' + (card.product_name || '추천 상품') + '"'
         + ' data-product-price="' + finalPrice + '"'
         + ' data-product-rating="' + rating + '"'
@@ -1835,6 +1865,24 @@
     return item;
   }
 
+  function serializeCartItem(item) {
+    return {
+      goodsId: item.product_id || item.goodsId || '',
+      name: item.name || '상품',
+      price: Number(item.price || 0),
+      priceLabel: item.price_label || item.priceLabel || formatPrice(Number(item.price || 0)),
+      rating: item.rating || '0.0',
+      reviewCount: normalizeReviewCount(item.review_count || item.reviewCount || '0'),
+      reviews: '리뷰 ' + normalizeReviewCount(item.review_count || item.reviewCount || '0'),
+      quantity: Number(item.quantity || 1),
+      emoji: item.emoji || '🛍️',
+      brand: item.brand || '',
+      thumbnailUrl: item.thumbnail_url || item.thumbnailUrl || '',
+      note: item.note || '가격 비교를 위해 보관한 상품',
+      isWishlisted: !!item.is_wishlisted,
+    };
+  }
+
   function getCartState() {
     var items = [];
     document.querySelectorAll('[data-cart-item]').forEach(function (item) {
@@ -1863,21 +1911,41 @@
     if (!list) return;
     list.innerHTML = '';
     items.forEach(function (itemData) {
+      var serialized = serializeCartItem(itemData);
+      if (!serialized.goodsId) return;
       list.appendChild(buildCartItem({
-        goodsId: itemData.goodsId,
-        name: itemData.name,
-        unitPrice: Number(itemData.price || 0),
-        price: itemData.priceLabel || formatPrice(Number(itemData.price || 0)),
-        rating: itemData.rating || '0.0',
-        reviewCount: itemData.reviewCount || '0',
-        reviews: '리뷰 ' + normalizeReviewCount(itemData.reviewCount || '0'),
-        quantity: Number(itemData.quantity || 1),
-        emoji: itemData.emoji || '🛍️',
+        goodsId: serialized.goodsId,
+        name: serialized.name,
+        unitPrice: serialized.price,
+        price: serialized.priceLabel,
+        rating: serialized.rating,
+        reviewCount: serialized.reviewCount,
+        reviews: serialized.reviews,
+        quantity: serialized.quantity,
+        emoji: serialized.emoji,
       }));
     });
   }
 
-  function updateCartTotal() {
+  function refreshCartPanelFromApi(options) {
+    var config = options || {};
+    return requestJson('/api/orders/cart/')
+      .then(function (data) {
+        renderCartFromState(data.items || []);
+        if (config.syncShared) {
+          saveSharedCartItems((data.items || []).map(serializeCartItem));
+          saveSharedCartCount(Number(data.total_quantity || 0));
+        }
+        updateCartTotal(true);
+      })
+      .catch(function (error) {
+        if (!config.silent) {
+          window.alert(error.message || '장바구니 정보를 불러오지 못했습니다.');
+        }
+      });
+  }
+
+  function updateCartTotal(skipSharedSync) {
     var totalNode = document.getElementById('cartTotalAmount');
     var badgeNode = document.getElementById('cartCountBadge');
     var headerBadgeNode = document.getElementById('headerCartCountBadge');
@@ -1906,10 +1974,10 @@
         headerBadgeNode.classList.remove('inline-flex');
       }
     }
-    try {
-      window.localStorage.setItem(SHARED_CART_COUNT_STORAGE_KEY, String(count));
-    } catch (e) {}
-    saveSharedCartItems(getCartState());
+    if (!skipSharedSync) {
+      saveSharedCartCount(count);
+      saveSharedCartItems(getCartState());
+    }
     if (quickOrderModal && quickOrderModal.classList.contains('is-open')) {
       renderQuickOrderSummary();
     }
@@ -1954,6 +2022,7 @@
   window.adjustCartQuantity = function (button, delta) {
     var item = button.closest('[data-cart-item]');
     if (!item) return;
+    {% if is_preview_member %}
     var quantityNode = item.querySelector('[data-cart-quantity]');
     if (!quantityNode) return;
 
@@ -1961,13 +2030,40 @@
     var next = Math.max(1, current + delta);
     quantityNode.textContent = String(next);
     updateCartTotal();
+    return;
+    {% endif %}
+    var quantityNode = item.querySelector('[data-cart-quantity]');
+    var current = Number(quantityNode ? quantityNode.textContent || '1' : '1');
+    var next = Math.max(1, current + delta);
+    requestJson('/api/orders/cart/', {
+      method: 'PATCH',
+      body: JSON.stringify({
+        product_id: item.getAttribute('data-goods-id'),
+        quantity: next,
+      }),
+    }).then(function () {
+      return refreshCartPanelFromApi({ silent: true, syncShared: true });
+    }).catch(function (error) {
+      window.alert(error.message || '장바구니 수량을 변경하지 못했습니다.');
+    });
   };
 
   window.removeCartItem = function (button) {
     var item = button.closest('[data-cart-item]');
     if (!item) return;
+    {% if is_preview_member %}
     item.remove();
     updateCartTotal();
+    return;
+    {% endif %}
+    requestJson('/api/orders/cart/', {
+      method: 'DELETE',
+      body: JSON.stringify({ product_id: item.getAttribute('data-goods-id') }),
+    }).then(function () {
+      return refreshCartPanelFromApi({ silent: true, syncShared: true });
+    }).catch(function (error) {
+      window.alert(error.message || '장바구니 상품을 삭제하지 못했습니다.');
+    });
   };
 
   window.addRecommendedToCart = function (button) {
@@ -1985,6 +2081,7 @@
       unitPrice: parsePrice(button.getAttribute('data-product-price')),
     };
 
+    {% if is_preview_member %}
     var existingItem = list.querySelector('[data-product-name="' + CSS.escape(product.name) + '"]');
     if (existingItem) {
       var quantityNode = existingItem.querySelector('[data-cart-quantity]');
@@ -1995,6 +2092,23 @@
       list.insertBefore(buildCartItem(product), list.firstChild);
     }
     updateCartTotal();
+    return;
+    {% endif %}
+    if (!product.goodsId) {
+      window.alert('현재 추천 상품은 장바구니 연동 준비 중입니다.');
+      return;
+    }
+    requestJson('/api/orders/cart/', {
+      method: 'POST',
+      body: JSON.stringify({
+        product_id: product.goodsId,
+        quantity: 1,
+      }),
+    }).then(function () {
+      return refreshCartPanelFromApi({ silent: true, syncShared: true });
+    }).catch(function (error) {
+      window.alert(error.message || '장바구니에 상품을 담지 못했습니다.');
+    });
   };
 
   function renderPromoSlide() {
@@ -2427,6 +2541,7 @@
   }
 
   renderPromoSlide();
+  {% if is_preview_member %}
   var initialSharedCartItems = loadSharedCartItems();
   if (initialSharedCartItems.length) {
     renderCartFromState(initialSharedCartItems);
@@ -2434,6 +2549,9 @@
     saveSharedCartItems(getCartState());
   }
   updateCartTotal();
+  {% else %}
+  refreshCartPanelFromApi({ silent: true, syncShared: true });
+  {% endif %}
   applySharedCartCount();
   Object.keys(sessionThreads).forEach(ensureSessionState);
 
@@ -2444,7 +2562,11 @@
   startPromoAutoSlide();
 
   switchProductTab('recommended');
+  {% if chat_enabled %}
+  openProductPanel();
+  {% else %}
   hideProductPanel();
+  {% endif %}
   applyLayout();
   if (activePetId) {
     var initialPet = document.querySelector('[data-pet-id="' + CSS.escape(activePetId) + '"]');
@@ -2459,8 +2581,12 @@
       applySharedCartCount();
     }
     if (event.key === SHARED_CART_ITEMS_STORAGE_KEY) {
+      {% if is_preview_member %}
       renderCartFromState(loadSharedCartItems());
       updateCartTotal();
+      {% else %}
+      refreshCartPanelFromApi({ silent: true, syncShared: false });
+      {% endif %}
     }
   });
 
