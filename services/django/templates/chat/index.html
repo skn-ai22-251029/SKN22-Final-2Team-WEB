@@ -1010,6 +1010,7 @@
   var activePetId = '{{ active_pet_id|escapejs }}';
   var PROFILE_ADDRESS_STORAGE_KEY = 'tailtalk_profile_address_preview';
   var PROFILE_PAYMENT_STORAGE_KEY = 'tailtalk_profile_payment_preview';
+  var SHARED_CART_COUNT_STORAGE_KEY = 'tailtalk_shared_cart_count';
   var quickOrderToastTimer = null;
   var quickOrderSlideEnabled = false;
   var quickOrderSlideDragging = false;
@@ -1839,8 +1840,38 @@
         headerBadgeNode.classList.remove('inline-flex');
       }
     }
+    try {
+      window.localStorage.setItem(SHARED_CART_COUNT_STORAGE_KEY, String(count));
+    } catch (e) {}
     if (quickOrderModal && quickOrderModal.classList.contains('is-open')) {
       renderQuickOrderSummary();
+    }
+  }
+
+  function applySharedCartCount() {
+    var badgeNode = document.getElementById('cartCountBadge');
+    var headerBadgeNode = document.getElementById('headerCartCountBadge');
+    var count = 0;
+    try {
+      count = Number(window.localStorage.getItem(SHARED_CART_COUNT_STORAGE_KEY) || '0');
+    } catch (e) {
+      count = 0;
+    }
+
+    if (badgeNode) {
+      badgeNode.textContent = String(count);
+    }
+
+    if (headerBadgeNode) {
+      if (count > 0) {
+        headerBadgeNode.textContent = count > 9 ? '9+' : String(count);
+        headerBadgeNode.classList.remove('hidden');
+        headerBadgeNode.classList.add('inline-flex');
+      } else {
+        headerBadgeNode.textContent = '0';
+        headerBadgeNode.classList.add('hidden');
+        headerBadgeNode.classList.remove('inline-flex');
+      }
     }
   }
 
@@ -2328,6 +2359,7 @@
 
   renderPromoSlide();
   updateCartTotal();
+  applySharedCartCount();
   Object.keys(sessionThreads).forEach(ensureSessionState);
 
   if (promoCarouselGroup) {
@@ -2346,6 +2378,12 @@
   closePetDropdown();
   updateChatSectionState(false);
   updateSessionItemStyles();
+
+  window.addEventListener('storage', function (event) {
+    if (event.key === SHARED_CART_COUNT_STORAGE_KEY) {
+      applySharedCartCount();
+    }
+  });
 
   if (activePetId) {
     var initialPet = document.querySelector('[data-pet-id="' + activePetId + '"]');
