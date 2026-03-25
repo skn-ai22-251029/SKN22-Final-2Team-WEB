@@ -1,3 +1,4 @@
 [submodule "services/fastapi"]
 	path = services/fastapi
 	url = https://github.com/skn-ai22-251029/SKN22-Final-2Team-AI
+	branch = develop
