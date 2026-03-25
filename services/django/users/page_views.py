@@ -140,7 +140,7 @@ def profile_withdraw_view(request):
 def social_login_start_view(request, provider):
     remember = request.GET.get("remember") == "on"
     redirect_uri = build_callback_url(request, "social-login-callback", provider)
-    next_url = f"{reverse('profile')}?setup=1"
+    next_url = reverse("chat")
 
     try:
         authorization_url = build_authorization_url(
@@ -186,5 +186,5 @@ def social_login_callback_view(request, provider):
     request.session[SOCIAL_AUTH_ACCESS_SESSION_KEY] = tokens["access"]
     request.session[SOCIAL_AUTH_REFRESH_SESSION_KEY] = tokens["refresh"]
     request.session.pop(SOCIAL_AUTH_REMEMBER_SESSION_KEY, None)
-    messages.success(request, "소셜 로그인이 완료되었습니다. 추가 정보를 입력해 주세요.")
-    return redirect(f"{reverse('profile')}?setup=1")
+    messages.success(request, "소셜 로그인이 완료되었습니다.")
+    return redirect("chat")

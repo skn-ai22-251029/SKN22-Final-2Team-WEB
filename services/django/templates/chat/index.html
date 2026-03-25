@@ -25,6 +25,56 @@
     visibility: visible;
   }
 
+  #quickOrderModal {
+    opacity: 0;
+    visibility: hidden;
+    transition: opacity 120ms ease;
+  }
+
+  #quickOrderModal.is-open {
+    opacity: 1;
+    visibility: visible;
+  }
+
+  #quickOrderToast {
+    opacity: 0;
+    visibility: hidden;
+    transform: translate(-50%, 10px) scale(0.98);
+    transition: opacity 180ms ease, transform 180ms ease;
+  }
+
+  #quickOrderToast.is-open {
+    opacity: 1;
+    visibility: visible;
+    transform: translate(-50%, 0) scale(1);
+  }
+
+  #quickOrderSlide {
+    touch-action: none;
+    user-select: none;
+    -webkit-user-select: none;
+  }
+
+  #quickOrderSlide.is-enabled #quickOrderSlideThumb {
+    cursor: grab;
+  }
+
+  #quickOrderSlide.is-dragging #quickOrderSlideThumb {
+    cursor: grabbing;
+  }
+
+  #quickOrderSlideThumb {
+    transition: transform 180ms ease;
+    will-change: transform;
+  }
+
+  #quickOrderSlideLabel {
+    transition: opacity 180ms ease, color 180ms ease;
+    user-select: none;
+    -webkit-user-select: none;
+    pointer-events: none;
+  }
+
   #mainContent {
     transition: left 300ms ease, width 300ms ease;
   }
@@ -51,8 +101,17 @@
     position: relative;
   }
 
+  #chatThread {
+    opacity: 1;
+    transition: opacity 110ms ease;
+  }
+
+  #chatSection.is-resetting #chatThread {
+    opacity: 0;
+  }
+
   #chatEmptyState {
-    transition: opacity 180ms ease;
+    transition: opacity 130ms ease;
   }
 
   #chatEmptyState.is-fading-in {
@@ -74,6 +133,12 @@
 
   #composerStage.no-transition {
     transition: none;
+  }
+
+  #chatSection.is-resetting #composerStage {
+    top: calc(100% - 96px) !important;
+    opacity: 0 !important;
+    transition: none !important;
   }
 
   #chatSection.is-empty #composerStage {
@@ -117,6 +182,17 @@
       visibility 0s linear 0s;
   }
 
+  #productPanel.is-reset-closing {
+    width: 0;
+    opacity: 0;
+    visibility: visible;
+    pointer-events: none;
+    border-left-width: 0;
+    transition:
+      width 220ms cubic-bezier(0.22, 1, 0.36, 1),
+      opacity 160ms ease;
+  }
+
   #productPanelInner {
     opacity: 0;
     transform: translateY(8px);
@@ -137,9 +213,47 @@
     transition-delay: 0s;
   }
 
+  #productPanel.is-reset-closing #productPanelInner {
+    opacity: 0;
+    transform: translateY(4px);
+    transition:
+      opacity 130ms ease,
+      transform 180ms cubic-bezier(0.22, 1, 0.36, 1);
+  }
+
   #productPanel.no-transition,
   #productPanel.no-transition #productPanelInner {
     transition: none !important;
+  }
+
+  #chatHistoryList {
+    scrollbar-width: thin;
+    scrollbar-color: transparent transparent;
+    scrollbar-gutter: stable;
+  }
+
+  #chatHistoryList::-webkit-scrollbar {
+    width: 8px;
+  }
+
+  #chatHistoryList::-webkit-scrollbar-track {
+    background: transparent;
+  }
+
+  #chatHistoryList::-webkit-scrollbar-thumb {
+    background: transparent;
+    border-radius: 9999px;
+    border: 2px solid transparent;
+    background-clip: padding-box;
+    transition: background-color 160ms ease;
+  }
+
+  #chatHistoryList:hover {
+    scrollbar-color: rgba(148, 163, 184, 0.85) transparent;
+  }
+
+  #chatHistoryList:hover::-webkit-scrollbar-thumb {
+    background: rgba(148, 163, 184, 0.85);
   }
 </style>
 {% endblock %}
@@ -174,6 +288,125 @@
         </div>
       </div>
     </div>
+
+    <div id="quickOrderModal" class="absolute inset-0 z-[60] flex items-center justify-center bg-black/10"
+         onclick="closeQuickOrderModal(event)">
+      <div class="relative flex max-h-[calc(100vh-32px)] w-[min(480px,calc(100vw-24px))] overflow-hidden rounded-[22px] border border-[#dbe7f5] bg-white"
+           onclick="event.stopPropagation()">
+        <div class="flex min-h-0 min-w-0 flex-1 flex-col px-[18px] py-[18px]">
+          <div class="flex items-start justify-between gap-[12px]">
+            <div>
+              <p class="text-[20px] font-bold leading-none text-[#2d3748]">빠른 주문</p>
+            </div>
+            <button type="button"
+                    class="flex h-[26px] items-center justify-center text-[26px] leading-none text-[#718096]"
+                    onclick="closeQuickOrderModal()"
+                    aria-label="빠른 주문 닫기">
+              <span class="relative top-[-4px]">×</span>
+            </button>
+          </div>
+
+          <div class="mt-[14px] min-h-0 overflow-y-auto pr-[2px]">
+            <div class="space-y-[10px]">
+              <div class="rounded-[16px] border border-[#e2e8f0] bg-white px-[12px] py-[12px]">
+                <div class="flex items-start justify-between gap-[10px]">
+                  <div class="min-w-0 flex-1">
+                    <p id="quickOrderPrimaryItem" class="truncate text-[14px] font-bold leading-[1.35] text-[#2d3748]">상품 정보 없음</p>
+                  </div>
+                  <button type="button"
+                          class="shrink-0 text-[12px] font-semibold text-[#3182ce]"
+                          onclick="goToCartPage()">
+                    수정
+                  </button>
+                </div>
+              </div>
+
+              <div class="rounded-[16px] border border-[#e2e8f0] bg-white px-[12px] py-[12px]">
+                <div class="flex items-start justify-between gap-[10px]">
+                  <div class="flex min-w-0 flex-1 items-start gap-[8px]">
+                    <div class="w-[14px] shrink-0 pt-[1px] text-[13px] leading-none text-[#2d3748]" aria-hidden="true">🚚</div>
+                    <div class="min-w-0 flex-1 space-y-[5px] text-[12px] text-[#4a5568]">
+                      <p id="quickOrderRecipientSummary" class="leading-[1.5]">{{ request.user.profile.nickname|default:"이름 정보가 없습니다" }}</p>
+                      <p id="quickOrderAddressSummary" class="leading-[1.6]">{{ request.user.profile.address|default:"배송지 정보가 없습니다" }}</p>
+                      <p id="quickOrderPhoneSummary" class="leading-[1.5]">{{ request.user.profile.phone|default:"연락처 정보가 없습니다" }}</p>
+                    </div>
+                  </div>
+                  <button type="button"
+                          class="shrink-0 text-[12px] font-semibold text-[#3182ce]"
+                          onclick="goToProfilePage()">
+                    수정
+                  </button>
+                </div>
+              </div>
+
+              <div class="rounded-[16px] border border-[#e2e8f0] bg-white px-[12px] py-[12px]">
+                <div class="flex items-start justify-between gap-[10px]">
+                  <div class="flex min-w-0 flex-1 items-start gap-[8px]">
+                    <div class="w-[14px] shrink-0 pt-[1px] text-[13px] leading-none text-[#2d3748]" aria-hidden="true">💳</div>
+                    <div class="min-w-0 flex-1 space-y-[5px] text-[12px] text-[#4a5568]">
+                      <p id="quickOrderCardSummary" class="leading-[1.5] text-[#718096]">등록된 결제수단이 없습니다 / 일시불</p>
+                    </div>
+                  </div>
+                  <button type="button"
+                          class="shrink-0 text-[12px] font-semibold text-[#3182ce]"
+                          onclick="goToProfilePage()">
+                    수정
+                  </button>
+                </div>
+              </div>
+
+              <div class="rounded-[16px] border border-[#e2e8f0] bg-[#fbfdff] px-[12px] py-[12px]">
+                <div class="grid grid-cols-2 gap-x-[12px] gap-y-[10px]">
+                  <div>
+                    <p class="text-[11px] font-medium tracking-[-0.01em] text-[#8a94a6]">주문 상품 수</p>
+                    <p id="quickOrderItemCount" class="mt-[5px] text-[17px] font-semibold leading-none text-[#1f2937]">0개</p>
+                  </div>
+                  <div class="text-right">
+                    <p class="text-[11px] font-medium tracking-[-0.01em] text-[#8a94a6]">상품 금액</p>
+                    <p id="quickOrderSubtotal" class="mt-[5px] text-[17px] font-semibold leading-none text-[#1f2937]">0원</p>
+                  </div>
+                </div>
+                <div class="mt-[10px] border-t border-[#e7eef6] pt-[10px]">
+                  <div class="flex items-center justify-between text-[12px] text-[#4b5563]">
+                    <span class="font-medium">배송비</span>
+                    <span id="quickOrderShippingFee" class="font-semibold text-[#1f2937]">0원</span>
+                  </div>
+                  <div class="mt-[9px] flex items-center justify-between gap-[8px] border-t border-[#eef2f7] pt-[9px]">
+                    <span class="text-[12px] font-semibold text-[#334155]">총 결제 금액</span>
+                    <span id="quickOrderTotal" class="text-[18px] font-bold leading-none tracking-[-0.02em] text-[#2563eb]">0원</span>
+                  </div>
+                </div>
+              </div>
+
+              <div class="px-[2px] text-[11px] leading-[1.6] text-[#718096]">
+                주문 내용을 확인하였으며, 구매조건, 결제대행 서비스 및 결제에 동의합니다.
+              </div>
+
+              <div class="pb-[2px]">
+                <div id="quickOrderSlide"
+                     class="relative h-[52px] overflow-hidden rounded-full border border-[#dbe7f5] bg-[#edf2f7]">
+                  <div id="quickOrderSlideThumb"
+                       class="absolute left-[4px] top-[4px] flex h-[44px] w-[44px] items-center justify-center rounded-full bg-white text-[#718096]">
+                    <span class="relative top-[-1px] text-[22px] font-bold tracking-[-0.18em]">≫</span>
+                  </div>
+                  <div id="quickOrderSlideLabel"
+                       class="flex h-full w-full items-center justify-center px-[52px] text-center text-[13px] font-bold text-[#a0aec0]">
+                    배송지와 결제수단 저장 후 밀어서 결제하기
+                  </div>
+                </div>
+              </div>
+            </div>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <div id="quickOrderToast"
+         class="pointer-events-none absolute left-1/2 top-[88px] z-[70] flex h-[44px] min-w-[232px] -translate-x-1/2 items-center justify-center gap-[8px] rounded-full bg-[#1f2937] px-[18px] text-[13px] font-semibold text-white shadow-[0_14px_28px_rgba(15,23,42,0.28)]">
+      <span aria-hidden="true" class="text-[14px]">✓</span>
+      <span>주문이 완료되었습니다</span>
+    </div>
     {% endif %}
 
     <button id="sidebarOverlay"
@@ -187,12 +420,10 @@
            style="transform: translateX(-213px)">
       <div id="sidebarOpen" class="absolute inset-0 pointer-events-none opacity-0 transition-opacity duration-200">
         {% if is_member_view %}
-        <img alt="" class="absolute inset-0 h-full w-full"
-             src="https://www.figma.com/api/mcp/asset/0f914b5b-cc10-4bd1-b35c-23768f69ccb7" />
+        <div class="absolute inset-0 bg-[linear-gradient(180deg,#f3f8fd_0%,#eef5fb_42%,#e7f0f9_100%)]"></div>
+        <div class="absolute inset-y-0 right-0 w-[1px] bg-[#d4e2f0]"></div>
 
-        <button type="button" onclick="resetChatState(true)" class="absolute left-[16px] top-[21px] flex h-[37px] w-[207px] items-center justify-center">
-          <img alt="" class="absolute inset-0 h-full w-full"
-               src="https://www.figma.com/api/mcp/asset/df3ce098-f6c1-4139-a85f-f8777af8e86d" />
+        <button type="button" onclick="resetChatState(true)" class="absolute left-[16px] top-[21px] flex h-[37px] w-[207px] items-center justify-center overflow-hidden rounded-[12px] bg-[linear-gradient(135deg,#3b82f6_0%,#2563eb_100%)]">
           <span class="relative whitespace-nowrap text-[16px] font-bold leading-none text-white">새 대화 시작</span>
         </button>
         <button type="button" onclick="closeSidebar()"
@@ -299,17 +530,15 @@
           </div>
         </div>
 
-        <div class="absolute left-[15.5px] top-[272px] flex w-[250px] flex-col gap-[12px]" id="chatHistoryList">
+        <div class="absolute left-[16px] right-[15px] top-[272px] bottom-[86px] flex flex-col gap-[12px] overflow-x-hidden overflow-y-auto box-border" id="chatHistoryList">
           {% for session in sessions %}
-          <div class="chat-history-item relative h-[40px] w-[250px] cursor-pointer rounded-[8px] transition-colors duration-150"
+          <div class="chat-history-item relative h-[40px] w-full shrink-0 cursor-pointer border-b border-[#e7edf5] transition-colors duration-150 box-border"
                data-id="{{ session.session_id }}">
-            <img alt="" class="history-bg absolute inset-0 h-[40px] w-[250px] transition-opacity duration-150"
-                 src="https://www.figma.com/api/mcp/asset/6630cc6d-cbd9-471a-8587-bd6e56070487" />
-            <span class="history-title absolute left-[10.5px] right-[66px] top-[11.8px] overflow-hidden text-ellipsis whitespace-nowrap text-[12px] font-semibold leading-none text-[#2d3748]">
+            <span class="history-title absolute left-[6px] right-[72px] top-[12px] overflow-hidden text-ellipsis whitespace-nowrap text-[12px] font-semibold leading-none text-[#2d3748]">
               {{ session.title|default:"새 대화" }}
             </span>
-            <div class="absolute right-[10px] top-[11px] h-[18px] w-[62px]">
-              <span class="history-date absolute right-0 top-[1px] w-full whitespace-nowrap text-right text-[11px] leading-none tabular-nums text-[#a0aec0]">
+            <div class="absolute right-0 top-[12px] h-[16px] w-[66px]">
+              <span class="history-date absolute right-0 top-0 w-full whitespace-nowrap text-right text-[11px] leading-none tabular-nums text-[#a0aec0]">
                 {% if session.created_at|date:"y/m/d" != "" %}{{ session.created_at|date:"y/m/d" }}{% else %}{{ session.created_at }}{% endif %}
               </span>
               <div class="history-actions absolute right-0 top-0 hidden flex items-center justify-end gap-[7px]">
@@ -327,14 +556,9 @@
         <a href="{% if is_preview_member %}#{% else %}/logout/{% endif %}" class="absolute bottom-[30px] left-[24px] text-[13px] font-semibold text-[#ef4444]" {% if is_preview_member %}onclick="return false"{% endif %}>
           로그아웃
         </a>
-        <div class="absolute bottom-[30.9px] left-[237px] flex h-[19.1px] w-[18.68px] items-center justify-center text-[#718096]" aria-label="설정">
-          <svg viewBox="0 0 24 24" class="h-full w-full" fill="currentColor" aria-hidden="true">
-            <path fill-rule="evenodd" d="M9.594 3.94c.09-.542.56-.94 1.11-.94h2.592c.55 0 1.02.398 1.11.94l.213 1.277c.066.394.335.723.707.878.22.092.435.193.646.304.36.19.8.198 1.15.02l1.14-.57a1.125 1.125 0 0 1 1.422.42l1.296 2.244c.275.476.17 1.08-.248 1.433l-1.003.847a1.125 1.125 0 0 0-.36 1.094c.022.24.033.482.033.726 0 .244-.011.486-.034.726-.037.41.104.813.36 1.094l1.004.847c.418.353.522.957.247 1.433l-1.296 2.244a1.125 1.125 0 0 1-1.421.42l-1.141-.57a1.125 1.125 0 0 0-1.15.02c-.211.111-.426.212-.646.304-.372.155-.64.484-.707.878l-.213 1.277a1.125 1.125 0 0 1-1.11.94h-2.592a1.125 1.125 0 0 1-1.11-.94l-.213-1.277a1.125 1.125 0 0 0-.707-.878 8.208 8.208 0 0 1-.646-.304 1.125 1.125 0 0 0-1.15-.02l-1.14.57a1.125 1.125 0 0 1-1.422-.42L2.72 16.2a1.125 1.125 0 0 1 .247-1.433l1.004-.847c.256-.281.397-.684.36-1.094A7.78 7.78 0 0 1 4.296 12c0-.244.011-.486.034-.726a1.125 1.125 0 0 0-.36-1.094l-1.004-.847a1.125 1.125 0 0 1-.247-1.433L4.015 5.656a1.125 1.125 0 0 1 1.421-.42l1.141.57c.35.178.79.17 1.15-.02.211-.111.426-.212.646-.304.372-.155.64-.484.707-.878l.213-1.277ZM12 15.375A3.375 3.375 0 1 0 12 8.625a3.375 3.375 0 0 0 0 6.75Z" clip-rule="evenodd"></path>
-          </svg>
-        </div>
         {% else %}
-        <img alt="" class="absolute inset-0 h-full w-full"
-             src="https://www.figma.com/api/mcp/asset/ad58345b-5dd6-4c4d-9add-d9ce93ab4236" />
+        <div class="absolute inset-0 bg-[linear-gradient(180deg,#f8fbff_0%,#eef4fb_48%,#e5eef8_100%)]"></div>
+        <div class="absolute inset-y-0 right-0 w-[1px] bg-[#d4e2f0]"></div>
         <button type="button" onclick="closeSidebar()"
                 class="absolute right-[15px] top-[31px] h-[16px] w-[24px]" aria-label="사이드바 닫기">
           <svg viewBox="0 0 24 16" class="block h-full w-full text-[#4a5568]" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" aria-hidden="true">
@@ -343,19 +567,12 @@
             <path d="M5 13H19"></path>
           </svg>
         </button>
-        <a href="/login/" class="absolute left-[16px] top-[20px] flex h-[37px] w-[207px] items-center justify-center">
-          <img alt="" class="absolute inset-0 h-full w-full"
-               src="https://www.figma.com/api/mcp/asset/20591019-64ca-4cd7-a3a1-6fea5ee43fa8" />
+        <a href="/login/" class="absolute left-[16px] top-[20px] flex h-[37px] w-[207px] items-center justify-center overflow-hidden rounded-[12px] bg-[linear-gradient(135deg,#3b82f6_0%,#2563eb_100%)]">
           <span class="relative text-[16px] font-bold text-white">로그인 / 회원가입</span>
         </a>
         <div class="absolute left-1/2 top-[72px] flex w-[232px] -translate-x-1/2 flex-col items-center text-center text-[12px] leading-[1.5] text-[#718096]">
           <p class="whitespace-nowrap">맞춤형 반려동물 케어와 대화 기록 저장을 위해</p>
           <p class="mt-[2px] whitespace-nowrap">로그인을 진행해 주세요</p>
-        </div>
-        <div class="absolute bottom-[31px] right-[24px] flex h-[19.1px] w-[18.68px] items-center justify-center text-[#718096]" aria-label="설정">
-          <svg viewBox="0 0 24 24" class="h-full w-full" fill="currentColor" aria-hidden="true">
-            <path fill-rule="evenodd" d="M9.594 3.94c.09-.542.56-.94 1.11-.94h2.592c.55 0 1.02.398 1.11.94l.213 1.277c.066.394.335.723.707.878.22.092.435.193.646.304.36.19.8.198 1.15.02l1.14-.57a1.125 1.125 0 0 1 1.422.42l1.296 2.244c.275.476.17 1.08-.248 1.433l-1.003.847a1.125 1.125 0 0 0-.36 1.094c.022.24.033.482.033.726 0 .244-.011.486-.034.726-.037.41.104.813.36 1.094l1.004.847c.418.353.522.957.247 1.433l-1.296 2.244a1.125 1.125 0 0 1-1.421.42l-1.141-.57a1.125 1.125 0 0 0-1.15.02c-.211.111-.426.212-.646.304-.372.155-.64.484-.707.878l-.213 1.277a1.125 1.125 0 0 1-1.11.94h-2.592a1.125 1.125 0 0 1-1.11-.94l-.213-1.277a1.125 1.125 0 0 0-.707-.878 8.208 8.208 0 0 1-.646-.304 1.125 1.125 0 0 0-1.15-.02l-1.14.57a1.125 1.125 0 0 1-1.422-.42L2.72 16.2a1.125 1.125 0 0 1 .247-1.433l1.004-.847c.256-.281.397-.684.36-1.094A7.78 7.78 0 0 1 4.296 12c0-.244.011-.486.034-.726a1.125 1.125 0 0 0-.36-1.094l-1.004-.847a1.125 1.125 0 0 1-.247-1.433L4.015 5.656a1.125 1.125 0 0 1 1.421-.42l1.141.57c.35.178.79.17 1.15-.02.211-.111.426-.212.646-.304.372-.155.64-.484.707-.878l.213-1.277ZM12 15.375A3.375 3.375 0 1 0 12 8.625a3.375 3.375 0 0 0 0 6.75Z" clip-rule="evenodd"></path>
-          </svg>
         </div>
         {% endif %}
       </div>
@@ -382,20 +599,18 @@
           </svg>
         </button>
         {% endif %}
-        <div class="absolute bottom-[28.45px] left-1/2 flex h-[19.1px] w-[18.68px] -translate-x-1/2 items-center justify-center text-[#718096]" aria-label="설정">
-          <svg viewBox="0 0 24 24" class="h-full w-full" fill="currentColor" aria-hidden="true">
-            <path fill-rule="evenodd" d="M9.594 3.94c.09-.542.56-.94 1.11-.94h2.592c.55 0 1.02.398 1.11.94l.213 1.277c.066.394.335.723.707.878.22.092.435.193.646.304.36.19.8.198 1.15.02l1.14-.57a1.125 1.125 0 0 1 1.422.42l1.296 2.244c.275.476.17 1.08-.248 1.433l-1.003.847a1.125 1.125 0 0 0-.36 1.094c.022.24.033.482.033.726 0 .244-.011.486-.034.726-.037.41.104.813.36 1.094l1.004.847c.418.353.522.957.247 1.433l-1.296 2.244a1.125 1.125 0 0 1-1.421.42l-1.141-.57a1.125 1.125 0 0 0-1.15.02c-.211.111-.426.212-.646.304-.372.155-.64.484-.707.878l-.213 1.277a1.125 1.125 0 0 1-1.11.94h-2.592a1.125 1.125 0 0 1-1.11-.94l-.213-1.277a1.125 1.125 0 0 0-.707-.878 8.208 8.208 0 0 1-.646-.304 1.125 1.125 0 0 0-1.15-.02l-1.14.57a1.125 1.125 0 0 1-1.422-.42L2.72 16.2a1.125 1.125 0 0 1 .247-1.433l1.004-.847c.256-.281.397-.684.36-1.094A7.78 7.78 0 0 1 4.296 12c0-.244.011-.486.034-.726a1.125 1.125 0 0 0-.36-1.094l-1.004-.847a1.125 1.125 0 0 1-.247-1.433L4.015 5.656a1.125 1.125 0 0 1 1.421-.42l1.141.57c.35.178.79.17 1.15-.02.211-.111.426-.212.646-.304.372-.155.64-.484.707-.878l.213-1.277ZM12 15.375A3.375 3.375 0 1 0 12 8.625a3.375 3.375 0 0 0 0 6.75Z" clip-rule="evenodd"></path>
-          </svg>
-        </div>
       </div>
     </aside>
 
     <div id="mainContent"
          class="absolute inset-0 z-10">
       <header class="absolute left-0 top-0 h-[72px] w-full border-b border-[#e2e8f0] bg-white">
-        <div id="headerLogo" class="absolute left-[87.5px] top-1/2 -translate-y-1/2 text-[26px] font-bold leading-none text-[#2d3748]">
+        <button type="button" id="headerLogo"
+                class="absolute left-[87.5px] top-1/2 -translate-y-1/2 text-[26px] font-bold leading-none text-[#2d3748]"
+                aria-label="메인으로 돌아가기"
+                onclick="resetChatState(false)">
           <span class="text-[#3182ce]">Tail</span><span>Talk</span>
-        </div>
+        </button>
       </header>
 
       <div id="workspaceShell">
@@ -440,11 +655,12 @@
                  style="height: 61px">
               {% if chat_enabled %}
               <div class="absolute bottom-[10.5px] left-[10.5px] h-[40px] w-[40px]">
-                <img alt="" class="absolute inset-0 h-full w-full"
-                     src="https://www.figma.com/api/mcp/asset/bf9036d0-fa6a-4951-8bf1-87121fd476c3" />
-                <div class="absolute inset-0 flex items-center justify-center">
-                  <img alt="추가" class="h-[12px] w-[12px]"
-                       src="https://www.figma.com/api/mcp/asset/ce465e75-6e82-4e2a-88c9-c2fd47a455ac" />
+                <div class="absolute inset-0 rounded-full bg-[#3182ce]"></div>
+                <div class="absolute inset-0 flex items-center justify-center text-white">
+                  <svg viewBox="0 0 20 20" class="h-[16px] w-[16px]" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" aria-hidden="true">
+                    <path d="M10 4V16"></path>
+                    <path d="M4 10H16"></path>
+                  </svg>
                 </div>
               </div>
 
@@ -459,8 +675,12 @@
                       aria-label="음성 입력" onclick="sendMessage()">
                 <div class="absolute inset-0 rounded-full bg-[#3182ce]"></div>
                 <div id="micIcon" class="pointer-events-none absolute flex items-center justify-center transition-all duration-[220ms] ease-[cubic-bezier(0.22,1,0.36,1)]">
-                  <img alt="마이크" class="h-[17px] w-[14px]"
-                       src="https://www.figma.com/api/mcp/asset/01523a82-0f56-457b-9208-3c76dc0b544b" />
+                  <svg viewBox="0 0 14 20" class="h-[18px] w-[14px]" fill="none" stroke="white" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+                    <rect x="3.5" y="2.5" width="7" height="10" rx="3.5"></rect>
+                    <path d="M1.75 9.75A5.25 5.25 0 0 0 12.25 9.75"></path>
+                    <path d="M7 15V18"></path>
+                    <path d="M4.5 18H9.5"></path>
+                  </svg>
                 </div>
                 <div id="sendIcon" class="pointer-events-none absolute inset-0 flex items-center justify-center transition-all duration-[220ms] ease-[cubic-bezier(0.22,1,0.36,1)] translate-y-[6px] scale-[0.8] opacity-0">
                   <svg aria-hidden="true" class="h-[20px] w-[14px]" viewBox="0 0 14 20" fill="none" xmlns="http://www.w3.org/2000/svg">
@@ -470,13 +690,19 @@
               </button>
               {% else %}
               <div class="absolute bottom-[10.5px] left-[10.5px] flex h-[40px] w-[40px] items-center justify-center rounded-full bg-[#e2e8f0]">
-                <img alt="추가" class="h-[12px] w-[12px]"
-                     src="https://www.figma.com/api/mcp/asset/1ff96a70-7f54-490e-9aaf-e8720798c90e" />
+                <svg viewBox="0 0 20 20" class="h-[16px] w-[16px] text-[#718096]" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" aria-hidden="true">
+                  <path d="M10 4V16"></path>
+                  <path d="M4 10H16"></path>
+                </svg>
               </div>
               <div class="absolute left-1/2 top-1/2 -translate-x-1/2 -translate-y-1/2 text-[14px] text-[#a0aec0]">로그인이 필요한 서비스입니다</div>
               <div class="absolute bottom-[10.5px] right-[10.5px] flex h-[40px] w-[40px] items-center justify-center rounded-full bg-[#e2e8f0]">
-                <img alt="마이크" class="h-[17px] w-[14px]"
-                     src="https://www.figma.com/api/mcp/asset/01523a82-0f56-457b-9208-3c76dc0b544b" />
+                <svg viewBox="0 0 14 20" class="h-[18px] w-[14px] text-[#718096]" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+                  <rect x="3.5" y="2.5" width="7" height="10" rx="3.5"></rect>
+                  <path d="M1.75 9.75A5.25 5.25 0 0 0 12.25 9.75"></path>
+                  <path d="M7 15V18"></path>
+                  <path d="M4.5 18H9.5"></path>
+                </svg>
               </div>
               {% endif %}
             </div>
@@ -487,7 +713,7 @@
           <div id="productPanelInner" class="flex h-full flex-col">
             <div class="flex-1 overflow-y-auto px-[20px] py-[20px]">
       {% if is_member_view %}
-      <div class="flex h-full min-h-0 flex-col gap-[12px]">
+      <div class="flex h-full min-h-0 flex-col gap-[14px]">
                 <div class="flex-none space-y-[10px] pb-[2px]">
                   <div class="group relative overflow-visible">
                     <div class="overflow-hidden rounded-[18px] shadow-[0_10px_24px_rgba(45,55,72,0.10)]">
@@ -511,12 +737,12 @@
                     <button type="button" onclick="movePromoSlide(-1)"
                             class="absolute left-[-18px] top-1/2 z-10 flex h-[38px] w-[38px] -translate-y-1/2 items-center justify-center rounded-full border border-[#dbe7f5] bg-white text-[#2d3748] shadow-[0_8px_18px_rgba(45,55,72,0.14)] opacity-0 transition-opacity duration-200 group-hover:opacity-100"
                             aria-label="이전 기획전 보기">
-                      <span class="relative left-[-1px] top-[-1px] text-[28px] font-semibold leading-none">‹</span>
+                      <span class="relative left-[-1px] top-[-3px] text-[28px] font-semibold leading-none">‹</span>
                     </button>
                     <button type="button" onclick="movePromoSlide(1)"
                             class="absolute right-[-18px] top-1/2 z-10 flex h-[38px] w-[38px] -translate-y-1/2 items-center justify-center rounded-full border border-[#dbe7f5] bg-white text-[#2d3748] shadow-[0_8px_18px_rgba(45,55,72,0.14)] opacity-0 transition-opacity duration-200 group-hover:opacity-100"
                             aria-label="다음 기획전 보기">
-                      <span class="relative left-[1px] top-[-1px] text-[28px] font-semibold leading-none">›</span>
+                      <span class="relative left-[1px] top-[-3px] text-[28px] font-semibold leading-none">›</span>
                     </button>
 
                     <div class="pointer-events-none absolute bottom-[12px] left-1/2 flex -translate-x-1/2 items-center gap-[6px]">
@@ -530,26 +756,26 @@
                   </div>
                 </div>
 
-                <div class="flex-none flex items-end justify-center gap-[26px] border-b border-[#dbe7f5] pb-[11px]">
+                <div class="flex-none flex items-end justify-center gap-[26px] border-b border-[#dbe7f5] pb-[13px]">
                   <button type="button" id="tabRecommended"
-                          class="product-tab active relative inline-flex items-center pb-[2px] text-[14px] font-bold text-[#2d6cdf]"
+                          class="product-tab active relative inline-flex h-[20px] items-center pb-[2px] text-[14px] font-bold leading-none text-[#2d6cdf]"
                           onclick="switchProductTab('recommended')">
-                    추천 상품
+                    <span class="leading-none">추천 상품</span>
                     <span data-tab-underline class="absolute bottom-[-12px] left-0 right-0 h-[2px] rounded-full bg-[#2d6cdf]"></span>
                   </button>
                   <button type="button" id="tabCart"
-                          class="product-tab relative inline-flex items-center pb-[2px] text-[13px] font-semibold text-[#718096]"
+                          class="product-tab relative inline-flex h-[20px] items-center gap-[6px] pb-[2px] text-[14px] font-semibold leading-none text-[#718096]"
                           onclick="switchProductTab('cart')">
                     <span class="leading-none">장바구니</span>
                     <span id="cartCountBadge"
-                          class="relative top-[1px] ml-[6px] inline-flex h-[16px] min-w-[16px] items-center justify-center rounded-full bg-[#2d3748] px-[5px] text-[9px] font-bold leading-none text-white transition-all duration-150">
+                          class="inline-flex h-[17px] min-w-[17px] items-center justify-center self-center rounded-full bg-[#2d3748] px-[5px] text-[9px] font-bold leading-none text-white transition-all duration-150">
                       0
                     </span>
                     <span data-tab-underline class="absolute bottom-[-12px] left-0 right-0 hidden h-[2px] rounded-full bg-[#2d6cdf]"></span>
                   </button>
                 </div>
 
-                <div class="min-h-0 flex-1">
+                <div class="min-h-0 flex-1 pt-[2px]">
                 <div id="recommendedPanel" class="h-full min-h-0 overflow-y-auto pr-[4px]">
                 <div class="space-y-[12px]">
                 {% for product in recommended_products %}
@@ -629,11 +855,11 @@
                       <div class="text-[11px] font-medium text-[#a0aec0]">총 결제 예정 금액</div>
                       <div id="cartTotalAmount" class="mt-[4px] text-[18px] font-bold text-[#2d3748]">{{ cart_total }}</div>
                     </div>
-                    <a href="{% if is_preview_member %}#{% else %}/orders/{% endif %}"
+                    <button type="button"
                        class="flex h-[40px] items-center justify-center rounded-full bg-[#2d3748] px-[18px] text-[13px] font-bold text-white"
-                       {% if is_preview_member %}onclick="return false"{% endif %}>
+                       onclick="openQuickOrderModal()">
                       주문하기
-                    </a>
+                    </button>
                   </div>
                 </div>
               </div>
@@ -669,14 +895,19 @@
         </div>
 
         {% if is_member_view %}
-        <div class="h-[40px] w-[40px]">
-          <img alt="장바구니" class="h-full w-full"
-               src="https://www.figma.com/api/mcp/asset/be02fb28-1930-43fb-ac3b-9fcf482e1f58" />
+        <div class="flex h-[40px] w-[40px] items-center justify-center rounded-full border border-[#e2e8f0] bg-white shadow-[0_2px_8px_rgba(45,55,72,0.05)]" aria-label="장바구니">
+          <svg viewBox="0 0 24 24" class="h-[24px] w-[24px] text-[#4a5568]" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+            <circle cx="9" cy="20" r="1.5"></circle>
+            <circle cx="18" cy="20" r="1.5"></circle>
+            <path d="M3 4h2l2.2 10.2a1 1 0 0 0 1 .8h8.9a1 1 0 0 0 1-.75L20 8H7"></path>
+          </svg>
         </div>
         <div class="relative h-[40px] w-[40px]" id="profileMenuWrapper">
-          <button type="button" class="h-[40px] w-[40px]" aria-label="프로필 메뉴 열기" onclick="toggleProfileMenu()">
-            <img alt="프로필" class="h-full w-full"
-                 src="https://www.figma.com/api/mcp/asset/ba733178-1524-4321-b48c-649741e0bb5f" />
+          <button type="button" class="flex h-[40px] w-[40px] items-center justify-center rounded-full border border-[#e2e8f0] bg-white shadow-[0_2px_8px_rgba(45,55,72,0.05)]" aria-label="프로필 메뉴 열기" onclick="toggleProfileMenu()">
+            <svg viewBox="0 0 24 24" class="h-[30px] w-[30px] text-[#4a5568]" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+              <circle cx="12" cy="8" r="3.2"></circle>
+              <path d="M5.5 19a6.5 6.5 0 0 1 13 0"></path>
+            </svg>
           </button>
           <div id="profileMenu"
                class="absolute right-0 top-[52px] w-[160px] origin-top-right rounded-[16px] border border-[#dbe7f5] bg-white shadow-[0_14px_36px_rgba(45,55,72,0.10)] transition-all duration-[180ms] ease-[cubic-bezier(0.22,1,0.36,1)] pointer-events-none translate-y-[-8px] scale-95 opacity-0">
@@ -721,6 +952,7 @@
   var headerLogo = document.getElementById('headerLogo');
   var pageGate = document.getElementById('pageGate');
   var deleteModal = document.getElementById('deleteModal');
+  var quickOrderModal = document.getElementById('quickOrderModal');
   var profileMenu = document.getElementById('profileMenu');
   var profileWrapper = document.getElementById('profileMenuWrapper');
   var messageInput = document.getElementById('messageInput');
@@ -748,6 +980,15 @@
   var petDropdownName = document.getElementById('petDropdownName');
   var petDropdownSummary = document.getElementById('petDropdownSummary');
   var petDropdownEmoji = document.getElementById('petDropdownEmoji');
+  var quickOrderItemCount = document.getElementById('quickOrderItemCount');
+  var quickOrderPrimaryItem = document.getElementById('quickOrderPrimaryItem');
+  var quickOrderRecipientSummary = document.getElementById('quickOrderRecipientSummary');
+  var quickOrderAddressSummary = document.getElementById('quickOrderAddressSummary');
+  var quickOrderPhoneSummary = document.getElementById('quickOrderPhoneSummary');
+  var quickOrderCardSummary = document.getElementById('quickOrderCardSummary');
+  var quickOrderSubtotal = document.getElementById('quickOrderSubtotal');
+  var quickOrderShippingFee = document.getElementById('quickOrderShippingFee');
+  var quickOrderTotal = document.getElementById('quickOrderTotal');
   var chatHistoryList = document.getElementById('chatHistoryList');
   var sessionThreadsNode = document.getElementById('sessionThreadsData');
   var sessionThreads = sessionThreadsNode ? JSON.parse(sessionThreadsNode.textContent) : {};
@@ -760,6 +1001,13 @@
   var promoIndex = 0;
   var promoTimer = null;
   var activePetId = '{{ active_pet_id|escapejs }}';
+  var PROFILE_ADDRESS_STORAGE_KEY = 'tailtalk_profile_address_preview';
+  var PROFILE_PAYMENT_STORAGE_KEY = 'tailtalk_profile_payment_preview';
+  var quickOrderToastTimer = null;
+  var quickOrderSlideEnabled = false;
+  var quickOrderSlideDragging = false;
+  var quickOrderSlideStartX = 0;
+  var quickOrderSlideStartLeft = 4;
   // 선택된 펫 프로필 (FastAPI 요청에 사용)
   var activePetProfile = null;
   var activePetHealthConcerns = [];
@@ -789,13 +1037,16 @@
 
   function ensureSessionState(sessionId) {
     if (!sessionThreads[sessionId]) {
-      sessionThreads[sessionId] = { messages: [], loaded: false };
+      sessionThreads[sessionId] = { messages: [], loaded: false, loadingPromise: null };
     }
     if (!Array.isArray(sessionThreads[sessionId].messages)) {
       sessionThreads[sessionId].messages = [];
     }
     if (typeof sessionThreads[sessionId].loaded === 'undefined') {
       sessionThreads[sessionId].loaded = sessionThreads[sessionId].messages.length > 0;
+    }
+    if (typeof sessionThreads[sessionId].loadingPromise === 'undefined') {
+      sessionThreads[sessionId].loadingPromise = null;
     }
     return sessionThreads[sessionId];
   }
@@ -818,16 +1069,16 @@
     var existing = chatHistoryList.querySelector('[data-id="' + CSS.escape(sessionId) + '"]');
     var emptyStateCard = chatHistoryList.querySelector('.border-dashed');
     if (emptyStateCard) emptyStateCard.remove();
+    var normalizedClassName = 'chat-history-item relative h-[40px] w-full shrink-0 cursor-pointer border-b border-[#e7edf5] transition-colors duration-150 box-border';
 
     if (!existing) {
       existing = document.createElement('div');
-      existing.className = 'chat-history-item relative h-[40px] w-[250px] cursor-pointer rounded-[8px] transition-colors duration-150 text-left';
+      existing.className = normalizedClassName;
       existing.setAttribute('data-id', sessionId);
       existing.innerHTML = ''
-        + '<img alt="" class="history-bg absolute inset-0 h-[40px] w-[250px] transition-opacity duration-150" src="https://www.figma.com/api/mcp/asset/6630cc6d-cbd9-471a-8587-bd6e56070487" />'
-        + '<span class="history-title absolute left-[10.5px] right-[66px] top-[11.8px] overflow-hidden text-ellipsis whitespace-nowrap text-[12px] font-semibold leading-none text-[#2d3748]"></span>'
-        + '<div class="absolute right-[10px] top-[11px] h-[18px] w-[62px]">'
-        + '  <span class="history-date absolute right-0 top-[1px] w-full whitespace-nowrap text-right text-[11px] leading-none tabular-nums text-[#a0aec0]"></span>'
+        + '<span class="history-title absolute left-[6px] right-[72px] top-[12px] overflow-hidden text-ellipsis whitespace-nowrap text-[12px] font-semibold leading-none text-[#2d3748]"></span>'
+        + '<div class="absolute right-0 top-[12px] h-[16px] w-[66px]">'
+        + '  <span class="history-date absolute right-0 top-0 w-full whitespace-nowrap text-right text-[11px] leading-none tabular-nums text-[#a0aec0]"></span>'
         + '  <div class="history-actions absolute right-0 top-0 hidden flex items-center justify-end gap-[7px]">'
         + '    <button type="button" class="flex h-[18px] w-[18px] items-center justify-center text-[12px]" aria-label="수정">✏️</button>'
         + '    <button type="button" class="flex h-[18px] w-[18px] items-center justify-center text-[12px]" aria-label="삭제">🗑️</button>'
@@ -854,6 +1105,7 @@
       }
       bindHistoryItemInteractions(existing);
     } else {
+      existing.className = normalizedClassName;
       chatHistoryList.insertBefore(existing, chatHistoryList.firstChild);
     }
 
@@ -866,8 +1118,31 @@
     return existing;
   }
 
+  function getTodayDisplayDate() {
+    var now = new Date();
+    var year = String(now.getFullYear()).slice(-2);
+    var month = String(now.getMonth() + 1).padStart(2, '0');
+    var day = String(now.getDate()).padStart(2, '0');
+    return year + '/' + month + '/' + day;
+  }
+
+  function promoteSessionItem(sessionId, fallbackTitle) {
+    if (!chatHistoryList || !sessionId) return;
+
+    var existing = chatHistoryList.querySelector('[data-id="' + CSS.escape(sessionId) + '"]');
+    var titleNode = existing ? existing.querySelector('.history-title') : null;
+    ensureSessionItem({
+      session_id: sessionId,
+      title: (titleNode && titleNode.textContent.trim()) || fallbackTitle || '새 대화',
+      display_date: getTodayDisplayDate(),
+    });
+  }
+
   function createSessionForMessage(message) {
     var derivedTitle = message.length > 18 ? message.slice(0, 18) + '...' : message;
+    var validTargetPetId = /^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i.test(activePetId || '')
+      ? activePetId
+      : null;
     return fetch('/api/chat/sessions/', {
       method: 'POST',
       headers: {
@@ -876,7 +1151,7 @@
       },
       body: JSON.stringify({
         title: derivedTitle,
-        target_pet_id: activePetId || null,
+        target_pet_id: validTargetPetId,
       }),
     }).then(function (res) {
       return readJsonResponse(res).then(function (data) {
@@ -895,8 +1170,11 @@
     if (session.loaded) {
       return Promise.resolve(session.messages);
     }
+    if (session.loadingPromise) {
+      return session.loadingPromise;
+    }
 
-    return fetch('/api/chat/sessions/' + sessionId + '/messages/').then(function (res) {
+    session.loadingPromise = fetch('/api/chat/sessions/' + sessionId + '/messages/').then(function (res) {
       return readJsonResponse(res).then(function (data) {
         if (!res.ok) {
           throw new Error((data && data.detail) || '대화 기록을 불러오지 못했습니다.');
@@ -907,7 +1185,11 @@
         session.loaded = true;
         return session.messages;
       });
+    }).finally(function () {
+      session.loadingPromise = null;
     });
+
+    return session.loadingPromise;
   }
 
   function applyLayout() {
@@ -956,6 +1238,14 @@
       }, 20);
     }
   };
+
+  document.addEventListener('mousedown', function (event) {
+    if (!isOpen || !sidebar) return;
+    if (deleteModal && deleteModal.contains(event.target)) return;
+    if (quickOrderModal && quickOrderModal.contains(event.target)) return;
+    if (sidebar.contains(event.target)) return;
+    closeSidebar();
+  });
 
   window.toggleProfileMenu = function () {
     if (!profileMenu) return;
@@ -1126,14 +1416,17 @@
 
   function updateSessionItemStyles() {
     document.querySelectorAll('.chat-history-item').forEach(function (item) {
-      var bg = item.querySelector('.history-bg');
       var title = item.querySelector('.history-title');
+      var date = item.querySelector('.history-date');
+      var actions = item.querySelector('.history-actions');
       var isActive = item.getAttribute('data-id') === activeSessionId;
 
-      item.classList.toggle('bg-[#e8f1fb]', isActive);
-      item.classList.toggle('shadow-[0_4px_12px_rgba(49,130,206,0.10)]', isActive);
-      if (bg) bg.style.opacity = isActive ? '0' : '1';
+      item.style.backgroundColor = isActive ? '#e8f1fb' : '';
+      item.style.borderRadius = isActive ? '8px' : '';
+      item.style.boxShadow = isActive ? '0 4px 12px rgba(49,130,206,0.10)' : '';
       if (title) title.style.color = isActive ? '#2563eb' : '#2d3748';
+      if (date) date.style.display = '';
+      if (actions) actions.style.display = 'none';
     });
   }
 
@@ -1141,6 +1434,7 @@
     if (!chatMessages || !chatThread || !chatEmptyState) return;
 
     var session = ensureSessionState(sessionId);
+    if (chatSection) chatSection.classList.remove('is-resetting');
     chatMessages.innerHTML = '';
     chatEmptyState.classList.remove('is-fading-in');
     chatEmptyState.classList.add('hidden');
@@ -1182,30 +1476,72 @@
 
   function renderProductCards(cards) {
     if (!recommendedPanel) return;
+    if (!cards || !cards.length) {
+      return;
+    }
     recommendedPanel.innerHTML = '';
     cards.forEach(function (card) {
       var price = card.price ? Number(card.price).toLocaleString('ko-KR') + '원' : '';
       var discount = card.discount_price ? Number(card.discount_price).toLocaleString('ko-KR') + '원' : '';
+      var finalPrice = discount || price || '가격 정보 없음';
+      var rating = card.rating || '4.7';
+      var reviews = card.reviews || '리뷰 준비 중';
       var priceHtml = discount
-        ? '<span class="text-[13px] font-bold text-[#e53e3e]">' + discount + '</span> <span class="ml-[4px] text-[12px] text-[#a0aec0] line-through">' + price + '</span>'
-        : '<span class="text-[13px] font-bold text-[#2d3748]">' + price + '</span>';
+        ? '<div class="mt-[5px] text-[15px] font-bold text-[#e53e3e]">' + finalPrice + '</div><div class="mt-[2px] text-[11px] text-[#a0aec0] line-through">' + price + '</div>'
+        : '<div class="mt-[5px] text-[15px] font-bold text-[#3182ce]">' + finalPrice + '</div>';
       var el = document.createElement('div');
-      el.className = 'flex gap-[12px] rounded-[12px] border border-[#e2e8f0] bg-white p-[12px] shadow-[0_2px_8px_rgba(45,55,72,0.06)]';
-      el.innerHTML = '<img src="' + (card.thumbnail_url || '') + '" alt="" class="h-[72px] w-[72px] shrink-0 rounded-[8px] object-cover bg-[#f8fafc]" onerror="this.style.display=\'none\'">'
+      el.className = 'rounded-[20px] border border-[#dbe7f5] bg-white px-[14px] py-[13px] shadow-[0_8px_20px_rgba(45,55,72,0.05)]';
+      el.innerHTML = '<div class="flex items-center gap-[10px]">'
+        + '<div class="relative flex h-[68px] w-[68px] shrink-0 items-center justify-center overflow-hidden rounded-[14px] bg-gradient-to-br from-[#dbeafe] via-[#eff6ff] to-[#f8fafc]">'
+        + '  <img src="' + (card.thumbnail_url || '') + '" alt="" class="h-full w-full object-cover" onerror="this.style.display=\'none\'; this.parentNode.querySelector(&quot;.fallback-emoji&quot;).style.display = \'flex\';">'
+        + '  <div class="fallback-emoji absolute inset-0 hidden items-center justify-center text-[26px]">🛍️</div>'
+        + '</div>'
         + '<div class="min-w-0 flex-1">'
-        + '<p class="truncate text-[13px] font-bold text-[#2d3748]">' + (card.product_name || '') + '</p>'
-        + '<p class="mt-[2px] truncate text-[11px] text-[#718096]">' + (card.brand_name || '') + '</p>'
-        + '<div class="mt-[6px]">' + priceHtml + '</div>'
-        + (card.product_url ? '<a href="' + card.product_url + '" target="_blank" class="mt-[6px] inline-block rounded-[6px] bg-[#3182ce] px-[10px] py-[4px] text-[11px] font-bold text-white">구매하기</a>' : '')
+        + '<div class="truncate text-[13px] font-bold leading-[1.5] text-[#2d3748]">' + (card.product_name || '추천 상품') + '</div>'
+        + '<div class="mt-[2px] truncate text-[11px] text-[#718096]">' + (card.brand_name || '브랜드 정보') + '</div>'
+        + priceHtml
+        + '<div class="mt-[7px] flex items-center gap-[6px] text-[11px]">'
+        + '  <span class="font-bold text-[#d69e2e]">★ ' + rating + '</span>'
+        + '  <span class="text-[#a0aec0]">' + reviews + '</span>'
+        + '</div>'
+        + (card.product_url ? '<a href="' + card.product_url + '" target="_blank" class="mt-[7px] inline-flex text-[11px] font-bold text-[#3182ce]">상품 보러가기</a>' : '')
+        + '</div>'
+        + '<button type="button"'
+        + ' class="flex h-[36px] w-[36px] shrink-0 items-center justify-center rounded-full bg-[#3182ce] text-white shadow-[0_8px_18px_rgba(49,130,206,0.18)]"'
+        + ' data-product-name="' + (card.product_name || '추천 상품') + '"'
+        + ' data-product-price="' + finalPrice + '"'
+        + ' data-product-rating="' + rating + '"'
+        + ' data-product-reviews="' + reviews + '"'
+        + ' data-product-emoji="🛍️"'
+        + ' onclick="addRecommendedToCart(this)"'
+        + ' aria-label="장바구니 추가">'
+        + '  <span class="relative top-[-1px] text-[20px] font-semibold leading-none">+</span>'
+        + '</button>'
         + '</div>';
       recommendedPanel.appendChild(el);
     });
   }
 
-  function hideProductPanel(onDone) {
+  function hideProductPanel(onDone, immediate) {
     if (!productPanel || !chatSection) return;
     if (!productPanel.classList.contains('is-open')) {
       if (typeof onDone === 'function') onDone();
+      return;
+    }
+
+    if (immediate) {
+      productPanel.classList.add('is-reset-closing');
+      window.setTimeout(function () {
+        productPanel.classList.add('no-transition');
+        productPanel.classList.remove('is-reset-closing');
+        productPanel.classList.remove('is-closing');
+        productPanel.classList.remove('is-open');
+        chatSection.classList.remove('border-r', 'border-[#e2e8f0]');
+        if (typeof onDone === 'function') onDone();
+        window.setTimeout(function () {
+          productPanel.classList.remove('no-transition');
+        }, 20);
+      }, 220);
       return;
     }
 
@@ -1217,20 +1553,18 @@
     window.setTimeout(function () {
       productPanel.classList.remove('is-closing');
       if (typeof onDone === 'function') onDone();
-    }, 580);
+    }, 180);
   }
 
-  window.resetChatState = function (closeDrawer) {
-    function performReset() {
+  function performResetState(showEmptyWithFade) {
+      if (composerStage) composerStage.classList.add('no-transition');
       if (chatMessages) chatMessages.innerHTML = '';
       if (chatThread) chatThread.classList.add('hidden');
-      if (closeDrawer) {
-        if (chatEmptyState) {
-          chatEmptyState.classList.remove('is-fading-in');
-          chatEmptyState.classList.remove('hidden');
-        }
-      } else {
+      if (showEmptyWithFade) {
         showEmptyStateWithFade();
+      } else if (chatEmptyState) {
+        chatEmptyState.classList.remove('is-fading-in');
+        chatEmptyState.classList.remove('hidden');
       }
       updateChatSectionState(false);
       activeSessionId = null;
@@ -1238,19 +1572,36 @@
       if (messageInput) {
         messageInput.value = '';
         updateComposerState(messageInput);
+        window.setTimeout(function () {
+          messageInput.focus();
+        }, 30);
       }
       hideProductPanel();
       switchProductTab('recommended');
       if (chatScrollArea) chatScrollArea.scrollTop = 0;
-    }
+      window.requestAnimationFrame(function () {
+        if (chatSection) chatSection.classList.remove('is-resetting');
+      });
+      window.setTimeout(function () {
+        if (composerStage) composerStage.classList.remove('no-transition');
+      }, 240);
+  }
+
+  window.resetChatState = function (closeDrawer) {
+    var transitionDelay = closeDrawer ? 24 : 12;
+    var hasVisibleThread = !!(chatThread && !chatThread.classList.contains('hidden'));
+    if (chatSection && hasVisibleThread) chatSection.classList.add('is-resetting');
+
+    hideProductPanel(function () {
+      window.setTimeout(function () {
+        performResetState(true);
+      }, transitionDelay);
+    }, true);
 
     if (closeDrawer) {
       closeSidebar();
-      performReset();
       return;
     }
-
-    performReset();
   };
 
   window.sendMessage = function () {
@@ -1258,31 +1609,46 @@
     var msg = messageInput.value.trim();
     if (!msg) return;
 
-    var ensureSessionPromise = activeSessionId
-      ? Promise.resolve({ session_id: activeSessionId })
-      : createSessionForMessage(msg);
+    var ensureSessionPromise;
+    if (activeSessionId) {
+      var activeSessionState = ensureSessionState(activeSessionId);
+      ensureSessionPromise = activeSessionState.loaded
+        ? Promise.resolve({ session_id: activeSessionId })
+        : loadSessionMessages(activeSessionId).then(function () {
+            return { session_id: activeSessionId };
+          });
+    } else {
+      ensureSessionPromise = createSessionForMessage(msg);
+    }
 
     ensureSessionPromise.then(function (sessionData) {
       var sessionId = sessionData.session_id;
       activeSessionId = sessionId;
       var sessionState = ensureSessionState(sessionId);
+      promoteSessionItem(sessionId, sessionData.title || (msg.length > 18 ? msg.slice(0, 18) + '...' : msg));
 
-      if (chatEmptyState) chatEmptyState.classList.add('hidden');
-      if (chatThread) chatThread.classList.remove('hidden');
+      if (sessionState.loaded && sessionState.messages.length) {
+        renderSessionThread(sessionId);
+      } else {
+        if (chatEmptyState) chatEmptyState.classList.add('hidden');
+        if (chatThread) chatThread.classList.remove('hidden');
+      }
 
-      appendMessage('user', msg);
       sessionState.messages.push({ role: 'user', text: msg });
       sessionState.loaded = true;
 
-      updateChatSectionState(true);
+      renderSessionThread(sessionId);
       updateSessionItemStyles();
 
       messageInput.value = '';
       updateComposerState(messageInput);
       scrollToBottom();
 
-      var assistantEl = appendMessage('assistant', '');
+      var pendingAssistantText = '답변을 준비하고 있어요...';
+      var assistantEl = appendMessage('assistant', pendingAssistantText);
       var assistantText = '';
+      openProductPanel();
+      switchProductTab('recommended');
 
       fetch('/api/chat/sessions/' + sessionId + '/messages/', {
         method: 'POST',
@@ -1379,28 +1745,12 @@
     tabCart.classList.toggle('text-[#2d6cdf]', !isRecommended);
     tabRecommended.classList.toggle('text-[#718096]', !isRecommended);
     tabCart.classList.toggle('text-[#718096]', isRecommended);
-    tabRecommended.classList.toggle('text-[14px]', isRecommended);
-    tabCart.classList.toggle('text-[14px]', !isRecommended);
-    tabRecommended.classList.toggle('text-[13px]', !isRecommended);
-    tabCart.classList.toggle('text-[13px]', isRecommended);
     tabRecommended.classList.toggle('font-bold', isRecommended);
     tabCart.classList.toggle('font-bold', !isRecommended);
     tabRecommended.classList.toggle('font-semibold', !isRecommended);
     tabCart.classList.toggle('font-semibold', isRecommended);
     if (recommendedUnderline) recommendedUnderline.classList.toggle('hidden', !isRecommended);
     if (cartUnderline) cartUnderline.classList.toggle('hidden', isRecommended);
-    if (cartBadge) {
-      cartBadge.classList.toggle('h-[18px]', !isRecommended);
-      cartBadge.classList.toggle('min-w-[18px]', !isRecommended);
-      cartBadge.classList.toggle('px-[6px]', !isRecommended);
-      cartBadge.classList.toggle('text-[10px]', !isRecommended);
-      cartBadge.classList.toggle('top-0', !isRecommended);
-      cartBadge.classList.toggle('h-[16px]', isRecommended);
-      cartBadge.classList.toggle('min-w-[16px]', isRecommended);
-      cartBadge.classList.toggle('px-[5px]', isRecommended);
-      cartBadge.classList.toggle('text-[9px]', isRecommended);
-      cartBadge.classList.toggle('top-[1px]', isRecommended);
-    }
   };
 
   function formatPrice(value) {
@@ -1470,6 +1820,18 @@
 
     totalNode.textContent = formatPrice(total);
     if (badgeNode) badgeNode.textContent = String(count);
+    if (quickOrderModal && quickOrderModal.classList.contains('is-open')) {
+      renderQuickOrderSummary();
+    }
+  }
+
+  function clearCartPanel() {
+    var list = document.getElementById('cartPanelList');
+    if (list) {
+      list.innerHTML = '';
+    }
+    updateCartTotal();
+    switchProductTab('recommended');
   }
 
   window.adjustCartQuantity = function (button, delta) {
@@ -1569,6 +1931,252 @@
     pendingDeleteId = null;
   };
 
+  function getCartSnapshot() {
+    var items = [];
+    document.querySelectorAll('[data-cart-item]').forEach(function (item) {
+      var name = item.getAttribute('data-product-name') || '상품';
+      var unitPrice = Number(item.getAttribute('data-unit-price') || '0');
+      var quantityNode = item.querySelector('[data-cart-quantity]');
+      var quantity = quantityNode ? Number(quantityNode.textContent || '0') : 0;
+      if (quantity > 0) {
+        items.push({
+          name: name,
+          quantity: quantity,
+          totalPrice: unitPrice * quantity,
+        });
+      }
+    });
+    return items;
+  }
+
+  function applyQuickOrderLocalPreview() {
+    try {
+      var savedAddress = JSON.parse(window.localStorage.getItem(PROFILE_ADDRESS_STORAGE_KEY) || 'null');
+      if (savedAddress) {
+        if (quickOrderAddressSummary && savedAddress.addressMain) {
+          var addressText = savedAddress.addressMain || '';
+          if (savedAddress.addressDetail) {
+            addressText += ' ' + savedAddress.addressDetail;
+          }
+          quickOrderAddressSummary.textContent = addressText.trim();
+        }
+      }
+    } catch (e) {}
+
+    try {
+      var savedPayment = JSON.parse(window.localStorage.getItem(PROFILE_PAYMENT_STORAGE_KEY) || 'null');
+      if (savedPayment && quickOrderCardSummary && savedPayment.cardName && savedPayment.maskedCard) {
+        quickOrderCardSummary.textContent = savedPayment.cardName + ' / ' + savedPayment.maskedCard;
+        quickOrderCardSummary.classList.remove('text-[#718096]');
+      }
+    } catch (e) {}
+  }
+
+  function showQuickOrderToast() {
+    var toast = document.getElementById('quickOrderToast');
+    if (!toast) return;
+    if (quickOrderToastTimer) {
+      window.clearTimeout(quickOrderToastTimer);
+      quickOrderToastTimer = null;
+    }
+    toast.classList.add('is-open');
+    quickOrderToastTimer = window.setTimeout(function () {
+      toast.classList.remove('is-open');
+      quickOrderToastTimer = null;
+    }, 2200);
+  }
+
+  function updateQuickOrderSlideState(enabled) {
+    var slide = document.getElementById('quickOrderSlide');
+    var thumb = document.getElementById('quickOrderSlideThumb');
+    var label = document.getElementById('quickOrderSlideLabel');
+    if (!slide || !thumb || !label) return;
+
+    quickOrderSlideEnabled = enabled;
+    slide.classList.toggle('is-enabled', enabled);
+    slide.classList.remove('is-dragging');
+    slide.classList.toggle('bg-[#edf2f7]', !enabled);
+    slide.classList.toggle('border-[#dbe7f5]', !enabled);
+    slide.classList.toggle('bg-[#ebf8ff]', enabled);
+    slide.classList.toggle('border-[#90cdf4]', enabled);
+    thumb.classList.toggle('text-[#718096]', !enabled);
+    thumb.classList.toggle('text-[#3182ce]', enabled);
+    label.classList.toggle('text-[#a0aec0]', !enabled);
+    label.classList.toggle('text-[#2d3748]', enabled);
+    label.textContent = enabled ? '밀어서 결제하기' : '배송지와 결제수단 저장 후 밀어서 결제하기';
+    thumb.style.left = '4px';
+  }
+
+  function renderQuickOrderSummary() {
+    if (!quickOrderItemCount || !quickOrderSubtotal || !quickOrderShippingFee || !quickOrderTotal) return;
+    var items = getCartSnapshot();
+    var totalCount = 0;
+    var subtotal = 0;
+    items.forEach(function (item) {
+      totalCount += item.quantity;
+      subtotal += item.totalPrice;
+    });
+    var shippingFee = items.length ? 3000 : 0;
+    var totalPrice = subtotal + shippingFee;
+
+    quickOrderItemCount.textContent = totalCount + '개';
+    quickOrderSubtotal.textContent = formatPrice(subtotal);
+    quickOrderShippingFee.textContent = formatPrice(shippingFee);
+    quickOrderTotal.textContent = formatPrice(totalPrice);
+
+    if (quickOrderPrimaryItem) {
+      if (!items.length) {
+        quickOrderPrimaryItem.textContent = '상품 정보 없음';
+      } else if (items.length === 1) {
+        quickOrderPrimaryItem.textContent = items[0].name;
+      } else {
+        quickOrderPrimaryItem.textContent = items[0].name + ' 외 ' + (items.length - 1) + '개 상품';
+      }
+    }
+
+    if (quickOrderCardSummary && quickOrderCardSummary.textContent.indexOf('등록된 결제수단이 없습니다') !== -1) {
+      quickOrderCardSummary.textContent = '등록된 결제수단이 없습니다';
+    }
+
+    applyQuickOrderLocalPreview();
+
+    var hasProfileInfo = !!(
+      (quickOrderRecipientSummary && quickOrderRecipientSummary.textContent.trim() && quickOrderRecipientSummary.textContent.indexOf('없습니다') === -1) &&
+      (quickOrderAddressSummary && quickOrderAddressSummary.textContent.trim() && quickOrderAddressSummary.textContent.indexOf('없습니다') === -1) &&
+      (quickOrderPhoneSummary && quickOrderPhoneSummary.textContent.trim() && quickOrderPhoneSummary.textContent.indexOf('없습니다') === -1)
+    );
+    var hasPaymentInfo = false;
+    if (quickOrderCardSummary) {
+      hasPaymentInfo = quickOrderCardSummary.textContent.trim().indexOf('없습니다') === -1;
+    }
+
+    updateQuickOrderSlideState(hasProfileInfo && hasPaymentInfo && items.length > 0);
+  }
+
+  window.openQuickOrderModal = function () {
+    if (!quickOrderModal) return;
+    renderQuickOrderSummary();
+    quickOrderModal.classList.add('is-open');
+  };
+
+  window.closeQuickOrderModal = function (e) {
+    if (!quickOrderModal) return;
+    if (e && e.target !== quickOrderModal) return;
+    quickOrderModal.classList.remove('is-open');
+  };
+
+  window.submitQuickOrder = function () {
+    closeQuickOrderModal();
+    clearCartPanel();
+    showQuickOrderToast();
+  };
+
+  window.goToCartPage = function () {
+    closeQuickOrderModal();
+    openProductPanel();
+    switchProductTab('cart');
+  };
+
+  window.goToProfilePage = function () {
+    window.location.href = '/profile/';
+  };
+
+  (function bindQuickOrderSlide() {
+    var slide = document.getElementById('quickOrderSlide');
+    var thumb = document.getElementById('quickOrderSlideThumb');
+    var label = document.getElementById('quickOrderSlideLabel');
+    if (!slide || !thumb || !label) return;
+
+    function getThumbMaxLeft() {
+      return slide.clientWidth - thumb.clientWidth - 4;
+    }
+
+    function setThumbPosition(left) {
+      thumb.style.left = left + 'px';
+    }
+
+    function resetThumb(animated) {
+      if (animated) {
+        thumb.style.transition = 'left 180ms ease';
+      } else {
+        thumb.style.transition = 'none';
+      }
+      setThumbPosition(4);
+      window.setTimeout(function () {
+        thumb.style.transition = '';
+      }, animated ? 180 : 0);
+    }
+
+    function finishSlide() {
+      thumb.style.transition = 'left 140ms ease';
+      setThumbPosition(getThumbMaxLeft());
+      window.setTimeout(function () {
+        thumb.style.transition = '';
+        resetThumb(false);
+        submitQuickOrder();
+      }, 150);
+    }
+
+    function onPointerMove(clientX) {
+      if (!quickOrderSlideDragging || !quickOrderSlideEnabled) return;
+      var nextLeft = Math.min(Math.max(4, quickOrderSlideStartLeft + (clientX - quickOrderSlideStartX)), getThumbMaxLeft());
+      setThumbPosition(nextLeft);
+    }
+
+    function onPointerUp() {
+      if (!quickOrderSlideDragging) return;
+      quickOrderSlideDragging = false;
+      slide.classList.remove('is-dragging');
+      var currentLeft = parseFloat(thumb.style.left || '4');
+      if (currentLeft >= getThumbMaxLeft() * 0.82) {
+        finishSlide();
+      } else {
+        resetThumb(true);
+      }
+      document.removeEventListener('mousemove', handleMouseMove);
+      document.removeEventListener('mouseup', handleMouseUp);
+      document.removeEventListener('touchmove', handleTouchMove);
+      document.removeEventListener('touchend', handleTouchEnd);
+    }
+
+    function handleMouseMove(e) {
+      onPointerMove(e.clientX);
+    }
+
+    function handleTouchMove(e) {
+      if (!e.touches.length) return;
+      onPointerMove(e.touches[0].clientX);
+    }
+
+    function handleMouseUp() {
+      onPointerUp();
+    }
+
+    function handleTouchEnd() {
+      onPointerUp();
+    }
+
+    thumb.addEventListener('mousedown', function (e) {
+      if (!quickOrderSlideEnabled) return;
+      quickOrderSlideDragging = true;
+      slide.classList.add('is-dragging');
+      quickOrderSlideStartX = e.clientX;
+      quickOrderSlideStartLeft = parseFloat(thumb.style.left || '4');
+      document.addEventListener('mousemove', handleMouseMove);
+      document.addEventListener('mouseup', handleMouseUp);
+    });
+
+    thumb.addEventListener('touchstart', function (e) {
+      if (!quickOrderSlideEnabled || !e.touches.length) return;
+      quickOrderSlideDragging = true;
+      slide.classList.add('is-dragging');
+      quickOrderSlideStartX = e.touches[0].clientX;
+      quickOrderSlideStartLeft = parseFloat(thumb.style.left || '4');
+      document.addEventListener('touchmove', handleTouchMove, { passive: true });
+      document.addEventListener('touchend', handleTouchEnd);
+    }, { passive: true });
+  })();
+
   var confirmBtn = document.getElementById('confirmDeleteBtn');
   if (confirmBtn) {
     confirmBtn.addEventListener('click', function () {
@@ -1605,7 +2213,6 @@
   }
 
   function bindHistoryItemInteractions(item) {
-    var bg = item.querySelector('.history-bg');
     var date = item.querySelector('.history-date');
     var actions = item.querySelector('.history-actions');
 
@@ -1615,8 +2222,8 @@
 
     item.addEventListener('mouseenter', function () {
       if (item.getAttribute('data-id') !== activeSessionId) {
-        item.style.backgroundColor = '#e2e8f0';
-        if (bg) bg.style.opacity = '0';
+        item.style.backgroundColor = '#f8fbff';
+        item.style.borderRadius = '8px';
       }
       if (date) date.style.display = 'none';
       if (actions) actions.style.display = 'flex';
@@ -1625,7 +2232,7 @@
     item.addEventListener('mouseleave', function () {
       if (item.getAttribute('data-id') !== activeSessionId) {
         item.style.backgroundColor = '';
-        if (bg) bg.style.opacity = '1';
+        item.style.borderRadius = '';
       }
       if (date) date.style.display = '';
       if (actions) actions.style.display = 'none';
@@ -1645,7 +2252,7 @@
     var input = document.createElement('input');
     input.type = 'text';
     input.value = current;
-    input.className = 'absolute left-[10.5px] top-[7.8px] h-[24px] w-[175px] rounded border border-[#cbd5e0] bg-white px-[6px] text-[12px] font-semibold text-[#2d3748] outline-none';
+    input.className = 'absolute left-[6px] top-[8px] h-[24px] w-[172px] rounded border border-[#cbd5e0] bg-white px-[6px] text-[12px] font-semibold text-[#2d3748] outline-none';
     titleEl.replaceWith(input);
     input.focus();
     input.select();
@@ -1653,7 +2260,7 @@
     function done() {
       var newTitle = input.value.trim() || current;
       var span = document.createElement('span');
-      span.className = 'history-title absolute left-[10.5px] right-[66px] top-[11.8px] overflow-hidden text-ellipsis whitespace-nowrap text-[12px] font-semibold leading-none text-[#2d3748]';
+      span.className = 'history-title absolute left-[6px] right-[72px] top-[12px] overflow-hidden text-ellipsis whitespace-nowrap text-[12px] font-semibold leading-none text-[#2d3748]';
       span.textContent = newTitle;
       input.replaceWith(span);
 

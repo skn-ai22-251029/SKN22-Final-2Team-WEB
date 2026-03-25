@@ -1,15 +1,12 @@
 {% extends "base.html" %}
+{% load static %}
 {% block title %}로그인 — TailTalk{% endblock %}
 
 {% block content %}
 <div class="auth-legacy-shell min-h-screen bg-[#f7fafc]">
   <div class="relative h-screen w-full overflow-hidden bg-[#f7fafc] flex items-center justify-center auth-legacy-scale">
-    <div class="relative h-[244px] w-[400px] max-w-[calc(100vw-32px)] auth-legacy-card" id="authLegacyCard" data-ready="false">
-      <img
-        alt=""
-        class="absolute left-0 top-0 h-[244px] w-[400px] max-w-full"
-        src="https://www.figma.com/api/mcp/asset/eb8b7b54-70cf-4e1f-9cbf-46403968d531"
-      />
+    <div class="relative h-[244px] w-[400px] max-w-[calc(100vw-32px)] overflow-hidden rounded-[24px] border border-[#dbe7f5] bg-white shadow-[0_16px_40px_rgba(45,55,72,0.08)] auth-legacy-card" id="authLegacyCard" data-ready="true">
+      <div class="absolute inset-0 bg-[linear-gradient(180deg,rgba(255,255,255,0.96)_0%,rgba(247,250,252,0.98)_100%)]"></div>
 
       <a
         href="/"
@@ -18,29 +15,28 @@
         <span class="text-[#3182ce]">Tail</span><span>Talk</span>
       </a>
 
-      <img
-        alt=""
-        class="absolute left-[40px] top-[84px] h-[1px] w-[60px]"
-        src="https://www.figma.com/api/mcp/asset/c35ab6dc-cd4c-4219-8ee0-4106934db393"
-      />
+      <div class="absolute left-[40px] top-[84px] h-px w-[60px] bg-[#dbe7f5]"></div>
       <div class="auth-legacy-divider-label absolute left-[156px] top-[74px] h-[20px] w-[88px]">
         <p class="auth-legacy-divider-text">간편 로그인</p>
       </div>
-      <img
-        alt=""
-        class="absolute left-[300px] top-[84px] h-[1px] w-[60px]"
-        src="https://www.figma.com/api/mcp/asset/c35ab6dc-cd4c-4219-8ee0-4106934db393"
-      />
+      <div class="absolute left-[300px] top-[84px] h-px w-[60px] bg-[#dbe7f5]"></div>
 
       <div class="absolute left-[106px] top-[114px] flex h-[48px] w-[188px] items-center justify-between">
-        <a href="/auth/kakao/start/?remember=on" data-social-link aria-label="카카오 로그인">
-          <img alt="" class="h-[40px] w-[40px]" src="https://www.figma.com/api/mcp/asset/d22d7edf-9f92-417d-8172-d0122cb9956e" />
+        <a href="/auth/kakao/start/?remember=on" data-social-link aria-label="카카오 로그인" class="flex h-[40px] w-[40px] items-center justify-center overflow-hidden rounded-full bg-[#FEE500]">
+          <svg viewBox="0 0 40 40" class="relative left-[0.5px] block h-[30px] w-[30px]" aria-hidden="true">
+            <path fill="#191919" d="M20 8.2c-6.6 0-12 4.25-12 9.5 0 3.39 2.2 6.37 5.52 8.06l-1.4 5.1c-.07.28.23.5.48.36l5.98-3.95c.47.05.94.08 1.42.08 6.63 0 12-4.25 12-9.5s-5.37-9.55-12-9.55Z"/>
+          </svg>
         </a>
-        <a href="/auth/naver/start/?remember=on" data-social-link aria-label="네이버 로그인">
-          <img alt="" class="h-[40px] w-[40px]" src="https://www.figma.com/api/mcp/asset/7cfb3bd5-c1d7-42df-8155-0281c422f977" />
+        <a href="/auth/naver/start/?remember=on" data-social-link aria-label="네이버 로그인" class="flex h-[40px] w-[40px] items-center justify-center overflow-hidden rounded-full bg-[#03A94D]">
+          <img src="{% static 'images/social/naver_login_icon.png' %}" alt="네이버 로그인" class="pointer-events-none block h-[34px] w-[34px] object-contain" />
         </a>
-        <a href="/auth/google/start/?remember=on" data-social-link aria-label="구글 로그인">
-          <img alt="" class="h-[40px] w-[40px]" src="https://www.figma.com/api/mcp/asset/579f7bd6-15db-47cc-995e-1510a459db1d" />
+        <a href="/auth/google/start/?remember=on" data-social-link aria-label="구글 로그인" class="flex h-[40px] w-[40px] items-center justify-center rounded-full border border-[#dadce0] bg-white">
+          <svg viewBox="0 0 24 24" class="h-[24px] w-[24px]" aria-hidden="true">
+            <path fill="#EA4335" d="M12 10.2v3.9h5.41c-.24 1.26-.96 2.32-2.05 3.03l3.31 2.57c1.93-1.78 3.04-4.39 3.04-7.49 0-.71-.06-1.39-.18-2.02H12Z"/>
+            <path fill="#34A853" d="M12 22c2.75 0 5.06-.91 6.75-2.47l-3.31-2.57c-.92.62-2.1.99-3.44.99-2.65 0-4.89-1.79-5.69-4.19l-3.42 2.64A10.2 10.2 0 0 0 12 22Z"/>
+            <path fill="#4A90E2" d="M6.31 13.76A6.1 6.1 0 0 1 6 12c0-.61.11-1.2.31-1.76L2.89 7.6A10.01 10.01 0 0 0 2 12c0 1.61.39 3.13 1.09 4.4l3.22-2.64Z"/>
+            <path fill="#FBBC05" d="M12 6.05c1.49 0 2.82.51 3.87 1.51l2.9-2.9C17.05 3.05 14.74 2 12 2 8.01 2 4.57 4.28 2.89 7.6l3.42 2.64c.8-2.4 3.04-4.19 5.69-4.19Z"/>
+          </svg>
         </a>
       </div>
       <button
@@ -49,18 +45,10 @@
         id="rememberToggle"
         aria-pressed="true"
       >
-        <span class="auth-legacy-checkbox" aria-hidden="true" style="position:relative; width:16px; height:16px; display:block;">
-          <img
-            alt=""
-            class="absolute left-0 top-0 h-[16px] w-[16px]"
-            src="https://www.figma.com/api/mcp/asset/d87cedfa-0ee2-4f61-8bfd-ac58c6a6fb43"
-          />
-          <img
-            alt=""
-            class="absolute left-[4px] top-[5px] h-[6px] w-[8px]"
-            id="rememberCheck"
-            src="https://www.figma.com/api/mcp/asset/c1ccc9d0-f595-41ef-8f5c-668456e9975d"
-          />
+        <span class="auth-legacy-checkbox flex h-[16px] w-[16px] items-center justify-center rounded-[4px] border border-[#c7d6e6] bg-white" aria-hidden="true">
+          <svg id="rememberCheck" viewBox="0 0 10 8" class="h-[8px] w-[10px] text-[#3182ce]" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+            <path d="M1 4L3.5 6.5L9 1"></path>
+          </svg>
         </span>
         <span class="auth-legacy-remember-text">로그인 상태 유지</span>
       </button>
@@ -73,33 +61,10 @@
 <script>
   (function () {
     const card = document.getElementById('authLegacyCard');
-    const images = card ? Array.from(card.querySelectorAll('img')) : [];
     let checked = true;
     const button = document.getElementById('rememberToggle');
     const check = document.getElementById('rememberCheck');
     const links = card ? Array.from(card.querySelectorAll('[data-social-link]')) : [];
-
-    function revealWhenReady() {
-      if (!card) return;
-      const pending = images.filter(function (img) {
-        return !img.complete;
-      });
-      if (pending.length === 0) {
-        card.setAttribute('data-ready', 'true');
-        return;
-      }
-      let loaded = 0;
-      function markReady() {
-        loaded += 1;
-        if (loaded >= pending.length) {
-          card.setAttribute('data-ready', 'true');
-        }
-      }
-      pending.forEach(function (img) {
-        img.addEventListener('load', markReady, { once: true });
-        img.addEventListener('error', markReady, { once: true });
-      });
-    }
 
     button.addEventListener('click', function () {
       checked = !checked;
@@ -115,8 +80,6 @@
         window.location.href = url.toString();
       });
     });
-
-    revealWhenReady();
   })();
 </script>
 {% endblock %}

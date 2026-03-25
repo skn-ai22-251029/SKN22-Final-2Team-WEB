@@ -17,7 +17,7 @@ services:
 
   # ── Django (Auth / User / Pet / Order / Admin) ───────────────────────────────
   django:
-    image: leemdo/tailtalk-django:latest
+    image: tailtalk-django:latest
     build: ../services/django
     platform: linux/amd64
     command: >
@@ -61,7 +61,7 @@ services:
 
   # ── FastAPI (챗봇 / 추천) ────────────────────────────────────────────────────
   fastapi:
-    image: leemdo/tailtalk-fastapi:latest
+    image: tailtalk-fastapi:latest
     build: ../services/fastapi
     platform: linux/amd64
     command: uvicorn main:app --host 0.0.0.0 --port 8001 --workers 2

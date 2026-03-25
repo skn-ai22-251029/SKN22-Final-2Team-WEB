@@ -1,9 +1,13 @@
 {% extends "base.html" %}
+{% load static %}
 {% block title %}내 정보 — TailTalk{% endblock %}
 
 {% block content %}
 <div class="min-h-screen bg-[#f7fafc]">
-<div class="relative w-full px-4 py-10">
+<a href="/chat/" class="fixed left-8 top-8 z-[999] cursor-pointer text-[26px] font-bold leading-none text-[#2d3748]">
+  <span class="text-[#3182ce]">Tail</span><span>Talk</span>
+</a>
+<div class="relative w-full px-4 py-8">
 
   <!-- 탈퇴 모달 -->
   <div id="withdrawModal" class="absolute inset-0 z-[60] hidden items-center justify-center bg-black/10"
@@ -27,26 +31,63 @@
     </div>
   </div>
 
-  <!-- 로고 -->
-  <a href="/chat/" class="absolute left-8 top-8 text-[26px] font-bold leading-none text-[#2d3748]">
-    <span class="text-[#3182ce]">Tail</span><span>Talk</span>
-  </a>
+  <!-- 결제 수단 모달 -->
+  <div id="paymentModal" class="absolute inset-0 z-[60] hidden items-center justify-center bg-black/10"
+       onclick="closePaymentModal(event)">
+    <div class="relative w-[420px] rounded-[20px] border border-[#dbe7f5] bg-white"
+         onclick="event.stopPropagation()">
+      <div class="flex items-center justify-between px-6 pt-5">
+        <div class="text-[20px] font-bold text-[#2d3748]">결제 수단 등록</div>
+        <button type="button" onclick="closePaymentModal()" class="text-[24px] leading-none text-[#718096]">×</button>
+      </div>
+      <div class="px-6 pb-6 pt-4">
+        <div class="space-y-4">
+          <div>
+            <div class="mb-2 text-[14px] font-bold text-[#4a5568]">카드명</div>
+            <input id="paymentCardNameInput" type="text" placeholder="예: 현대카드 M"
+                   class="h-[40px] w-full rounded-[10px] border border-[#e2e8f0] px-3 text-[13px] text-[#4a5568] outline-none focus:border-[#3182ce]" />
+            <p id="paymentCardNameStatus" class="mt-1 min-h-[16px] text-right text-[12px]"></p>
+          </div>
+          <div>
+            <div class="mb-2 text-[14px] font-bold text-[#4a5568]">카드번호</div>
+            <input id="paymentCardNumberInput" type="text" inputmode="numeric" maxlength="19" placeholder="1234 5678 9012 3456"
+                   class="h-[40px] w-full rounded-[10px] border border-[#e2e8f0] px-3 text-[13px] text-[#4a5568] outline-none focus:border-[#3182ce]" />
+            <p id="paymentCardNumberStatus" class="mt-1 min-h-[16px] text-right text-[12px]"></p>
+          </div>
+          <div>
+            <div class="mb-2 text-[14px] font-bold text-[#4a5568]">유효기간</div>
+            <input id="paymentExpiryInput" type="text" inputmode="numeric" maxlength="5" placeholder="MM/YY"
+                   class="h-[40px] w-full rounded-[10px] border border-[#e2e8f0] px-3 text-[13px] text-[#4a5568] outline-none focus:border-[#3182ce]" />
+            <p id="paymentExpiryStatus" class="mt-1 min-h-[16px] text-right text-[12px]"></p>
+          </div>
+        </div>
+        <div class="mt-5 flex gap-3">
+          <button type="button" onclick="closePaymentModal()"
+                  class="flex h-[42px] flex-1 items-center justify-center rounded-[10px] bg-[#edf2f7] text-[14px] font-bold text-[#4a5568]">취소</button>
+          <button type="button" onclick="savePaymentMethod()"
+                  class="flex h-[42px] flex-1 items-center justify-center rounded-[10px] bg-[#3182ce] text-[14px] font-bold text-white">저장</button>
+        </div>
+      </div>
+    </div>
+  </div>
 
-  <div class="mx-auto w-full max-w-[860px] rounded-[20px] border border-[#e2e8f0] bg-white mt-16">
+  <div class="mx-auto mt-14 w-full max-w-[860px] rounded-[20px] border border-[#e2e8f0] bg-white">
     <div class="px-8 pt-6 pb-4 text-[24px] font-bold text-[#2d3748]">내 정보</div>
     <div class="h-px w-full bg-[#e2e8f0]"></div>
 
-    <form method="post" class="px-8 py-6">
+    <form method="post" class="px-8 py-5">
       {% csrf_token %}
       {% if messages %}
       {% for msg in messages %}
-      <p class="mb-4 text-center text-[13px] {% if msg.tags == 'error' %}text-red-500{% else %}text-green-600{% endif %}">{{ msg }}</p>
+      {% if msg.tags == 'error' %}
+      <p class="mb-4 text-center text-[13px] text-red-500">{{ msg }}</p>
+      {% endif %}
       {% endfor %}
       {% endif %}
       <div class="text-[18px] font-bold text-[#2d3748]">1. 프로필 관리</div>
 
       <!-- 닉네임 / 연락처 -->
-      <div class="mt-6 grid grid-cols-1 gap-4 md:grid-cols-2">
+      <div class="mt-4 grid grid-cols-1 gap-4 md:grid-cols-2">
         <div>
           <div class="mb-2 text-[14px] font-bold text-[#4a5568]">닉네임 <span class="text-[12px] font-medium text-[#e53e3e]">(필수)</span></div>
           <div class="flex items-start gap-3">
@@ -76,7 +117,7 @@
         </div>
       </div>
 
-      <div class="mt-4">
+      <div class="mt-3">
         <div class="mb-2 text-[14px] font-bold text-[#4a5568]">주소 <span class="text-[12px] font-medium text-[#a0aec0]">(선택)</span></div>
         <div class="flex gap-3">
           <input name="zipcode" id="zipcodeInput" placeholder="우편번호" readonly
@@ -85,13 +126,72 @@
                   class="h-[36px] w-[110px] rounded-[8px] border border-[#3182ce] text-[14px] font-bold text-[#3182ce]">우편번호 찾기</button>
         </div>
         <input name="address_main" id="addressMainInput" placeholder="기본 주소" readonly
-               class="mt-3 h-[36px] w-full rounded-[8px] border border-[#e2e8f0] bg-[#f7fafc] px-3 text-[12px] text-[#718096] outline-none placeholder:text-[#718096]" />
+               class="mt-2 h-[36px] w-full rounded-[8px] border border-[#e2e8f0] bg-[#f7fafc] px-3 text-[12px] text-[#718096] outline-none placeholder:text-[#718096]" />
         <input name="address_detail" id="addressDetailInput" placeholder="상세 주소"
-               class="mt-3 h-[36px] w-full rounded-[8px] border border-[#e2e8f0] px-3 text-[12px] text-[#718096] outline-none focus:border-[#3182ce] placeholder:text-[#718096]" />
+               class="mt-2 h-[36px] w-full rounded-[8px] border border-[#e2e8f0] px-3 text-[12px] text-[#718096] outline-none focus:border-[#3182ce] placeholder:text-[#718096]" />
         <p id="addressStatus" class="mt-1 min-h-[16px] text-right text-[12px]"></p>
       </div>
 
-      <!-- 알림 설정 -->
+      <div class="mt-6 h-px w-full bg-[#e2e8f0]"></div>
+
+      <div class="mt-4 text-[18px] font-bold text-[#2d3748]">2. 결제 수단</div>
+      <div class="mt-3 w-full max-w-[420px] rounded-[12px] border border-[#e2e8f0] bg-[#f7fafc] px-4 py-3.5">
+        <div class="flex items-center justify-between gap-4">
+          <div class="min-w-0 flex-1">
+            <div id="paymentMethodSummary" class="text-[13px] text-[#718096]">저장된 결제 수단이 없습니다</div>
+          </div>
+          <button id="paymentRegisterButton" type="button" onclick="openPaymentModal()"
+                  class="h-[36px] rounded-[8px] border border-[#3182ce] px-4 text-[13px] font-bold text-[#3182ce]">
+            등록
+          </button>
+        </div>
+      </div>
+
+      <div class="mt-6 h-px w-full bg-[#e2e8f0]"></div>
+
+      <!-- 로그인 계정 -->
+      <div class="mt-4 text-[18px] font-bold text-[#2d3748]">3. 로그인 계정</div>
+      <div class="mt-3 w-full max-w-[250px] rounded-[10px] border border-[#e2e8f0] bg-[#f7fafc] px-3 py-2.5">
+        {% if social_accounts.kakao %}
+        <div class="flex items-center gap-3">
+          <div class="flex h-7 w-7 items-center justify-center rounded-full bg-[#FEE500]">
+            <svg viewBox="0 0 40 40" class="relative left-[0.5px] h-[21px] w-[21px]" aria-hidden="true">
+              <path fill="#191919" d="M20 8.2c-6.6 0-12 4.25-12 9.5 0 3.39 2.2 6.37 5.52 8.06l-1.4 5.1c-.07.28.23.5.48.36l5.98-3.95c.47.05.94.08 1.42.08 6.63 0 12-4.25 12-9.5s-5.37-9.55-12-9.55Z"/>
+            </svg>
+          </div>
+          <div class="flex-1">
+            <div class="text-[13px] font-bold text-[#2d3748]">카카오</div>
+            <div class="text-[12px] text-[#718096]">{{ social_accounts.kakao.email }}</div>
+          </div>
+        </div>
+        {% elif social_accounts.naver %}
+        <div class="flex items-center gap-3">
+          <div class="flex h-7 w-7 items-center justify-center rounded-full bg-[#03A94D]">
+            <img alt="Naver" class="h-[24px] w-[24px] object-contain" src="{% static 'images/social/naver_login_icon.png' %}" />
+          </div>
+          <div class="flex-1">
+            <div class="text-[13px] font-bold text-[#2d3748]">네이버</div>
+            <div class="text-[12px] text-[#718096]">{{ social_accounts.naver.email }}</div>
+          </div>
+        </div>
+        {% elif social_accounts.google %}
+        <div class="flex items-center gap-3">
+          <div class="flex h-7 w-7 items-center justify-center rounded-full border border-[#dadce0] bg-white">
+            <svg viewBox="0 0 24 24" class="h-[20px] w-[20px]" aria-hidden="true">
+              <path fill="#EA4335" d="M12 10.2v3.9h5.41c-.24 1.26-.96 2.32-2.05 3.03l3.31 2.57c1.93-1.78 3.04-4.39 3.04-7.49 0-.71-.06-1.39-.18-2.02H12Z"/>
+              <path fill="#34A853" d="M12 22c2.75 0 5.06-.91 6.75-2.47l-3.31-2.57c-.92.62-2.1.99-3.44.99-2.65 0-4.89-1.79-5.69-4.19l-3.42 2.64A10.2 10.2 0 0 0 12 22Z"/>
+              <path fill="#4A90E2" d="M6.31 13.76A6.1 6.1 0 0 1 6 12c0-.61.11-1.2.31-1.76L2.89 7.6A10.01 10.01 0 0 0 2 12c0 1.61.39 3.13 1.09 4.4l3.22-2.64Z"/>
+              <path fill="#FBBC05" d="M12 6.05c1.49 0 2.82.51 3.87 1.51l2.9-2.9C17.05 3.05 14.74 2 12 2 8.01 2 4.57 4.28 2.89 7.6l3.42 2.64c.8-2.4 3.04-4.19 5.69-4.19Z"/>
+            </svg>
+          </div>
+          <div class="flex-1">
+            <div class="text-[13px] font-bold text-[#2d3748]">구글</div>
+            <div class="text-[12px] text-[#718096]">{{ social_accounts.google.email }}</div>
+          </div>
+        </div>
+        {% endif %}
+      </div>
+
       <div class="mt-4">
         <div class="flex w-full max-w-[195px] items-center gap-2 rounded-[10px] border border-[#e2e8f0] px-3 py-2">
           <span class="text-[13px] font-medium leading-none text-[#4a5568]">마케팅 푸시 동의</span>
@@ -106,40 +206,8 @@
         </div>
       </div>
 
-      <div class="mt-8 h-px w-full bg-[#e2e8f0]"></div>
-
-      <!-- 로그인 계정 -->
-      <div class="mt-6 text-[18px] font-bold text-[#2d3748]">2. 로그인 계정</div>
-      <div class="mt-4 w-full max-w-[250px] rounded-[10px] border border-[#e2e8f0] bg-[#f7fafc] px-3 py-2.5">
-        {% if social_accounts.kakao %}
-        <div class="flex items-center gap-3">
-          <img alt="Kakao" class="h-7 w-7" src="https://www.figma.com/api/mcp/asset/527049c9-ee7f-443c-a0c6-0e70f4b905e3" />
-          <div class="flex-1">
-            <div class="text-[13px] font-bold text-[#2d3748]">카카오</div>
-            <div class="text-[12px] text-[#718096]">{{ social_accounts.kakao.email }}</div>
-          </div>
-        </div>
-        {% elif social_accounts.naver %}
-        <div class="flex items-center gap-3">
-          <img alt="Naver" class="h-7 w-7" src="https://www.figma.com/api/mcp/asset/7a5a2941-cee1-4c91-a571-7ad9b01bcfc6" />
-          <div class="flex-1">
-            <div class="text-[13px] font-bold text-[#2d3748]">네이버</div>
-            <div class="text-[12px] text-[#718096]">{{ social_accounts.naver.email }}</div>
-          </div>
-        </div>
-        {% elif social_accounts.google %}
-        <div class="flex items-center gap-3">
-          <img alt="Google" class="h-7 w-7" src="https://www.figma.com/api/mcp/asset/e3eff93a-1607-4896-8a57-8b1125091b0a" />
-          <div class="flex-1">
-            <div class="text-[13px] font-bold text-[#2d3748]">구글</div>
-            <div class="text-[12px] text-[#718096]">{{ social_accounts.google.email }}</div>
-          </div>
-        </div>
-        {% endif %}
-      </div>
-
       <!-- 버튼 -->
-      <div class="mt-6 flex {% if setup_mode %}justify-center{% else %}flex-col gap-3 md:flex-row{% endif %}">
+      <div class="mt-5 flex {% if setup_mode %}justify-center{% else %}flex-col gap-3 md:flex-row{% endif %}">
         {% if not setup_mode %}
         <a href="/chat/" class="flex h-[44px] flex-1 items-center justify-center rounded-[10px] bg-[#edf2f7] text-[16px] font-bold text-[#4a5568]">취소</a>
         {% endif %}
@@ -164,9 +232,78 @@
 {% block scripts %}
 <script src="//t1.daumcdn.net/mapjsapi/bundle/postcode/prod/postcode.v2.js"></script>
 <script>
+  var PROFILE_ADDRESS_STORAGE_KEY = 'tailtalk_profile_address_preview';
+  var PROFILE_PAYMENT_STORAGE_KEY = 'tailtalk_profile_payment_preview';
+
   window.closeWithdrawModal = function (e) {
     if (e && e.target !== document.getElementById('withdrawModal')) return;
     document.getElementById('withdrawModal').style.display = 'none';
+  };
+
+  window.openPaymentModal = function () {
+    document.getElementById('paymentModal').style.display = 'flex';
+  };
+
+  window.closePaymentModal = function (e) {
+    if (e && e.target !== document.getElementById('paymentModal')) return;
+    document.getElementById('paymentModal').style.display = 'none';
+  };
+
+  window.savePaymentMethod = function () {
+    var nameInput = document.getElementById('paymentCardNameInput');
+    var numberInput = document.getElementById('paymentCardNumberInput');
+    var expiryInput = document.getElementById('paymentExpiryInput');
+    var summary = document.getElementById('paymentMethodSummary');
+    var button = document.getElementById('paymentRegisterButton');
+    var nameStatus = document.getElementById('paymentCardNameStatus');
+    var numberStatus = document.getElementById('paymentCardNumberStatus');
+    var expiryStatus = document.getElementById('paymentExpiryStatus');
+
+    if (!nameInput || !numberInput || !expiryInput || !summary || !button || !nameStatus || !numberStatus || !expiryStatus) return;
+
+    var cardName = nameInput.value.trim();
+    var cardNumber = numberInput.value.replace(/\D/g, '').slice(0, 16);
+    var expiry = expiryInput.value.trim();
+
+    nameStatus.textContent = '';
+    numberStatus.textContent = '';
+    expiryStatus.textContent = '';
+
+    var hasError = false;
+
+    if (!cardName) {
+      nameStatus.textContent = '카드명을 입력해 주세요';
+      nameStatus.style.color = '#e53e3e';
+      hasError = true;
+    }
+
+    if (cardNumber.length < 16) {
+      numberStatus.textContent = '카드번호를 모두 입력해 주세요';
+      numberStatus.style.color = '#e53e3e';
+      hasError = true;
+    }
+
+    if (!/^\d{2}\/\d{2}$/.test(expiry)) {
+      expiryStatus.textContent = '유효기간을 입력해 주세요';
+      expiryStatus.style.color = '#e53e3e';
+      hasError = true;
+    }
+
+    if (hasError) {
+      return;
+    }
+
+    var maskedCard = cardNumber.slice(0, 4) + ' **** **** ' + cardNumber.slice(-4);
+    summary.textContent = cardName + ' / ' + maskedCard;
+    summary.className = 'text-[13px] text-[#4a5568]';
+    button.textContent = '수정';
+    try {
+      window.localStorage.setItem(PROFILE_PAYMENT_STORAGE_KEY, JSON.stringify({
+        cardName: cardName,
+        maskedCard: maskedCard
+      }));
+    } catch (e) {}
+    closePaymentModal();
   };
 
   window.toggleMarketing = function (btn) {
@@ -190,16 +327,54 @@
     var addressMainInput = document.getElementById('addressMainInput');
     var addressDetailInput = document.getElementById('addressDetailInput');
     var addressStatus = document.getElementById('addressStatus');
+    var paymentCardNumberInput = document.getElementById('paymentCardNumberInput');
+    var paymentExpiryInput = document.getElementById('paymentExpiryInput');
+    var paymentSummary = document.getElementById('paymentMethodSummary');
+    var paymentButton = document.getElementById('paymentRegisterButton');
 
     if (!input || !button || !status || !form) return;
 
-    var defaultMessage = '한글, 영문, 숫자만 2~12자';
     var allowedNicknamePattern = /[^가-힣A-Za-z0-9]/g;
     var isComposing = false;
+    var initialNickname = input.value.trim();
+    var confirmedNickname = initialNickname;
 
     function setStatus(text, color) {
       status.textContent = text;
       status.style.color = color;
+    }
+
+    function loadAddressPreview() {
+      if (!zipcodeInput || !addressMainInput || !addressDetailInput) return;
+      try {
+        var saved = JSON.parse(window.localStorage.getItem(PROFILE_ADDRESS_STORAGE_KEY) || 'null');
+        if (!saved) return;
+        if (!zipcodeInput.value.trim()) zipcodeInput.value = saved.zipcode || '';
+        if (!addressMainInput.value.trim()) addressMainInput.value = saved.addressMain || '';
+        if (!addressDetailInput.value.trim()) addressDetailInput.value = saved.addressDetail || '';
+      } catch (e) {}
+    }
+
+    function saveAddressPreview() {
+      if (!zipcodeInput || !addressMainInput || !addressDetailInput) return;
+      try {
+        window.localStorage.setItem(PROFILE_ADDRESS_STORAGE_KEY, JSON.stringify({
+          zipcode: zipcodeInput.value.trim(),
+          addressMain: addressMainInput.value.trim(),
+          addressDetail: addressDetailInput.value.trim()
+        }));
+      } catch (e) {}
+    }
+
+    function loadPaymentPreview() {
+      if (!paymentSummary || !paymentButton) return;
+      try {
+        var saved = JSON.parse(window.localStorage.getItem(PROFILE_PAYMENT_STORAGE_KEY) || 'null');
+        if (!saved || !saved.cardName || !saved.maskedCard) return;
+        paymentSummary.textContent = saved.cardName + ' / ' + saved.maskedCard;
+        paymentSummary.className = 'text-[13px] text-[#4a5568]';
+        paymentButton.textContent = '수정';
+      } catch (e) {}
     }
 
     function sanitizeNickname() {
@@ -209,7 +384,7 @@
       }
     }
 
-    function validateNickname(showSuccessMessage) {
+    function validateNickname() {
       sanitizeNickname();
       var nickname = input.value.trim();
 
@@ -219,20 +394,16 @@
       }
 
       if (nickname.length < 2 || nickname.length > 12) {
-        setStatus(defaultMessage, '#e53e3e');
+        setStatus('한글, 영문, 숫자만 2~12자 입력해 주세요', '#e53e3e');
         return false;
       }
 
-      if (showSuccessMessage) {
-        setStatus('중복확인 버튼으로 사용 가능 여부를 확인해 주세요', '#718096');
-      } else {
-        status.textContent = '';
-      }
+      status.textContent = '';
       return true;
     }
 
     function checkNicknameAvailability() {
-      if (!validateNickname(false)) {
+      if (!validateNickname()) {
         return;
       }
 
@@ -256,6 +427,12 @@
             return;
           }
 
+          if (result.data.available) {
+            confirmedNickname = nickname;
+          } else {
+            confirmedNickname = initialNickname;
+          }
+
           setStatus(result.data.detail, result.data.available ? '#38a169' : '#e53e3e');
         })
         .catch(function () {
@@ -267,6 +444,8 @@
     }
 
     sanitizeNickname();
+    loadAddressPreview();
+    loadPaymentPreview();
 
     input.addEventListener('compositionstart', function () {
       isComposing = true;
@@ -278,6 +457,9 @@
       if (input.value.trim()) {
         status.textContent = '';
       }
+      if (input.value.trim() !== confirmedNickname) {
+        confirmedNickname = initialNickname;
+      }
     });
 
     input.addEventListener('input', function () {
@@ -288,13 +470,23 @@
       if (input.value.trim()) {
         status.textContent = '';
       }
+      if (input.value.trim() !== confirmedNickname) {
+        confirmedNickname = initialNickname;
+      }
     });
 
     button.addEventListener('click', checkNicknameAvailability);
 
     form.addEventListener('submit', function (e) {
-      if (!validateNickname(false)) {
+      if (!validateNickname()) {
         e.preventDefault();
+        input.focus();
+        return;
+      }
+
+      if (input.value.trim() !== initialNickname && input.value.trim() !== confirmedNickname) {
+        e.preventDefault();
+        setStatus('닉네임 중복확인을 완료해 주세요', '#e53e3e');
         input.focus();
         return;
       }
@@ -376,6 +568,7 @@
             }
 
             addressStatus.textContent = '';
+            saveAddressPreview();
             addressDetailInput.focus();
           }
         }).open();
@@ -392,6 +585,47 @@
           addressDetailInput.value.trim()
         ) {
           addressStatus.textContent = '';
+        }
+        saveAddressPreview();
+      });
+    }
+
+    if (addressMainInput) {
+      addressMainInput.addEventListener('change', saveAddressPreview);
+    }
+
+    if (paymentCardNumberInput) {
+      paymentCardNumberInput.addEventListener('input', function () {
+        var digits = paymentCardNumberInput.value.replace(/\D/g, '').slice(0, 16);
+        paymentCardNumberInput.value = digits.replace(/(\d{4})(?=\d)/g, '$1 ').trim();
+        var status = document.getElementById('paymentCardNumberStatus');
+        if (status && paymentCardNumberInput.value.trim()) {
+          status.textContent = '';
+        }
+      });
+    }
+
+    if (paymentExpiryInput) {
+      paymentExpiryInput.addEventListener('input', function () {
+        var digits = paymentExpiryInput.value.replace(/\D/g, '').slice(0, 4);
+        if (digits.length >= 3) {
+          paymentExpiryInput.value = digits.slice(0, 2) + '/' + digits.slice(2);
+        } else {
+          paymentExpiryInput.value = digits;
+        }
+        var status = document.getElementById('paymentExpiryStatus');
+        if (status && paymentExpiryInput.value.trim()) {
+          status.textContent = '';
+        }
+      });
+    }
+
+    var paymentCardNameInput = document.getElementById('paymentCardNameInput');
+    if (paymentCardNameInput) {
+      paymentCardNameInput.addEventListener('input', function () {
+        var status = document.getElementById('paymentCardNameStatus');
+        if (status && paymentCardNameInput.value.trim()) {
+          status.textContent = '';
         }
       });
     }
