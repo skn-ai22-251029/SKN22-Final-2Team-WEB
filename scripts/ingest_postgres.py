@@ -103,7 +103,8 @@ INSERT INTO product (
     soldout_reliable, pet_type, category, subcategory, health_concern_tags,
     popularity_score, sentiment_avg, repeat_rate,
     main_ingredients, ingredient_composition, nutrition_info, ingredient_text_ocr,
-    crawled_at
+    crawled_at,
+    "냄새", "기호성", "생체반응", "가격/구매", "배송/포장", "성분/원료", "소화/배변", "제품 성상"
 ) VALUES %s
 ON CONFLICT (goods_id) DO UPDATE SET
     prefix                = EXCLUDED.prefix,
@@ -127,7 +128,15 @@ ON CONFLICT (goods_id) DO UPDATE SET
     main_ingredients      = EXCLUDED.main_ingredients,
     ingredient_composition = EXCLUDED.ingredient_composition,
     nutrition_info        = EXCLUDED.nutrition_info,
-    ingredient_text_ocr   = EXCLUDED.ingredient_text_ocr
+    ingredient_text_ocr   = EXCLUDED.ingredient_text_ocr,
+    "냄새"                = EXCLUDED."냄새",
+    "기호성"              = EXCLUDED."기호성",
+    "생체반응"            = EXCLUDED."생체반응",
+    "가격/구매"           = EXCLUDED."가격/구매",
+    "배송/포장"           = EXCLUDED."배송/포장",
+    "성분/원료"           = EXCLUDED."성분/원료",
+    "소화/배변"           = EXCLUDED."소화/배변",
+    "제품 성상"           = EXCLUDED."제품 성상"
 """
 
 TAG_UPSERT = """
@@ -178,6 +187,14 @@ def ingest_goods(conn, truncate: bool) -> None:
                 psycopg2.extras.Json(r["nutrition_info"]) if pd.notna(r.get("nutrition_info")) else None,
                 r.get("ingredient_text_ocr") if pd.notna(r.get("ingredient_text_ocr")) else None,
                 r["crawled_at"].to_pydatetime() if hasattr(r["crawled_at"], "to_pydatetime") else r["crawled_at"],
+                float(r["aspect_smell"]) if pd.notna(r.get("aspect_smell")) else 0.0,
+                float(r["aspect_palatability"]) if pd.notna(r.get("aspect_palatability")) else 0.0,
+                float(r["aspect_biological_response"]) if pd.notna(r.get("aspect_biological_response")) else 0.0,
+                float(r["aspect_price_purchase"]) if pd.notna(r.get("aspect_price_purchase")) else 0.0,
+                float(r["aspect_delivery_packaging"]) if pd.notna(r.get("aspect_delivery_packaging")) else 0.0,
+                float(r["aspect_ingredients_origin"]) if pd.notna(r.get("aspect_ingredients_origin")) else 0.0,
+                float(r["aspect_digestion_stool"]) if pd.notna(r.get("aspect_digestion_stool")) else 0.0,
+                float(r["aspect_product_appearance"]) if pd.notna(r.get("aspect_product_appearance")) else 0.0,
             ))
 
         batches = list(batched(rows, BATCH_SIZE))
@@ -206,12 +223,21 @@ REVIEW_UPSERT = """
 INSERT INTO review (
     review_id, product_id, score, content, author_nickname, written_at,
     purchase_label, sentiment_score, sentiment_label, absa_result,
-    pet_age_months, pet_weight_kg, pet_gender, pet_breed
+    pet_age_months, pet_weight_kg, pet_gender, pet_breed,
+    "냄새", "기호성", "생체반응", "가격/구매", "배송/포장", "성분/원료", "소화/배변", "제품 성상"
 ) VALUES %s
 ON CONFLICT (review_id) DO UPDATE SET
     sentiment_score  = EXCLUDED.sentiment_score,
     sentiment_label  = EXCLUDED.sentiment_label,
-    absa_result      = EXCLUDED.absa_result
+    absa_result      = EXCLUDED.absa_result,
+    "냄새"           = EXCLUDED."냄새",
+    "기호성"         = EXCLUDED."기호성",
+    "생체반응"       = EXCLUDED."생체반응",
+    "가격/구매"      = EXCLUDED."가격/구매",
+    "배송/포장"      = EXCLUDED."배송/포장",
+    "성분/원료"      = EXCLUDED."성분/원료",
+    "소화/배변"      = EXCLUDED."소화/배변",
+    "제품 성상"      = EXCLUDED."제품 성상"
 """
 
 
@@ -253,6 +279,14 @@ def ingest_reviews(conn, truncate: bool) -> None:
                 float(r["pet_weight_kg"]) if pd.notna(r.get("pet_weight_kg")) else None,
                 clean_str(r.get("pet_gender")),
                 clean_str(r.get("pet_breed")),
+                int(r["aspect_smell"]) if pd.notna(r.get("aspect_smell")) else 0,
+                int(r["aspect_palatability"]) if pd.notna(r.get("aspect_palatability")) else 0,
+                int(r["aspect_biological_response"]) if pd.notna(r.get("aspect_biological_response")) else 0,
+                int(r["aspect_price_purchase"]) if pd.notna(r.get("aspect_price_purchase")) else 0,
+                int(r["aspect_delivery_packaging"]) if pd.notna(r.get("aspect_delivery_packaging")) else 0,
+                int(r["aspect_ingredients_origin"]) if pd.notna(r.get("aspect_ingredients_origin")) else 0,
+                int(r["aspect_digestion_stool"]) if pd.notna(r.get("aspect_digestion_stool")) else 0,
+                int(r["aspect_product_appearance"]) if pd.notna(r.get("aspect_product_appearance")) else 0,
             ))
 
         for batch in tqdm(list(batched(rows, BATCH_SIZE)), desc="  review upsert", unit="batch"):

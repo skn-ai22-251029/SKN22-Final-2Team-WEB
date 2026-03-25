@@ -35,6 +35,16 @@ class Product(models.Model):
     search_vector          = SearchVectorField(null=True)
     crawled_at             = models.DateTimeField()
 
+    # Aspect Scores (Averages)
+    aspect_smell               = models.DecimalField(max_digits=5, decimal_places=4, db_column='냄새', default=0.0)
+    aspect_palatability        = models.DecimalField(max_digits=5, decimal_places=4, db_column='기호성', default=0.0)
+    aspect_biological_response = models.DecimalField(max_digits=5, decimal_places=4, db_column='생체반응', default=0.0)
+    aspect_price_purchase      = models.DecimalField(max_digits=5, decimal_places=4, db_column='가격/구매', default=0.0)
+    aspect_delivery_packaging  = models.DecimalField(max_digits=5, decimal_places=4, db_column='배송/포장', default=0.0)
+    aspect_ingredients_origin  = models.DecimalField(max_digits=5, decimal_places=4, db_column='성분/원료', default=0.0)
+    aspect_digestion_stool     = models.DecimalField(max_digits=5, decimal_places=4, db_column='소화/배변', default=0.0)
+    aspect_product_appearance  = models.DecimalField(max_digits=5, decimal_places=4, db_column='제품 성상', default=0.0)
+
     class Meta:
         db_table = "product"
         indexes = [
@@ -90,6 +100,16 @@ class Review(models.Model):
     pet_weight_kg  = models.DecimalField(max_digits=5, decimal_places=2, null=True, blank=True)
     pet_gender     = models.CharField(max_length=10, null=True, blank=True)
     pet_breed      = models.CharField(max_length=100, null=True, blank=True)
+
+    # Aspect Sentiments (-1, 0, 1)
+    aspect_smell               = models.IntegerField(db_column='냄새', default=0)
+    aspect_palatability        = models.IntegerField(db_column='기호성', default=0)
+    aspect_biological_response = models.IntegerField(db_column='생체반응', default=0)
+    aspect_price_purchase      = models.IntegerField(db_column='가격/구매', default=0)
+    aspect_delivery_packaging  = models.IntegerField(db_column='배송/포장', default=0)
+    aspect_ingredients_origin  = models.IntegerField(db_column='성분/원료', default=0)
+    aspect_digestion_stool     = models.IntegerField(db_column='소화/배변', default=0)
+    aspect_product_appearance  = models.IntegerField(db_column='제품 성상', default=0)
 
     class Meta:
         db_table = "review"
