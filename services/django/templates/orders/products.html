@@ -11,6 +11,14 @@
     display: block;
   }
 
+  .discount-modal {
+    display: none;
+  }
+
+  .discount-modal.is-open {
+    display: flex;
+  }
+
   .product-list-viewport {
     scrollbar-gutter: stable;
   }
@@ -33,6 +41,17 @@
 
   .wishlist-heart.is-active svg:last-child {
     display: block;
+  }
+
+  #mileageInput::-webkit-outer-spin-button,
+  #mileageInput::-webkit-inner-spin-button {
+    -webkit-appearance: none;
+    margin: 0;
+  }
+
+  #mileageInput {
+    -moz-appearance: textfield;
+    appearance: textfield;
   }
 </style>
 {% endblock %}
@@ -216,7 +235,7 @@
           <div class="rounded-[18px] border border-[#e2e8f0] bg-white px-4 py-4">
             <div class="flex items-start justify-between gap-4">
               <div class="min-w-0 flex-1">
-                <p class="text-[13px] font-semibold text-[#2d3748]">배송 정보</p>
+                <p class="text-[13px] font-semibold text-[#2563eb]">배송 정보</p>
                 <p class="mt-2 text-[13px] font-semibold text-[#4a5568]">{{ recipient_name }}</p>
                 <p class="mt-1 text-[13px] leading-[1.6] text-[#718096]">{{ delivery_base_address }}</p>
                 <p class="mt-1 text-[13px] leading-[1.6] text-[#718096]">{{ delivery_detail_address }}</p>
@@ -228,7 +247,7 @@
           <div class="rounded-[18px] border border-[#e2e8f0] bg-white px-4 py-4">
             <div class="flex items-start justify-between gap-4">
               <div class="min-w-0 flex-1">
-                <p class="text-[13px] font-semibold text-[#2d3748]">결제 수단</p>
+                <p class="text-[13px] font-semibold text-[#2563eb]">결제 수단</p>
                 <p class="mt-2 text-[13px] leading-[1.6] text-[#718096]">{{ payment_method }}</p>
               </div>
               <a href="/profile/" class="mt-0.5 shrink-0 text-[12px] font-semibold text-[#3182ce]">수정</a>
@@ -239,22 +258,22 @@
         <div class="mt-4 rounded-[18px] border border-[#e2e8f0] bg-white px-4 py-4">
           <div class="flex items-start justify-between gap-4">
             <p class="text-[13px] font-semibold text-[#2563eb]">할인 혜택</p>
-            <button type="button" class="mt-0.5 shrink-0 text-[12px] font-semibold text-[#3182ce]">적용</button>
+            <button type="button" id="openDiscountModalBtn" class="mt-0.5 shrink-0 text-[12px] font-semibold text-[#3182ce]">적용</button>
           </div>
           <div class="mt-3 grid gap-3 md:grid-cols-[minmax(0,1fr)_minmax(0,1fr)]">
             <div class="min-w-0">
               <p class="text-[12px] font-semibold text-[#2d3748]">쿠폰</p>
-              <p class="mt-1 truncate text-[13px] text-[#4a5568]">{{ coupon_summary }}</p>
+              <p id="couponSummaryText" class="mt-1 truncate text-[13px] text-[#4a5568]">{{ coupon_summary }}</p>
             </div>
             <div class="min-w-0 md:pl-4">
               <p class="text-[12px] font-semibold text-[#2d3748]">마일리지</p>
-              <p class="mt-1 truncate text-[13px] text-[#4a5568]">{{ mileage_summary }}</p>
+              <p id="mileageSummaryText" class="mt-1 truncate text-[13px] text-[#4a5568]">{{ mileage_summary }}</p>
             </div>
           </div>
         </div>
 
         <div class="mt-5 rounded-[18px] bg-[#f8fbff] px-4 py-4">
-          <p class="text-[13px] font-semibold text-[#2d3748]">결제 금액</p>
+          <p class="text-[13px] font-semibold text-[#2563eb]">결제 금액</p>
           <div class="mt-4 space-y-3 text-[13px] text-[#4a5568]">
             <div class="flex items-center justify-between">
               <span>상품 금액</span>
@@ -284,12 +303,81 @@
     </div>
   </div>
 </div>
+
+<div id="discountBenefitModal" class="discount-modal fixed inset-0 z-50 items-center justify-center bg-[rgba(15,23,42,0.46)] px-4" onclick="closeDiscountModal(event)">
+  <div class="w-full max-w-[520px] rounded-[24px] bg-white px-6 py-6 shadow-[0_20px_60px_rgba(15,23,42,0.24)]">
+    <div class="flex items-start justify-between gap-4">
+      <div>
+        <p class="text-[22px] font-bold text-[#2d3748]">할인 혜택 적용</p>
+        <p class="mt-1 text-[13px] text-[#718096]">쿠폰과 마일리지를 선택하면 주문 정보에 바로 반영됩니다.</p>
+      </div>
+      <button type="button" class="inline-flex h-[28px] w-[28px] items-center justify-center rounded-full text-[16px] font-bold text-[#a0aec0] transition-colors hover:bg-[#f8fbff] hover:text-[#2d3748]" onclick="closeDiscountModal()" aria-label="할인 혜택 모달 닫기">X</button>
+    </div>
+
+    <div class="mt-5 inline-flex rounded-full border border-[#dbe7f5] bg-[#f8fbff] p-[4px]">
+      <button type="button" id="discountTabCoupon" class="inline-flex h-[36px] min-w-[92px] items-center justify-center rounded-full bg-[#2d3748] px-4 text-[13px] font-semibold text-white">쿠폰</button>
+      <button type="button" id="discountTabMileage" class="inline-flex h-[36px] min-w-[92px] items-center justify-center rounded-full px-4 text-[13px] font-semibold text-[#718096] transition-colors hover:text-[#2d3748]">마일리지</button>
+    </div>
+
+    <div id="discountPanelCoupon" class="mt-5 space-y-3">
+      <button type="button" class="discount-coupon-option flex w-full items-start justify-between rounded-[18px] border border-[#dbe7f5] bg-white px-4 py-4 text-left transition-colors hover:border-[#90cdf4]" data-coupon-id="none" data-coupon-label="적용된 쿠폰 없음" data-coupon-discount="0">
+        <div>
+          <p class="text-[14px] font-semibold text-[#2d3748]">쿠폰 적용 안 함</p>
+          <p class="mt-1 text-[12px] text-[#718096]">할인을 적용하지 않고 현재 금액으로 주문합니다.</p>
+        </div>
+        <span class="text-[13px] font-semibold text-[#718096]">0원</span>
+      </button>
+      <button type="button" class="discount-coupon-option flex w-full items-start justify-between rounded-[18px] border border-[#dbe7f5] bg-white px-4 py-4 text-left transition-colors hover:border-[#90cdf4]" data-coupon-id="new-member" data-coupon-label="신규회원 3,000원 할인" data-coupon-discount="3000">
+        <div>
+          <p class="text-[14px] font-semibold text-[#2d3748]">신규회원 3,000원 할인</p>
+          <p class="mt-1 text-[12px] text-[#718096]">30,000원 이상 결제 시 사용 가능</p>
+        </div>
+        <span class="text-[13px] font-semibold text-[#2563eb]">-3,000원</span>
+      </button>
+      <button type="button" class="discount-coupon-option flex w-full items-start justify-between rounded-[18px] border border-[#dbe7f5] bg-white px-4 py-4 text-left transition-colors hover:border-[#90cdf4]" data-coupon-id="pet-care" data-coupon-label="펫케어 5,000원 할인" data-coupon-discount="5000">
+        <div>
+          <p class="text-[14px] font-semibold text-[#2d3748]">펫케어 5,000원 할인</p>
+          <p class="mt-1 text-[12px] text-[#718096]">60,000원 이상 결제 시 사용 가능</p>
+        </div>
+        <span class="text-[13px] font-semibold text-[#2563eb]">-5,000원</span>
+      </button>
+    </div>
+
+    <div id="discountPanelMileage" class="mt-5 hidden">
+      <div class="rounded-[18px] border border-[#dbe7f5] bg-[#f8fbff] px-4 py-4">
+        <div class="flex items-center justify-between gap-4">
+          <div>
+            <p class="text-[14px] font-semibold text-[#2d3748]">사용 가능한 마일리지</p>
+            <p class="mt-1 text-[12px] text-[#718096]">보유 마일리지 3,200원</p>
+          </div>
+          <button type="button" id="useAllMileageBtn" class="shrink-0 text-[12px] font-semibold text-[#3182ce]">전액 사용</button>
+        </div>
+        <label class="mt-4 block">
+          <span class="text-[12px] font-semibold text-[#2d3748]">사용할 마일리지</span>
+          <div class="mt-2 flex items-center rounded-[14px] border border-[#dbe7f5] bg-white px-4">
+            <input id="mileageInput" type="number" min="0" max="3200" step="100" value="0" class="h-[48px] w-full bg-transparent text-[15px] font-semibold text-[#2d3748] outline-none" />
+            <span class="shrink-0 text-[13px] font-semibold text-[#718096]">원</span>
+          </div>
+        </label>
+      </div>
+    </div>
+
+    <div class="mt-6 flex items-center justify-between gap-4 rounded-[18px] bg-[#f8fbff] px-4 py-4">
+      <div>
+        <p class="text-[12px] font-semibold text-[#718096]">예상 할인 금액</p>
+        <p id="discountModalPreviewAmount" class="mt-1 text-[22px] font-bold text-[#2563eb]">- 0원</p>
+      </div>
+      <button type="button" id="applyDiscountBtn" class="inline-flex h-[46px] items-center justify-center rounded-[14px] bg-[#2d3748] px-5 text-[14px] font-semibold text-white">적용하기</button>
+    </div>
+  </div>
+</div>
 {% endblock %}
 
 {% block scripts %}
 <script>
 (function () {
   var SHARED_CART_COUNT_STORAGE_KEY = 'tailtalk_shared_cart_count';
+  var SHARED_CART_ITEMS_STORAGE_KEY = 'tailtalk_shared_cart_items';
   var cartTab = document.getElementById('productsTabCart');
   var wishlistTab = document.getElementById('productsTabWishlist');
   var cartPanel = document.getElementById('productsPanelCart');
@@ -300,6 +388,24 @@
   var wishlistCountBadge = document.getElementById('productsTabWishlistCount');
   var discountTotalRaw = {{ discount_total_raw }};
   var shippingFeeRaw = {{ shipping_fee_raw }};
+  var couponSummaryText = document.getElementById('couponSummaryText');
+  var mileageSummaryText = document.getElementById('mileageSummaryText');
+  var discountModal = document.getElementById('discountBenefitModal');
+  var openDiscountModalBtn = document.getElementById('openDiscountModalBtn');
+  var discountTabCoupon = document.getElementById('discountTabCoupon');
+  var discountTabMileage = document.getElementById('discountTabMileage');
+  var discountPanelCoupon = document.getElementById('discountPanelCoupon');
+  var discountPanelMileage = document.getElementById('discountPanelMileage');
+  var couponOptions = Array.prototype.slice.call(document.querySelectorAll('.discount-coupon-option'));
+  var mileageInput = document.getElementById('mileageInput');
+  var useAllMileageBtn = document.getElementById('useAllMileageBtn');
+  var applyDiscountBtn = document.getElementById('applyDiscountBtn');
+  var discountModalPreviewAmount = document.getElementById('discountModalPreviewAmount');
+  var selectedCouponId = 'none';
+  var selectedCouponLabel = '{{ coupon_summary|escapejs }}';
+  var selectedCouponDiscount = {{ discount_total_raw }};
+  var selectedMileageValue = 0;
+  var discountMode = 'coupon';
 
   if (!cartTab || !wishlistTab || !cartPanel || !wishlistPanel) return;
 
@@ -307,10 +413,63 @@
     return new Intl.NumberFormat('ko-KR').format(value) + '원';
   }
 
+  function parsePrice(value) {
+    return Number(String(value || '0').replace(/[^\d]/g, '')) || 0;
+  }
+
   function saveSharedCartCount(count) {
     try {
       window.localStorage.setItem(SHARED_CART_COUNT_STORAGE_KEY, String(count));
     } catch (e) {}
+  }
+
+  function loadSharedCartItems() {
+    try {
+      return JSON.parse(window.localStorage.getItem(SHARED_CART_ITEMS_STORAGE_KEY) || '[]');
+    } catch (e) {
+      return [];
+    }
+  }
+
+  function saveSharedCartItems(items) {
+    try {
+      window.localStorage.setItem(SHARED_CART_ITEMS_STORAGE_KEY, JSON.stringify(items));
+    } catch (e) {}
+  }
+
+  function normalizeReviewCount(value) {
+    var digits = String(value || '').replace(/[^\d]/g, '');
+    return digits || '0';
+  }
+
+  function getCatalogItemData(item) {
+    var unitPrice = Number(item.getAttribute('data-unit-price') || '0');
+    var priceLabel = item.getAttribute('data-price-label') || formatPrice(unitPrice);
+    if (!unitPrice) {
+      unitPrice = parsePrice(priceLabel);
+    }
+    return {
+      goodsId: item.getAttribute('data-goods-id') || '',
+      brand: item.getAttribute('data-brand') || '',
+      name: item.getAttribute('data-name') || '',
+      price: unitPrice,
+      priceLabel: priceLabel,
+      rating: item.getAttribute('data-rating') || '-',
+      reviewCount: normalizeReviewCount(item.getAttribute('data-review-count') || '0'),
+      thumbnailUrl: item.getAttribute('data-thumbnail-url') || '',
+      note: item.getAttribute('data-note') || '가격 비교를 위해 보관한 상품',
+      isWishlisted: item.classList.contains('is-active') || !!item.querySelector('.wishlist-heart.is-active'),
+    };
+  }
+
+  function buildProductCatalog() {
+    var catalog = {};
+    document.querySelectorAll('[data-cart-item], [data-wishlist-item]').forEach(function (item) {
+      var data = getCatalogItemData(item);
+      if (!data.goodsId) return;
+      catalog[data.goodsId] = Object.assign({}, catalog[data.goodsId] || {}, data);
+    });
+    return catalog;
   }
 
   function updateCartSummary() {
@@ -327,8 +486,9 @@
       productTotal += lineTotal;
     });
 
+    var currentDiscountTotal = selectedCouponDiscount + selectedMileageValue;
     var shippingFee = productTotal > 0 && productTotal < 30000 ? shippingFeeRaw : 0;
-    var finalTotal = Math.max(productTotal - discountTotalRaw, 0) + shippingFee;
+    var finalTotal = Math.max(productTotal - currentDiscountTotal, 0) + shippingFee;
 
     var productTotalNode = document.getElementById('productTotalAmount');
     var discountNode = document.getElementById('discountTotalAmount');
@@ -336,9 +496,30 @@
     var finalTotalNode = document.getElementById('finalTotalAmount');
 
     if (productTotalNode) productTotalNode.textContent = formatPrice(productTotal);
-    if (discountNode) discountNode.textContent = '- ' + formatPrice(discountTotalRaw);
+    if (discountNode) discountNode.textContent = '- ' + formatPrice(currentDiscountTotal);
     if (shippingNode) shippingNode.textContent = shippingFee === 0 ? '무료' : formatPrice(shippingFee);
     if (finalTotalNode) finalTotalNode.textContent = formatPrice(finalTotal);
+  }
+
+  function getCartState() {
+    var items = [];
+    cartPanel.querySelectorAll('[data-cart-item]').forEach(function (item) {
+      var quantityNode = item.querySelector('[data-cart-quantity]');
+      items.push({
+        goodsId: item.getAttribute('data-goods-id') || '',
+        brand: item.getAttribute('data-brand') || '',
+        name: item.getAttribute('data-name') || '',
+        price: Number(item.getAttribute('data-unit-price') || '0'),
+        priceLabel: item.getAttribute('data-price-label') || formatPrice(Number(item.getAttribute('data-unit-price') || '0')),
+        rating: item.getAttribute('data-rating') || '-',
+        reviewCount: normalizeReviewCount(item.getAttribute('data-review-count') || '0'),
+        thumbnailUrl: item.getAttribute('data-thumbnail-url') || '',
+        note: item.getAttribute('data-note') || '가격 비교를 위해 보관한 상품',
+        quantity: Number(quantityNode ? quantityNode.textContent || '0' : '0'),
+        isWishlisted: !!item.querySelector('.wishlist-heart.is-active'),
+      });
+    });
+    return items;
   }
 
   function updateTabCounts() {
@@ -358,6 +539,7 @@
     }
 
     saveSharedCartCount(cartCount);
+    saveSharedCartItems(getCartState());
 
     if (wishlistCountBadge) {
       wishlistCountBadge.textContent = String(wishlistCount);
@@ -380,6 +562,109 @@
       .replace(/>/g, '&gt;')
       .replace(/"/g, '&quot;')
       .replace(/'/g, '&#39;');
+  }
+
+  function updateDiscountSummaryTexts() {
+    if (couponSummaryText) {
+      couponSummaryText.textContent = selectedCouponLabel || '적용된 쿠폰 없음';
+    }
+    if (mileageSummaryText) {
+      mileageSummaryText.textContent = selectedMileageValue > 0 ? '사용 ' + formatPrice(selectedMileageValue) : '사용 가능 3,200원';
+    }
+  }
+
+  function updateDiscountPreview() {
+    if (!discountModalPreviewAmount) return;
+    discountModalPreviewAmount.textContent = '- ' + formatPrice(selectedCouponDiscount + selectedMileageValue);
+  }
+
+  function setDiscountTab(mode) {
+    discountMode = mode;
+    var couponActive = mode === 'coupon';
+    if (discountPanelCoupon) discountPanelCoupon.classList.toggle('hidden', !couponActive);
+    if (discountPanelMileage) discountPanelMileage.classList.toggle('hidden', couponActive);
+    if (discountTabCoupon) {
+      discountTabCoupon.classList.toggle('bg-[#2d3748]', couponActive);
+      discountTabCoupon.classList.toggle('text-white', couponActive);
+      discountTabCoupon.classList.toggle('text-[#718096]', !couponActive);
+    }
+    if (discountTabMileage) {
+      discountTabMileage.classList.toggle('bg-[#2d3748]', !couponActive);
+      discountTabMileage.classList.toggle('text-white', !couponActive);
+      discountTabMileage.classList.toggle('text-[#718096]', couponActive);
+    }
+  }
+
+  function highlightSelectedCoupon() {
+    couponOptions.forEach(function (option) {
+      var isSelected = option.getAttribute('data-coupon-id') === selectedCouponId;
+      option.classList.toggle('border-[#90cdf4]', isSelected);
+      option.classList.toggle('bg-[#f8fbff]', isSelected);
+    });
+  }
+
+  window.closeDiscountModal = function (event) {
+    if (!discountModal) return;
+    if (event && event.target !== discountModal) return;
+    discountModal.classList.remove('is-open');
+  };
+
+  window.openDiscountModal = function () {
+    if (!discountModal) return;
+    if (mileageInput) mileageInput.value = String(selectedMileageValue);
+    highlightSelectedCoupon();
+    updateDiscountPreview();
+    setDiscountTab('coupon');
+    discountModal.classList.add('is-open');
+  };
+
+  function cartItemMarkup(data) {
+    var thumbnail = data.thumbnailUrl
+      ? '<img src="' + escapeHtml(data.thumbnailUrl) + '" alt="' + escapeHtml(data.name) + '" class="h-full w-full object-cover" />'
+      : '<span class="text-[20px] font-bold text-[#90a4b8]">?</span>';
+
+    return [
+      '<article class="relative rounded-[20px] border border-[#dbe7f5] bg-white px-4 py-4 shadow-[0_6px_18px_rgba(45,55,72,0.04)]"',
+      ' data-cart-item',
+      ' data-goods-id="' + escapeHtml(data.goodsId) + '"',
+      ' data-unit-price="' + escapeHtml(data.price) + '"',
+      ' data-brand="' + escapeHtml(data.brand) + '"',
+      ' data-name="' + escapeHtml(data.name) + '"',
+      ' data-price-label="' + escapeHtml(data.priceLabel) + '"',
+      ' data-rating="' + escapeHtml(data.rating) + '"',
+      ' data-review-count="' + escapeHtml(data.reviewCount) + '"',
+      ' data-thumbnail-url="' + escapeHtml(data.thumbnailUrl) + '"',
+      ' data-note="' + escapeHtml(data.note) + '">',
+      '<div class="absolute right-4 top-4 flex items-center gap-2">',
+      '<button type="button" class="wishlist-heart ' + (data.isWishlisted ? 'is-active ' : '') + 'inline-flex h-[18px] w-[18px] items-center justify-center leading-none text-[#4a5568] transition-colors hover:text-[#e53e3e]" aria-label="관심 상품 상태 변경" onclick="toggleWishlistHeart(this)">',
+      '<svg width="15" height="15" viewBox="0 0 24 24" fill="none" aria-hidden="true"><path d="M12 20.4 4.9 13.8a4.8 4.8 0 0 1 6.8-6.8L12 7.3l.3-.3a4.8 4.8 0 0 1 6.8 6.8L12 20.4Z" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"/></svg>',
+      '<svg width="15" height="15" viewBox="0 0 24 24" fill="currentColor" aria-hidden="true"><path d="M12 20.4 4.9 13.8a4.8 4.8 0 0 1 6.8-6.8L12 7.3l.3-.3a4.8 4.8 0 0 1 6.8 6.8L12 20.4Z"/></svg>',
+      '</button>',
+      '<button type="button" class="inline-flex h-[18px] w-[18px] items-center justify-center leading-none text-[14px] font-bold uppercase text-[#a0aec0] transition-colors hover:text-[#e53e3e]" aria-label="상품 삭제" onclick="removeCartItem(this)">X</button>',
+      '</div>',
+      '<div class="flex items-start gap-3">',
+      '<div class="flex h-[64px] w-[64px] shrink-0 items-center justify-center overflow-hidden rounded-[18px] bg-[#f8fbff] shadow-[0_4px_12px_rgba(49,130,206,0.08)]">',
+      thumbnail,
+      '</div>',
+      '<div class="min-w-0 flex-1 pr-14">',
+      '<div class="flex items-center justify-between gap-3">',
+      '<p class="truncate text-[12px] font-semibold text-[#90a4b8]">' + escapeHtml(data.brand) + '</p>',
+      '<span class="shrink-0 text-[12px] text-[#90a4b8]">개당 ' + escapeHtml(data.priceLabel) + '</span>',
+      '</div>',
+      '<p class="mt-1 truncate text-[16px] font-bold text-[#2d3748]">' + escapeHtml(data.name) + '</p>',
+      '<div class="mt-2 flex items-center gap-2 text-[11px]"><span class="font-bold text-[#d69e2e]">★ ' + escapeHtml(data.rating) + '</span><span class="text-[#a0aec0]">리뷰 ' + escapeHtml(data.reviewCount) + '</span></div>',
+      '</div>',
+      '</div>',
+      '<div class="mt-2.5 flex items-center justify-end gap-2.5 border-t border-[#edf2f7] pt-2.5">',
+      '<div class="inline-flex items-center rounded-full border border-[#dbe7f5] bg-[#f8fbff] px-[3px] py-[2px] text-[12px] font-semibold text-[#2d3748]">',
+      '<button type="button" class="flex h-[22px] w-[22px] items-center justify-center rounded-full bg-white text-[13px]" onclick="adjustCartQuantity(this, -1)">−</button>',
+      '<span class="inline-flex min-w-[28px] items-center justify-center px-1" data-cart-quantity>' + escapeHtml(data.quantity) + '</span>',
+      '<button type="button" class="flex h-[22px] w-[22px] items-center justify-center rounded-full bg-white text-[13px]" onclick="adjustCartQuantity(this, 1)">+</button>',
+      '</div>',
+      '<div class="min-w-[96px] text-right"><p class="text-[17px] font-bold text-[#2d3748]" data-cart-line-total>' + escapeHtml(formatPrice(Number(data.price || 0) * Number(data.quantity || 1))) + '</p></div>',
+      '</div>',
+      '</article>'
+    ].join('');
   }
 
   function wishlistItemMarkup(data) {
@@ -534,8 +819,120 @@
     updateTabCounts();
   };
 
+  if (openDiscountModalBtn) {
+    openDiscountModalBtn.addEventListener('click', window.openDiscountModal);
+  }
+
+  if (discountTabCoupon) {
+    discountTabCoupon.addEventListener('click', function () {
+      setDiscountTab('coupon');
+    });
+  }
+
+  if (discountTabMileage) {
+    discountTabMileage.addEventListener('click', function () {
+      setDiscountTab('mileage');
+    });
+  }
+
+  couponOptions.forEach(function (option) {
+    option.addEventListener('click', function () {
+      selectedCouponId = option.getAttribute('data-coupon-id') || 'none';
+      selectedCouponLabel = option.getAttribute('data-coupon-label') || '적용된 쿠폰 없음';
+      selectedCouponDiscount = Number(option.getAttribute('data-coupon-discount') || '0');
+      highlightSelectedCoupon();
+      updateDiscountPreview();
+    });
+  });
+
+  if (useAllMileageBtn) {
+    useAllMileageBtn.addEventListener('click', function () {
+      if (mileageInput) {
+        mileageInput.value = '3200';
+        selectedMileageValue = 3200;
+        updateDiscountPreview();
+      }
+    });
+  }
+
+  if (mileageInput) {
+    mileageInput.addEventListener('input', function () {
+      var nextValue = Number(mileageInput.value || '0');
+      nextValue = Math.max(0, Math.min(3200, nextValue));
+      if (nextValue !== Number(mileageInput.value || '0')) {
+        mileageInput.value = String(nextValue);
+      }
+      selectedMileageValue = nextValue;
+      updateDiscountPreview();
+    });
+  }
+
+  if (applyDiscountBtn) {
+    applyDiscountBtn.addEventListener('click', function () {
+      if (mileageInput) {
+        selectedMileageValue = Math.max(0, Math.min(3200, Number(mileageInput.value || '0')));
+        mileageInput.value = String(selectedMileageValue);
+      }
+      updateDiscountSummaryTexts();
+      updateCartSummary();
+      window.closeDiscountModal();
+    });
+  }
+
+  var cartListViewport = document.getElementById('cartListViewport');
+  var productCatalog = buildProductCatalog();
+
+  function mergeCartItemData(sharedItem) {
+    var catalogItem = productCatalog[sharedItem.goodsId] || {};
+    return {
+      goodsId: sharedItem.goodsId || catalogItem.goodsId || '',
+      brand: sharedItem.brand || catalogItem.brand || '',
+      name: sharedItem.name || catalogItem.name || '상품',
+      price: Number(sharedItem.price || catalogItem.price || 0),
+      priceLabel: sharedItem.priceLabel || catalogItem.priceLabel || formatPrice(Number(sharedItem.price || catalogItem.price || 0)),
+      rating: sharedItem.rating || catalogItem.rating || '-',
+      reviewCount: normalizeReviewCount(sharedItem.reviewCount || catalogItem.reviewCount || '0'),
+      thumbnailUrl: sharedItem.thumbnailUrl || catalogItem.thumbnailUrl || '',
+      note: sharedItem.note || catalogItem.note || '가격 비교를 위해 보관한 상품',
+      quantity: Number(sharedItem.quantity || 1),
+      isWishlisted: typeof sharedItem.isWishlisted === 'boolean'
+        ? sharedItem.isWishlisted
+        : !!wishlistPanel.querySelector('[data-wishlist-item][data-goods-id="' + (sharedItem.goodsId || '') + '"]'),
+    };
+  }
+
+  function renderCartFromState(items) {
+    if (!cartListViewport) return;
+    cartListViewport.innerHTML = '';
+    items.forEach(function (item) {
+      var merged = mergeCartItemData(item);
+      if (!merged.goodsId) return;
+      cartListViewport.insertAdjacentHTML('beforeend', cartItemMarkup(merged));
+    });
+    updateCartSummary();
+    updateTabCounts();
+  }
+
+  var initialSharedCartItems = loadSharedCartItems();
+  if (initialSharedCartItems.length) {
+    renderCartFromState(initialSharedCartItems);
+  } else {
+    saveSharedCartItems(getCartState());
+  }
+
+  updateDiscountSummaryTexts();
+  updateDiscountPreview();
   updateCartSummary();
   updateTabCounts();
+
+  window.addEventListener('storage', function (event) {
+    if (event.key === SHARED_CART_ITEMS_STORAGE_KEY) {
+      renderCartFromState(loadSharedCartItems());
+    }
+    if (event.key === SHARED_CART_COUNT_STORAGE_KEY && event.key !== SHARED_CART_ITEMS_STORAGE_KEY) {
+      updateTabCounts();
+    }
+  });
 })();
 </script>
 {% endblock %}

@@ -1011,6 +1011,7 @@
   var PROFILE_ADDRESS_STORAGE_KEY = 'tailtalk_profile_address_preview';
   var PROFILE_PAYMENT_STORAGE_KEY = 'tailtalk_profile_payment_preview';
   var SHARED_CART_COUNT_STORAGE_KEY = 'tailtalk_shared_cart_count';
+  var SHARED_CART_ITEMS_STORAGE_KEY = 'tailtalk_shared_cart_items';
   var quickOrderToastTimer = null;
   var quickOrderSlideEnabled = false;
   var quickOrderSlideDragging = false;
@@ -1769,12 +1770,35 @@
     return Number(String(value || '0').replace(/[^\d]/g, '')) || 0;
   }
 
+  function normalizeReviewCount(value) {
+    var digits = String(value || '').replace(/[^\d]/g, '');
+    return digits || '0';
+  }
+
+  function loadSharedCartItems() {
+    try {
+      return JSON.parse(window.localStorage.getItem(SHARED_CART_ITEMS_STORAGE_KEY) || '[]');
+    } catch (e) {
+      return [];
+    }
+  }
+
+  function saveSharedCartItems(items) {
+    try {
+      window.localStorage.setItem(SHARED_CART_ITEMS_STORAGE_KEY, JSON.stringify(items));
+    } catch (e) {}
+  }
+
   function buildCartItem(product) {
     var item = document.createElement('div');
     item.className = 'group relative rounded-[20px] border border-[#dbe7f5] bg-white px-[14px] py-[13px] shadow-[0_8px_20px_rgba(45,55,72,0.05)]';
     item.setAttribute('data-cart-item', '');
     item.setAttribute('data-unit-price', String(product.unitPrice));
     item.setAttribute('data-product-name', product.name);
+    item.setAttribute('data-goods-id', product.goodsId || product.name);
+    item.setAttribute('data-product-rating', product.rating || '0.0');
+    item.setAttribute('data-product-reviews', normalizeReviewCount(product.reviewCount || product.reviews || '0'));
+    item.setAttribute('data-product-emoji', product.emoji || '🛍️');
     item.innerHTML = ''
       + '<button type="button"'
       + ' class="absolute right-[10px] top-[10px] flex h-[28px] w-[28px] items-center justify-center rounded-full border border-[#e2e8f0] bg-white text-[14px] text-[#a0aec0] opacity-0 transition-opacity duration-150 group-hover:opacity-100"'
@@ -1800,7 +1824,7 @@
       + '          aria-label="수량 감소">'
       + '    <span class="relative top-[-1px]">-</span>'
       + '  </button>'
-      + '  <span class="min-w-[22px] text-center text-[13px] font-bold text-[#2d3748]" data-cart-quantity>1</span>'
+      + '  <span class="min-w-[22px] text-center text-[13px] font-bold text-[#2d3748]" data-cart-quantity>' + String(product.quantity || 1) + '</span>'
       + '  <button type="button"'
       + '          class="flex h-[28px] w-[28px] items-center justify-center rounded-full text-[18px] font-semibold leading-none text-[#2d3748] hover:bg-white"'
       + '          onclick="adjustCartQuantity(this, 1)"'
@@ -1809,6 +1833,48 @@
       + '  </button>'
       + '</div>';
     return item;
+  }
+
+  function getCartState() {
+    var items = [];
+    document.querySelectorAll('[data-cart-item]').forEach(function (item) {
+      var quantityNode = item.querySelector('[data-cart-quantity]');
+      items.push({
+        goodsId: item.getAttribute('data-goods-id') || item.getAttribute('data-product-name') || '',
+        name: item.getAttribute('data-product-name') || '상품',
+        price: Number(item.getAttribute('data-unit-price') || '0'),
+        priceLabel: formatPrice(Number(item.getAttribute('data-unit-price') || '0')),
+        rating: item.getAttribute('data-product-rating') || '0.0',
+        reviewCount: normalizeReviewCount(item.getAttribute('data-product-reviews') || '0'),
+        reviews: '리뷰 ' + normalizeReviewCount(item.getAttribute('data-product-reviews') || '0'),
+        quantity: Number(quantityNode ? quantityNode.textContent || '0' : '0'),
+        emoji: item.getAttribute('data-product-emoji') || '🛍️',
+        brand: '',
+        thumbnailUrl: '',
+        note: '가격 비교를 위해 보관한 상품',
+        isWishlisted: false,
+      });
+    });
+    return items;
+  }
+
+  function renderCartFromState(items) {
+    var list = document.getElementById('cartPanelList');
+    if (!list) return;
+    list.innerHTML = '';
+    items.forEach(function (itemData) {
+      list.appendChild(buildCartItem({
+        goodsId: itemData.goodsId,
+        name: itemData.name,
+        unitPrice: Number(itemData.price || 0),
+        price: itemData.priceLabel || formatPrice(Number(itemData.price || 0)),
+        rating: itemData.rating || '0.0',
+        reviewCount: itemData.reviewCount || '0',
+        reviews: '리뷰 ' + normalizeReviewCount(itemData.reviewCount || '0'),
+        quantity: Number(itemData.quantity || 1),
+        emoji: itemData.emoji || '🛍️',
+      }));
+    });
   }
 
   function updateCartTotal() {
@@ -1843,6 +1909,7 @@
     try {
       window.localStorage.setItem(SHARED_CART_COUNT_STORAGE_KEY, String(count));
     } catch (e) {}
+    saveSharedCartItems(getCartState());
     if (quickOrderModal && quickOrderModal.classList.contains('is-open')) {
       renderQuickOrderSummary();
     }
@@ -1908,10 +1975,12 @@
     if (!list || !button) return;
 
     var product = {
+      goodsId: button.getAttribute('data-product-id') || button.getAttribute('data-product-name') || 'product-' + Date.now(),
       name: button.getAttribute('data-product-name') || '추천 상품',
       price: button.getAttribute('data-product-price') || '0원',
       rating: button.getAttribute('data-product-rating') || '0.0',
-      reviews: button.getAttribute('data-product-reviews') || '리뷰 0',
+      reviewCount: normalizeReviewCount(button.getAttribute('data-product-reviews') || '0'),
+      reviews: '리뷰 ' + normalizeReviewCount(button.getAttribute('data-product-reviews') || '0'),
       emoji: button.getAttribute('data-product-emoji') || '🛍️',
       unitPrice: parsePrice(button.getAttribute('data-product-price')),
     };
@@ -2358,6 +2427,12 @@
   }
 
   renderPromoSlide();
+  var initialSharedCartItems = loadSharedCartItems();
+  if (initialSharedCartItems.length) {
+    renderCartFromState(initialSharedCartItems);
+  } else {
+    saveSharedCartItems(getCartState());
+  }
   updateCartTotal();
   applySharedCartCount();
   Object.keys(sessionThreads).forEach(ensureSessionState);
@@ -2382,6 +2457,10 @@
   window.addEventListener('storage', function (event) {
     if (event.key === SHARED_CART_COUNT_STORAGE_KEY) {
       applySharedCartCount();
+    }
+    if (event.key === SHARED_CART_ITEMS_STORAGE_KEY) {
+      renderCartFromState(loadSharedCartItems());
+      updateCartTotal();
     }
   });
 
