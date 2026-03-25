@@ -76,3 +76,6 @@ notebooks/**/data/
 
 # 도메인 데이터셋 (domain_qa)
 domain-data/
+
+# Local workspace data
+.local/
