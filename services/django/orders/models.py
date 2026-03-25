@@ -25,6 +25,26 @@ class CartItem(models.Model):
         unique_together = [("cart", "product")]
 
 
+class Wishlist(models.Model):
+    wishlist_id = models.UUIDField(primary_key=True, default=uuid.uuid4, editable=False)
+    user = models.OneToOneField(User, on_delete=models.CASCADE)
+    updated_at = models.DateTimeField(auto_now=True)
+
+    class Meta:
+        db_table = "wishlist"
+
+
+class WishlistItem(models.Model):
+    wishlist_item_id = models.UUIDField(primary_key=True, default=uuid.uuid4, editable=False)
+    wishlist = models.ForeignKey(Wishlist, on_delete=models.CASCADE, related_name="items")
+    product = models.ForeignKey(Product, on_delete=models.RESTRICT, related_name="wishlist_items")
+    added_at = models.DateTimeField(auto_now_add=True)
+
+    class Meta:
+        db_table = "wishlist_item"
+        unique_together = [("wishlist", "product")]
+
+
 class Order(models.Model):
     STATUS_CHOICES = [("pending", "주문 접수"), ("completed", "배송 완료"), ("cancelled", "취소")]
 
