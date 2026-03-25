@@ -25,6 +25,43 @@
     visibility: visible;
   }
 
+  #quickOrderModal {
+    opacity: 0;
+    visibility: hidden;
+    transition: opacity 120ms ease;
+  }
+
+  #quickOrderModal.is-open {
+    opacity: 1;
+    visibility: visible;
+  }
+
+  #quickOrderToast {
+    opacity: 0;
+    visibility: hidden;
+    transform: translate(-50%, 8px);
+    transition: opacity 180ms ease, transform 180ms ease;
+  }
+
+  #quickOrderToast.is-open {
+    opacity: 1;
+    visibility: visible;
+    transform: translate(-50%, 0);
+  }
+
+  #quickOrderSlide {
+    touch-action: none;
+  }
+
+  #quickOrderSlideThumb {
+    transition: transform 180ms ease;
+    will-change: transform;
+  }
+
+  #quickOrderSlideLabel {
+    transition: opacity 180ms ease, color 180ms ease;
+  }
+
   #mainContent {
     transition: left 300ms ease, width 300ms ease;
   }
@@ -51,8 +88,17 @@
     position: relative;
   }
 
+  #chatThread {
+    opacity: 1;
+    transition: opacity 110ms ease;
+  }
+
+  #chatSection.is-resetting #chatThread {
+    opacity: 0;
+  }
+
   #chatEmptyState {
-    transition: opacity 180ms ease;
+    transition: opacity 130ms ease;
   }
 
   #chatEmptyState.is-fading-in {
@@ -74,6 +120,12 @@
 
   #composerStage.no-transition {
     transition: none;
+  }
+
+  #chatSection.is-resetting #composerStage {
+    top: calc(100% - 96px) !important;
+    opacity: 0 !important;
+    transition: none !important;
   }
 
   #chatSection.is-empty #composerStage {
@@ -117,6 +169,17 @@
       visibility 0s linear 0s;
   }
 
+  #productPanel.is-reset-closing {
+    width: 0;
+    opacity: 0;
+    visibility: visible;
+    pointer-events: none;
+    border-left-width: 0;
+    transition:
+      width 220ms cubic-bezier(0.22, 1, 0.36, 1),
+      opacity 160ms ease;
+  }
+
   #productPanelInner {
     opacity: 0;
     transform: translateY(8px);
@@ -137,9 +200,47 @@
     transition-delay: 0s;
   }
 
+  #productPanel.is-reset-closing #productPanelInner {
+    opacity: 0;
+    transform: translateY(4px);
+    transition:
+      opacity 130ms ease,
+      transform 180ms cubic-bezier(0.22, 1, 0.36, 1);
+  }
+
   #productPanel.no-transition,
   #productPanel.no-transition #productPanelInner {
     transition: none !important;
+  }
+
+  #chatHistoryList {
+    scrollbar-width: thin;
+    scrollbar-color: transparent transparent;
+    scrollbar-gutter: stable;
+  }
+
+  #chatHistoryList::-webkit-scrollbar {
+    width: 8px;
+  }
+
+  #chatHistoryList::-webkit-scrollbar-track {
+    background: transparent;
+  }
+
+  #chatHistoryList::-webkit-scrollbar-thumb {
+    background: transparent;
+    border-radius: 9999px;
+    border: 2px solid transparent;
+    background-clip: padding-box;
+    transition: background-color 160ms ease;
+  }
+
+  #chatHistoryList:hover {
+    scrollbar-color: rgba(148, 163, 184, 0.85) transparent;
+  }
+
+  #chatHistoryList:hover::-webkit-scrollbar-thumb {
+    background: rgba(148, 163, 184, 0.85);
   }
 </style>
 {% endblock %}
@@ -173,6 +274,125 @@
           </button>
         </div>
       </div>
+    </div>
+
+    <div id="quickOrderModal" class="absolute inset-0 z-[60] flex items-center justify-center bg-black/10"
+         onclick="closeQuickOrderModal(event)">
+      <div class="relative flex max-h-[calc(100vh-32px)] w-[min(760px,calc(100vw-32px))] overflow-hidden rounded-[24px] border border-[#dbe7f5] bg-white"
+           onclick="event.stopPropagation()">
+        <div class="flex min-h-0 min-w-0 flex-1 flex-col px-[28px] py-[28px]">
+          <div class="flex items-start justify-between gap-[16px]">
+            <div>
+              <p class="text-[22px] font-bold leading-none text-[#2d3748]">빠른 주문</p>
+            </div>
+            <button type="button"
+                    class="flex h-[28px] items-center justify-center text-[28px] leading-none text-[#718096]"
+                    onclick="closeQuickOrderModal()"
+                    aria-label="빠른 주문 닫기">
+              <span class="relative top-[-4px]">×</span>
+            </button>
+          </div>
+
+          <div class="mt-[24px] min-h-0 overflow-y-auto pr-[4px]">
+            <div class="space-y-[14px]">
+              <div class="rounded-[18px] border border-[#e2e8f0] bg-white px-[18px] py-[18px]">
+                <div class="flex items-start justify-between gap-[12px]">
+                  <div class="min-w-0 flex-1">
+                    <p class="text-[13px] font-bold leading-none text-[#2d3748]">상품 정보</p>
+                    <p id="quickOrderPrimaryItem" class="mt-[10px] truncate text-[15px] font-bold leading-none text-[#2d3748]">상품 정보 없음</p>
+                  </div>
+                  <button type="button"
+                          class="shrink-0 text-[12px] font-semibold text-[#3182ce]"
+                          onclick="goToCartPage()">
+                    수정
+                  </button>
+                </div>
+              </div>
+
+              <div class="rounded-[18px] border border-[#e2e8f0] bg-white px-[18px] py-[18px]">
+                <div class="flex items-start justify-between gap-[12px]">
+                  <div class="min-w-0 flex-1">
+                    <p class="text-[13px] font-bold leading-none text-[#2d3748]">배송 정보</p>
+                    <div class="mt-[12px] space-y-[9px] text-[13px] text-[#4a5568]">
+                      <p id="quickOrderRecipientSummary" class="leading-[1.5]">{{ request.user.profile.nickname|default:"이름 정보가 없습니다" }}</p>
+                      <p id="quickOrderAddressSummary" class="leading-[1.6]">{{ request.user.profile.address|default:"배송지 정보가 없습니다" }}</p>
+                      <p id="quickOrderPhoneSummary" class="leading-[1.5]">{{ request.user.profile.phone|default:"연락처 정보가 없습니다" }}</p>
+                    </div>
+                  </div>
+                  <button type="button"
+                          class="shrink-0 text-[12px] font-semibold text-[#3182ce]"
+                          onclick="goToProfilePage()">
+                    수정
+                  </button>
+                </div>
+              </div>
+
+              <div class="rounded-[18px] border border-[#e2e8f0] bg-white px-[18px] py-[18px]">
+                <div class="flex items-start justify-between gap-[12px]">
+                  <div class="min-w-0 flex-1">
+                    <p class="text-[13px] font-bold leading-none text-[#2d3748]">결제 수단</p>
+                    <div class="mt-[12px] space-y-[9px] text-[13px] text-[#4a5568]">
+                      <p id="quickOrderCardSummary" class="leading-[1.5] text-[#718096]">등록된 결제수단이 없습니다 / 일시불</p>
+                    </div>
+                  </div>
+                  <button type="button"
+                          class="shrink-0 text-[12px] font-semibold text-[#3182ce]"
+                          onclick="goToProfilePage()">
+                    수정
+                  </button>
+                </div>
+              </div>
+
+              <div class="rounded-[18px] border border-[#e2e8f0] bg-[#fbfdff] px-[18px] py-[18px]">
+                <div class="flex items-start justify-between gap-[12px]">
+                  <div>
+                    <p class="text-[12px] text-[#718096]">주문 상품 수</p>
+                    <p id="quickOrderItemCount" class="mt-[6px] text-[18px] font-bold leading-none text-[#2d3748]">0개</p>
+                  </div>
+                  <div class="text-right">
+                    <p class="text-[12px] text-[#718096]">상품 금액</p>
+                    <p id="quickOrderSubtotal" class="mt-[6px] text-[18px] font-bold leading-none text-[#2d3748]">0원</p>
+                  </div>
+                </div>
+                <div class="mt-[14px] rounded-[12px] border border-[#edf2f7] bg-white px-[12px] py-[12px]">
+                  <div class="flex items-center justify-between text-[13px] text-[#4a5568]">
+                    <span>배송비</span>
+                    <span id="quickOrderShippingFee" class="font-semibold text-[#2d3748]">0원</span>
+                  </div>
+                  <div class="mt-[10px] flex items-center justify-between border-t border-[#edf2f7] pt-[10px]">
+                    <span class="text-[13px] font-bold text-[#2d3748]">최종 결제 예정 금액</span>
+                    <span id="quickOrderTotal" class="text-[18px] font-bold leading-none text-[#3182ce]">0원</span>
+                  </div>
+                </div>
+              </div>
+
+              <div class="px-[4px] text-[12px] leading-[1.7] text-[#718096]">
+                주문 내용을 확인하였으며, 구매조건, 결제대행 서비스 및 결제에 동의합니다.
+              </div>
+
+              <div class="pb-[2px]">
+                <div id="quickOrderSlide"
+                     class="relative h-[56px] overflow-hidden rounded-full border border-[#dbe7f5] bg-[#edf2f7]">
+                  <div id="quickOrderSlideThumb"
+                       class="absolute left-[4px] top-[4px] flex h-[48px] w-[48px] items-center justify-center rounded-full bg-white text-[#718096]">
+                    <span class="relative top-[-1px] text-[24px] font-bold tracking-[-0.18em]">≫</span>
+                  </div>
+                  <div id="quickOrderSlideLabel"
+                       class="flex h-full w-full items-center justify-center text-[15px] font-bold text-[#a0aec0]">
+                    배송지와 결제수단 저장 후 밀어서 결제하기
+                  </div>
+                </div>
+              </div>
+            </div>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <div id="quickOrderToast"
+         class="pointer-events-none absolute bottom-[28px] left-1/2 z-[70] flex h-[46px] min-w-[220px] -translate-x-1/2 items-center justify-center rounded-full border border-[#dbe7f5] bg-white px-[20px] text-[14px] font-bold text-[#2d3748]">
+      주문이 완료되었습니다
     </div>
     {% endif %}
 
@@ -387,9 +607,12 @@
     <div id="mainContent"
          class="absolute inset-0 z-10">
       <header class="absolute left-0 top-0 h-[72px] w-full border-b border-[#e2e8f0] bg-white">
-        <div id="headerLogo" class="absolute left-[87.5px] top-1/2 -translate-y-1/2 text-[26px] font-bold leading-none text-[#2d3748]">
+        <button type="button" id="headerLogo"
+                class="absolute left-[87.5px] top-1/2 -translate-y-1/2 text-[26px] font-bold leading-none text-[#2d3748]"
+                aria-label="메인으로 돌아가기"
+                onclick="resetChatState(false)">
           <span class="text-[#3182ce]">Tail</span><span>Talk</span>
-        </div>
+        </button>
       </header>
 
       <div id="workspaceShell">
@@ -492,7 +715,7 @@
           <div id="productPanelInner" class="flex h-full flex-col">
             <div class="flex-1 overflow-y-auto px-[20px] py-[20px]">
       {% if is_member_view %}
-      <div class="flex h-full min-h-0 flex-col gap-[12px]">
+      <div class="flex h-full min-h-0 flex-col gap-[14px]">
                 <div class="flex-none space-y-[10px] pb-[2px]">
                   <div class="group relative overflow-visible">
                     <div class="overflow-hidden rounded-[18px] shadow-[0_10px_24px_rgba(45,55,72,0.10)]">
@@ -516,12 +739,12 @@
                     <button type="button" onclick="movePromoSlide(-1)"
                             class="absolute left-[-18px] top-1/2 z-10 flex h-[38px] w-[38px] -translate-y-1/2 items-center justify-center rounded-full border border-[#dbe7f5] bg-white text-[#2d3748] shadow-[0_8px_18px_rgba(45,55,72,0.14)] opacity-0 transition-opacity duration-200 group-hover:opacity-100"
                             aria-label="이전 기획전 보기">
-                      <span class="relative left-[-1px] top-[-1px] text-[28px] font-semibold leading-none">‹</span>
+                      <span class="relative left-[-1px] top-[-3px] text-[28px] font-semibold leading-none">‹</span>
                     </button>
                     <button type="button" onclick="movePromoSlide(1)"
                             class="absolute right-[-18px] top-1/2 z-10 flex h-[38px] w-[38px] -translate-y-1/2 items-center justify-center rounded-full border border-[#dbe7f5] bg-white text-[#2d3748] shadow-[0_8px_18px_rgba(45,55,72,0.14)] opacity-0 transition-opacity duration-200 group-hover:opacity-100"
                             aria-label="다음 기획전 보기">
-                      <span class="relative left-[1px] top-[-1px] text-[28px] font-semibold leading-none">›</span>
+                      <span class="relative left-[1px] top-[-3px] text-[28px] font-semibold leading-none">›</span>
                     </button>
 
                     <div class="pointer-events-none absolute bottom-[12px] left-1/2 flex -translate-x-1/2 items-center gap-[6px]">
@@ -535,26 +758,26 @@
                   </div>
                 </div>
 
-                <div class="flex-none flex items-end justify-center gap-[26px] border-b border-[#dbe7f5] pb-[11px]">
+                <div class="flex-none flex items-end justify-center gap-[26px] border-b border-[#dbe7f5] pb-[13px]">
                   <button type="button" id="tabRecommended"
-                          class="product-tab active relative inline-flex items-center pb-[2px] text-[14px] font-bold text-[#2d6cdf]"
+                          class="product-tab active relative inline-flex h-[20px] items-center pb-[2px] text-[14px] font-bold leading-none text-[#2d6cdf]"
                           onclick="switchProductTab('recommended')">
-                    추천 상품
+                    <span class="leading-none">추천 상품</span>
                     <span data-tab-underline class="absolute bottom-[-12px] left-0 right-0 h-[2px] rounded-full bg-[#2d6cdf]"></span>
                   </button>
                   <button type="button" id="tabCart"
-                          class="product-tab relative inline-flex items-center pb-[2px] text-[13px] font-semibold text-[#718096]"
+                          class="product-tab relative inline-flex h-[20px] items-center gap-[6px] pb-[2px] text-[14px] font-semibold leading-none text-[#718096]"
                           onclick="switchProductTab('cart')">
                     <span class="leading-none">장바구니</span>
                     <span id="cartCountBadge"
-                          class="relative top-[1px] ml-[6px] inline-flex h-[16px] min-w-[16px] items-center justify-center rounded-full bg-[#2d3748] px-[5px] text-[9px] font-bold leading-none text-white transition-all duration-150">
+                          class="inline-flex h-[17px] min-w-[17px] items-center justify-center self-center rounded-full bg-[#2d3748] px-[5px] text-[9px] font-bold leading-none text-white transition-all duration-150">
                       0
                     </span>
                     <span data-tab-underline class="absolute bottom-[-12px] left-0 right-0 hidden h-[2px] rounded-full bg-[#2d6cdf]"></span>
                   </button>
                 </div>
 
-                <div class="min-h-0 flex-1">
+                <div class="min-h-0 flex-1 pt-[2px]">
                 <div id="recommendedPanel" class="h-full min-h-0 overflow-y-auto pr-[4px]">
                 <div class="space-y-[12px]">
                 {% for product in recommended_products %}
@@ -634,11 +857,11 @@
                       <div class="text-[11px] font-medium text-[#a0aec0]">총 결제 예정 금액</div>
                       <div id="cartTotalAmount" class="mt-[4px] text-[18px] font-bold text-[#2d3748]">{{ cart_total }}</div>
                     </div>
-                    <a href="{% if is_preview_member %}#{% else %}/orders/{% endif %}"
+                    <button type="button"
                        class="flex h-[40px] items-center justify-center rounded-full bg-[#2d3748] px-[18px] text-[13px] font-bold text-white"
-                       {% if is_preview_member %}onclick="return false"{% endif %}>
+                       onclick="openQuickOrderModal()">
                       주문하기
-                    </a>
+                    </button>
                   </div>
                 </div>
               </div>
@@ -731,6 +954,7 @@
   var headerLogo = document.getElementById('headerLogo');
   var pageGate = document.getElementById('pageGate');
   var deleteModal = document.getElementById('deleteModal');
+  var quickOrderModal = document.getElementById('quickOrderModal');
   var profileMenu = document.getElementById('profileMenu');
   var profileWrapper = document.getElementById('profileMenuWrapper');
   var messageInput = document.getElementById('messageInput');
@@ -758,6 +982,15 @@
   var petDropdownName = document.getElementById('petDropdownName');
   var petDropdownSummary = document.getElementById('petDropdownSummary');
   var petDropdownEmoji = document.getElementById('petDropdownEmoji');
+  var quickOrderItemCount = document.getElementById('quickOrderItemCount');
+  var quickOrderPrimaryItem = document.getElementById('quickOrderPrimaryItem');
+  var quickOrderRecipientSummary = document.getElementById('quickOrderRecipientSummary');
+  var quickOrderAddressSummary = document.getElementById('quickOrderAddressSummary');
+  var quickOrderPhoneSummary = document.getElementById('quickOrderPhoneSummary');
+  var quickOrderCardSummary = document.getElementById('quickOrderCardSummary');
+  var quickOrderSubtotal = document.getElementById('quickOrderSubtotal');
+  var quickOrderShippingFee = document.getElementById('quickOrderShippingFee');
+  var quickOrderTotal = document.getElementById('quickOrderTotal');
   var chatHistoryList = document.getElementById('chatHistoryList');
   var sessionThreadsNode = document.getElementById('sessionThreadsData');
   var sessionThreads = sessionThreadsNode ? JSON.parse(sessionThreadsNode.textContent) : {};
@@ -770,6 +1003,13 @@
   var promoIndex = 0;
   var promoTimer = null;
   var activePetId = '{{ active_pet_id|escapejs }}';
+  var PROFILE_ADDRESS_STORAGE_KEY = 'tailtalk_profile_address_preview';
+  var PROFILE_PAYMENT_STORAGE_KEY = 'tailtalk_profile_payment_preview';
+  var quickOrderToastTimer = null;
+  var quickOrderSlideEnabled = false;
+  var quickOrderSlideDragging = false;
+  var quickOrderSlideStartX = 0;
+  var quickOrderSlideCurrentX = 0;
   // 선택된 펫 프로필 (FastAPI 요청에 사용)
   var activePetProfile = null;
   var activePetHealthConcerns = [];
@@ -1192,30 +1432,72 @@
 
   function renderProductCards(cards) {
     if (!recommendedPanel) return;
+    if (!cards || !cards.length) {
+      return;
+    }
     recommendedPanel.innerHTML = '';
     cards.forEach(function (card) {
       var price = card.price ? Number(card.price).toLocaleString('ko-KR') + '원' : '';
       var discount = card.discount_price ? Number(card.discount_price).toLocaleString('ko-KR') + '원' : '';
+      var finalPrice = discount || price || '가격 정보 없음';
+      var rating = card.rating || '4.7';
+      var reviews = card.reviews || '리뷰 준비 중';
       var priceHtml = discount
-        ? '<span class="text-[13px] font-bold text-[#e53e3e]">' + discount + '</span> <span class="ml-[4px] text-[12px] text-[#a0aec0] line-through">' + price + '</span>'
-        : '<span class="text-[13px] font-bold text-[#2d3748]">' + price + '</span>';
+        ? '<div class="mt-[5px] text-[15px] font-bold text-[#e53e3e]">' + finalPrice + '</div><div class="mt-[2px] text-[11px] text-[#a0aec0] line-through">' + price + '</div>'
+        : '<div class="mt-[5px] text-[15px] font-bold text-[#3182ce]">' + finalPrice + '</div>';
       var el = document.createElement('div');
-      el.className = 'flex gap-[12px] rounded-[12px] border border-[#e2e8f0] bg-white p-[12px] shadow-[0_2px_8px_rgba(45,55,72,0.06)]';
-      el.innerHTML = '<img src="' + (card.thumbnail_url || '') + '" alt="" class="h-[72px] w-[72px] shrink-0 rounded-[8px] object-cover bg-[#f8fafc]" onerror="this.style.display=\'none\'">'
+      el.className = 'rounded-[20px] border border-[#dbe7f5] bg-white px-[14px] py-[13px] shadow-[0_8px_20px_rgba(45,55,72,0.05)]';
+      el.innerHTML = '<div class="flex items-center gap-[10px]">'
+        + '<div class="relative flex h-[68px] w-[68px] shrink-0 items-center justify-center overflow-hidden rounded-[14px] bg-gradient-to-br from-[#dbeafe] via-[#eff6ff] to-[#f8fafc]">'
+        + '  <img src="' + (card.thumbnail_url || '') + '" alt="" class="h-full w-full object-cover" onerror="this.style.display=\'none\'; this.parentNode.querySelector(&quot;.fallback-emoji&quot;).style.display = \'flex\';">'
+        + '  <div class="fallback-emoji absolute inset-0 hidden items-center justify-center text-[26px]">🛍️</div>'
+        + '</div>'
         + '<div class="min-w-0 flex-1">'
-        + '<p class="truncate text-[13px] font-bold text-[#2d3748]">' + (card.product_name || '') + '</p>'
-        + '<p class="mt-[2px] truncate text-[11px] text-[#718096]">' + (card.brand_name || '') + '</p>'
-        + '<div class="mt-[6px]">' + priceHtml + '</div>'
-        + (card.product_url ? '<a href="' + card.product_url + '" target="_blank" class="mt-[6px] inline-block rounded-[6px] bg-[#3182ce] px-[10px] py-[4px] text-[11px] font-bold text-white">구매하기</a>' : '')
+        + '<div class="truncate text-[13px] font-bold leading-[1.5] text-[#2d3748]">' + (card.product_name || '추천 상품') + '</div>'
+        + '<div class="mt-[2px] truncate text-[11px] text-[#718096]">' + (card.brand_name || '브랜드 정보') + '</div>'
+        + priceHtml
+        + '<div class="mt-[7px] flex items-center gap-[6px] text-[11px]">'
+        + '  <span class="font-bold text-[#d69e2e]">★ ' + rating + '</span>'
+        + '  <span class="text-[#a0aec0]">' + reviews + '</span>'
+        + '</div>'
+        + (card.product_url ? '<a href="' + card.product_url + '" target="_blank" class="mt-[7px] inline-flex text-[11px] font-bold text-[#3182ce]">상품 보러가기</a>' : '')
+        + '</div>'
+        + '<button type="button"'
+        + ' class="flex h-[36px] w-[36px] shrink-0 items-center justify-center rounded-full bg-[#3182ce] text-white shadow-[0_8px_18px_rgba(49,130,206,0.18)]"'
+        + ' data-product-name="' + (card.product_name || '추천 상품') + '"'
+        + ' data-product-price="' + finalPrice + '"'
+        + ' data-product-rating="' + rating + '"'
+        + ' data-product-reviews="' + reviews + '"'
+        + ' data-product-emoji="🛍️"'
+        + ' onclick="addRecommendedToCart(this)"'
+        + ' aria-label="장바구니 추가">'
+        + '  <span class="relative top-[-1px] text-[20px] font-semibold leading-none">+</span>'
+        + '</button>'
         + '</div>';
       recommendedPanel.appendChild(el);
     });
   }
 
-  function hideProductPanel(onDone) {
+  function hideProductPanel(onDone, immediate) {
     if (!productPanel || !chatSection) return;
     if (!productPanel.classList.contains('is-open')) {
       if (typeof onDone === 'function') onDone();
+      return;
+    }
+
+    if (immediate) {
+      productPanel.classList.add('is-reset-closing');
+      window.setTimeout(function () {
+        productPanel.classList.add('no-transition');
+        productPanel.classList.remove('is-reset-closing');
+        productPanel.classList.remove('is-closing');
+        productPanel.classList.remove('is-open');
+        chatSection.classList.remove('border-r', 'border-[#e2e8f0]');
+        if (typeof onDone === 'function') onDone();
+        window.setTimeout(function () {
+          productPanel.classList.remove('no-transition');
+        }, 20);
+      }, 220);
       return;
     }
 
@@ -1227,20 +1509,18 @@
     window.setTimeout(function () {
       productPanel.classList.remove('is-closing');
       if (typeof onDone === 'function') onDone();
-    }, 580);
+    }, 180);
   }
 
-  window.resetChatState = function (closeDrawer) {
-    function performReset() {
+  function performResetState(showEmptyWithFade) {
+      if (composerStage) composerStage.classList.add('no-transition');
       if (chatMessages) chatMessages.innerHTML = '';
       if (chatThread) chatThread.classList.add('hidden');
-      if (closeDrawer) {
-        if (chatEmptyState) {
-          chatEmptyState.classList.remove('is-fading-in');
-          chatEmptyState.classList.remove('hidden');
-        }
-      } else {
+      if (showEmptyWithFade) {
         showEmptyStateWithFade();
+      } else if (chatEmptyState) {
+        chatEmptyState.classList.remove('is-fading-in');
+        chatEmptyState.classList.remove('hidden');
       }
       updateChatSectionState(false);
       activeSessionId = null;
@@ -1248,19 +1528,36 @@
       if (messageInput) {
         messageInput.value = '';
         updateComposerState(messageInput);
+        window.setTimeout(function () {
+          messageInput.focus();
+        }, 30);
       }
       hideProductPanel();
       switchProductTab('recommended');
       if (chatScrollArea) chatScrollArea.scrollTop = 0;
-    }
+      window.requestAnimationFrame(function () {
+        if (chatSection) chatSection.classList.remove('is-resetting');
+      });
+      window.setTimeout(function () {
+        if (composerStage) composerStage.classList.remove('no-transition');
+      }, 240);
+  }
+
+  window.resetChatState = function (closeDrawer) {
+    var transitionDelay = closeDrawer ? 24 : 12;
+    var hasVisibleThread = !!(chatThread && !chatThread.classList.contains('hidden'));
+    if (chatSection && hasVisibleThread) chatSection.classList.add('is-resetting');
+
+    hideProductPanel(function () {
+      window.setTimeout(function () {
+        performResetState(true);
+      }, transitionDelay);
+    }, true);
 
     if (closeDrawer) {
-      closeSidebar();
-      performReset();
+      closeSidebar(true);
       return;
     }
-
-    performReset();
   };
 
   window.sendMessage = function () {
@@ -1291,8 +1588,11 @@
       updateComposerState(messageInput);
       scrollToBottom();
 
-      var assistantEl = appendMessage('assistant', '');
+      var pendingAssistantText = '답변을 준비하고 있어요...';
+      var assistantEl = appendMessage('assistant', pendingAssistantText);
       var assistantText = '';
+      openProductPanel();
+      switchProductTab('recommended');
 
       fetch('/api/chat/sessions/' + sessionId + '/messages/', {
         method: 'POST',
@@ -1480,6 +1780,9 @@
 
     totalNode.textContent = formatPrice(total);
     if (badgeNode) badgeNode.textContent = String(count);
+    if (quickOrderModal && quickOrderModal.classList.contains('is-open')) {
+      renderQuickOrderSummary();
+    }
   }
 
   window.adjustCartQuantity = function (button, delta) {
@@ -1578,6 +1881,246 @@
     deleteModal.classList.remove('is-open');
     pendingDeleteId = null;
   };
+
+  function getCartSnapshot() {
+    var items = [];
+    document.querySelectorAll('[data-cart-item]').forEach(function (item) {
+      var name = item.getAttribute('data-product-name') || '상품';
+      var unitPrice = Number(item.getAttribute('data-unit-price') || '0');
+      var quantityNode = item.querySelector('[data-cart-quantity]');
+      var quantity = quantityNode ? Number(quantityNode.textContent || '0') : 0;
+      if (quantity > 0) {
+        items.push({
+          name: name,
+          quantity: quantity,
+          totalPrice: unitPrice * quantity,
+        });
+      }
+    });
+    return items;
+  }
+
+  function applyQuickOrderLocalPreview() {
+    try {
+      var savedAddress = JSON.parse(window.localStorage.getItem(PROFILE_ADDRESS_STORAGE_KEY) || 'null');
+      if (savedAddress && quickOrderAddressSummary && savedAddress.addressMain) {
+        var addressText = savedAddress.addressMain || '';
+        if (savedAddress.addressDetail) {
+          addressText += ' ' + savedAddress.addressDetail;
+        }
+        quickOrderAddressSummary.textContent = addressText.trim();
+      }
+    } catch (e) {}
+
+    try {
+      var savedPayment = JSON.parse(window.localStorage.getItem(PROFILE_PAYMENT_STORAGE_KEY) || 'null');
+      if (savedPayment && quickOrderCardSummary && savedPayment.cardName && savedPayment.maskedCard) {
+        quickOrderCardSummary.textContent = savedPayment.cardName + ' / ' + savedPayment.maskedCard;
+        quickOrderCardSummary.classList.remove('text-[#718096]');
+      }
+    } catch (e) {}
+  }
+
+  function showQuickOrderToast() {
+    var toast = document.getElementById('quickOrderToast');
+    if (!toast) return;
+    if (quickOrderToastTimer) {
+      window.clearTimeout(quickOrderToastTimer);
+      quickOrderToastTimer = null;
+    }
+    toast.classList.add('is-open');
+    quickOrderToastTimer = window.setTimeout(function () {
+      toast.classList.remove('is-open');
+      quickOrderToastTimer = null;
+    }, 1800);
+  }
+
+  function getQuickOrderSlideMetrics() {
+    var slide = document.getElementById('quickOrderSlide');
+    var thumb = document.getElementById('quickOrderSlideThumb');
+    if (!slide || !thumb) return null;
+    return {
+      slide: slide,
+      thumb: thumb,
+      maxOffset: Math.max(0, slide.clientWidth - thumb.clientWidth - 8),
+    };
+  }
+
+  function setQuickOrderSlideOffset(offset, withTransition) {
+    var metrics = getQuickOrderSlideMetrics();
+    var label = document.getElementById('quickOrderSlideLabel');
+    if (!metrics || !label) return;
+
+    var nextOffset = Math.max(0, Math.min(offset, metrics.maxOffset));
+    metrics.thumb.style.transition = withTransition ? 'transform 180ms ease' : 'none';
+    metrics.thumb.style.transform = 'translateX(' + nextOffset + 'px)';
+    label.style.opacity = String(Math.max(0.18, 1 - (nextOffset / Math.max(metrics.maxOffset || 1, 1)) * 0.72));
+    quickOrderSlideCurrentX = nextOffset;
+  }
+
+  function resetQuickOrderSlide(withTransition) {
+    setQuickOrderSlideOffset(0, withTransition);
+  }
+
+  function completeQuickOrderSlide() {
+    var metrics = getQuickOrderSlideMetrics();
+    if (!metrics) return;
+    setQuickOrderSlideOffset(metrics.maxOffset, true);
+    window.setTimeout(function () {
+      window.submitQuickOrder();
+      resetQuickOrderSlide(true);
+    }, 180);
+  }
+
+  function updateQuickOrderSlideState(enabled) {
+    var slide = document.getElementById('quickOrderSlide');
+    var thumb = document.getElementById('quickOrderSlideThumb');
+    var label = document.getElementById('quickOrderSlideLabel');
+    if (!slide || !thumb || !label) return;
+
+    quickOrderSlideEnabled = enabled;
+    slide.classList.toggle('bg-[#edf2f7]', !enabled);
+    slide.classList.toggle('border-[#dbe7f5]', !enabled);
+    slide.classList.toggle('bg-[#ebf8ff]', enabled);
+    slide.classList.toggle('border-[#90cdf4]', enabled);
+    thumb.classList.toggle('text-[#718096]', !enabled);
+    thumb.classList.toggle('text-[#3182ce]', enabled);
+    label.classList.toggle('text-[#a0aec0]', !enabled);
+    label.classList.toggle('text-[#2d3748]', enabled);
+    label.textContent = enabled ? '밀어서 결제하기' : '배송지와 결제수단 저장 후 밀어서 결제하기';
+    slide.classList.toggle('cursor-grab', enabled);
+    slide.classList.toggle('cursor-default', !enabled);
+    thumb.style.left = '4px';
+    resetQuickOrderSlide(true);
+  }
+
+  function renderQuickOrderSummary() {
+    if (!quickOrderItemCount || !quickOrderSubtotal || !quickOrderShippingFee || !quickOrderTotal) return;
+    var items = getCartSnapshot();
+    var totalCount = 0;
+    var subtotal = 0;
+    items.forEach(function (item) {
+      totalCount += item.quantity;
+      subtotal += item.totalPrice;
+    });
+    var shippingFee = items.length ? 3000 : 0;
+    var totalPrice = subtotal + shippingFee;
+
+    quickOrderItemCount.textContent = totalCount + '개';
+    quickOrderSubtotal.textContent = formatPrice(subtotal);
+    quickOrderShippingFee.textContent = formatPrice(shippingFee);
+    quickOrderTotal.textContent = formatPrice(totalPrice);
+
+    if (quickOrderPrimaryItem) {
+      if (!items.length) {
+        quickOrderPrimaryItem.textContent = '상품 정보 없음';
+      } else if (items.length === 1) {
+        quickOrderPrimaryItem.textContent = items[0].name;
+      } else {
+        quickOrderPrimaryItem.textContent = items[0].name + ' 외 ' + (items.length - 1) + '개 상품';
+      }
+    }
+
+    if (quickOrderCardSummary && quickOrderCardSummary.textContent.indexOf('등록된 결제수단이 없습니다') !== -1) {
+      quickOrderCardSummary.textContent = '등록된 결제수단이 없습니다';
+    }
+
+    applyQuickOrderLocalPreview();
+
+    var hasProfileInfo = !!(
+      quickOrderRecipientSummary && quickOrderRecipientSummary.textContent.trim() && quickOrderRecipientSummary.textContent.indexOf('없습니다') === -1 &&
+      quickOrderAddressSummary && quickOrderAddressSummary.textContent.trim() && quickOrderAddressSummary.textContent.indexOf('없습니다') === -1 &&
+      quickOrderPhoneSummary && quickOrderPhoneSummary.textContent.trim() && quickOrderPhoneSummary.textContent.indexOf('없습니다') === -1
+    );
+    var hasPaymentInfo = !!(
+      quickOrderCardSummary && quickOrderCardSummary.textContent.trim().indexOf('없습니다') === -1
+    );
+
+    updateQuickOrderSlideState(hasProfileInfo && hasPaymentInfo && items.length > 0);
+  }
+
+  window.openQuickOrderModal = function () {
+    if (!quickOrderModal) return;
+    renderQuickOrderSummary();
+    quickOrderModal.classList.add('is-open');
+  };
+
+  window.closeQuickOrderModal = function (e) {
+    if (!quickOrderModal) return;
+    if (e && e.target !== quickOrderModal) return;
+    quickOrderModal.classList.remove('is-open');
+    quickOrderSlideDragging = false;
+    resetQuickOrderSlide(true);
+  };
+
+  window.submitQuickOrder = function () {
+    closeQuickOrderModal();
+    showQuickOrderToast();
+  };
+
+  window.goToCartPage = function () {
+    closeQuickOrderModal();
+    openProductPanel();
+    switchProductTab('cart');
+  };
+
+  window.goToProfilePage = function () {
+    window.location.href = '/profile/';
+  };
+
+  function bindQuickOrderSlide() {
+    var slide = document.getElementById('quickOrderSlide');
+    if (!slide) return;
+
+    function getClientX(event) {
+      if (event.touches && event.touches.length) return event.touches[0].clientX;
+      if (event.changedTouches && event.changedTouches.length) return event.changedTouches[0].clientX;
+      return event.clientX;
+    }
+
+    function handleStart(event) {
+      if (!quickOrderSlideEnabled) return;
+      var metrics = getQuickOrderSlideMetrics();
+      if (!metrics) return;
+      quickOrderSlideDragging = true;
+      quickOrderSlideStartX = getClientX(event) - quickOrderSlideCurrentX;
+      metrics.slide.classList.remove('cursor-grab');
+      metrics.slide.classList.add('cursor-grabbing');
+      setQuickOrderSlideOffset(quickOrderSlideCurrentX, false);
+      if (event.cancelable) event.preventDefault();
+    }
+
+    function handleMove(event) {
+      if (!quickOrderSlideDragging) return;
+      setQuickOrderSlideOffset(getClientX(event) - quickOrderSlideStartX, false);
+      if (event.cancelable) event.preventDefault();
+    }
+
+    function handleEnd() {
+      if (!quickOrderSlideDragging) return;
+      quickOrderSlideDragging = false;
+      var metrics = getQuickOrderSlideMetrics();
+      if (!metrics) return;
+      metrics.slide.classList.remove('cursor-grabbing');
+      if (quickOrderSlideEnabled) metrics.slide.classList.add('cursor-grab');
+
+      if (quickOrderSlideCurrentX >= metrics.maxOffset * 0.82) {
+        completeQuickOrderSlide();
+      } else {
+        resetQuickOrderSlide(true);
+      }
+    }
+
+    slide.addEventListener('mousedown', handleStart);
+    slide.addEventListener('touchstart', handleStart, { passive: false });
+    window.addEventListener('mousemove', handleMove);
+    window.addEventListener('touchmove', handleMove, { passive: false });
+    window.addEventListener('mouseup', handleEnd);
+    window.addEventListener('touchend', handleEnd);
+    window.addEventListener('touchcancel', handleEnd);
+  }
+
+  bindQuickOrderSlide();
 
   var confirmBtn = document.getElementById('confirmDeleteBtn');
   if (confirmBtn) {
