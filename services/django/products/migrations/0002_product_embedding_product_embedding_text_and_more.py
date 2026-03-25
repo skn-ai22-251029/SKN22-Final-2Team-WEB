@@ -2,7 +2,6 @@
 
 import django.contrib.postgres.indexes
 import django.contrib.postgres.search
-import pgvector.django.extensions
 import pgvector.django.indexes
 import pgvector.django.vector
 from django.db import migrations, models
@@ -15,7 +14,6 @@ class Migration(migrations.Migration):
     ]
 
     operations = [
-        pgvector.django.extensions.VectorExtension(),
         migrations.AddField(
             model_name='product',
             name='embedding',
