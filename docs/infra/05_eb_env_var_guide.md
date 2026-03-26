@@ -24,7 +24,8 @@
 
 - `.github/workflows/ci-cd.yml`
 - `deploy/eb/test-django/docker-compose.yml`
-- `deploy/eb/test-fastapi/docker-compose.yml`
+- `services/fastapi/.github/workflows/ci-cd.yml`
+- `services/fastapi/deploy/eb/test-fastapi/docker-compose.yml`
 
 권장 구조는 아래와 같다.
 
@@ -208,7 +209,7 @@ http://test-tailtalk-django-env.eba-idn3t8gh.ap-northeast-2.elasticbeanstalk.com
 
 코드 기준 참조 위치:
 
-- `deploy/eb/test-fastapi/docker-compose.yml`
+- `services/fastapi/deploy/eb/test-fastapi/docker-compose.yml`
 - `services/fastapi/final_ai/core/config.py`
 - `services/fastapi/final_ai/pipeline/utils.py`
 
