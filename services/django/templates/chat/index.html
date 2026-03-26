@@ -75,6 +75,27 @@
     pointer-events: none;
   }
 
+  #quickOrderMileageInput::-webkit-outer-spin-button,
+  #quickOrderMileageInput::-webkit-inner-spin-button {
+    -webkit-appearance: none;
+    margin: 0;
+  }
+
+  #quickOrderMileageInput {
+    -moz-appearance: textfield;
+    appearance: textfield;
+  }
+
+  #quickOrderCouponSelect {
+    appearance: none;
+    -webkit-appearance: none;
+    -moz-appearance: none;
+    background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='12' height='12' viewBox='0 0 12 12' fill='none'%3E%3Cpath d='M3 4.5L6 7.5L9 4.5' stroke='%23718096' stroke-width='1.4' stroke-linecap='round' stroke-linejoin='round'/%3E%3C/svg%3E");
+    background-position: right 12px center;
+    background-repeat: no-repeat;
+    background-size: 12px 12px;
+  }
+
   #mainContent {
     transition: left 300ms ease, width 300ms ease;
   }
@@ -418,9 +439,9 @@
 
     <div id="quickOrderModal" class="absolute inset-0 z-[60] flex items-center justify-center bg-black/10"
          onclick="closeQuickOrderModal(event)">
-      <div class="relative flex max-h-[calc(100vh-32px)] w-[min(480px,calc(100vw-24px))] overflow-hidden rounded-[22px] border border-[#dbe7f5] bg-white"
+      <div class="relative flex max-h-[calc(100vh-24px)] w-[min(500px,calc(100vw-24px))] overflow-hidden rounded-[22px] border border-[#dbe7f5] bg-white"
            onclick="event.stopPropagation()">
-        <div class="flex min-h-0 min-w-0 flex-1 flex-col px-[18px] py-[18px]">
+        <div class="flex min-h-0 min-w-0 flex-1 flex-col px-[18px] py-[17px]">
           <div class="flex items-start justify-between gap-[12px]">
             <div>
               <p class="text-[20px] font-bold leading-none text-[#2d3748]">빠른 주문</p>
@@ -433,9 +454,9 @@
             </button>
           </div>
 
-          <div class="mt-[14px] min-h-0 overflow-y-auto pr-[2px]">
-            <div class="space-y-[10px]">
-              <div class="rounded-[16px] border border-[#e2e8f0] bg-white px-[12px] py-[12px]">
+          <div class="mt-[13px] min-h-0 overflow-y-auto pr-[2px]">
+            <div class="space-y-[9px]">
+              <div class="rounded-[16px] border border-[#e2e8f0] bg-white px-[12px] py-[10px]">
                 <div class="flex items-start justify-between gap-[10px]">
                   <div class="min-w-0 flex-1">
                     <p id="quickOrderPrimaryItem" class="truncate text-[14px] font-bold leading-[1.35] text-[#2d3748]">상품 정보 없음</p>
@@ -448,13 +469,13 @@
                 </div>
               </div>
 
-              <div class="rounded-[16px] border border-[#e2e8f0] bg-white px-[12px] py-[12px]">
+              <div class="rounded-[16px] border border-[#e2e8f0] bg-white px-[12px] py-[11px]">
                 <div class="flex items-start justify-between gap-[10px]">
                   <div class="flex min-w-0 flex-1 items-start gap-[8px]">
                     <div class="w-[14px] shrink-0 pt-[1px] text-[13px] leading-none text-[#2d3748]" aria-hidden="true">🚚</div>
                     <div class="min-w-0 flex-1 space-y-[5px] text-[12px] text-[#4a5568]">
                       <p id="quickOrderRecipientSummary" class="leading-[1.5]">{{ request.user.profile.nickname|default:"이름 정보가 없습니다" }}</p>
-                      <p id="quickOrderAddressSummary" class="leading-[1.6]">{{ request.user.profile.address|default:"배송지 정보가 없습니다" }}</p>
+                      <p id="quickOrderAddressSummary" class="leading-[1.55]">{{ request.user.profile.address|default:"배송지 정보가 없습니다" }}</p>
                       <p id="quickOrderPhoneSummary" class="leading-[1.5]">{{ request.user.profile.phone|default:"연락처 정보가 없습니다" }}</p>
                     </div>
                   </div>
@@ -466,7 +487,7 @@
                 </div>
               </div>
 
-              <div class="rounded-[16px] border border-[#e2e8f0] bg-white px-[12px] py-[12px]">
+              <div class="rounded-[16px] border border-[#e2e8f0] bg-white px-[12px] py-[11px]">
                 <div class="flex items-start justify-between gap-[10px]">
                   <div class="flex min-w-0 flex-1 items-start gap-[8px]">
                     <div class="w-[14px] shrink-0 pt-[1px] text-[13px] leading-none text-[#2d3748]" aria-hidden="true">💳</div>
@@ -482,8 +503,44 @@
                 </div>
               </div>
 
-              <div class="rounded-[16px] border border-[#e2e8f0] bg-[#fbfdff] px-[12px] py-[12px]">
-                <div class="grid grid-cols-2 gap-x-[12px] gap-y-[10px]">
+              <div class="rounded-[16px] border border-[#e2e8f0] bg-white px-[12px] py-[11px]">
+                <div class="flex items-start justify-between gap-[10px]">
+                  <div class="flex min-w-0 flex-1 flex-col gap-[9px]">
+                    <div class="flex min-w-0 items-center gap-[8px]">
+                      <div class="flex h-[30px] w-[18px] shrink-0 items-center justify-center text-[13px] leading-none text-[#2d3748]" aria-hidden="true">🎟️</div>
+                      <div class="min-w-0 flex-1">
+                        <select id="quickOrderCouponSelect"
+                                class="h-[30px] min-w-0 w-full rounded-full border border-[#dbe7f5] bg-[#f8fbff] pl-[10px] pr-[34px] text-[11px] font-semibold text-[#4a5568] outline-none">
+                          <option value="none" data-coupon-discount="0" data-coupon-min-total="0">쿠폰 없음</option>
+                          <option value="new-member" data-coupon-discount="3000" data-coupon-min-total="30000">신규회원 3,000원</option>
+                          <option value="pet-care" data-coupon-discount="5000" data-coupon-min-total="60000">펫케어 5,000원</option>
+                        </select>
+                      </div>
+                    </div>
+                    <div class="flex min-w-0 items-center gap-[8px]">
+                      <div class="flex h-[30px] w-[18px] shrink-0 items-center justify-center text-[12px] leading-none text-[#8a94a6]" aria-hidden="true">🪙</div>
+                      <div class="flex min-w-0 flex-1 items-center rounded-full border border-[#dbe7f5] bg-[#f8fbff] pl-[10px] pr-[10px]">
+                        <input id="quickOrderMileageInput"
+                               type="number"
+                               min="0"
+                               max="3200"
+                               step="100"
+                               placeholder="마일리지 3,200원 사용 가능"
+                               class="h-[30px] w-full min-w-0 bg-transparent text-[11px] font-semibold text-[#4a5568] outline-none" />
+                        <span class="shrink-0 text-[11px] font-semibold text-[#718096]">원</span>
+                      </div>
+                      <button type="button"
+                              id="quickOrderUseAllMileage"
+                              class="shrink-0 text-[11px] font-semibold text-[#3182ce]">
+                        전액 사용
+                      </button>
+                    </div>
+                  </div>
+                </div>
+              </div>
+
+              <div class="rounded-[16px] border border-[#e2e8f0] bg-[#fbfdff] px-[12px] py-[11px]">
+                <div class="grid grid-cols-2 gap-x-[12px] gap-y-[9px]">
                   <div>
                     <p class="text-[11px] font-medium tracking-[-0.01em] text-[#8a94a6]">주문 상품 수</p>
                     <p id="quickOrderItemCount" class="mt-[5px] text-[17px] font-semibold leading-none text-[#1f2937]">0개</p>
@@ -493,31 +550,36 @@
                     <p id="quickOrderSubtotal" class="mt-[5px] text-[17px] font-semibold leading-none text-[#1f2937]">0원</p>
                   </div>
                 </div>
-                <div class="mt-[10px] border-t border-[#e7eef6] pt-[10px]">
+                <div class="mt-[9px] border-t border-[#e7eef6] pt-[9px]">
                   <div class="flex items-center justify-between text-[12px] text-[#4b5563]">
                     <span class="font-medium">배송비</span>
                     <span id="quickOrderShippingFee" class="font-semibold text-[#1f2937]">0원</span>
                   </div>
-                  <div class="mt-[9px] flex items-center justify-between gap-[8px] border-t border-[#eef2f7] pt-[9px]">
+                  <div class="mt-[7px] flex items-center justify-between text-[12px] text-[#4b5563]">
+                    <span class="font-medium">할인 적용</span>
+                    <span id="quickOrderDiscount" class="font-semibold text-[#2563eb]">- 0원</span>
+                  </div>
+                  <p id="quickOrderDiscountSummary" class="mt-[5px] text-right text-[11px] leading-[1.45] text-[#8a94a6]">적용된 혜택 없음</p>
+                  <div class="mt-[8px] flex items-center justify-between gap-[8px] border-t border-[#eef2f7] pt-[8px]">
                     <span class="text-[12px] font-semibold text-[#334155]">총 결제 금액</span>
                     <span id="quickOrderTotal" class="text-[18px] font-bold leading-none tracking-[-0.02em] text-[#2563eb]">0원</span>
                   </div>
                 </div>
               </div>
 
-              <div class="px-[2px] text-[11px] leading-[1.6] text-[#718096]">
+              <div class="px-[2px] text-[11px] leading-[1.5] text-[#718096]">
                 주문 내용을 확인하였으며, 구매조건, 결제대행 서비스 및 결제에 동의합니다.
               </div>
 
               <div class="pb-[2px]">
                 <div id="quickOrderSlide"
-                     class="relative h-[52px] overflow-hidden rounded-full border border-[#dbe7f5] bg-[#edf2f7]">
+                     class="relative h-[48px] overflow-hidden rounded-full border border-[#dbe7f5] bg-[#edf2f7]">
                   <div id="quickOrderSlideThumb"
-                       class="absolute left-[4px] top-[4px] flex h-[44px] w-[44px] items-center justify-center rounded-full bg-white text-[#718096]">
+                       class="absolute left-[4px] top-[4px] flex h-[40px] w-[40px] items-center justify-center rounded-full bg-white text-[#718096]">
                     <span class="relative top-[-1px] text-[22px] font-bold tracking-[-0.18em]">≫</span>
                   </div>
                   <div id="quickOrderSlideLabel"
-                       class="flex h-full w-full items-center justify-center px-[52px] text-center text-[13px] font-bold text-[#a0aec0]">
+                       class="flex h-full w-full items-center justify-center px-[50px] text-center text-[13px] font-bold text-[#a0aec0]">
                     배송지와 결제수단 저장 후 밀어서 결제하기
                   </div>
                 </div>
@@ -1183,7 +1245,12 @@
   var quickOrderCardSummary = document.getElementById('quickOrderCardSummary');
   var quickOrderSubtotal = document.getElementById('quickOrderSubtotal');
   var quickOrderShippingFee = document.getElementById('quickOrderShippingFee');
+  var quickOrderDiscount = document.getElementById('quickOrderDiscount');
+  var quickOrderDiscountSummary = document.getElementById('quickOrderDiscountSummary');
   var quickOrderTotal = document.getElementById('quickOrderTotal');
+  var quickOrderCouponSelect = document.getElementById('quickOrderCouponSelect');
+  var quickOrderMileageInput = document.getElementById('quickOrderMileageInput');
+  var quickOrderUseAllMileage = document.getElementById('quickOrderUseAllMileage');
   var chatHistoryList = document.getElementById('chatHistoryList');
   var sessionThreadsNode = document.getElementById('sessionThreadsData');
   var sessionThreads = sessionThreadsNode ? JSON.parse(sessionThreadsNode.textContent) : {};
@@ -1206,6 +1273,11 @@
   var quickOrderSlideDragging = false;
   var quickOrderSlideStartX = 0;
   var quickOrderSlideStartLeft = 4;
+  var quickOrderSelectedCouponId = 'none';
+  var quickOrderSelectedCouponLabel = '적용된 쿠폰 없음';
+  var quickOrderSelectedCouponDiscount = 0;
+  var quickOrderSelectedCouponMinTotal = 0;
+  var quickOrderSelectedMileage = 0;
   // 선택된 펫 프로필 (FastAPI 요청에 사용)
   var activePetProfile = null;
   var activePetHealthConcerns = [];
@@ -2765,6 +2837,37 @@
     } catch (e) {}
   }
 
+  function getQuickOrderSubtotalValue() {
+    var subtotal = 0;
+    getCartSnapshot().forEach(function (item) {
+      subtotal += item.totalPrice;
+    });
+    return subtotal;
+  }
+
+  function updateQuickOrderCouponSelect(subtotal) {
+    if (!quickOrderCouponSelect) return;
+    Array.prototype.forEach.call(quickOrderCouponSelect.options, function (option) {
+      var minTotal = Number(option.getAttribute('data-coupon-min-total') || '0');
+      option.disabled = subtotal < minTotal;
+    });
+    quickOrderCouponSelect.value = quickOrderSelectedCouponId;
+  }
+
+  function syncQuickOrderDiscountSummary() {
+    if (quickOrderDiscountSummary) {
+      if (!quickOrderSelectedCouponDiscount && !quickOrderSelectedMileage) {
+        quickOrderDiscountSummary.textContent = '적용된 혜택 없음';
+      } else if (quickOrderSelectedCouponDiscount && quickOrderSelectedMileage) {
+        quickOrderDiscountSummary.textContent = '쿠폰 + 마일리지 적용';
+      } else if (quickOrderSelectedCouponDiscount) {
+        quickOrderDiscountSummary.textContent = '쿠폰 적용';
+      } else {
+        quickOrderDiscountSummary.textContent = '마일리지 ' + formatPrice(quickOrderSelectedMileage);
+      }
+    }
+  }
+
   function showQuickOrderToast() {
     var toast = document.getElementById('quickOrderToast');
     if (!toast) return;
@@ -2809,13 +2912,32 @@
       totalCount += item.quantity;
       subtotal += item.totalPrice;
     });
-    var shippingFee = items.length ? 3000 : 0;
-    var totalPrice = subtotal + shippingFee;
+    var shippingFee = items.length ? (subtotal >= 30000 ? 0 : 3000) : 0;
+    if (subtotal < quickOrderSelectedCouponMinTotal) {
+      quickOrderSelectedCouponId = 'none';
+      quickOrderSelectedCouponLabel = '적용된 쿠폰 없음';
+      quickOrderSelectedCouponDiscount = 0;
+      quickOrderSelectedCouponMinTotal = 0;
+    }
+    var maxMileage = Math.max(subtotal - quickOrderSelectedCouponDiscount, 0);
+    if (quickOrderSelectedMileage > maxMileage) {
+      quickOrderSelectedMileage = Math.min(3200, maxMileage);
+      if (quickOrderMileageInput) {
+        quickOrderMileageInput.value = String(quickOrderSelectedMileage);
+      }
+    }
+    var totalDiscount = quickOrderSelectedCouponDiscount + quickOrderSelectedMileage;
+    var totalPrice = Math.max(subtotal - totalDiscount, 0) + shippingFee;
 
     quickOrderItemCount.textContent = totalCount + '개';
     quickOrderSubtotal.textContent = formatPrice(subtotal);
     quickOrderShippingFee.textContent = formatPrice(shippingFee);
+    if (quickOrderDiscount) {
+      quickOrderDiscount.textContent = '- ' + formatPrice(totalDiscount);
+    }
     quickOrderTotal.textContent = formatPrice(totalPrice);
+    syncQuickOrderDiscountSummary();
+    updateQuickOrderCouponSelect(subtotal);
 
     if (quickOrderPrimaryItem) {
       if (!items.length) {
@@ -2873,6 +2995,42 @@
   window.goToProfilePage = function () {
     window.location.href = '/profile/';
   };
+
+  if (quickOrderCouponSelect) {
+    quickOrderCouponSelect.addEventListener('change', function () {
+      var selectedOption = quickOrderCouponSelect.options[quickOrderCouponSelect.selectedIndex];
+      quickOrderSelectedCouponId = selectedOption ? (selectedOption.value || 'none') : 'none';
+      quickOrderSelectedCouponLabel = selectedOption ? (selectedOption.textContent || '적용된 쿠폰 없음') : '적용된 쿠폰 없음';
+      quickOrderSelectedCouponDiscount = selectedOption ? Number(selectedOption.getAttribute('data-coupon-discount') || '0') : 0;
+      quickOrderSelectedCouponMinTotal = selectedOption ? Number(selectedOption.getAttribute('data-coupon-min-total') || '0') : 0;
+      renderQuickOrderSummary();
+    });
+  }
+
+  if (quickOrderUseAllMileage) {
+    quickOrderUseAllMileage.addEventListener('click', function () {
+      var subtotal = getQuickOrderSubtotalValue();
+      quickOrderSelectedMileage = Math.min(3200, Math.max(subtotal - quickOrderSelectedCouponDiscount, 0));
+      if (quickOrderMileageInput) {
+        quickOrderMileageInput.value = String(quickOrderSelectedMileage);
+      }
+      renderQuickOrderSummary();
+    });
+  }
+
+  if (quickOrderMileageInput) {
+    quickOrderMileageInput.addEventListener('input', function () {
+      var subtotal = getQuickOrderSubtotalValue();
+      var nextValue = Number(quickOrderMileageInput.value || '0');
+      nextValue = Math.max(0, Math.min(3200, nextValue));
+      nextValue = Math.min(nextValue, Math.max(subtotal - quickOrderSelectedCouponDiscount, 0));
+      if (nextValue !== Number(quickOrderMileageInput.value || '0')) {
+        quickOrderMileageInput.value = String(nextValue);
+      }
+      quickOrderSelectedMileage = nextValue;
+      renderQuickOrderSummary();
+    });
+  }
 
   (function bindQuickOrderSlide() {
     var slide = document.getElementById('quickOrderSlide');
