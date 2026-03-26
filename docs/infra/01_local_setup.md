@@ -87,8 +87,8 @@ docker compose down -v && docker compose up -d
 > `infra/.env`의 `POSTGRES_HOST=postgres` → `POSTGRES_HOST=localhost`로 변경 후 실행
 
 ```bash
-# DB/Qdrant만 Docker로 실행
-cd infra && docker compose up -d postgres qdrant
+# DB만 Docker로 실행
+cd infra && docker compose up -d postgres
 
 # Django (터미널 1)
 cd services/django

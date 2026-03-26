@@ -6,12 +6,19 @@ on:
       - closed
     branches:
       - develop
+    paths:
+      - .github/workflows/ci-cd.yml
+      - .gitmodules
+      - deploy/eb/**
+      - infra/**
+      - services/django/**
+      - services/fastapi
 
 permissions:
   contents: read
 
 concurrency:
-  group: test-eb-deploy-${{ github.ref }}
+  group: test-eb-deploy-develop
   cancel-in-progress: true
 
 env:
@@ -27,6 +34,7 @@ jobs:
   ci:
     name: CI - Build & Test
     runs-on: ubuntu-latest
+    timeout-minutes: 20
     if: github.event.pull_request.merged == true
 
     steps:
@@ -36,24 +44,14 @@ jobs:
           ref: ${{ github.event.pull_request.merge_commit_sha }}
           submodules: recursive
 
-      - name: Set up Docker Buildx
-        uses: docker/setup-buildx-action@v3
-
       - name: Create test env file
         run: |
           cat <<'EOF' > infra/.env
           DJANGO_SECRET_KEY=${{ secrets.DJANGO_SECRET_KEY }}
-          DJANGO_DEBUG=False
-          DJANGO_ALLOWED_HOSTS=localhost
+          DJANGO_ALLOWED_HOSTS=localhost,127.0.0.1,testserver
           POSTGRES_DB=${{ secrets.POSTGRES_DB }}
           POSTGRES_USER=${{ secrets.POSTGRES_USER }}
           POSTGRES_PASSWORD=${{ secrets.POSTGRES_PASSWORD }}
-          POSTGRES_HOST=postgres
-          POSTGRES_PORT=5432
-          CORS_ALLOWED_ORIGINS=http://localhost
-          QDRANT_HOST=qdrant
-          QDRANT_PORT=6333
-          INTERNAL_SERVICE_TOKEN=test-internal-token
           EOF
 
       - name: Build local test stack
@@ -64,13 +62,13 @@ jobs:
 
       - name: Teardown
         if: always()
-        run: docker compose -f infra/docker-compose.yml down -v
+        run: docker compose -f infra/docker-compose.yml down -v --remove-orphans
 
   deploy-fastapi:
     name: CD - FastAPI Test EB
     runs-on: ubuntu-latest
+    timeout-minutes: 30
     needs: ci
-    if: github.event.pull_request.merged == true
 
     steps:
       - name: Checkout
@@ -133,10 +131,10 @@ jobs:
   deploy-django:
     name: CD - Django Test EB
     runs-on: ubuntu-latest
+    timeout-minutes: 30
     needs:
       - ci
       - deploy-fastapi
-    if: github.event.pull_request.merged == true
 
     steps:
       - name: Checkout
