@@ -11,11 +11,26 @@ from products.models import Product
 from .models import Cart, CartItem, Wishlist, WishlistItem
 
 
+def _display_product_name(brand_name, goods_name):
+    if not goods_name:
+        return ""
+
+    normalized_brand = (brand_name or "").strip()
+    normalized_name = goods_name.strip()
+
+    if normalized_brand and normalized_name.lower().startswith(normalized_brand.lower()):
+        trimmed = normalized_name[len(normalized_brand):].lstrip(" -_/|")
+        if trimmed:
+            return trimmed
+
+    return normalized_name
+
+
 def serialize_product_summary(product: Product) -> dict:
-    price = product.discount_price or product.price
+    price = product.price
     return {
         "product_id": product.goods_id,
-        "name": product.goods_name,
+        "name": _display_product_name(product.brand_name, product.goods_name),
         "brand": product.brand_name,
         "price": price,
         "price_label": f"{price:,}원",

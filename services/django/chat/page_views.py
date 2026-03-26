@@ -54,16 +54,15 @@ def _single_product_queryset():
     for term in excluded_terms:
         query = query.exclude(goods_name__icontains=term)
 
-    return query.order_by("-review_count", "-discount_price", "goods_id")
+    return query.order_by("-review_count", "-price", "goods_id")
 
 
 def _serialize_recommended_product(product):
-    final_price = product.discount_price or product.price
     return {
         "product_id": product.goods_id,
         "name": _display_product_name(product.brand_name, product.goods_name),
         "price": _format_price(product.price),
-        "discount_price": _format_price(final_price) if final_price != product.price else "",
+        "discount_price": "",
         "brand_name": product.brand_name,
         "thumbnail_url": product.thumbnail_url,
         "product_url": product.product_url,
@@ -74,7 +73,7 @@ def _serialize_recommended_product(product):
 
 def _serialize_cart_product(item):
     product = item.product
-    price = product.discount_price or product.price
+    price = product.price
     return {
         "product_id": product.goods_id,
         "name": _display_product_name(product.brand_name, product.goods_name),
