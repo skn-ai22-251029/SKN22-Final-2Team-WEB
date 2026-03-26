@@ -5,7 +5,7 @@ on:
     types:
       - closed
     branches:
-      - main
+      - develop
 
 permissions:
   contents: read
@@ -106,12 +106,16 @@ jobs:
         run: |
           rm -rf .deploy-fastapi fastapi-deploy.zip
           mkdir -p .deploy-fastapi
-          cp deploy/eb/test-fastapi/docker-compose.yml .deploy-fastapi/docker-compose.yml
-          cat <<EOF > .deploy-fastapi/.env
-          FASTAPI_IMAGE=${{ env.FASTAPI_IMAGE_REPO }}:${{ steps.fastapi-meta.outputs.short_sha }}
-          EOF
+          python3 - <<'PY'
+          from pathlib import Path
+          src = Path("deploy/eb/test-fastapi/docker-compose.yml").read_text()
+          image = "${{ env.FASTAPI_IMAGE_REPO }}:${{ steps.fastapi-meta.outputs.short_sha }}"
+          Path(".deploy-fastapi/docker-compose.yml").write_text(
+              src.replace("__FASTAPI_IMAGE__", image)
+          )
+          PY
           cd .deploy-fastapi
-          zip -r ../fastapi-deploy.zip docker-compose.yml .env
+          zip -r ../fastapi-deploy.zip docker-compose.yml
 
       - name: Deploy FastAPI to Elastic Beanstalk
         uses: einaregilsson/beanstalk-deploy@v22
@@ -168,13 +172,17 @@ jobs:
         run: |
           rm -rf .deploy-django django-deploy.zip
           mkdir -p .deploy-django
-          cp deploy/eb/test-django/docker-compose.yml .deploy-django/docker-compose.yml
+          python3 - <<'PY'
+          from pathlib import Path
+          src = Path("deploy/eb/test-django/docker-compose.yml").read_text()
+          image = "${{ env.DJANGO_IMAGE_REPO }}:${{ steps.django-meta.outputs.short_sha }}"
+          Path(".deploy-django/docker-compose.yml").write_text(
+              src.replace("__DJANGO_IMAGE__", image)
+          )
+          PY
           cp -r deploy/eb/test-django/nginx .deploy-django/nginx
-          cat <<EOF > .deploy-django/.env
-          DJANGO_IMAGE=${{ env.DJANGO_IMAGE_REPO }}:${{ steps.django-meta.outputs.short_sha }}
-          EOF
           cd .deploy-django
-          zip -r ../django-deploy.zip docker-compose.yml nginx .env
+          zip -r ../django-deploy.zip docker-compose.yml nginx
 
       - name: Deploy Django to Elastic Beanstalk
         uses: einaregilsson/beanstalk-deploy@v22
