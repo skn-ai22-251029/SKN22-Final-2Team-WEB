@@ -36,6 +36,15 @@
     padding-right: 4px;
     scrollbar-gutter: stable;
   }
+
+  .order-empty-state {
+    max-width: 650px;
+    border-style: dashed;
+    border-radius: 20px;
+    padding: 32px 24px;
+    min-height: 360px;
+    box-shadow: 0 6px 18px rgba(45, 55, 72, 0.04);
+  }
 </style>
 {% endblock %}
 
@@ -56,6 +65,7 @@
       </div>
     </div>
 
+    {% if order_groups %}
     <div class="mt-8 grid items-start gap-5 lg:grid-cols-2">
       {% for order in order_groups %}
       <section class="overflow-hidden rounded-[24px] border border-[#dbe7f5] bg-white shadow-[0_8px_24px_rgba(45,55,72,0.04)]">
@@ -113,6 +123,18 @@
       </section>
       {% endfor %}
     </div>
+    {% else %}
+    <div class="mt-8">
+      <div class="order-empty-state flex flex-col items-center justify-center rounded-[20px] border border-dashed border-[#dbe7f5] bg-white text-center">
+        <div class="text-[28px] text-[#7aa6e9]">📦</div>
+        <p class="mt-[10px] text-[18px] font-bold text-[#2d3748]">주문 내역이 아직 없어요</p>
+        <p class="mt-[6px] text-[14px] leading-[1.6] text-[#718096]">장바구니에서 상품을 주문하면<br>이곳에서 지난 주문을 확인할 수 있어요</p>
+        <a href="/products/" class="mt-6 inline-flex h-[42px] items-center justify-center rounded-full bg-[#2d3748] px-5 text-[13px] font-semibold text-white">
+          장바구니 보러가기
+        </a>
+      </div>
+    </div>
+    {% endif %}
   </div>
 </div>
 
