@@ -3,7 +3,17 @@ name: Django Test EB CI/CD
 on:
   pull_request:
     types:
-      - closed
+      - opened
+      - synchronize
+      - reopened
+    branches:
+      - develop
+    paths:
+      - ".github/workflows/ci-cd.yml"
+      - "deploy/eb/test-django/**"
+      - "infra/**"
+      - "services/django/**"
+  push:
     branches:
       - develop
     paths:
@@ -31,23 +41,21 @@ jobs:
     name: CI - Build & Test
     runs-on: ubuntu-latest
     timeout-minutes: 20
-    if: github.event.pull_request.merged == true
 
     steps:
       - name: Checkout
         uses: actions/checkout@v4
         with:
-          ref: ${{ github.event.pull_request.merge_commit_sha }}
           submodules: recursive
 
       - name: Create test env file
         run: |
           cat <<'EOF' > infra/.env
-          DJANGO_SECRET_KEY=${{ secrets.DJANGO_SECRET_KEY }}
+          DJANGO_SECRET_KEY=test-secret
           DJANGO_ALLOWED_HOSTS=localhost,127.0.0.1,testserver
-          POSTGRES_DB=${{ secrets.POSTGRES_DB }}
-          POSTGRES_USER=${{ secrets.POSTGRES_USER }}
-          POSTGRES_PASSWORD=${{ secrets.POSTGRES_PASSWORD }}
+          POSTGRES_DB=test_db
+          POSTGRES_USER=test_user
+          POSTGRES_PASSWORD=test_password
           POSTGRES_HOST=postgres
           POSTGRES_PORT=5432
           FASTAPI_INTERNAL_CHAT_URL=http://fastapi:8001/api/chat/
@@ -106,12 +114,13 @@ jobs:
     timeout-minutes: 30
     needs:
       - ci
+    if: github.event_name == 'push'
 
     steps:
       - name: Checkout
         uses: actions/checkout@v4
         with:
-          ref: ${{ github.event.pull_request.merge_commit_sha }}
+          ref: ${{ github.sha }}
           submodules: recursive
 
       - name: Set up Docker Buildx
