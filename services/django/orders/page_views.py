@@ -185,6 +185,10 @@ def _parse_order_list_options(request):
 
 
 def _build_order_list_query(status_filter, ordering_key, page=None):
+    return _build_order_list_query_with_demo(status_filter, ordering_key, page=page, demo_mode=False)
+
+
+def _build_order_list_query_with_demo(status_filter, ordering_key, page=None, demo_mode=False):
     query = []
     if status_filter and status_filter != "all":
         query.append(f"status={status_filter}")
@@ -192,7 +196,26 @@ def _build_order_list_query(status_filter, ordering_key, page=None):
         query.append(f"ordering={ordering_key}")
     if page and page != 1:
         query.append(f"page={page}")
+    if demo_mode:
+        query.append("demo=1")
     return "&".join(query)
+
+
+def _is_demo_mode(request):
+    return (request.GET.get("demo") or "").strip().lower() in {"1", "true", "yes", "demo"}
+
+
+def _filter_demo_order_groups(order_groups, options):
+    filtered = list(order_groups)
+    if options["status_filter"] != "all":
+        filtered = [
+            order for order in filtered
+            if order.get("status_code") == options["status_filter"]
+        ]
+
+    reverse = options["ordering_key"] != "oldest"
+    filtered.sort(key=lambda order: order.get("created_at", ""), reverse=reverse)
+    return filtered
 
 
 def _single_product_queryset():
@@ -373,6 +396,7 @@ def _order_groups():
     return [
         {
             "order_id": "TT-20260325-1024",
+            "status_code": "shipping",
             "created_at": "2026.03.25",
             "status": "배송 중",
             "status_class": "bg-[#dbeafe] text-[#2563eb]",
@@ -389,6 +413,7 @@ def _order_groups():
         },
         {
             "order_id": "TT-20260318-0841",
+            "status_code": "completed",
             "created_at": "2026.03.18",
             "status": "배송 완료",
             "status_class": "bg-[#dcfce7] text-[#15803d]",
@@ -405,6 +430,7 @@ def _order_groups():
         },
         {
             "order_id": "TT-20260310-2217",
+            "status_code": "cancelled",
             "created_at": "2026.03.10",
             "status": "주문 취소",
             "status_class": "bg-[#fee2e2] text-[#dc2626]",
@@ -425,21 +451,29 @@ def _order_groups():
 @login_required
 def order_list(request):
     options = _parse_order_list_options(request)
-    order_queryset = Order.objects.filter(user=request.user).prefetch_related("items__product")
-    if options["status_filter"] != "all":
-        order_queryset = order_queryset.filter(status=options["status_filter"])
-    order_queryset = order_queryset.order_by(ORDER_LIST_ORDERING[options["ordering_key"]]["queryset"])
+    demo_mode = _is_demo_mode(request)
 
-    paginator = Paginator(order_queryset, DEFAULT_ORDER_PAGE_SIZE)
-    page_obj = paginator.get_page(options["page"])
-    orders = [_serialize_order_group(order) for order in page_obj.object_list]
+    if demo_mode:
+        demo_orders = _filter_demo_order_groups(_order_groups(), options)
+        paginator = Paginator(demo_orders, DEFAULT_ORDER_PAGE_SIZE)
+        page_obj = paginator.get_page(options["page"])
+        orders = list(page_obj.object_list)
+    else:
+        order_queryset = Order.objects.filter(user=request.user).prefetch_related("items__product")
+        if options["status_filter"] != "all":
+            order_queryset = order_queryset.filter(status=options["status_filter"])
+        order_queryset = order_queryset.order_by(ORDER_LIST_ORDERING[options["ordering_key"]]["queryset"])
+
+        paginator = Paginator(order_queryset, DEFAULT_ORDER_PAGE_SIZE)
+        page_obj = paginator.get_page(options["page"])
+        orders = [_serialize_order_group(order) for order in page_obj.object_list]
 
     filter_options = [
         {
             "code": "all",
             "label": "전체",
             "is_active": options["status_filter"] == "all",
-            "query": _build_order_list_query("all", options["ordering_key"]),
+            "query": _build_order_list_query_with_demo("all", options["ordering_key"], demo_mode=demo_mode),
         }
     ]
     filter_options.extend(
@@ -447,7 +481,7 @@ def order_list(request):
             "code": code,
             "label": meta["label"],
             "is_active": options["status_filter"] == code,
-            "query": _build_order_list_query(code, options["ordering_key"]),
+            "query": _build_order_list_query_with_demo(code, options["ordering_key"], demo_mode=demo_mode),
         }
         for code, meta in ORDER_STATUS_VIEW_META.items()
     )
@@ -456,7 +490,7 @@ def order_list(request):
             "code": key,
             "label": meta["label"],
             "is_active": options["ordering_key"] == key,
-            "query": _build_order_list_query(options["status_filter"], key),
+            "query": _build_order_list_query_with_demo(options["status_filter"], key, demo_mode=demo_mode),
         }
         for key, meta in ORDER_LIST_ORDERING.items()
     ]
@@ -471,10 +505,11 @@ def order_list(request):
                 {
                     "number": number,
                     "is_active": page_obj.number == number,
-                    "query": _build_order_list_query(
+                    "query": _build_order_list_query_with_demo(
                         options["status_filter"],
                         options["ordering_key"],
                         page=number,
+                        demo_mode=demo_mode,
                     ),
                 }
             )
@@ -492,6 +527,7 @@ def order_list(request):
             "order_pagination_links": pagination_links,
             "order_current_status": options["status_filter"],
             "order_current_ordering": options["ordering_key"],
+            "order_demo_mode": demo_mode,
         },
     )
 

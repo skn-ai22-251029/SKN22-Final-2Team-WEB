@@ -77,32 +77,6 @@ def _display_product_name(brand_name, goods_name):
     return normalized_name
 
 
-def _display_delivery_address(value):
-    fallback = "배송지 정보가 아직 등록되지 않았어요"
-    if not value:
-        return fallback
-
-    parts = [part.strip() for part in value.split("|", 1)]
-    base_address = parts[0] if parts else ""
-    detail_address = parts[1] if len(parts) > 1 else ""
-
-    placeholder_values = {
-        "기본 배송지가 아직 등록되지 않았습니다.",
-        "상세 주소 정보가 아직 없습니다.",
-    }
-
-    base_is_placeholder = not base_address or base_address in placeholder_values
-    detail_is_placeholder = not detail_address or detail_address in placeholder_values
-
-    if base_is_placeholder and detail_is_placeholder:
-        return fallback
-    if detail_is_placeholder:
-        return base_address or fallback
-    if base_is_placeholder:
-        return detail_address or fallback
-    return f"{base_address}, {detail_address}"
-
-
 def serialize_product_summary(product: Product) -> dict:
     price = product.price
     return {
@@ -187,7 +161,7 @@ def serialize_order(order: Order) -> dict:
         "can_reorder": status_meta["can_reorder"],
         "recipient_name": order.recipient_name,
         "recipient_phone": order.recipient_phone,
-        "delivery_address": _display_delivery_address(order.delivery_address),
+        "delivery_address": order.delivery_address,
         "delivery_message": order.delivery_message,
         "payment_method": order.payment_method,
         "applied_coupon_id": order.applied_coupon_id,

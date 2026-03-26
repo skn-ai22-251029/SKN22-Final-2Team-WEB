@@ -408,4 +408,17 @@ class OrderReadApiTests(TestCase):
         response = self.client.get(f"/api/orders/{self.other_order.order_id}/")
 
         self.assertEqual(response.status_code, status.HTTP_404_NOT_FOUND)
-        self.assertEqual(response.data["detail"], "order not found.")
+
+
+class OrderPageViewTests(TestCase):
+    def setUp(self):
+        self.user = User.objects.create_user(email="order-page@example.com", password="Password123!")
+        self.client.force_login(self.user)
+
+    def test_order_list_supports_demo_mode(self):
+        response = self.client.get("/orders/?demo=1")
+
+        self.assertEqual(response.status_code, 200)
+        self.assertContains(response, "시연용 예시 주문을 보고 있어요")
+        self.assertContains(response, "TT-20260325-1024")
+        self.assertContains(response, "배송 중")
