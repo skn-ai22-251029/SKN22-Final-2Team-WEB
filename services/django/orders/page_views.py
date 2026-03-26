@@ -39,6 +39,18 @@ def _recommended_note(index):
     return notes[index % len(notes)]
 
 
+def _serialize_order_item(product, quantity=1):
+    return {
+        "product_id": product.goods_id,
+        "thumbnail_url": product.thumbnail_url,
+        "emoji": "📦",
+        "name": _display_product_name(product.brand_name, product.goods_name),
+        "quantity": quantity,
+        "unit_price": _format_price(product.price),
+        "price": _format_price(product.price * quantity),
+    }
+
+
 def _single_product_queryset():
     excluded_terms = [
         "모음",
@@ -138,69 +150,82 @@ def _load_product_panels():
 
 
 def _order_groups():
+    base_products = list(_single_product_queryset()[:5])
+
+    if len(base_products) >= 5:
+        order_items = [
+            [
+                _serialize_order_item(base_products[0], 1),
+                _serialize_order_item(base_products[1], 1),
+                _serialize_order_item(base_products[2], 1),
+                _serialize_order_item(base_products[3], 1),
+                _serialize_order_item(base_products[4], 1),
+            ],
+            [_serialize_order_item(base_products[3], 2)],
+            [_serialize_order_item(base_products[4], 1)],
+        ]
+        order_totals = [
+            sum(product.price for product in [base_products[0], base_products[1], base_products[2], base_products[3], base_products[4]]),
+            base_products[3].price * 2,
+            base_products[4].price,
+        ]
+    else:
+        order_items = [
+            [
+                {"product_id": None, "thumbnail_url": "", "emoji": "🐟", "name": "닥터독 하이포알러지 연어 사료", "quantity": 1, "unit_price": _format_price(39800), "price": _format_price(39800)},
+                {"product_id": None, "thumbnail_url": "", "emoji": "👀", "name": "베러펫 눈물 케어 영양제", "quantity": 1, "unit_price": _format_price(25900), "price": _format_price(25900)},
+                {"product_id": None, "thumbnail_url": "", "emoji": "🦴", "name": "벨버드 덴탈 케어 껌", "quantity": 1, "unit_price": _format_price(12900), "price": _format_price(12900)},
+                {"product_id": None, "thumbnail_url": "", "emoji": "🛁", "name": "저자극 샴푸", "quantity": 1, "unit_price": _format_price(5400), "price": _format_price(5400)},
+                {"product_id": None, "thumbnail_url": "", "emoji": "🍗", "name": "동결건조 치킨 트릿", "quantity": 1, "unit_price": _format_price(18400), "price": _format_price(18400)},
+            ],
+            [
+                {"product_id": None, "thumbnail_url": "", "emoji": "🦴", "name": "벨버드 덴탈 케어 껌", "quantity": 2, "unit_price": _format_price(12900), "price": _format_price(25800)},
+            ],
+            [
+                {"product_id": None, "thumbnail_url": "", "emoji": "🛁", "name": "저자극 샴푸", "quantity": 1, "unit_price": _format_price(5400), "price": _format_price(5400)},
+            ],
+        ]
+        order_totals = [102400, 25800, 5400]
+
     return [
         {
             "order_id": "TT-20260325-1024",
             "created_at": "2026.03.25",
             "status": "배송 중",
             "status_class": "bg-[#dbeafe] text-[#2563eb]",
-            "recipient": "황하령",
-            "total_price": _format_price(65700),
+            "recipient": "왈냥",
+            "recipient_phone": "010-1234-5678",
+            "delivery_address": "서울 강동구 올림픽로 123, 101동 1203호",
+            "total_price": _format_price(order_totals[0]),
             "delivery_message": "부재 시 문 앞에 놓아주세요",
-            "items": [
-                {
-                    "emoji": "🐟",
-                    "name": "닥터독 하이포알러지 연어 사료",
-                    "summary": "2kg · 1개",
-                    "price": _format_price(39800),
-                },
-                {
-                    "emoji": "👀",
-                    "name": "베러펫 눈물 케어 영양제",
-                    "summary": "30일분 · 1개",
-                    "price": _format_price(25900),
-                },
-            ],
+            "payment_method": "우리카드 1234 / 일시불",
+            "items": order_items[0],
         },
         {
             "order_id": "TT-20260318-0841",
             "created_at": "2026.03.18",
             "status": "배송 완료",
             "status_class": "bg-[#dcfce7] text-[#15803d]",
-            "recipient": "황하령",
-            "total_price": _format_price(31200),
+            "recipient": "왈냥",
+            "recipient_phone": "010-1234-5678",
+            "delivery_address": "서울 강동구 올림픽로 123, 101동 1203호",
+            "total_price": _format_price(order_totals[1]),
             "delivery_message": "배송이 완료되었습니다",
-            "items": [
-                {
-                    "emoji": "🦴",
-                    "name": "벨버드 덴탈 케어 껌",
-                    "summary": "30개입 · 2개",
-                    "price": _format_price(25800),
-                },
-                {
-                    "emoji": "🛁",
-                    "name": "저자극 샴푸",
-                    "summary": "민감 피부용 · 1개",
-                    "price": _format_price(5400),
-                },
-            ],
+            "payment_method": "카카오페이 / 일시불",
+            "items": order_items[1],
         },
         {
             "order_id": "TT-20260310-2217",
             "created_at": "2026.03.10",
             "status": "주문 접수",
             "status_class": "bg-[#fef3c7] text-[#b45309]",
-            "recipient": "황하령",
-            "total_price": _format_price(18400),
+            "recipient": "왈냥",
+            "recipient_phone": "010-1234-5678",
+            "delivery_address": "서울 강동구 올림픽로 123, 101동 1203호",
+            "total_price": _format_price(order_totals[2]),
             "delivery_message": "결제 확인 후 출고 준비 중입니다",
-            "items": [
-                {
-                    "emoji": "🍗",
-                    "name": "동결건조 치킨 트릿",
-                    "summary": "80g · 1개",
-                    "price": _format_price(18400),
-                },
-            ],
+            "payment_method": "네이버페이 / 일시불",
+            "items": order_items[2],
         },
     ]
 
