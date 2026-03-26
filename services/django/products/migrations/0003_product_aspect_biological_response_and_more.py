@@ -12,23 +12,8 @@ class Migration(migrations.Migration):
     operations = [
         migrations.AddField(
             model_name='product',
-            name='aspect_biological_response',
-            field=models.DecimalField(db_column='생체반응', decimal_places=4, default=0.0, max_digits=5),
-        ),
-        migrations.AddField(
-            model_name='product',
-            name='aspect_delivery_packaging',
-            field=models.DecimalField(db_column='배송/포장', decimal_places=4, default=0.0, max_digits=5),
-        ),
-        migrations.AddField(
-            model_name='product',
-            name='aspect_digestion_stool',
-            field=models.DecimalField(db_column='소화/배변', decimal_places=4, default=0.0, max_digits=5),
-        ),
-        migrations.AddField(
-            model_name='product',
-            name='aspect_ingredients_origin',
-            field=models.DecimalField(db_column='성분/원료', decimal_places=4, default=0.0, max_digits=5),
+            name='aspect_smell',
+            field=models.DecimalField(db_column='냄새', decimal_places=4, default=0.0, max_digits=5),
         ),
         migrations.AddField(
             model_name='product',
@@ -37,8 +22,28 @@ class Migration(migrations.Migration):
         ),
         migrations.AddField(
             model_name='product',
+            name='aspect_biological_response',
+            field=models.DecimalField(db_column='생체반응', decimal_places=4, default=0.0, max_digits=5),
+        ),
+        migrations.AddField(
+            model_name='product',
             name='aspect_price_purchase',
             field=models.DecimalField(db_column='가격/구매', decimal_places=4, default=0.0, max_digits=5),
+        ),
+        migrations.AddField(
+            model_name='product',
+            name='aspect_delivery_packaging',
+            field=models.DecimalField(db_column='배송/포장', decimal_places=4, default=0.0, max_digits=5),
+        ),
+        migrations.AddField(
+            model_name='product',
+            name='aspect_ingredients_origin',
+            field=models.DecimalField(db_column='성분/원료', decimal_places=4, default=0.0, max_digits=5),
+        ),
+        migrations.AddField(
+            model_name='product',
+            name='aspect_digestion_stool',
+            field=models.DecimalField(db_column='소화/배변', decimal_places=4, default=0.0, max_digits=5),
         ),
         migrations.AddField(
             model_name='product',
@@ -46,29 +51,9 @@ class Migration(migrations.Migration):
             field=models.DecimalField(db_column='제품 성상', decimal_places=4, default=0.0, max_digits=5),
         ),
         migrations.AddField(
-            model_name='product',
+            model_name='review',
             name='aspect_smell',
-            field=models.DecimalField(db_column='냄새', decimal_places=4, default=0.0, max_digits=5),
-        ),
-        migrations.AddField(
-            model_name='review',
-            name='aspect_biological_response',
-            field=models.IntegerField(db_column='생체반응', default=0),
-        ),
-        migrations.AddField(
-            model_name='review',
-            name='aspect_delivery_packaging',
-            field=models.IntegerField(db_column='배송/포장', default=0),
-        ),
-        migrations.AddField(
-            model_name='review',
-            name='aspect_digestion_stool',
-            field=models.IntegerField(db_column='소화/배변', default=0),
-        ),
-        migrations.AddField(
-            model_name='review',
-            name='aspect_ingredients_origin',
-            field=models.IntegerField(db_column='성분/원료', default=0),
+            field=models.IntegerField(db_column='냄새', default=0),
         ),
         migrations.AddField(
             model_name='review',
@@ -77,17 +62,32 @@ class Migration(migrations.Migration):
         ),
         migrations.AddField(
             model_name='review',
+            name='aspect_biological_response',
+            field=models.IntegerField(db_column='생체반응', default=0),
+        ),
+        migrations.AddField(
+            model_name='review',
             name='aspect_price_purchase',
             field=models.IntegerField(db_column='가격/구매', default=0),
         ),
         migrations.AddField(
             model_name='review',
-            name='aspect_product_appearance',
-            field=models.IntegerField(db_column='제품 성상', default=0),
+            name='aspect_delivery_packaging',
+            field=models.IntegerField(db_column='배송/포장', default=0),
         ),
         migrations.AddField(
             model_name='review',
-            name='aspect_smell',
-            field=models.IntegerField(db_column='냄새', default=0),
+            name='aspect_ingredients_origin',
+            field=models.IntegerField(db_column='성분/원료', default=0),
+        ),
+        migrations.AddField(
+            model_name='review',
+            name='aspect_digestion_stool',
+            field=models.IntegerField(db_column='소화/배변', default=0),
+        ),
+        migrations.AddField(
+            model_name='review',
+            name='aspect_product_appearance',
+            field=models.IntegerField(db_column='제품 성상', default=0),
         ),
     ]

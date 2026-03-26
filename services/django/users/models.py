@@ -41,7 +41,7 @@ class User(AbstractBaseUser, PermissionsMixin):
 
 class UserProfile(models.Model):
     user              = models.OneToOneField(User, on_delete=models.CASCADE, primary_key=True, related_name="profile")
-    nickname          = models.CharField(max_length=100, unique=True)
+    nickname          = models.CharField(max_length=100)
     age               = models.IntegerField(null=True, blank=True)
     gender            = models.CharField(max_length=20, null=True, blank=True)
     address           = models.TextField(null=True, blank=True)
