@@ -122,6 +122,26 @@
     transition: none;
   }
 
+  .wishlist-heart svg:last-child {
+    display: none;
+  }
+
+  .wishlist-heart {
+    color: #a0aec0;
+  }
+
+  .wishlist-heart.is-active {
+    color: #e53e3e;
+  }
+
+  .wishlist-heart.is-active svg:first-child {
+    display: none;
+  }
+
+  .wishlist-heart.is-active svg:last-child {
+    display: block;
+  }
+
   #composerStage {
     position: absolute;
     left: 50%;
@@ -254,6 +274,113 @@
 
   #chatHistoryList:hover::-webkit-scrollbar-thumb {
     background: rgba(148, 163, 184, 0.85);
+  }
+
+  .product-panel-scroll {
+    scrollbar-gutter: stable;
+  }
+
+  .product-card-brand {
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+    font-size: 11px;
+    font-weight: 500;
+    line-height: 1.25;
+    color: #718096;
+  }
+
+  .product-card-name {
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+    font-size: 13px;
+    font-weight: 700;
+    line-height: 1.5;
+    color: #2d3748;
+  }
+
+  .product-card-brand.has-trailing-control,
+  .product-card-name.has-trailing-control {
+    padding-right: 34px;
+  }
+
+  .product-card-price {
+    margin-top: 2px;
+    font-size: 15px;
+    font-weight: 700;
+    line-height: 1.2;
+    color: #3182ce;
+  }
+
+  .product-card-price.is-discount {
+    color: #e53e3e;
+  }
+
+  .product-card-price-original {
+    margin-top: 1px;
+    font-size: 11px;
+    line-height: 1;
+    color: #a0aec0;
+    text-decoration: line-through;
+  }
+
+  .product-card-review-row {
+    margin-top: 2px;
+    display: flex;
+    align-items: center;
+    gap: 6px;
+    font-size: 11px;
+    line-height: 1;
+  }
+
+  .product-card-review-row.with-actions {
+    justify-content: space-between;
+    gap: 8px;
+  }
+
+  .product-card-review-meta {
+    display: flex;
+    min-width: 0;
+    align-items: center;
+    gap: 6px;
+  }
+
+  .product-card-text-block {
+    display: flex;
+    min-height: 68px;
+    flex: 1 1 0%;
+    flex-direction: column;
+    justify-content: center;
+  }
+
+  .product-card-review-count {
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+    color: #a0aec0;
+  }
+
+  .product-card-actions {
+    display: flex;
+    flex-shrink: 0;
+    align-items: center;
+    justify-content: flex-end;
+    gap: 6px;
+    width: 64px;
+  }
+
+  .product-card-quantity-control {
+    display: inline-flex;
+    height: 28px;
+    width: 64px;
+    flex-shrink: 0;
+    align-items: center;
+    justify-content: space-between;
+    border-radius: 9999px;
+    border: 1px solid #dbe7f5;
+    background: #f8fbff;
+    padding: 0 1px;
   }
 </style>
 {% endblock %}
@@ -756,19 +883,29 @@
                   </div>
                 </div>
 
-                <div class="flex-none flex items-end justify-center gap-[26px] border-b border-[#dbe7f5] pb-[13px]">
+                <div class="flex-none flex items-end justify-center gap-[24px] border-b border-[#dbe7f5] pb-[13px]">
                   <button type="button" id="tabRecommended"
-                          class="product-tab active relative inline-flex h-[20px] items-center pb-[2px] text-[14px] font-bold leading-none text-[#2d6cdf]"
+                          class="product-tab active relative inline-flex h-[22px] items-center justify-center pb-[2px] text-[14px] font-bold leading-none text-[#2d6cdf]"
                           onclick="switchProductTab('recommended')">
                     <span class="leading-none">추천 상품</span>
                     <span data-tab-underline class="absolute bottom-[-12px] left-0 right-0 h-[2px] rounded-full bg-[#2d6cdf]"></span>
                   </button>
                   <button type="button" id="tabCart"
-                          class="product-tab relative inline-flex h-[20px] items-center gap-[6px] pb-[2px] text-[14px] font-semibold leading-none text-[#718096]"
+                          class="product-tab relative inline-flex h-[22px] items-center justify-center gap-[6px] pb-[2px] text-[14px] font-semibold leading-none text-[#718096]"
                           onclick="switchProductTab('cart')">
                     <span class="leading-none">장바구니</span>
                     <span id="cartCountBadge"
-                          class="inline-flex h-[17px] min-w-[17px] items-center justify-center self-center rounded-full bg-[#2d3748] px-[5px] text-[9px] font-bold leading-none text-white transition-all duration-150">
+                          class="hidden h-[18px] min-w-[18px] items-center justify-center self-center rounded-full bg-[#2d3748] px-[5px] text-[10px] font-bold leading-none text-white transition-all duration-150">
+                      0
+                    </span>
+                    <span data-tab-underline class="absolute bottom-[-12px] left-0 right-0 hidden h-[2px] rounded-full bg-[#2d6cdf]"></span>
+                  </button>
+                  <button type="button" id="tabWishlist"
+                          class="product-tab relative inline-flex h-[22px] items-center justify-center gap-[6px] pb-[2px] text-[14px] font-semibold leading-none text-[#718096]"
+                          onclick="switchProductTab('wishlist')">
+                    <span class="leading-none">관심 상품</span>
+                    <span id="wishlistCountBadge"
+                          class="hidden h-[18px] min-w-[18px] items-center justify-center self-center rounded-full bg-[#2d3748] px-[5px] text-[10px] font-bold leading-none text-white transition-all duration-150">
                       0
                     </span>
                     <span data-tab-underline class="absolute bottom-[-12px] left-0 right-0 hidden h-[2px] rounded-full bg-[#2d6cdf]"></span>
@@ -776,43 +913,74 @@
                 </div>
 
                 <div class="min-h-0 flex-1 pt-[2px]">
-                <div id="recommendedPanel" class="h-full min-h-0 overflow-y-auto pr-[4px]">
+                <div id="recommendedPanel" class="product-panel-scroll h-full min-h-0 overflow-y-auto pr-[4px]">
                 <div class="space-y-[12px]">
                 {% for product in recommended_products %}
                 <div class="rounded-[20px] border border-[#dbe7f5] bg-white px-[14px] py-[13px] shadow-[0_8px_20px_rgba(45,55,72,0.05)]">
                   <div class="flex items-center gap-[10px]">
-                    <div class="flex h-[68px] w-[68px] shrink-0 items-center justify-center rounded-[14px] bg-gradient-to-br from-[#dbeafe] via-[#eff6ff] to-[#f8fafc] text-[26px]">{{ product.emoji }}</div>
-                    <div class="min-w-0 flex-1">
-                      <div class="truncate text-[13px] font-bold leading-[1.5] text-[#2d3748]">{{ product.name }}</div>
-                      <div class="mt-[5px] text-[15px] font-bold text-[#3182ce]">{{ product.price }}</div>
-                      <div class="mt-[7px] flex items-center gap-[6px] text-[11px]">
-                        <span class="font-bold text-[#d69e2e]">★ {{ product.rating }}</span>
-                        <span class="text-[#a0aec0]">{{ product.reviews }}</span>
+                    <div class="relative flex h-[68px] w-[68px] shrink-0 items-center justify-center overflow-hidden rounded-[14px] bg-gradient-to-br from-[#dbeafe] via-[#eff6ff] to-[#f8fafc]">
+                      {% if product.thumbnail_url %}
+                      <img src="{{ product.thumbnail_url }}" alt="" class="h-full w-full object-cover" onerror="this.style.display='none'; this.parentNode.querySelector('.fallback-emoji').style.display = 'flex';">
+                      <div class="fallback-emoji absolute inset-0 hidden items-center justify-center text-[26px]">{{ product.emoji }}</div>
+                      {% else %}
+                      <div class="flex h-full w-full items-center justify-center text-[26px]">{{ product.emoji }}</div>
+                      {% endif %}
+                    </div>
+                    <div class="product-card-text-block min-w-0">
+                      {% if product.brand_name %}
+                      <div class="product-card-brand">{{ product.brand_name }}</div>
+                      {% endif %}
+                      <div class="product-card-name">{{ product.name }}</div>
+                      <div class="product-card-price">{{ product.price }}</div>
+                      <div class="product-card-review-row with-actions">
+                        <div class="product-card-review-meta">
+                          <span class="font-bold text-[#d69e2e]">★ {{ product.rating }}</span>
+                          <span class="product-card-review-count">{{ product.reviews }}</span>
+                        </div>
+                        <div class="product-card-actions">
+                          <button type="button"
+                                  class="wishlist-heart inline-flex h-[28px] w-[28px] items-center justify-center rounded-full border border-[#e2e8f0] bg-white leading-none transition-colors hover:border-[#f3c1c1] hover:text-[#e53e3e]"
+                                  data-product-id="{{ product.product_id|default:'' }}"
+                                  data-product-name="{{ product.name }}"
+                                  data-product-brand="{{ product.brand_name }}"
+                                  data-product-price="{{ product.price }}"
+                                  data-product-rating="{{ product.rating }}"
+                                  data-product-reviews="{{ product.reviews }}"
+                                  data-product-emoji="{{ product.emoji }}"
+                                  data-product-thumbnail="{{ product.thumbnail_url|default:'' }}"
+                                  onclick="toggleRecommendedWishlist(this)"
+                                  aria-label="관심 상품 추가">
+                            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" aria-hidden="true"><path d="M12 20.4 4.9 13.8a4.8 4.8 0 0 1 6.8-6.8L12 7.3l.3-.3a4.8 4.8 0 0 1 6.8 6.8L12 20.4Z" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"/></svg>
+                            <svg width="14" height="14" viewBox="0 0 24 24" fill="currentColor" aria-hidden="true"><path d="M12 20.4 4.9 13.8a4.8 4.8 0 0 1 6.8-6.8L12 7.3l.3-.3a4.8 4.8 0 0 1 6.8 6.8L12 20.4Z"/></svg>
+                          </button>
+                          <button type="button"
+                                  class="flex h-[28px] w-[28px] shrink-0 items-center justify-center rounded-full border border-[#dbe7f5] bg-[#f8fbff] text-[#3182ce] transition-colors hover:border-[#bfdbfe] hover:bg-[#eef6ff]"
+                                  data-product-id="{{ product.product_id|default:'' }}"
+                                  data-product-name="{{ product.name }}"
+                                  data-product-brand="{{ product.brand_name }}"
+                                  data-product-price="{{ product.price }}"
+                                  data-product-rating="{{ product.rating }}"
+                                  data-product-reviews="{{ product.reviews }}"
+                                  data-product-emoji="{{ product.emoji }}"
+                                  data-product-thumbnail="{{ product.thumbnail_url|default:'' }}"
+                                  onclick="addRecommendedToCart(this)"
+                                  aria-label="장바구니 추가">
+                            <span class="relative top-[-1px] text-[16px] font-semibold leading-none">+</span>
+                          </button>
+                        </div>
                       </div>
                     </div>
-                    <button type="button"
-                            class="flex h-[36px] w-[36px] shrink-0 items-center justify-center rounded-full bg-[#3182ce] text-white"
-                            data-product-id="{{ product.product_id|default:'' }}"
-                            data-product-name="{{ product.name }}"
-                            data-product-price="{{ product.price }}"
-                            data-product-rating="{{ product.rating }}"
-                            data-product-reviews="{{ product.reviews }}"
-                            data-product-emoji="{{ product.emoji }}"
-                            onclick="addRecommendedToCart(this)"
-                            aria-label="장바구니 추가">
-                      <span class="relative top-[-1px] text-[20px] font-semibold leading-none">+</span>
-                    </button>
                   </div>
                 </div>
                 {% endfor %}
                 </div>
                 </div>
               <div id="cartPanel" class="hidden h-full min-h-0 flex-col">
-                <div class="min-h-0 flex-1 overflow-y-auto pr-[4px]">
+                <div class="product-panel-scroll min-h-0 flex-1 overflow-y-auto pr-[4px]">
                 <div id="cartPanelList" class="space-y-[12px]">
                 {% for product in cart_products %}
                 <div class="group relative rounded-[20px] border border-[#dbe7f5] bg-white px-[14px] py-[13px] shadow-[0_8px_20px_rgba(45,55,72,0.05)]"
-                     data-cart-item data-unit-price="{{ product.unit_price }}" data-product-name="{{ product.name }}" data-goods-id="{{ product.product_id|default:'' }}" data-product-rating="{{ product.rating }}" data-product-reviews="{{ product.reviews }}">
+                     data-cart-item data-unit-price="{{ product.unit_price }}" data-product-name="{{ product.name }}" data-product-brand="{{ product.brand_name|default:'' }}" data-goods-id="{{ product.product_id|default:'' }}" data-product-rating="{{ product.rating }}" data-product-reviews="{{ product.reviews }}" data-product-thumbnail="{{ product.thumbnail_url|default:'' }}">
                   <button type="button"
                           class="absolute right-[10px] top-[10px] flex h-[28px] w-[28px] items-center justify-center rounded-full border border-[#e2e8f0] bg-white text-[14px] text-[#a0aec0] opacity-0 transition-opacity duration-150 group-hover:opacity-100"
                           onclick="removeCartItem(this)"
@@ -820,37 +988,56 @@
                     <span class="relative top-[-1px]">×</span>
                   </button>
                   <div class="flex items-center gap-[10px]">
-                    <div class="flex h-[68px] w-[68px] shrink-0 items-center justify-center rounded-[14px] bg-gradient-to-br from-[#ede9fe] via-[#f5f3ff] to-[#faf5ff] text-[26px]">{{ product.emoji }}</div>
-                    <div class="min-w-0 flex-1">
-                      <div class="truncate pr-[34px] text-[13px] font-bold leading-[1.5] text-[#2d3748]">{{ product.name }}</div>
-                      <div class="mt-[5px] text-[15px] font-bold text-[#3182ce]">{{ product.price }}</div>
-                      <div class="mt-[7px] flex items-center gap-[6px] text-[11px]">
-                        <span class="font-bold text-[#d69e2e]">★ {{ product.rating }}</span>
-                        <span class="text-[#a0aec0]">{{ product.reviews }}</span>
+                    <div class="relative flex h-[68px] w-[68px] shrink-0 items-center justify-center overflow-hidden rounded-[14px] bg-gradient-to-br from-[#ede9fe] via-[#f5f3ff] to-[#faf5ff]">
+                      {% if product.thumbnail_url %}
+                      <img src="{{ product.thumbnail_url }}" alt="" class="h-full w-full object-cover" onerror="this.style.display='none'; this.parentNode.querySelector('.fallback-emoji').style.display = 'flex';">
+                      <div class="fallback-emoji absolute inset-0 hidden items-center justify-center text-[26px]">{{ product.emoji }}</div>
+                      {% else %}
+                      <div class="flex h-full w-full items-center justify-center text-[26px]">{{ product.emoji }}</div>
+                      {% endif %}
+                    </div>
+                    <div class="product-card-text-block min-w-0">
+                      {% if product.brand_name %}
+                      <div class="product-card-brand">{{ product.brand_name }}</div>
+                      {% endif %}
+                      <div class="product-card-name">{{ product.name }}</div>
+                      <div class="product-card-price">{{ product.price }}</div>
+                      <div class="product-card-review-row with-actions">
+                        <div class="product-card-review-meta">
+                          <span class="font-bold text-[#d69e2e]">★ {{ product.rating }}</span>
+                          <span class="product-card-review-count">{{ product.reviews }}</span>
+                        </div>
+                        <div class="product-card-actions">
+                          <div class="product-card-quantity-control">
+                            <button type="button"
+                                    class="flex h-[24px] w-[24px] items-center justify-center rounded-full text-[16px] font-semibold leading-none text-[#4a5568] hover:bg-white"
+                                    onclick="adjustCartQuantity(this, -1)"
+                                    aria-label="수량 감소">
+                              <span class="relative top-[-1px]">-</span>
+                            </button>
+                            <span class="min-w-[17px] text-center text-[11px] font-bold text-[#2d3748]" data-cart-quantity>{{ product.quantity }}</span>
+                            <button type="button"
+                                    class="flex h-[24px] w-[24px] items-center justify-center rounded-full text-[16px] font-semibold leading-none text-[#2d3748] hover:bg-white"
+                                    onclick="adjustCartQuantity(this, 1)"
+                                    aria-label="수량 증가">
+                              <span class="relative top-[-1px]">+</span>
+                            </button>
+                          </div>
+                        </div>
                       </div>
                     </div>
-                  </div>
-                  <div class="absolute bottom-[13px] right-[14px] flex h-[36px] items-center rounded-full border border-[#dbe7f5] bg-[#f8fbff] px-[4px]">
-                    <button type="button"
-                            class="flex h-[28px] w-[28px] items-center justify-center rounded-full text-[18px] font-semibold leading-none text-[#4a5568] hover:bg-white"
-                            onclick="adjustCartQuantity(this, -1)"
-                            aria-label="수량 감소">
-                      <span class="relative top-[-1px]">-</span>
-                    </button>
-                    <span class="min-w-[22px] text-center text-[13px] font-bold text-[#2d3748]" data-cart-quantity>{{ product.quantity }}</span>
-                    <button type="button"
-                            class="flex h-[28px] w-[28px] items-center justify-center rounded-full text-[18px] font-semibold leading-none text-[#2d3748] hover:bg-white"
-                            onclick="adjustCartQuantity(this, 1)"
-                            aria-label="수량 증가">
-                      <span class="relative top-[-1px]">+</span>
-                    </button>
                   </div>
                 </div>
                 {% endfor %}
                 </div>
+                <div id="cartEmptyState" class="hidden rounded-[20px] border border-dashed border-[#dbe7f5] bg-[#fbfdff] px-[18px] py-[24px] text-center">
+                  <div class="text-[28px] text-[#7aa6e9]">🛒</div>
+                  <div class="mt-[10px] text-[14px] font-bold text-[#2d3748]">장바구니가 비어 있어요</div>
+                  <p class="mt-[6px] text-[12px] leading-[1.6] text-[#718096]">추천 상품 카드에서 +를 눌러<br>장바구니에 상품을 담아보세요</p>
+                </div>
                 </div>
 
-                <div class="mt-[12px] flex-none border-t border-[#dbe7f5] bg-[#fbfdff] pt-[12px]">
+                <div id="cartSummaryFooter" class="mt-[12px] flex-none border-t border-[#dbe7f5] bg-[#fbfdff] pt-[12px]">
                   <div class="flex items-center justify-between">
                     <div>
                       <div class="text-[11px] font-medium text-[#a0aec0]">총 결제 예정 금액</div>
@@ -864,18 +1051,16 @@
                   </div>
                 </div>
               </div>
+              <div id="wishlistPanel" class="hidden h-full min-h-0 flex-col">
+                <div class="product-panel-scroll min-h-0 flex-1 overflow-y-auto pr-[4px]">
+                  <div id="wishlistPanelList" class="space-y-[12px]"></div>
+                  <div id="wishlistEmptyState" class="hidden rounded-[20px] border border-dashed border-[#dbe7f5] bg-[#fbfdff] px-[18px] py-[24px] text-center">
+                    <div class="text-[28px] text-[#e97b7b]">♡</div>
+                    <div class="mt-[10px] text-[14px] font-bold text-[#2d3748]">관심 상품이 아직 없어요</div>
+                    <p class="mt-[6px] text-[12px] leading-[1.6] text-[#718096]">추천 상품 카드에서 하트를 눌러<br>나중에 볼 상품을 모아보세요</p>
+                  </div>
                 </div>
               </div>
-              {% else %}
-              <div class="rounded-[24px] border border-dashed border-[#cbd5e0] bg-white px-[18px] py-[22px] text-center shadow-[0_10px_24px_rgba(45,55,72,0.04)]">
-                <div class="text-[36px]">🔒</div>
-                <div class="mt-[12px] text-[16px] font-bold text-[#2d3748]">로그인 후 추천 패널 이용 가능</div>
-                <p class="mt-[8px] text-[13px] leading-[1.7] text-[#718096]">
-                  상품 추천 카드와 장바구니는 회원 상태에서만 함께 노출됩니다.
-                </p>
-                <div class="mt-[18px] flex justify-center gap-[10px]">
-                  <a href="/login/" class="flex h-[40px] w-[92px] items-center justify-center rounded-full border border-[#cbd5e0] bg-white text-[13px] font-bold text-[#4a5568]">로그인</a>
-                  <a href="/login/" class="flex h-[40px] w-[102px] items-center justify-center rounded-full bg-[#3182ce] text-[13px] font-bold text-white">회원가입</a>
                 </div>
               </div>
               {% endif %}
@@ -976,8 +1161,10 @@
   var productPanel = document.getElementById('productPanel');
   var recommendedPanel = document.getElementById('recommendedPanel');
   var cartPanel = document.getElementById('cartPanel');
+  var wishlistPanel = document.getElementById('wishlistPanel');
   var tabRecommended = document.getElementById('tabRecommended');
   var tabCart = document.getElementById('tabCart');
+  var tabWishlist = document.getElementById('tabWishlist');
   var promoCarouselTrack = document.getElementById('promoCarouselTrack');
   var promoDots = document.querySelectorAll('[data-promo-dot]');
   var promoCarouselGroup = promoCarouselTrack ? promoCarouselTrack.closest('.group') : null;
@@ -1013,6 +1200,7 @@
   var PROFILE_PAYMENT_STORAGE_KEY = 'tailtalk_profile_payment_preview';
   var SHARED_CART_COUNT_STORAGE_KEY = 'tailtalk_shared_cart_count';
   var SHARED_CART_ITEMS_STORAGE_KEY = 'tailtalk_shared_cart_items';
+  var previewWishlistItems = [];
   var quickOrderToastTimer = null;
   var quickOrderSlideEnabled = false;
   var quickOrderSlideDragging = false;
@@ -1043,6 +1231,26 @@
       .replace(/>/g, '&gt;')
       .replace(/"/g, '&quot;')
       .replace(/'/g, '&#39;');
+  }
+
+  function splitBrandAndName(brand, name) {
+    var normalizedBrand = String(brand || '').trim();
+    var normalizedName = String(name || '').trim();
+
+    if (normalizedBrand && normalizedName.toLowerCase().startsWith(normalizedBrand.toLowerCase())) {
+      var trimmed = normalizedName.slice(normalizedBrand.length).replace(/^[\s\-_/|]+/, '').trim();
+      if (trimmed) {
+        return {
+          brand: normalizedBrand,
+          name: trimmed,
+        };
+      }
+    }
+
+    return {
+      brand: normalizedBrand,
+      name: normalizedName,
+    };
   }
 
   function ensureSessionState(sessionId) {
@@ -1506,6 +1714,9 @@
   }
 
   function openProductPanel() {
+    {% if not is_member_view %}
+    return;
+    {% endif %}
     if (!productPanel || !chatSection) return;
     productPanel.classList.remove('is-closing');
     productPanel.classList.add('is-open');
@@ -1519,46 +1730,104 @@
     }
     recommendedPanel.innerHTML = '';
     cards.forEach(function (card) {
+      var display = splitBrandAndName(card.brand_name || '', card.product_name || '추천 상품');
       var price = card.price ? Number(card.price).toLocaleString('ko-KR') + '원' : '';
       var discount = card.discount_price ? Number(card.discount_price).toLocaleString('ko-KR') + '원' : '';
       var finalPrice = discount || price || '가격 정보 없음';
       var rating = card.rating || '4.7';
       var reviews = card.reviews || '리뷰 준비 중';
-      var priceHtml = discount
-        ? '<div class="mt-[5px] text-[15px] font-bold text-[#e53e3e]">' + finalPrice + '</div><div class="mt-[2px] text-[11px] text-[#a0aec0] line-through">' + price + '</div>'
-        : '<div class="mt-[5px] text-[15px] font-bold text-[#3182ce]">' + finalPrice + '</div>';
+      var thumbnailUrl = escapeHtml(card.thumbnail_url || '');
+      var priceHtml = '<div class="product-card-price">' + finalPrice + '</div>';
       var el = document.createElement('div');
       el.className = 'rounded-[20px] border border-[#dbe7f5] bg-white px-[14px] py-[13px] shadow-[0_8px_20px_rgba(45,55,72,0.05)]';
       el.innerHTML = '<div class="flex items-center gap-[10px]">'
         + '<div class="relative flex h-[68px] w-[68px] shrink-0 items-center justify-center overflow-hidden rounded-[14px] bg-gradient-to-br from-[#dbeafe] via-[#eff6ff] to-[#f8fafc]">'
-        + '  <img src="' + (card.thumbnail_url || '') + '" alt="" class="h-full w-full object-cover" onerror="this.style.display=\'none\'; this.parentNode.querySelector(&quot;.fallback-emoji&quot;).style.display = \'flex\';">'
+        + '  <img src="' + thumbnailUrl + '" alt="" class="h-full w-full object-cover" onerror="this.style.display=\'none\'; this.parentNode.querySelector(&quot;.fallback-emoji&quot;).style.display = \'flex\';">'
         + '  <div class="fallback-emoji absolute inset-0 hidden items-center justify-center text-[26px]">🛍️</div>'
         + '</div>'
-        + '<div class="min-w-0 flex-1">'
-        + '<div class="truncate text-[13px] font-bold leading-[1.5] text-[#2d3748]">' + (card.product_name || '추천 상품') + '</div>'
-        + '<div class="mt-[2px] truncate text-[11px] text-[#718096]">' + (card.brand_name || '브랜드 정보') + '</div>'
+        + '<div class="product-card-text-block min-w-0">'
+        + (display.brand ? '<div class="product-card-brand">' + display.brand + '</div>' : '')
+        + '<div class="product-card-name">' + (display.name || '추천 상품') + '</div>'
         + priceHtml
-        + '<div class="mt-[7px] flex items-center gap-[6px] text-[11px]">'
-        + '  <span class="font-bold text-[#d69e2e]">★ ' + rating + '</span>'
-        + '  <span class="text-[#a0aec0]">' + reviews + '</span>'
-        + '</div>'
-        + (card.product_url ? '<a href="' + card.product_url + '" target="_blank" class="mt-[7px] inline-flex text-[11px] font-bold text-[#3182ce]">상품 보러가기</a>' : '')
-        + '</div>'
-        + '<button type="button"'
-        + ' class="flex h-[36px] w-[36px] shrink-0 items-center justify-center rounded-full bg-[#3182ce] text-white shadow-[0_8px_18px_rgba(49,130,206,0.18)]"'
+        + '<div class="product-card-review-row with-actions">'
+        + '  <div class="product-card-review-meta">'
+        + '    <span class="font-bold text-[#d69e2e]">★ ' + rating + '</span>'
+        + '    <span class="product-card-review-count">' + reviews + '</span>'
+        + '  </div>'
+        + '  <div class="product-card-actions">'
+        + '    <button type="button"'
+        + ' class="wishlist-heart inline-flex h-[28px] w-[28px] items-center justify-center rounded-full border border-[#e2e8f0] bg-white leading-none transition-colors hover:border-[#f3c1c1] hover:text-[#e53e3e]"'
         + ' data-product-id="' + (card.product_id || card.goods_id || '') + '"'
-        + ' data-product-name="' + (card.product_name || '추천 상품') + '"'
+        + ' data-product-name="' + (display.name || '추천 상품') + '"'
+        + ' data-product-brand="' + (display.brand || '') + '"'
         + ' data-product-price="' + finalPrice + '"'
         + ' data-product-rating="' + rating + '"'
         + ' data-product-reviews="' + reviews + '"'
         + ' data-product-emoji="🛍️"'
+        + ' data-product-thumbnail="' + thumbnailUrl + '"'
+        + ' onclick="toggleRecommendedWishlist(this)"'
+        + ' aria-label="관심 상품 추가">'
+        + '  <svg width="14" height="14" viewBox="0 0 24 24" fill="none" aria-hidden="true"><path d="M12 20.4 4.9 13.8a4.8 4.8 0 0 1 6.8-6.8L12 7.3l.3-.3a4.8 4.8 0 0 1 6.8 6.8L12 20.4Z" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"/></svg>'
+        + '  <svg width="14" height="14" viewBox="0 0 24 24" fill="currentColor" aria-hidden="true"><path d="M12 20.4 4.9 13.8a4.8 4.8 0 0 1 6.8-6.8L12 7.3l.3-.3a4.8 4.8 0 0 1 6.8 6.8L12 20.4Z"/></svg>'
+        + '</button>'
+        + '<button type="button"'
+        + ' class="flex h-[28px] w-[28px] shrink-0 items-center justify-center rounded-full border border-[#dbe7f5] bg-[#f8fbff] text-[#3182ce] transition-colors hover:border-[#bfdbfe] hover:bg-[#eef6ff]"'
+        + ' data-product-id="' + (card.product_id || card.goods_id || '') + '"'
+        + ' data-product-name="' + (display.name || '추천 상품') + '"'
+        + ' data-product-brand="' + (display.brand || '') + '"'
+        + ' data-product-price="' + finalPrice + '"'
+        + ' data-product-rating="' + rating + '"'
+        + ' data-product-reviews="' + reviews + '"'
+        + ' data-product-emoji="🛍️"'
+        + ' data-product-thumbnail="' + thumbnailUrl + '"'
         + ' onclick="addRecommendedToCart(this)"'
         + ' aria-label="장바구니 추가">'
-        + '  <span class="relative top-[-1px] text-[20px] font-semibold leading-none">+</span>'
+        + '  <span class="relative top-[-1px] text-[16px] font-semibold leading-none">+</span>'
         + '</button>'
+        + '  </div>'
+        + '</div>'
+        + (card.product_url ? '<a href="' + card.product_url + '" target="_blank" class="mt-[7px] inline-flex text-[11px] font-bold text-[#3182ce]">상품 보러가기</a>' : '')
         + '</div>';
       recommendedPanel.appendChild(el);
     });
+    refreshRecommendedWishlistState({ silent: true });
+  }
+
+  function setRecommendedWishlistButtonState(button, isActive) {
+    if (!button) return;
+    button.classList.toggle('is-active', !!isActive);
+    button.setAttribute('aria-label', isActive ? '관심 상품 제거' : '관심 상품 추가');
+  }
+
+  function updateRecommendedWishlistButtons(wishlistIds) {
+    document.querySelectorAll('#recommendedPanel .wishlist-heart[data-product-id]').forEach(function (button) {
+      var productId = button.getAttribute('data-product-id');
+      setRecommendedWishlistButtonState(button, !!(productId && wishlistIds[productId]));
+    });
+  }
+
+  function refreshRecommendedWishlistState(options) {
+    var config = options || {};
+    {% if is_preview_member %}
+    renderWishlistFromState(previewWishlistItems);
+    return Promise.resolve(previewWishlistItems);
+    {% endif %}
+    return requestJson('/api/orders/wishlist/')
+      .then(function (data) {
+        renderWishlistFromState(data.items || []);
+        var wishlistIds = {};
+        (data.items || []).forEach(function (item) {
+          wishlistIds[item.product_id] = true;
+        });
+        updateRecommendedWishlistButtons(wishlistIds);
+        return data.items || [];
+      })
+      .catch(function (error) {
+        if (!config.silent) {
+          window.alert(error.message || '관심 상품 정보를 불러오지 못했습니다.');
+        }
+        return [];
+      });
   }
 
   function hideProductPanel(onDone, immediate) {
@@ -1769,27 +2038,32 @@
   };
 
   window.switchProductTab = function (tab) {
-    if (!recommendedPanel || !cartPanel || !tabRecommended || !tabCart) return;
+    if (!recommendedPanel || !cartPanel || !wishlistPanel || !tabRecommended || !tabCart || !tabWishlist) return;
 
     var isRecommended = tab === 'recommended';
-    var recommendedUnderline = tabRecommended.querySelector('[data-tab-underline]');
-    var cartUnderline = tabCart.querySelector('[data-tab-underline]');
-    var cartBadge = document.getElementById('cartCountBadge');
+    var isCart = tab === 'cart';
+    var isWishlist = tab === 'wishlist';
+    var tabs = [
+      { button: tabRecommended, active: isRecommended },
+      { button: tabCart, active: isCart },
+      { button: tabWishlist, active: isWishlist }
+    ];
+
     recommendedPanel.classList.toggle('hidden', !isRecommended);
-    cartPanel.classList.toggle('hidden', isRecommended);
-    cartPanel.classList.toggle('flex', !isRecommended);
-    tabRecommended.classList.toggle('active', isRecommended);
-    tabCart.classList.toggle('active', !isRecommended);
-    tabRecommended.classList.toggle('text-[#2d6cdf]', isRecommended);
-    tabCart.classList.toggle('text-[#2d6cdf]', !isRecommended);
-    tabRecommended.classList.toggle('text-[#718096]', !isRecommended);
-    tabCart.classList.toggle('text-[#718096]', isRecommended);
-    tabRecommended.classList.toggle('font-bold', isRecommended);
-    tabCart.classList.toggle('font-bold', !isRecommended);
-    tabRecommended.classList.toggle('font-semibold', !isRecommended);
-    tabCart.classList.toggle('font-semibold', isRecommended);
-    if (recommendedUnderline) recommendedUnderline.classList.toggle('hidden', !isRecommended);
-    if (cartUnderline) cartUnderline.classList.toggle('hidden', isRecommended);
+    cartPanel.classList.toggle('hidden', !isCart);
+    cartPanel.classList.toggle('flex', isCart);
+    wishlistPanel.classList.toggle('hidden', !isWishlist);
+    wishlistPanel.classList.toggle('flex', isWishlist);
+
+    tabs.forEach(function (item) {
+      var underline = item.button.querySelector('[data-tab-underline]');
+      item.button.classList.toggle('active', item.active);
+      item.button.classList.toggle('text-[#2d6cdf]', item.active);
+      item.button.classList.toggle('text-[#718096]', !item.active);
+      item.button.classList.toggle('font-bold', item.active);
+      item.button.classList.toggle('font-semibold', !item.active);
+      if (underline) underline.classList.toggle('hidden', !item.active);
+    });
   };
 
   function formatPrice(value) {
@@ -1820,15 +2094,23 @@
   }
 
   function buildCartItem(product) {
+    var display = splitBrandAndName(product.brand || '', product.name || '상품');
+    var thumbnailUrl = escapeHtml(product.thumbnailUrl || '');
+    var thumbnailHtml = product.thumbnailUrl
+      ? '<img src="' + thumbnailUrl + '" alt="" class="h-full w-full object-cover" onerror="this.style.display=\'none\'; this.parentNode.querySelector(&quot;.fallback-emoji&quot;).style.display = \'flex\';">'
+      : '';
+    var fallbackClass = product.thumbnailUrl ? 'fallback-emoji absolute inset-0 hidden items-center justify-center text-[26px]' : 'flex h-full w-full items-center justify-center text-[26px]';
     var item = document.createElement('div');
     item.className = 'group relative rounded-[20px] border border-[#dbe7f5] bg-white px-[14px] py-[13px] shadow-[0_8px_20px_rgba(45,55,72,0.05)]';
     item.setAttribute('data-cart-item', '');
     item.setAttribute('data-unit-price', String(product.unitPrice));
-    item.setAttribute('data-product-name', product.name);
+    item.setAttribute('data-product-name', display.name || '상품');
+    item.setAttribute('data-product-brand', display.brand || '');
     item.setAttribute('data-goods-id', product.goodsId || product.name);
     item.setAttribute('data-product-rating', product.rating || '0.0');
     item.setAttribute('data-product-reviews', normalizeReviewCount(product.reviewCount || product.reviews || '0'));
     item.setAttribute('data-product-emoji', product.emoji || '🛍️');
+    item.setAttribute('data-product-thumbnail', product.thumbnailUrl || '');
     item.innerHTML = ''
       + '<button type="button"'
       + ' class="absolute right-[10px] top-[10px] flex h-[28px] w-[28px] items-center justify-center rounded-full border border-[#e2e8f0] bg-white text-[14px] text-[#a0aec0] opacity-0 transition-opacity duration-150 group-hover:opacity-100"'
@@ -1837,38 +2119,48 @@
       + '  <span class="relative top-[-1px]">×</span>'
       + '</button>'
       + '<div class="flex items-center gap-[10px]">'
-      + '  <div class="flex h-[68px] w-[68px] shrink-0 items-center justify-center rounded-[14px] bg-gradient-to-br from-[#ede9fe] via-[#f5f3ff] to-[#faf5ff] text-[26px]">' + product.emoji + '</div>'
-      + '  <div class="min-w-0 flex-1">'
-      + '    <div class="truncate pr-[34px] text-[13px] font-bold leading-[1.5] text-[#2d3748]">' + product.name + '</div>'
-      + '    <div class="mt-[5px] text-[15px] font-bold text-[#3182ce]">' + product.price + '</div>'
-      + '    <div class="mt-[7px] flex items-center gap-[6px] text-[11px]">'
-      + '      <span class="font-bold text-[#d69e2e]">★ ' + product.rating + '</span>'
-      + '      <span class="text-[#a0aec0]">' + product.reviews + '</span>'
+      + '  <div class="relative flex h-[68px] w-[68px] shrink-0 items-center justify-center overflow-hidden rounded-[14px] bg-gradient-to-br from-[#ede9fe] via-[#f5f3ff] to-[#faf5ff]">'
+      +        thumbnailHtml
+      + '    <div class="' + fallbackClass + '">' + product.emoji + '</div>'
+      + '  </div>'
+      + '  <div class="product-card-text-block min-w-0">'
+      + (display.brand ? '    <div class="product-card-brand">' + display.brand + '</div>' : '')
+      + '    <div class="product-card-name">' + (display.name || '상품') + '</div>'
+      + '    <div class="product-card-price">' + product.price + '</div>'
+      + '    <div class="product-card-review-row with-actions">'
+      + '      <div class="product-card-review-meta">'
+      + '        <span class="font-bold text-[#d69e2e]">★ ' + product.rating + '</span>'
+      + '        <span class="product-card-review-count">' + product.reviews + '</span>'
+      + '      </div>'
+      + '      <div class="product-card-actions">'
+      + '        <div class="product-card-quantity-control">'
+      + '          <button type="button"'
+      + '                  class="flex h-[24px] w-[24px] items-center justify-center rounded-full text-[16px] font-semibold leading-none text-[#4a5568] hover:bg-white"'
+      + '                  onclick="adjustCartQuantity(this, -1)"'
+      + '                  aria-label="수량 감소">'
+      + '            <span class="relative top-[-1px]">-</span>'
+      + '          </button>'
+      + '          <span class="min-w-[17px] text-center text-[11px] font-bold text-[#2d3748]" data-cart-quantity>' + String(product.quantity || 1) + '</span>'
+      + '          <button type="button"'
+      + '                  class="flex h-[24px] w-[24px] items-center justify-center rounded-full text-[16px] font-semibold leading-none text-[#2d3748] hover:bg-white"'
+      + '                  onclick="adjustCartQuantity(this, 1)"'
+      + '                  aria-label="수량 증가">'
+      + '            <span class="relative top-[-1px]">+</span>'
+      + '          </button>'
+      + '        </div>'
+      + '      </div>'
       + '    </div>'
       + '  </div>'
       + '</div>'
-      + '<div class="absolute bottom-[13px] right-[14px] flex h-[36px] items-center rounded-full border border-[#dbe7f5] bg-[#f8fbff] px-[4px]">'
-      + '  <button type="button"'
-      + '          class="flex h-[28px] w-[28px] items-center justify-center rounded-full text-[18px] font-semibold leading-none text-[#4a5568] hover:bg-white"'
-      + '          onclick="adjustCartQuantity(this, -1)"'
-      + '          aria-label="수량 감소">'
-      + '    <span class="relative top-[-1px]">-</span>'
-      + '  </button>'
-      + '  <span class="min-w-[22px] text-center text-[13px] font-bold text-[#2d3748]" data-cart-quantity>' + String(product.quantity || 1) + '</span>'
-      + '  <button type="button"'
-      + '          class="flex h-[28px] w-[28px] items-center justify-center rounded-full text-[18px] font-semibold leading-none text-[#2d3748] hover:bg-white"'
-      + '          onclick="adjustCartQuantity(this, 1)"'
-      + '          aria-label="수량 증가">'
-      + '    <span class="relative top-[-1px]">+</span>'
-      + '  </button>'
       + '</div>';
     return item;
   }
 
   function serializeCartItem(item) {
+    var display = splitBrandAndName(item.brand || '', item.name || '상품');
     return {
       goodsId: item.product_id || item.goodsId || '',
-      name: item.name || '상품',
+      name: display.name || '상품',
       price: Number(item.price || 0),
       priceLabel: item.price_label || item.priceLabel || formatPrice(Number(item.price || 0)),
       rating: item.rating || '0.0',
@@ -1876,7 +2168,7 @@
       reviews: '리뷰 ' + normalizeReviewCount(item.review_count || item.reviewCount || '0'),
       quantity: Number(item.quantity || 1),
       emoji: item.emoji || '🛍️',
-      brand: item.brand || '',
+      brand: display.brand || '',
       thumbnailUrl: item.thumbnail_url || item.thumbnailUrl || '',
       note: item.note || '가격 비교를 위해 보관한 상품',
       isWishlisted: !!item.is_wishlisted,
@@ -1897,8 +2189,8 @@
         reviews: '리뷰 ' + normalizeReviewCount(item.getAttribute('data-product-reviews') || '0'),
         quantity: Number(quantityNode ? quantityNode.textContent || '0' : '0'),
         emoji: item.getAttribute('data-product-emoji') || '🛍️',
-        brand: '',
-        thumbnailUrl: '',
+        brand: item.getAttribute('data-product-brand') || '',
+        thumbnailUrl: item.getAttribute('data-product-thumbnail') || '',
         note: '가격 비교를 위해 보관한 상품',
         isWishlisted: false,
       });
@@ -1916,6 +2208,7 @@
       list.appendChild(buildCartItem({
         goodsId: serialized.goodsId,
         name: serialized.name,
+        brand: serialized.brand,
         unitPrice: serialized.price,
         price: serialized.priceLabel,
         rating: serialized.rating,
@@ -1923,8 +2216,143 @@
         reviews: serialized.reviews,
         quantity: serialized.quantity,
         emoji: serialized.emoji,
+        thumbnailUrl: serialized.thumbnailUrl,
       }));
     });
+    updateCartEmptyState();
+  }
+
+  function updateCartEmptyState() {
+    var list = document.getElementById('cartPanelList');
+    var emptyState = document.getElementById('cartEmptyState');
+    var summaryFooter = document.getElementById('cartSummaryFooter');
+    if (!list || !emptyState || !summaryFooter) return;
+
+    var hasItems = list.querySelectorAll('[data-cart-item]').length > 0;
+    emptyState.classList.toggle('hidden', hasItems);
+    summaryFooter.classList.toggle('hidden', !hasItems);
+  }
+
+  function serializeWishlistItem(item) {
+    return {
+      goodsId: item.product_id || item.goodsId || '',
+      name: item.name || '관심 상품',
+      price: Number(item.price || 0),
+      priceLabel: item.price_label || item.priceLabel || formatPrice(Number(item.price || 0)),
+      rating: item.rating || '0.0',
+      reviewCount: normalizeReviewCount(item.review_count || item.reviewCount || '0'),
+      reviews: '리뷰 ' + normalizeReviewCount(item.review_count || item.reviewCount || '0'),
+      emoji: item.emoji || '🛍️',
+      brand: item.brand || '',
+      thumbnailUrl: item.thumbnail_url || item.thumbnailUrl || '',
+    };
+  }
+
+  function buildWishlistPanelItem(product) {
+    var display = splitBrandAndName(product.brand || '', product.name || '관심 상품');
+    var item = document.createElement('div');
+    var goodsId = escapeHtml(product.goodsId || '');
+    var productName = escapeHtml(display.name || '관심 상품');
+    var priceLabel = escapeHtml(product.priceLabel || formatPrice(Number(product.price || 0)));
+    var rating = escapeHtml(product.rating || '0.0');
+    var reviews = escapeHtml(product.reviews || '리뷰 0');
+    var brand = escapeHtml(display.brand || '');
+    var emoji = escapeHtml(product.emoji || '🛍️');
+    var thumbnailUrl = escapeHtml(product.thumbnailUrl || '');
+    item.className = 'rounded-[20px] border border-[#dbe7f5] bg-white px-[14px] py-[13px] shadow-[0_8px_20px_rgba(45,55,72,0.05)]';
+    item.setAttribute('data-wishlist-item', '');
+    item.setAttribute('data-goods-id', product.goodsId || '');
+    item.setAttribute('data-product-name', display.name || '관심 상품');
+    item.setAttribute('data-product-brand', display.brand || '');
+    item.setAttribute('data-product-price', product.priceLabel || formatPrice(Number(product.price || 0)));
+    item.setAttribute('data-product-rating', product.rating || '0.0');
+    item.setAttribute('data-product-reviews', normalizeReviewCount(product.reviewCount || product.reviews || '0'));
+    item.setAttribute('data-product-emoji', product.emoji || '🛍️');
+    item.setAttribute('data-product-thumbnail', product.thumbnailUrl || '');
+
+    var thumbnailHtml = product.thumbnailUrl
+      ? '<img src="' + thumbnailUrl + '" alt="" class="h-full w-full object-cover" onerror="this.style.display=\'none\'; this.parentNode.querySelector(&quot;.fallback-emoji&quot;).style.display = \'flex\';">'
+      : '';
+    var fallbackClass = product.thumbnailUrl ? 'fallback-emoji absolute inset-0 hidden items-center justify-center text-[26px]' : 'flex h-full w-full items-center justify-center text-[26px]';
+    item.innerHTML = ''
+      + '<div class="flex items-center gap-[10px]">'
+      + '  <div class="relative flex h-[68px] w-[68px] shrink-0 items-center justify-center overflow-hidden rounded-[14px] bg-gradient-to-br from-[#fef3f2] via-[#fff7f5] to-[#fffafa]">'
+      +        thumbnailHtml
+      + '    <div class="' + fallbackClass + '">' + emoji + '</div>'
+      + '  </div>'
+      + '  <div class="product-card-text-block min-w-0">'
+      + (display.brand ? '    <div class="product-card-brand">' + brand + '</div>' : '')
+      + '    <div class="product-card-name">' + productName + '</div>'
+      + '    <div class="product-card-price">' + priceLabel + '</div>'
+      + '    <div class="product-card-review-row with-actions">'
+      + '      <div class="product-card-review-meta">'
+      + '        <span class="font-bold text-[#d69e2e]">★ ' + rating + '</span>'
+      + '        <span class="product-card-review-count">' + reviews + '</span>'
+      + '      </div>'
+      + '      <div class="product-card-actions">'
+      + '        <button type="button"'
+      + '                class="wishlist-heart is-active inline-flex h-[28px] w-[28px] items-center justify-center rounded-full border border-[#f3c1c1] bg-white leading-none text-[#e53e3e] transition-colors hover:text-[#c53030]"'
+      + '                onclick="toggleWishlistPanelItem(this)"'
+      + '                aria-label="관심 상품 제거">'
+      + '          <svg width="14" height="14" viewBox="0 0 24 24" fill="none" aria-hidden="true"><path d="M12 20.4 4.9 13.8a4.8 4.8 0 0 1 6.8-6.8L12 7.3l.3-.3a4.8 4.8 0 0 1 6.8 6.8L12 20.4Z" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"/></svg>'
+      + '          <svg width="14" height="14" viewBox="0 0 24 24" fill="currentColor" aria-hidden="true"><path d="M12 20.4 4.9 13.8a4.8 4.8 0 0 1 6.8-6.8L12 7.3l.3-.3a4.8 4.8 0 0 1 6.8 6.8L12 20.4Z"/></svg>'
+      + '        </button>'
+      + '        <button type="button"'
+      + '                class="flex h-[28px] w-[28px] shrink-0 items-center justify-center rounded-full border border-[#dbe7f5] bg-[#f8fbff] text-[#3182ce] transition-colors hover:border-[#bfdbfe] hover:bg-[#eef6ff]"'
+      + '                onclick="addWishlistPanelItemToCart(this)"'
+      + '                aria-label="장바구니 추가">'
+      + '          <span class="relative top-[-1px] text-[16px] font-semibold leading-none">+</span>'
+      + '        </button>'
+      + '      </div>'
+      + '    </div>'
+      + '  </div>'
+      + '</div>';
+    return item;
+  }
+
+  function updateWishlistCountBadge() {
+    var badgeNode = document.getElementById('wishlistCountBadge');
+    var count = document.querySelectorAll('#wishlistPanelList [data-wishlist-item]').length;
+    if (!badgeNode) return;
+    badgeNode.textContent = String(count);
+    badgeNode.classList.toggle('hidden', count === 0);
+    badgeNode.classList.toggle('inline-flex', count > 0);
+  }
+
+  function renderWishlistFromState(items) {
+    var list = document.getElementById('wishlistPanelList');
+    var emptyState = document.getElementById('wishlistEmptyState');
+    if (!list || !emptyState) return;
+
+    list.innerHTML = '';
+    (items || []).forEach(function (itemData) {
+      var serialized = serializeWishlistItem(itemData);
+      if (!serialized.goodsId) return;
+      list.appendChild(buildWishlistPanelItem(serialized));
+    });
+
+    var hasItems = list.children.length > 0;
+    emptyState.classList.toggle('hidden', hasItems);
+    updateWishlistCountBadge();
+  }
+
+  function refreshWishlistPanelFromApi(options) {
+    var config = options || {};
+    {% if is_preview_member %}
+    renderWishlistFromState(previewWishlistItems);
+    return Promise.resolve(previewWishlistItems);
+    {% endif %}
+    return requestJson('/api/orders/wishlist/')
+      .then(function (data) {
+        renderWishlistFromState(data.items || []);
+        return data.items || [];
+      })
+      .catch(function (error) {
+        if (!config.silent) {
+          window.alert(error.message || '관심 상품 정보를 불러오지 못했습니다.');
+        }
+        return [];
+      });
   }
 
   function refreshCartPanelFromApi(options) {
@@ -1962,7 +2390,11 @@
     });
 
     totalNode.textContent = formatPrice(total);
-    if (badgeNode) badgeNode.textContent = String(count);
+    if (badgeNode) {
+      badgeNode.textContent = String(count);
+      badgeNode.classList.toggle('hidden', count === 0);
+      badgeNode.classList.toggle('inline-flex', count > 0);
+    }
     if (headerBadgeNode) {
       if (count > 0) {
         headerBadgeNode.textContent = count > 9 ? '9+' : String(count);
@@ -1978,6 +2410,7 @@
       saveSharedCartCount(count);
       saveSharedCartItems(getCartState());
     }
+    updateCartEmptyState();
     if (quickOrderModal && quickOrderModal.classList.contains('is-open')) {
       renderQuickOrderSummary();
     }
@@ -1995,6 +2428,8 @@
 
     if (badgeNode) {
       badgeNode.textContent = String(count);
+      badgeNode.classList.toggle('hidden', count === 0);
+      badgeNode.classList.toggle('inline-flex', count > 0);
     }
 
     if (headerBadgeNode) {
@@ -2069,16 +2504,19 @@
   window.addRecommendedToCart = function (button) {
     var list = document.getElementById('cartPanelList');
     if (!list || !button) return;
+    var display = splitBrandAndName(button.getAttribute('data-product-brand') || '', button.getAttribute('data-product-name') || '추천 상품');
 
     var product = {
       goodsId: button.getAttribute('data-product-id') || button.getAttribute('data-product-name') || 'product-' + Date.now(),
-      name: button.getAttribute('data-product-name') || '추천 상품',
+      name: display.name || '추천 상품',
       price: button.getAttribute('data-product-price') || '0원',
       rating: button.getAttribute('data-product-rating') || '0.0',
       reviewCount: normalizeReviewCount(button.getAttribute('data-product-reviews') || '0'),
       reviews: '리뷰 ' + normalizeReviewCount(button.getAttribute('data-product-reviews') || '0'),
       emoji: button.getAttribute('data-product-emoji') || '🛍️',
       unitPrice: parsePrice(button.getAttribute('data-product-price')),
+      brand: display.brand || '',
+      thumbnailUrl: button.getAttribute('data-product-thumbnail') || '',
     };
 
     {% if is_preview_member %}
@@ -2105,6 +2543,128 @@
         quantity: 1,
       }),
     }).then(function () {
+      return refreshCartPanelFromApi({ silent: true, syncShared: true });
+    }).catch(function (error) {
+      window.alert(error.message || '장바구니에 상품을 담지 못했습니다.');
+    });
+  };
+
+  window.toggleRecommendedWishlist = function (button) {
+    if (!button) return;
+    var productId = button.getAttribute('data-product-id');
+    if (!productId) {
+      window.alert('상품 식별 정보를 찾을 수 없습니다.');
+      return;
+    }
+
+    {% if is_preview_member %}
+    var nextPreviewActive = !button.classList.contains('is-active');
+    setRecommendedWishlistButtonState(button, nextPreviewActive);
+    if (nextPreviewActive) {
+      previewWishlistItems = previewWishlistItems.filter(function (item) {
+        return item.goodsId !== productId;
+      });
+      previewWishlistItems.unshift({
+        goodsId: productId,
+        name: splitBrandAndName(button.getAttribute('data-product-brand') || '', button.getAttribute('data-product-name') || '관심 상품').name || '관심 상품',
+        price: parsePrice(button.getAttribute('data-product-price')),
+        priceLabel: button.getAttribute('data-product-price') || '0원',
+        rating: button.getAttribute('data-product-rating') || '0.0',
+        reviewCount: normalizeReviewCount(button.getAttribute('data-product-reviews') || '0'),
+        reviews: '리뷰 ' + normalizeReviewCount(button.getAttribute('data-product-reviews') || '0'),
+        emoji: button.getAttribute('data-product-emoji') || '🛍️',
+        brand: splitBrandAndName(button.getAttribute('data-product-brand') || '', button.getAttribute('data-product-name') || '관심 상품').brand || '',
+        thumbnailUrl: button.getAttribute('data-product-thumbnail') || '',
+      });
+    } else {
+      previewWishlistItems = previewWishlistItems.filter(function (item) {
+        return item.goodsId !== productId;
+      });
+    }
+    renderWishlistFromState(previewWishlistItems);
+    return;
+    {% endif %}
+
+    var nextActive = !button.classList.contains('is-active');
+    requestJson('/api/orders/wishlist/', {
+      method: nextActive ? 'POST' : 'DELETE',
+      body: JSON.stringify({ product_id: productId }),
+    }).then(function () {
+      return refreshRecommendedWishlistState({ silent: true });
+    }).catch(function (error) {
+      window.alert(error.message || '관심 상품 상태를 변경하지 못했습니다.');
+    });
+  };
+
+  window.toggleWishlistPanelItem = function (button) {
+    var item = button ? button.closest('[data-wishlist-item]') : null;
+    if (!item) return;
+    var productId = item.getAttribute('data-goods-id');
+    if (!productId) return;
+
+    {% if is_preview_member %}
+    previewWishlistItems = previewWishlistItems.filter(function (entry) {
+      return entry.goodsId !== productId;
+    });
+    renderWishlistFromState(previewWishlistItems);
+    updateRecommendedWishlistButtons({});
+    previewWishlistItems.forEach(function (entry) {
+      var selector = '#recommendedPanel .wishlist-heart[data-product-id="' + CSS.escape(entry.goodsId) + '"]';
+      var activeButton = document.querySelector(selector);
+      setRecommendedWishlistButtonState(activeButton, true);
+    });
+    return;
+    {% endif %}
+
+    requestJson('/api/orders/wishlist/', {
+      method: 'DELETE',
+      body: JSON.stringify({ product_id: productId }),
+    }).then(function () {
+      return refreshRecommendedWishlistState({ silent: true });
+    }).catch(function (error) {
+      window.alert(error.message || '관심 상품 상태를 변경하지 못했습니다.');
+    });
+  };
+
+  window.addWishlistPanelItemToCart = function (button) {
+    var item = button ? button.closest('[data-wishlist-item]') : null;
+    var list = document.getElementById('cartPanelList');
+    if (!item || !list) return;
+
+    var product = {
+      goodsId: item.getAttribute('data-goods-id') || '',
+      name: item.getAttribute('data-product-name') || '관심 상품',
+      price: item.getAttribute('data-product-price') || '0원',
+      rating: item.getAttribute('data-product-rating') || '0.0',
+      reviewCount: normalizeReviewCount(item.getAttribute('data-product-reviews') || '0'),
+      reviews: '리뷰 ' + normalizeReviewCount(item.getAttribute('data-product-reviews') || '0'),
+      emoji: item.getAttribute('data-product-emoji') || '🛍️',
+      unitPrice: parsePrice(item.getAttribute('data-product-price')),
+      brand: item.getAttribute('data-product-brand') || '',
+      thumbnailUrl: item.getAttribute('data-product-thumbnail') || '',
+    };
+
+    {% if is_preview_member %}
+    var existingItem = list.querySelector('[data-product-name="' + CSS.escape(product.name) + '"]');
+    if (existingItem) {
+      var quantityNode = existingItem.querySelector('[data-cart-quantity]');
+      if (quantityNode) quantityNode.textContent = String(Number(quantityNode.textContent || '0') + 1);
+    } else {
+      list.insertBefore(buildCartItem(product), list.firstChild);
+    }
+    updateCartTotal();
+    switchProductTab('cart');
+    return;
+    {% endif %}
+
+    requestJson('/api/orders/cart/', {
+      method: 'POST',
+      body: JSON.stringify({
+        product_id: product.goodsId,
+        quantity: 1,
+      }),
+    }).then(function () {
+      switchProductTab('cart');
       return refreshCartPanelFromApi({ silent: true, syncShared: true });
     }).catch(function (error) {
       window.alert(error.message || '장바구니에 상품을 담지 못했습니다.');
@@ -2549,8 +3109,10 @@
     saveSharedCartItems(getCartState());
   }
   updateCartTotal();
+  renderWishlistFromState(previewWishlistItems);
   {% else %}
   refreshCartPanelFromApi({ silent: true, syncShared: true });
+  refreshRecommendedWishlistState({ silent: true });
   {% endif %}
   applySharedCartCount();
   Object.keys(sessionThreads).forEach(ensureSessionState);

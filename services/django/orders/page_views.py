@@ -66,7 +66,7 @@ def _single_product_queryset():
     for term in excluded_terms:
         query = query.exclude(goods_name__icontains=term)
 
-    return query.order_by("-review_count", "-discount_price", "goods_id")
+    return query.order_by("-review_count", "-price", "goods_id")
 
 
 def _load_product_panels():
@@ -110,7 +110,7 @@ def _load_product_panels():
                 "brand": product.brand_name,
                 "name": _display_product_name(product.brand_name, product.goods_name),
                 "summary": _product_summary(product),
-                "price": product.discount_price or product.price,
+                "price": product.price,
                 "rating": product.rating,
                 "review_count": product.review_count,
                 "quantity": (index % 3) + 1,
@@ -127,7 +127,7 @@ def _load_product_panels():
                 "brand": product.brand_name,
                 "name": _display_product_name(product.brand_name, product.goods_name),
                 "summary": _product_summary(product),
-                "price": product.discount_price or product.price,
+                "price": product.price,
                 "rating": product.rating,
                 "review_count": product.review_count,
                 "note": _recommended_note(index),

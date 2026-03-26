@@ -12,7 +12,7 @@ from .models import Cart, CartItem, Wishlist, WishlistItem
 
 
 def serialize_product_summary(product: Product) -> dict:
-    price = product.discount_price or product.price
+    price = product.price
     return {
         "product_id": product.goods_id,
         "name": product.goods_name,
