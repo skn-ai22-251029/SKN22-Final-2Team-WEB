@@ -127,6 +127,10 @@
     transition: opacity 110ms ease;
   }
 
+  .assistant-text {
+    white-space: pre-wrap;
+  }
+
   #chatSection.is-resetting #chatThread {
     opacity: 0;
   }
@@ -3385,11 +3389,7 @@
   startPromoAutoSlide();
 
   switchProductTab('recommended');
-  {% if chat_enabled %}
-  openProductPanel();
-  {% else %}
   hideProductPanel();
-  {% endif %}
   applyLayout();
   if (activePetId) {
     var initialPet = document.querySelector('[data-pet-id="' + CSS.escape(activePetId) + '"]');

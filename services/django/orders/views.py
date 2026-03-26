@@ -1,4 +1,5 @@
 from django.db import transaction
+from django.core.paginator import Paginator
 from rest_framework.authentication import SessionAuthentication
 from rest_framework import status
 from rest_framework.permissions import IsAuthenticated
@@ -25,10 +26,40 @@ COUPON_RULES = {
     "pet-care": {"label": "펫케어 5,000원 할인", "discount": 5000, "min_total": 60000},
 }
 ORDER_STATUS_META = {
-    "pending": {"label": "주문 접수"},
-    "completed": {"label": "배송 완료"},
-    "cancelled": {"label": "주문 취소"},
+    "pending": {
+        "label": "주문 접수",
+        "tone": "info",
+        "can_reorder": True,
+        "detail_hint": "상품 준비가 시작되면\n배송 상태가 업데이트됩니다",
+        "cta_label": "같은 구성 다시 담기",
+    },
+    "shipping": {
+        "label": "배송 중",
+        "tone": "info",
+        "can_reorder": True,
+        "detail_hint": "상품이 배송 중입니다\n필요한 구성은 다시 주문할 수 있어요",
+        "cta_label": "같은 구성 다시 담기",
+    },
+    "completed": {
+        "label": "배송 완료",
+        "tone": "success",
+        "can_reorder": True,
+        "detail_hint": "배송이 완료된 주문입니다\n필요한 상품은 다시 주문할 수 있어요",
+        "cta_label": "다시 주문하기",
+    },
+    "cancelled": {
+        "label": "주문 취소",
+        "tone": "danger",
+        "can_reorder": False,
+        "detail_hint": "취소된 주문입니다\n결제와 배송 정보를 확인해 주세요",
+        "cta_label": "주문 정보 확인",
+    },
 }
+ORDER_LIST_ORDERING = {
+    "latest": "-created_at",
+    "oldest": "created_at",
+}
+DEFAULT_ORDER_PAGE_SIZE = 12
 
 
 def _display_product_name(brand_name, goods_name):
@@ -105,11 +136,29 @@ def serialize_order_item(item: OrderItem) -> dict:
 def serialize_order(order: Order) -> dict:
     items = [serialize_order_item(item) for item in order.items.select_related("product").all()]
     total_quantity = sum(item["quantity"] for item in items)
-    status_meta = ORDER_STATUS_META.get(order.status, {"label": order.status})
+    status_meta = ORDER_STATUS_META.get(
+        order.status,
+        {
+            "label": order.status,
+            "tone": "neutral",
+            "can_reorder": False,
+            "detail_hint": "",
+            "cta_label": "주문 정보 확인",
+        },
+    )
     return {
         "order_id": str(order.order_id),
         "status": order.status,
         "status_label": status_meta["label"],
+        "status_meta": {
+            "code": order.status,
+            "label": status_meta["label"],
+            "tone": status_meta["tone"],
+            "can_reorder": status_meta["can_reorder"],
+            "detail_hint": status_meta["detail_hint"],
+            "cta_label": status_meta["cta_label"],
+        },
+        "can_reorder": status_meta["can_reorder"],
         "recipient_name": order.recipient_name,
         "recipient_phone": order.recipient_phone,
         "delivery_address": order.delivery_address,
@@ -140,6 +189,8 @@ def serialize_order_summary(order: Order) -> dict:
         "order_id": serialized["order_id"],
         "status": serialized["status"],
         "status_label": serialized["status_label"],
+        "status_meta": serialized["status_meta"],
+        "can_reorder": serialized["can_reorder"],
         "recipient_name": serialized["recipient_name"],
         "delivery_message": serialized["delivery_message"],
         "payment_method": serialized["payment_method"],
@@ -151,6 +202,34 @@ def serialize_order_summary(order: Order) -> dict:
         "items": items,
         "primary_item_name": items[0]["name"] if items else "",
     }
+
+
+def parse_order_list_options(request):
+    status_filter = (request.query_params.get("status") or "all").strip() or "all"
+    if status_filter != "all" and status_filter not in ORDER_STATUS_META:
+        return None, Response({"detail": "invalid status filter."}, status=status.HTTP_400_BAD_REQUEST)
+
+    ordering_key = (request.query_params.get("ordering") or "latest").strip() or "latest"
+    ordering = ORDER_LIST_ORDERING.get(ordering_key)
+    if ordering is None:
+        return None, Response({"detail": "invalid ordering."}, status=status.HTTP_400_BAD_REQUEST)
+
+    try:
+        page = max(int(request.query_params.get("page", 1) or 1), 1)
+        page_size = int(request.query_params.get("page_size", DEFAULT_ORDER_PAGE_SIZE) or DEFAULT_ORDER_PAGE_SIZE)
+    except (TypeError, ValueError):
+        return None, Response({"detail": "page and page_size must be numbers."}, status=status.HTTP_400_BAD_REQUEST)
+
+    if page_size < 1 or page_size > 50:
+        return None, Response({"detail": "page_size must be between 1 and 50."}, status=status.HTTP_400_BAD_REQUEST)
+
+    return {
+        "status_filter": status_filter,
+        "ordering_key": ordering_key,
+        "ordering": ordering,
+        "page": page,
+        "page_size": page_size,
+    }, None
 
 
 def get_profile_value(user, field_name):
@@ -287,16 +366,48 @@ class OrderListView(APIView):
     permission_classes = [IsAuthenticated]
 
     def get(self, request):
-        orders = (
-            Order.objects.filter(user=request.user)
-            .prefetch_related("items__product")
-            .order_by("-created_at")
-        )
-        serialized_orders = [serialize_order_summary(order) for order in orders]
+        options, error_response = parse_order_list_options(request)
+        if error_response:
+            return error_response
+
+        orders = Order.objects.filter(user=request.user).prefetch_related("items__product")
+        if options["status_filter"] != "all":
+            orders = orders.filter(status=options["status_filter"])
+        orders = orders.order_by(options["ordering"])
+
+        paginator = Paginator(orders, options["page_size"])
+        page_obj = paginator.get_page(options["page"])
+        serialized_orders = [serialize_order_summary(order) for order in page_obj.object_list]
         return Response(
             {
                 "orders": serialized_orders,
-                "count": len(serialized_orders),
+                "count": paginator.count,
+                "filters": {
+                    "status": options["status_filter"],
+                    "ordering": options["ordering_key"],
+                    "available_statuses": [
+                        {"code": "all", "label": "전체"}
+                    ] + [
+                        {"code": code, "label": meta["label"]}
+                        for code, meta in ORDER_STATUS_META.items()
+                    ],
+                    "available_ordering": [
+                        {"code": "latest", "label": "최신순"},
+                        {"code": "oldest", "label": "오래된순"},
+                    ],
+                },
+                "pagination": {
+                    "page": page_obj.number,
+                    "page_size": options["page_size"],
+                    "total_pages": paginator.num_pages,
+                    "total_count": paginator.count,
+                    "has_next": page_obj.has_next(),
+                    "has_previous": page_obj.has_previous(),
+                },
+                "reorder_policy": {
+                    "mode": "add_to_cart",
+                    "merge_behavior": "increase_quantity",
+                },
             }
         )
 

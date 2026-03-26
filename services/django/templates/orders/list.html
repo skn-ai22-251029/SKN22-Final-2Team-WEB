@@ -11,6 +11,33 @@
     display: flex;
   }
 
+  .order-feedback-toast {
+    opacity: 0;
+    visibility: hidden;
+    transform: translate(-50%, 10px) scale(0.98);
+    transition: opacity 180ms ease, transform 180ms ease;
+  }
+
+  .order-feedback-toast.is-open {
+    opacity: 1;
+    visibility: visible;
+    transform: translate(-50%, 0) scale(1);
+  }
+
+  .order-card-grid {
+    grid-auto-rows: min-content;
+  }
+
+  .order-toolbar-chip {
+    transition: background-color 160ms ease, border-color 160ms ease, color 160ms ease;
+  }
+
+  .order-toolbar-chip.is-active {
+    background: #2d3748;
+    border-color: #2d3748;
+    color: #fff;
+  }
+
   .order-detail-dialog {
     display: flex;
     flex-direction: column;
@@ -38,12 +65,24 @@
   }
 
   .order-empty-state {
-    max-width: 650px;
+    width: 100%;
     border-style: dashed;
     border-radius: 20px;
-    padding: 32px 24px;
-    min-height: 360px;
+    padding: 44px 40px;
+    min-height: 340px;
     box-shadow: 0 6px 18px rgba(45, 55, 72, 0.04);
+  }
+
+  @media (max-width: 1023px) {
+    .order-detail-dialog {
+      max-height: calc(100vh - 20px);
+      padding: 20px 18px;
+    }
+
+    .order-empty-state {
+      padding: 36px 24px;
+      min-height: 300px;
+    }
   }
 </style>
 {% endblock %}
@@ -65,8 +104,36 @@
       </div>
     </div>
 
+    <div class="mt-6 flex flex-col gap-3 rounded-[24px] border border-[#dbe7f5] bg-white px-4 py-4 shadow-[0_6px_18px_rgba(45,55,72,0.04)] md:flex-row md:items-center md:justify-between">
+      <div class="flex flex-wrap gap-2">
+        {% for option in order_filter_options %}
+        <a href="/orders/{% if option.query %}?{{ option.query }}{% endif %}"
+           class="order-toolbar-chip inline-flex h-[34px] items-center justify-center rounded-full border border-[#dbe7f5] px-4 text-[13px] font-semibold {% if option.is_active %}is-active{% else %}bg-[#f8fbff] text-[#4a5568]{% endif %}">
+          {{ option.label }}
+        </a>
+        {% endfor %}
+      </div>
+      <div class="flex items-center gap-2 self-end md:self-auto">
+        <span class="text-[12px] font-semibold text-[#90a4b8]">정렬</span>
+        <div class="inline-flex rounded-full border border-[#dbe7f5] bg-[#f8fbff] p-[3px]">
+          {% for option in order_ordering_options %}
+          <a href="/orders/{% if option.query %}?{{ option.query }}{% endif %}"
+             class="order-toolbar-chip inline-flex h-[30px] min-w-[78px] items-center justify-center rounded-full px-3 text-[12px] font-semibold {% if option.is_active %}is-active{% else %}text-[#4a5568]{% endif %}">
+            {{ option.label }}
+          </a>
+          {% endfor %}
+        </div>
+      </div>
+    </div>
+
+    {% if order_demo_mode %}
+    <div class="mt-3 inline-flex h-[30px] items-center justify-center rounded-full bg-[#edf2f7] px-3 text-[12px] font-semibold text-[#4a5568]">
+      시연용 예시 주문을 보고 있어요
+    </div>
+    {% endif %}
+
     {% if order_groups %}
-    <div class="mt-8 grid items-start gap-5 lg:grid-cols-2">
+    <div class="order-card-grid mt-8 grid items-start gap-5 lg:grid-cols-2">
       {% for order in order_groups %}
       <section class="overflow-hidden rounded-[24px] border border-[#dbe7f5] bg-white shadow-[0_8px_24px_rgba(45,55,72,0.04)]">
         <div class="px-5 py-5">
@@ -83,11 +150,13 @@
                   <p class="mt-2 text-[14px] font-semibold text-[#2d3748]">주문번호 {{ order.order_id }}</p>
                 </div>
                 <div class="flex shrink-0 items-center gap-2">
+                  {% if order.can_reorder %}
                   <button type="button"
                           class="inline-flex h-[32px] items-center justify-center rounded-[10px] border border-[#dbe7f5] bg-white px-3 text-[12px] font-semibold text-[#4a5568]"
                           data-order-reorder="{{ forloop.counter0 }}">
-                    다시 주문
+                    {{ order.cta_label }}
                   </button>
+                  {% endif %}
                   <button type="button"
                           class="inline-flex h-[32px] items-center justify-center rounded-[10px] bg-[#edf2f7] px-3 text-[12px] font-semibold text-[#2d3748]"
                           data-order-open="{{ forloop.counter0 }}">
@@ -123,19 +192,46 @@
       </section>
       {% endfor %}
     </div>
+    {% if order_page_obj.paginator.num_pages > 1 %}
+    <div class="mt-8 flex items-center justify-center gap-2">
+      {% if order_page_obj.has_previous %}
+      <a href="/orders/?page={{ order_page_obj.previous_page_number }}{% if order_current_status != 'all' %}&status={{ order_current_status }}{% endif %}{% if order_current_ordering != 'latest' %}&ordering={{ order_current_ordering }}{% endif %}{% if order_demo_mode %}&demo=1{% endif %}"
+         class="inline-flex h-[36px] min-w-[36px] items-center justify-center rounded-full border border-[#dbe7f5] bg-white px-3 text-[13px] font-semibold text-[#4a5568]">
+        이전
+      </a>
+      {% endif %}
+      {% for page_link in order_pagination_links %}
+      <a href="/orders/?{% if page_link.query %}{{ page_link.query }}{% endif %}"
+         class="inline-flex h-[36px] min-w-[36px] items-center justify-center rounded-full border px-3 text-[13px] font-semibold {% if page_link.is_active %}border-[#2d3748] bg-[#2d3748] text-white{% else %}border-[#dbe7f5] bg-white text-[#4a5568]{% endif %}">
+        {{ page_link.number }}
+      </a>
+      {% endfor %}
+      {% if order_page_obj.has_next %}
+      <a href="/orders/?page={{ order_page_obj.next_page_number }}{% if order_current_status != 'all' %}&status={{ order_current_status }}{% endif %}{% if order_current_ordering != 'latest' %}&ordering={{ order_current_ordering }}{% endif %}{% if order_demo_mode %}&demo=1{% endif %}"
+         class="inline-flex h-[36px] min-w-[36px] items-center justify-center rounded-full border border-[#dbe7f5] bg-white px-3 text-[13px] font-semibold text-[#4a5568]">
+        다음
+      </a>
+      {% endif %}
+    </div>
+    {% endif %}
     {% else %}
     <div class="mt-8">
       <div class="order-empty-state flex flex-col items-center justify-center rounded-[20px] border border-dashed border-[#dbe7f5] bg-white text-center">
-        <div class="text-[28px] text-[#7aa6e9]">📦</div>
-        <p class="mt-[10px] text-[18px] font-bold text-[#2d3748]">주문 내역이 아직 없어요</p>
-        <p class="mt-[6px] text-[14px] leading-[1.6] text-[#718096]">장바구니에서 상품을 주문하면<br>이곳에서 지난 주문을 확인할 수 있어요</p>
-        <a href="/products/" class="mt-6 inline-flex h-[42px] items-center justify-center rounded-full bg-[#2d3748] px-5 text-[13px] font-semibold text-white">
+        <div class="text-[34px] text-[#7aa6e9]">📦</div>
+        <p class="mt-[14px] text-[22px] font-bold text-[#2d3748]">주문 내역이 아직 없어요</p>
+        <p class="mt-[10px] text-[15px] leading-[1.75] text-[#718096]">장바구니에서 상품을 주문하면 이곳에서 지난 주문을 확인할 수 있어요</p>
+        <a href="/products/" class="mt-7 inline-flex h-[46px] items-center justify-center rounded-full bg-[#2d3748] px-6 text-[14px] font-semibold text-white">
           장바구니 보러가기
         </a>
       </div>
     </div>
     {% endif %}
   </div>
+</div>
+
+<div id="orderFeedbackToast"
+     class="order-feedback-toast pointer-events-none fixed left-1/2 top-[88px] z-[70] flex min-h-[44px] min-w-[232px] max-w-[360px] -translate-x-1/2 items-center justify-center rounded-full bg-[#1f2937] px-[18px] py-[11px] text-center text-[13px] font-semibold text-white shadow-[0_14px_28px_rgba(15,23,42,0.28)]">
+  오류가 발생했습니다.
 </div>
 
 <div id="orderDetailModal" class="order-detail-modal fixed inset-0 z-50 items-center justify-center bg-[rgba(15,23,42,0.46)] px-4" onclick="closeOrderDetailModal(event)">
@@ -175,7 +271,7 @@
               <span id="orderDetailAddress" class="max-w-[380px] text-right leading-[1.6] text-[#2d3748]"></span>
             </div>
             <div class="flex items-start justify-between gap-3">
-              <span class="text-[#90a4b8]">배송 메모</span>
+              <span id="orderDetailMessageLabel" class="text-[#90a4b8]">배송 메모</span>
               <span id="orderDetailMessage" class="max-w-[380px] text-right leading-[1.6] text-[#2d3748]"></span>
             </div>
             <div class="flex items-start justify-between gap-3">
@@ -191,6 +287,7 @@
       <aside class="rounded-[20px] border border-[#dbe7f5] bg-white px-5 py-5">
         <p class="text-[13px] font-semibold text-[#90a4b8]">결제 요약</p>
         <p id="orderDetailTotal" class="mt-3 text-[24px] font-bold text-[#2d3748]"></p>
+        <p id="orderDetailHint" class="mt-3 whitespace-pre-line text-[13px] leading-[1.6] text-[#718096]"></p>
         <div class="mt-5 space-y-3 text-[13px] text-[#4a5568]">
           <div class="flex items-center justify-between">
             <span>상품 수</span>
@@ -229,14 +326,18 @@
   var detailRecipient = document.getElementById('orderDetailRecipient');
   var detailPhone = document.getElementById('orderDetailPhone');
   var detailAddress = document.getElementById('orderDetailAddress');
+  var detailMessageLabel = document.getElementById('orderDetailMessageLabel');
   var detailMessage = document.getElementById('orderDetailMessage');
   var detailPayment = document.getElementById('orderDetailPayment');
   var detailItems = document.getElementById('orderDetailItems');
   var detailTotal = document.getElementById('orderDetailTotal');
+  var detailHint = document.getElementById('orderDetailHint');
   var detailCount = document.getElementById('orderDetailCount');
   var detailStatusText = document.getElementById('orderDetailStatusText');
   var detailReorderButton = document.getElementById('orderDetailReorderButton');
   var activeOrderIndex = null;
+  var feedbackToast = document.getElementById('orderFeedbackToast');
+  var feedbackToastTimer = null;
 
   function getCsrfToken() {
     var match = document.cookie.match(/(?:^|;\s*)csrftoken=([^;]+)/);
@@ -252,6 +353,20 @@
     button.textContent = isLoading ? '담는 중...' : button.dataset.defaultLabel;
     button.classList.toggle('opacity-60', isLoading);
     button.classList.toggle('cursor-not-allowed', isLoading);
+  }
+
+  function showOrderFeedback(message) {
+    if (!feedbackToast || !message) return;
+    feedbackToast.textContent = message;
+    feedbackToast.classList.add('is-open');
+    if (feedbackToastTimer) {
+      window.clearTimeout(feedbackToastTimer);
+      feedbackToastTimer = null;
+    }
+    feedbackToastTimer = window.setTimeout(function () {
+      feedbackToast.classList.remove('is-open');
+      feedbackToastTimer = null;
+    }, 2600);
   }
 
   function resetReorderButtons() {
@@ -271,7 +386,7 @@
       return Boolean(item.product_id);
     });
     if (!orderItems.length || orderItems.length !== order.items.length) {
-      window.alert('현재 주문 상품은 다시 주문을 지원하지 않아요.');
+      showOrderFeedback('현재 주문 상품은 다시 주문을 지원하지 않아요.');
       return;
     }
 
@@ -303,7 +418,7 @@
 
       window.location.href = '/products/';
     } catch (error) {
-      window.alert('다시 주문에 실패했어요. 잠시 후 다시 시도해 주세요.');
+      showOrderFeedback('다시 주문에 실패했어요. 잠시 후 다시 시도해 주세요.');
       setReorderButtonLoading(triggerButton, false);
       if (detailReorderButton && detailReorderButton !== triggerButton) {
         setReorderButtonLoading(detailReorderButton, false);
@@ -350,11 +465,19 @@
     detailRecipient.textContent = order.recipient;
     detailPhone.textContent = order.recipient_phone || '-';
     detailAddress.textContent = order.delivery_address || '-';
+    if (detailMessageLabel) {
+      detailMessageLabel.textContent = order.status === '주문 취소' ? '취소 사유' : '배송 메모';
+    }
     detailMessage.textContent = order.delivery_message || '-';
     detailPayment.textContent = order.payment_method || '-';
     detailTotal.textContent = order.total_price;
-    detailCount.textContent = (order.items || []).length + '개';
+    if (detailHint) detailHint.textContent = order.detail_hint || '';
+    detailCount.textContent = (order.item_count || (order.items || []).length) + '개';
     detailStatusText.textContent = order.status;
+    if (detailReorderButton) {
+      detailReorderButton.textContent = order.can_reorder ? (order.cta_label || '다시 주문하기') : '주문 정보 확인';
+      detailReorderButton.classList.toggle('hidden', !order.can_reorder);
+    }
     renderOrderItems(order.items || []);
     modal.classList.add('is-open');
   }

@@ -334,6 +334,55 @@ class OrderReadApiTests(TestCase):
         self.assertEqual(order["item_count"], 3)
         self.assertEqual(order["primary_item_name"], "주문 조회 테스트 상품 A")
         self.assertEqual(len(order["items"]), 2)
+        self.assertTrue(order["can_reorder"])
+        self.assertEqual(order["status_meta"]["tone"], "info")
+        self.assertEqual(order["status_meta"]["cta_label"], "같은 구성 다시 담기")
+        self.assertEqual(response.data["filters"]["status"], "all")
+        self.assertEqual(response.data["filters"]["ordering"], "latest")
+        self.assertEqual(response.data["pagination"]["total_count"], 1)
+        self.assertEqual(response.data["reorder_policy"]["merge_behavior"], "increase_quantity")
+
+    def test_get_order_list_supports_status_filter_and_oldest_ordering(self):
+        Order.objects.create(
+            user=self.user,
+            recipient_name="왈냥",
+            recipient_phone="01022223333",
+            delivery_address="서울 강동구 올림픽로 123 | 101동 1203호",
+            delivery_message="",
+            payment_method="카카오페이 / 일시불",
+            applied_coupon_id="none",
+            product_total=9000,
+            coupon_discount=0,
+            mileage_discount=0,
+            shipping_fee=3000,
+            total_price=12000,
+            status="completed",
+        )
+
+        response = self.client.get("/api/orders/?status=completed&ordering=oldest&page=1&page_size=5")
+
+        self.assertEqual(response.status_code, status.HTTP_200_OK)
+        self.assertEqual(response.data["count"], 1)
+        self.assertEqual(response.data["filters"]["status"], "completed")
+        self.assertEqual(response.data["filters"]["ordering"], "oldest")
+        self.assertEqual(response.data["orders"][0]["status"], "completed")
+
+    def test_get_order_list_supports_shipping_status_filter(self):
+        self.order.status = "shipping"
+        self.order.save(update_fields=["status"])
+
+        response = self.client.get("/api/orders/?status=shipping")
+
+        self.assertEqual(response.status_code, status.HTTP_200_OK)
+        self.assertEqual(response.data["count"], 1)
+        self.assertEqual(response.data["filters"]["status"], "shipping")
+        self.assertEqual(response.data["orders"][0]["status"], "shipping")
+        self.assertEqual(response.data["orders"][0]["status_meta"]["label"], "배송 중")
+
+    def test_get_order_list_rejects_invalid_filter_values(self):
+        response = self.client.get("/api/orders/?status=invalid")
+        self.assertEqual(response.status_code, status.HTTP_400_BAD_REQUEST)
+        self.assertEqual(response.data["detail"], "invalid status filter.")
 
     def test_get_order_detail_returns_full_order_payload(self):
         response = self.client.get(f"/api/orders/{self.order.order_id}/")
@@ -349,6 +398,8 @@ class OrderReadApiTests(TestCase):
         self.assertEqual(order["shipping_fee"], 0)
         self.assertEqual(order["total_price"], 46800)
         self.assertEqual(order["item_count"], 3)
+        self.assertTrue(order["can_reorder"])
+        self.assertEqual(order["status_meta"]["detail_hint"], "상품 준비가 시작되면\n배송 상태가 업데이트됩니다")
         self.assertEqual(len(order["items"]), 2)
         self.assertEqual(order["items"][0]["line_total"], 42000)
         self.assertEqual(order["items"][1]["line_total"], 9000)
@@ -357,4 +408,17 @@ class OrderReadApiTests(TestCase):
         response = self.client.get(f"/api/orders/{self.other_order.order_id}/")
 
         self.assertEqual(response.status_code, status.HTTP_404_NOT_FOUND)
-        self.assertEqual(response.data["detail"], "order not found.")
+
+
+class OrderPageViewTests(TestCase):
+    def setUp(self):
+        self.user = User.objects.create_user(email="order-page@example.com", password="Password123!")
+        self.client.force_login(self.user)
+
+    def test_order_list_supports_demo_mode(self):
+        response = self.client.get("/orders/?demo=1")
+
+        self.assertEqual(response.status_code, 200)
+        self.assertContains(response, "시연용 예시 주문을 보고 있어요")
+        self.assertContains(response, "TT-20260325-1024")
+        self.assertContains(response, "배송 중")
