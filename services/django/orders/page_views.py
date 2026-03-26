@@ -3,6 +3,7 @@ from django.shortcuts import render
 from django.db.models import Q
 
 from products.models import Product
+from .models import Order
 
 
 def _format_price(value):
@@ -39,6 +40,13 @@ def _recommended_note(index):
     return notes[index % len(notes)]
 
 
+ORDER_STATUS_VIEW_META = {
+    "pending": {"label": "주문 접수", "class": "bg-[#fef3c7] text-[#b45309]"},
+    "completed": {"label": "배송 완료", "class": "bg-[#dcfce7] text-[#15803d]"},
+    "cancelled": {"label": "주문 취소", "class": "bg-[#fee2e2] text-[#dc2626]"},
+}
+
+
 def _serialize_order_item(product, quantity=1):
     return {
         "product_id": product.goods_id,
@@ -48,6 +56,40 @@ def _serialize_order_item(product, quantity=1):
         "quantity": quantity,
         "unit_price": _format_price(product.price),
         "price": _format_price(product.price * quantity),
+    }
+
+
+def _serialize_order_group(order):
+    status_meta = ORDER_STATUS_VIEW_META.get(order.status, {"label": order.status, "class": "bg-[#edf2f7] text-[#4a5568]"})
+    items = []
+    total_quantity = 0
+    for item in order.items.select_related("product").all():
+        total_quantity += item.quantity
+        items.append(
+            {
+                "product_id": item.product.goods_id,
+                "thumbnail_url": item.product.thumbnail_url,
+                "emoji": "📦",
+                "name": _display_product_name(item.product.brand_name, item.product.goods_name),
+                "quantity": item.quantity,
+                "unit_price": _format_price(item.price_at_order),
+                "price": _format_price(item.price_at_order * item.quantity),
+            }
+        )
+
+    return {
+        "order_id": str(order.order_id),
+        "created_at": order.created_at.strftime("%Y.%m.%d"),
+        "status": status_meta["label"],
+        "status_class": status_meta["class"],
+        "recipient": order.recipient_name,
+        "recipient_phone": order.recipient_phone,
+        "delivery_address": order.delivery_address.replace("|", ","),
+        "total_price": _format_price(order.total_price),
+        "delivery_message": order.delivery_message,
+        "payment_method": order.payment_method,
+        "item_count": total_quantity,
+        "items": items,
     }
 
 
@@ -232,7 +274,12 @@ def _order_groups():
 
 @login_required
 def order_list(request):
-    orders = _order_groups()
+    order_queryset = (
+        Order.objects.filter(user=request.user)
+        .prefetch_related("items__product")
+        .order_by("-created_at")
+    )
+    orders = [_serialize_order_group(order) for order in order_queryset]
     return render(
         request,
         "orders/list.html",

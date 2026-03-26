@@ -251,3 +251,110 @@ class OrderCreateApiTests(TestCase):
 
         self.assertEqual(response.status_code, status.HTTP_400_BAD_REQUEST)
         self.assertEqual(response.data["detail"], "recipient_name is required.")
+
+
+class OrderReadApiTests(TestCase):
+    def setUp(self):
+        self.client = APIClient()
+        self.user = User.objects.create_user(email="order-read@example.com", password="Password123!")
+        self.other_user = User.objects.create_user(email="other-order@example.com", password="Password123!")
+        self.client.force_authenticate(self.user)
+
+        self.product_a = Product.objects.create(
+            goods_id="GI4001",
+            goods_name="주문 조회 테스트 상품 A",
+            brand_name="테스트 브랜드",
+            price=21000,
+            discount_price=18000,
+            thumbnail_url="https://example.com/read-a.png",
+            product_url="https://example.com/read-a",
+            crawled_at=timezone.now(),
+        )
+        self.product_b = Product.objects.create(
+            goods_id="GI4002",
+            goods_name="주문 조회 테스트 상품 B",
+            brand_name="테스트 브랜드",
+            price=9000,
+            discount_price=7000,
+            thumbnail_url="https://example.com/read-b.png",
+            product_url="https://example.com/read-b",
+            crawled_at=timezone.now(),
+        )
+
+        self.order = Order.objects.create(
+            user=self.user,
+            recipient_name="왈냥",
+            recipient_phone="01012345678",
+            delivery_address="서울 강동구 올림픽로 123 | 101동 1203호",
+            delivery_message="문 앞에 놓아주세요",
+            payment_method="우리카드 1234 / 일시불",
+            applied_coupon_id="new-member",
+            product_total=51000,
+            coupon_discount=3000,
+            mileage_discount=1200,
+            shipping_fee=0,
+            total_price=46800,
+            status="pending",
+        )
+        OrderItem.objects.create(order=self.order, product=self.product_a, quantity=2, price_at_order=21000)
+        OrderItem.objects.create(order=self.order, product=self.product_b, quantity=1, price_at_order=9000)
+
+        self.other_order = Order.objects.create(
+            user=self.other_user,
+            recipient_name="다른사용자",
+            recipient_phone="01000000000",
+            delivery_address="부산 해운대구",
+            delivery_message="",
+            payment_method="카카오페이 / 일시불",
+            applied_coupon_id="none",
+            product_total=21000,
+            coupon_discount=0,
+            mileage_discount=0,
+            shipping_fee=3000,
+            total_price=24000,
+            status="completed",
+        )
+        OrderItem.objects.create(order=self.other_order, product=self.product_a, quantity=1, price_at_order=21000)
+
+    def test_get_order_list_returns_only_current_user_orders(self):
+        response = self.client.get("/api/orders/")
+
+        self.assertEqual(response.status_code, status.HTTP_200_OK)
+        self.assertEqual(response.data["count"], 1)
+        self.assertEqual(len(response.data["orders"]), 1)
+
+        order = response.data["orders"][0]
+        self.assertEqual(order["order_id"], str(self.order.order_id))
+        self.assertEqual(order["status"], "pending")
+        self.assertEqual(order["status_label"], "주문 접수")
+        self.assertEqual(order["recipient_name"], "왈냥")
+        self.assertEqual(order["delivery_message"], "문 앞에 놓아주세요")
+        self.assertEqual(order["payment_method"], "우리카드 1234 / 일시불")
+        self.assertEqual(order["total_price"], 46800)
+        self.assertEqual(order["item_count"], 3)
+        self.assertEqual(order["primary_item_name"], "주문 조회 테스트 상품 A")
+        self.assertEqual(len(order["items"]), 2)
+
+    def test_get_order_detail_returns_full_order_payload(self):
+        response = self.client.get(f"/api/orders/{self.order.order_id}/")
+
+        self.assertEqual(response.status_code, status.HTTP_200_OK)
+        order = response.data["order"]
+        self.assertEqual(order["order_id"], str(self.order.order_id))
+        self.assertEqual(order["status_label"], "주문 접수")
+        self.assertEqual(order["recipient_phone"], "01012345678")
+        self.assertEqual(order["delivery_address"], "서울 강동구 올림픽로 123 | 101동 1203호")
+        self.assertEqual(order["coupon_discount"], 3000)
+        self.assertEqual(order["mileage_discount"], 1200)
+        self.assertEqual(order["shipping_fee"], 0)
+        self.assertEqual(order["total_price"], 46800)
+        self.assertEqual(order["item_count"], 3)
+        self.assertEqual(len(order["items"]), 2)
+        self.assertEqual(order["items"][0]["line_total"], 42000)
+        self.assertEqual(order["items"][1]["line_total"], 9000)
+
+    def test_get_order_detail_rejects_other_user_order(self):
+        response = self.client.get(f"/api/orders/{self.other_order.order_id}/")
+
+        self.assertEqual(response.status_code, status.HTTP_404_NOT_FOUND)
+        self.assertEqual(response.data["detail"], "order not found.")

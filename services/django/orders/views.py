@@ -24,6 +24,11 @@ COUPON_RULES = {
     "new-member": {"label": "신규회원 3,000원 할인", "discount": 3000, "min_total": 30000},
     "pet-care": {"label": "펫케어 5,000원 할인", "discount": 5000, "min_total": 60000},
 }
+ORDER_STATUS_META = {
+    "pending": {"label": "주문 접수"},
+    "completed": {"label": "배송 완료"},
+    "cancelled": {"label": "주문 취소"},
+}
 
 
 def _display_product_name(brand_name, goods_name):
@@ -99,9 +104,12 @@ def serialize_order_item(item: OrderItem) -> dict:
 
 def serialize_order(order: Order) -> dict:
     items = [serialize_order_item(item) for item in order.items.select_related("product").all()]
+    total_quantity = sum(item["quantity"] for item in items)
+    status_meta = ORDER_STATUS_META.get(order.status, {"label": order.status})
     return {
         "order_id": str(order.order_id),
         "status": order.status,
+        "status_label": status_meta["label"],
         "recipient_name": order.recipient_name,
         "recipient_phone": order.recipient_phone,
         "delivery_address": order.delivery_address,
@@ -118,9 +126,30 @@ def serialize_order(order: Order) -> dict:
         "shipping_fee_label": f"{order.shipping_fee:,}원",
         "total_price": order.total_price,
         "total_price_label": f"{order.total_price:,}원",
-        "item_count": len(items),
+        "item_count": total_quantity,
         "items": items,
         "created_at": order.created_at.isoformat(),
+        "created_date": order.created_at.strftime("%Y.%m.%d"),
+    }
+
+
+def serialize_order_summary(order: Order) -> dict:
+    serialized = serialize_order(order)
+    items = serialized["items"]
+    return {
+        "order_id": serialized["order_id"],
+        "status": serialized["status"],
+        "status_label": serialized["status_label"],
+        "recipient_name": serialized["recipient_name"],
+        "delivery_message": serialized["delivery_message"],
+        "payment_method": serialized["payment_method"],
+        "total_price": serialized["total_price"],
+        "total_price_label": serialized["total_price_label"],
+        "item_count": serialized["item_count"],
+        "created_at": serialized["created_at"],
+        "created_date": serialized["created_date"],
+        "items": items,
+        "primary_item_name": items[0]["name"] if items else "",
     }
 
 
@@ -258,7 +287,18 @@ class OrderListView(APIView):
     permission_classes = [IsAuthenticated]
 
     def get(self, request):
-        return Response({"message": "TODO"})
+        orders = (
+            Order.objects.filter(user=request.user)
+            .prefetch_related("items__product")
+            .order_by("-created_at")
+        )
+        serialized_orders = [serialize_order_summary(order) for order in orders]
+        return Response(
+            {
+                "orders": serialized_orders,
+                "count": len(serialized_orders),
+            }
+        )
 
     @transaction.atomic
     def post(self, request):
@@ -313,6 +353,22 @@ class OrderListView(APIView):
 
         order = Order.objects.prefetch_related("items__product").get(pk=order.pk)
         return Response({"order": serialize_order(order)}, status=status.HTTP_201_CREATED)
+
+
+class OrderDetailView(APIView):
+    authentication_classes = [JWTAuthentication, SessionAuthentication]
+    permission_classes = [IsAuthenticated]
+
+    def get(self, request, order_id):
+        order = (
+            Order.objects.filter(user=request.user, order_id=order_id)
+            .prefetch_related("items__product")
+            .first()
+        )
+        if order is None:
+            return Response({"detail": "order not found."}, status=status.HTTP_404_NOT_FOUND)
+
+        return Response({"order": serialize_order(order)})
 
 
 class CartView(APIView):

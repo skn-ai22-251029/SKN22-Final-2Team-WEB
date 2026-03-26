@@ -444,7 +444,12 @@
         </div>
       </aside>
 
-      <aside id="orderSummaryPanel" class="flex min-h-[720px] flex-col rounded-[24px] border border-[#dbe7f5] bg-white p-6 shadow-[0_10px_28px_rgba(45,55,72,0.05)] lg:sticky lg:top-8">
+      <aside id="orderSummaryPanel"
+             data-recipient-name="{{ recipient_name }}"
+             data-recipient-phone="{{ recipient_phone }}"
+             data-delivery-address="{{ delivery_base_address }} | {{ delivery_detail_address }}"
+             data-payment-method="{{ payment_method }}"
+             class="flex min-h-[720px] flex-col rounded-[24px] border border-[#dbe7f5] bg-white p-6 shadow-[0_10px_28px_rgba(45,55,72,0.05)] lg:sticky lg:top-8">
         <h2 class="text-[22px] font-bold text-[#2d3748]">주문 정보</h2>
 
         <div class="mt-5 grid gap-3 md:grid-cols-2">
@@ -540,7 +545,7 @@
           </div>
         </div>
 
-        <button type="button" class="mt-auto inline-flex h-[52px] w-full items-center justify-center rounded-[16px] bg-[#2d3748] text-[15px] font-bold text-white shadow-[0_10px_24px_rgba(45,55,72,0.18)]">
+        <button type="button" id="submitOrderBtn" class="mt-auto inline-flex h-[52px] w-full items-center justify-center rounded-[16px] bg-[#2d3748] text-[15px] font-bold text-white shadow-[0_10px_24px_rgba(45,55,72,0.18)]">
           주문하기
         </button>
       </aside>
@@ -645,6 +650,7 @@
   var deliveryMessageSelect = document.getElementById('deliveryMessageSelect');
   var deliveryMessageCustomField = document.getElementById('deliveryMessageCustomField');
   var deliveryMessageInput = document.getElementById('deliveryMessageInput');
+  var submitOrderBtn = document.getElementById('submitOrderBtn');
   var discountTabCoupon = document.getElementById('discountTabCoupon');
   var discountTabMileage = document.getElementById('discountTabMileage');
   var discountPanelCoupon = document.getElementById('discountPanelCoupon');
@@ -910,6 +916,25 @@
       deliveryMessageInput.value = deliveryMessageSelect.value;
     }
     scheduleViewportSync();
+  }
+
+  function getDeliveryMessageValue() {
+    if (!deliveryMessageSelect) return '';
+    if (deliveryMessageSelect.value === '직접 입력') {
+      return deliveryMessageInput ? (deliveryMessageInput.value || '').trim() : '';
+    }
+    return deliveryMessageSelect.value;
+  }
+
+  function setOrderSubmitLoading(isLoading) {
+    if (!submitOrderBtn) return;
+    if (!submitOrderBtn.dataset.defaultLabel) {
+      submitOrderBtn.dataset.defaultLabel = submitOrderBtn.textContent.trim();
+    }
+    submitOrderBtn.disabled = isLoading;
+    submitOrderBtn.textContent = isLoading ? '주문 처리 중...' : submitOrderBtn.dataset.defaultLabel;
+    submitOrderBtn.classList.toggle('opacity-60', isLoading);
+    submitOrderBtn.classList.toggle('cursor-not-allowed', isLoading);
   }
 
   function updateDiscountPreview() {
@@ -1362,6 +1387,31 @@
 
   if (deliveryMessageSelect) {
     deliveryMessageSelect.addEventListener('change', syncDeliveryMessageField);
+  }
+
+  if (submitOrderBtn) {
+    submitOrderBtn.addEventListener('click', function () {
+      if (!orderSummaryPanel) return;
+
+      setOrderSubmitLoading(true);
+      requestJson('/api/orders/', {
+        method: 'POST',
+        body: JSON.stringify({
+          recipient_name: orderSummaryPanel.dataset.recipientName || '',
+          recipient_phone: orderSummaryPanel.dataset.recipientPhone || '',
+          delivery_address: orderSummaryPanel.dataset.deliveryAddress || '',
+          delivery_message: getDeliveryMessageValue(),
+          payment_method: orderSummaryPanel.dataset.paymentMethod || '',
+          coupon_id: selectedCouponId || 'none',
+          mileage_amount: selectedMileageValue || 0,
+        }),
+      }).then(function () {
+        window.location.href = '/orders/';
+      }).catch(function (error) {
+        window.alert(error.message || '주문을 완료하지 못했습니다.');
+        setOrderSubmitLoading(false);
+      });
+    });
   }
 
   var cartListViewport = document.getElementById('cartListViewport');
