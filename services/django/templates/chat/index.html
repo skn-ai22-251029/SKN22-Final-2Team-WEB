@@ -3282,11 +3282,7 @@
   startPromoAutoSlide();
 
   switchProductTab('recommended');
-  {% if chat_enabled %}
-  openProductPanel();
-  {% else %}
   hideProductPanel();
-  {% endif %}
   applyLayout();
   if (activePetId) {
     var initialPet = document.querySelector('[data-pet-id="' + CSS.escape(activePetId) + '"]');
