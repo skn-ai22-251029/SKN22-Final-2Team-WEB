@@ -1,0 +1,90 @@
+name: Sync FastAPI Submodule
+
+on:
+  repository_dispatch:
+    types:
+      - fastapi-updated
+
+permissions:
+  contents: write
+  pull-requests: write
+
+concurrency:
+  group: sync-fastapi-submodule
+  cancel-in-progress: true
+
+env:
+  BASE_BRANCH: develop
+  SUBMODULE_PATH: services/fastapi
+  SUBMODULE_URL: https://github.com/skn-ai22-251029/SKN22-Final-2Team-AI
+  SUBMODULE_BRANCH: develop
+
+jobs:
+  sync:
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout web repository
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Sync and initialize submodule
+        run: |
+          git submodule sync -- "${SUBMODULE_PATH}"
+          git submodule update --init --recursive "${SUBMODULE_PATH}"
+
+      - name: Resolve target FastAPI commit
+        id: target
+        env:
+          PAYLOAD_SHA: ${{ github.event.client_payload.sha || '' }}
+          PAYLOAD_BRANCH: ${{ github.event.client_payload.branch || '' }}
+        run: |
+          set -eu
+
+          target_branch="${PAYLOAD_BRANCH:-$SUBMODULE_BRANCH}"
+          current_sha="$(git ls-tree HEAD "${SUBMODULE_PATH}" | awk '{print $3}')"
+
+          git -C "${SUBMODULE_PATH}" remote set-url origin "${SUBMODULE_URL}"
+          git -C "${SUBMODULE_PATH}" fetch --depth 1 origin "${target_branch}"
+
+          if [ -n "${PAYLOAD_SHA}" ]; then
+            target_sha="${PAYLOAD_SHA}"
+            git -C "${SUBMODULE_PATH}" fetch --depth 1 origin "${target_sha}"
+          else
+            target_sha="$(git -C "${SUBMODULE_PATH}" rev-parse "origin/${target_branch}")"
+          fi
+
+          echo "current_sha=${current_sha}" >> "$GITHUB_OUTPUT"
+          echo "target_sha=${target_sha}" >> "$GITHUB_OUTPUT"
+          echo "target_branch=${target_branch}" >> "$GITHUB_OUTPUT"
+
+          if [ "${current_sha}" = "${target_sha}" ]; then
+            echo "changed=false" >> "$GITHUB_OUTPUT"
+            exit 0
+          fi
+
+          git -C "${SUBMODULE_PATH}" checkout --detach "${target_sha}"
+          git add "${SUBMODULE_PATH}"
+          echo "changed=true" >> "$GITHUB_OUTPUT"
+
+      - name: Create pull request
+        if: steps.target.outputs.changed == 'true'
+        uses: peter-evans/create-pull-request@v7
+        with:
+          token: ${{ github.token }}
+          commit-message: "chore: update fastapi submodule to ${{ steps.target.outputs.target_sha }}"
+          title: "chore: update fastapi submodule to ${{ steps.target.outputs.target_sha }}"
+          body: |
+            Automated submodule update for `${{ env.SUBMODULE_PATH }}`.
+
+            - Previous commit: `${{ steps.target.outputs.current_sha }}`
+            - New commit: `${{ steps.target.outputs.target_sha }}`
+            - Source branch: `${{ steps.target.outputs.target_branch }}`
+            - Trigger: `${{ github.event_name }}`
+          branch: bot/update-fastapi-submodule
+          base: ${{ env.BASE_BRANCH }}
+          delete-branch: true
+          labels: |
+            automation
+            submodule
