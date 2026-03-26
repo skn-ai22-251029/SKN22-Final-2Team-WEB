@@ -143,6 +143,40 @@
     transition: none;
   }
 
+  #sendBtn.is-busy {
+    cursor: wait;
+    opacity: 0.82;
+  }
+
+  #messageInput:disabled,
+  #sendBtn:disabled {
+    cursor: not-allowed;
+  }
+
+  .chat-system-notice {
+    display: flex;
+    justify-content: center;
+  }
+
+  .chat-system-notice-badge {
+    max-width: 520px;
+    border-radius: 9999px;
+    border: 1px solid #dbe7f5;
+    background: #f8fbff;
+    padding: 10px 14px;
+    font-size: 12px;
+    font-weight: 600;
+    line-height: 1.5;
+    color: #4a5568;
+    text-align: center;
+  }
+
+  #chatNoticeHost {
+    margin-top: 18px;
+    display: flex;
+    justify-content: center;
+  }
+
   .wishlist-heart svg:last-child {
     display: none;
   }
@@ -828,6 +862,7 @@
                   🦷 치석 제거용 껌 추천
                 </button>
               </div>
+              <div id="chatNoticeHost"></div>
               {% else %}
               <p class="mt-[14px] text-[16px] text-[#718096]">로그인 후 AI 비서와 대화를 시작하고 다양한 혜택을 만나보세요.</p>
               {% endif %}
@@ -1216,6 +1251,7 @@
   var sendIcon = document.getElementById('sendIcon');
   var sendBtn = document.getElementById('sendBtn');
   var chatEmptyState = document.getElementById('chatEmptyState');
+  var chatNoticeHost = document.getElementById('chatNoticeHost');
   var chatSection = document.getElementById('chatSection');
   var chatThread = document.getElementById('chatThread');
   var chatMessages = document.getElementById('chatMessages');
@@ -1278,6 +1314,7 @@
   var quickOrderSelectedCouponDiscount = 0;
   var quickOrderSelectedCouponMinTotal = 0;
   var quickOrderSelectedMileage = 0;
+  var isSendingMessage = false;
   // 선택된 펫 프로필 (FastAPI 요청에 사용)
   var activePetProfile = null;
   var activePetHealthConcerns = [];
@@ -1726,6 +1763,59 @@
     return wrapper;
   }
 
+  function ensureChatThreadVisible() {
+    if (chatEmptyState) chatEmptyState.classList.add('hidden');
+    if (chatThread) chatThread.classList.remove('hidden');
+    updateChatSectionState(true);
+  }
+
+  function appendSystemNotice(message) {
+    if (!chatMessages) return;
+    ensureChatThreadVisible();
+    var wrapper = document.createElement('div');
+    wrapper.className = 'chat-system-notice';
+
+    var badge = document.createElement('div');
+    badge.className = 'chat-system-notice-badge';
+    badge.textContent = message;
+
+    wrapper.appendChild(badge);
+    chatMessages.appendChild(wrapper);
+    scrollToBottom();
+    return wrapper;
+  }
+
+  function showChatNotice(message) {
+    if (!message) return;
+    if (activeSessionId) {
+      appendSystemNotice(message);
+      return;
+    }
+    if (!chatNoticeHost) return;
+    chatNoticeHost.innerHTML = '';
+    var badge = document.createElement('div');
+    badge.className = 'chat-system-notice-badge';
+    badge.textContent = message;
+    chatNoticeHost.appendChild(badge);
+    window.setTimeout(function () {
+      if (chatNoticeHost && chatNoticeHost.contains(badge)) {
+        chatNoticeHost.removeChild(badge);
+      }
+    }, 3200);
+  }
+
+  function setComposerBusy(nextBusy) {
+    isSendingMessage = !!nextBusy;
+    if (messageInput) {
+      messageInput.disabled = isSendingMessage;
+    }
+    if (sendBtn) {
+      sendBtn.disabled = isSendingMessage;
+      sendBtn.classList.toggle('is-busy', isSendingMessage);
+      sendBtn.setAttribute('aria-label', isSendingMessage ? '답변 생성 중' : (messageInput && messageInput.value.trim().length > 0 ? '메시지 전송' : '음성 입력'));
+    }
+  }
+
   function updateChatSectionState(hasSession) {
     if (!chatSection) return;
     chatSection.classList.toggle('is-empty', !hasSession);
@@ -1781,7 +1871,10 @@
         renderSessionThread(sessionId);
       }
     }).catch(function (error) {
-      window.alert(error.message || '대화 기록을 불러오지 못했습니다.');
+      if (activeSessionId === sessionId) {
+        renderSessionThread(sessionId);
+        showChatNotice(error.message || '대화 기록을 불러오지 못했습니다.');
+      }
     });
   }
 
@@ -1939,6 +2032,7 @@
   function performResetState(showEmptyWithFade) {
       if (composerStage) composerStage.classList.add('no-transition');
       if (chatMessages) chatMessages.innerHTML = '';
+      if (chatNoticeHost) chatNoticeHost.innerHTML = '';
       if (chatThread) chatThread.classList.add('hidden');
       if (showEmptyWithFade) {
         showEmptyStateWithFade();
@@ -1987,7 +2081,9 @@
   window.sendMessage = function () {
     if (!messageInput) return;
     var msg = messageInput.value.trim();
-    if (!msg) return;
+    if (!msg || isSendingMessage) return;
+
+    setComposerBusy(true);
 
     var ensureSessionPromise;
     if (activeSessionId) {
@@ -2051,6 +2147,7 @@
               var errorText = assistantEl.querySelector('.assistant-text');
               if (errorText) errorText.textContent = message;
             }
+            setComposerBusy(false);
           });
         }
 
@@ -2064,7 +2161,10 @@
 
         function read() {
           reader.read().then(function (result) {
-            if (result.done) return;
+            if (result.done) {
+              setComposerBusy(false);
+              return;
+            }
             buf += decoder.decode(result.value, { stream: true });
             var lines = buf.split('\n\n');
             buf = lines.pop();
@@ -2085,12 +2185,14 @@
                   renderProductCards(evt.cards);
                 } else if (evt.type === 'done') {
                   ensureSessionState(sessionId).messages.push({ role: 'assistant', text: assistantText });
+                  setComposerBusy(false);
                 } else if (evt.type === 'error') {
                   assistantText = evt.message || '죄송합니다, 오류가 발생했습니다.';
                   if (assistantEl) {
                     var errorNode = assistantEl.querySelector('.assistant-text');
                     if (errorNode) errorNode.textContent = assistantText;
                   }
+                  setComposerBusy(false);
                 }
               } catch(e) {}
             });
@@ -2103,9 +2205,11 @@
           var p = assistantEl.querySelector('.assistant-text');
           if (p) p.textContent = '서버 연결에 실패했습니다.';
         }
+        setComposerBusy(false);
       });
     }).catch(function (error) {
-      window.alert(error.message || '세션 생성에 실패했습니다.');
+      showChatNotice(error.message || '세션 생성에 실패했습니다.');
+      setComposerBusy(false);
     });
   };
 
@@ -3158,7 +3262,7 @@
           pendingDeleteId = null;
         });
       }).catch(function () {
-        window.alert('대화 기록 삭제에 실패했습니다. 잠시 후 다시 시도해 주세요.');
+        showChatNotice('대화 기록 삭제에 실패했습니다. 잠시 후 다시 시도해 주세요.');
       });
     });
   }
@@ -3233,7 +3337,7 @@
             if (data && data.title) span.textContent = data.title;
           });
         }).catch(function () {
-          window.alert('제목 수정에 실패했습니다. 잠시 후 다시 시도해 주세요.');
+          showChatNotice('제목 수정에 실패했습니다. 잠시 후 다시 시도해 주세요.');
         });
       }
       {% endif %}

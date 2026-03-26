@@ -1,5 +1,6 @@
 from unittest.mock import patch
 
+import httpx
 from django.conf import settings
 from django.test import TestCase
 from django.urls import reverse
@@ -67,6 +68,40 @@ class _FakeJsonResponse:
 
     def json(self):
         return self._payload
+
+
+class _ExplodingHttpxClient:
+    def __init__(self, *args, **kwargs):
+        pass
+
+    def __enter__(self):
+        return self
+
+    def __exit__(self, exc_type, exc, tb):
+        return False
+
+    def request(self, method, url, headers=None, json=None):
+        raise httpx.ConnectError("connection failed")
+
+    def stream(self, method, url, headers=None, json=None):
+        raise httpx.ConnectError("connection failed")
+
+
+class _TimeoutHttpxClient:
+    def __init__(self, *args, **kwargs):
+        pass
+
+    def __enter__(self):
+        return self
+
+    def __exit__(self, exc_type, exc, tb):
+        return False
+
+    def request(self, method, url, headers=None, json=None):
+        raise httpx.ReadTimeout("timed out")
+
+    def stream(self, method, url, headers=None, json=None):
+        raise httpx.ReadTimeout("timed out")
 
 
 class _FakeHttpxClient:
@@ -258,3 +293,36 @@ class ChatProxyTests(TestCase):
             settings.FASTAPI_INTERNAL_CHAT_URL.rstrip("/") + "/sessions/11111111-1111-1111-1111-111111111111/messages/",
         )
         self.assertEqual(_FakeHttpxClient.last_stream_request["json"]["message"], "hello")
+
+    @patch("chat.api_views.httpx.Client", _ExplodingHttpxClient)
+    def test_sessions_proxy_returns_controlled_error_when_fastapi_is_unreachable(self):
+        self.client.force_login(self.user)
+
+        response = self.client.get("/api/chat/sessions/")
+
+        self.assertEqual(response.status_code, 502)
+        self.assertEqual(response.json()["detail"], "채팅 서버와 연결하지 못했습니다. 잠시 후 다시 시도해 주세요.")
+
+    @patch("chat.api_views.httpx.Client", _TimeoutHttpxClient)
+    def test_sessions_proxy_returns_timeout_error_when_fastapi_response_is_delayed(self):
+        self.client.force_login(self.user)
+
+        response = self.client.get("/api/chat/sessions/")
+
+        self.assertEqual(response.status_code, 504)
+        self.assertEqual(response.json()["detail"], "채팅 서버 응답이 지연되고 있습니다. 잠시 후 다시 시도해 주세요.")
+
+    @patch("chat.api_views.httpx.Client", _ExplodingHttpxClient)
+    def test_session_messages_proxy_streams_controlled_error_event_when_fastapi_is_unreachable(self):
+        self.client.force_login(self.user)
+
+        response = self.client.post(
+            "/api/chat/sessions/11111111-1111-1111-1111-111111111111/messages/",
+            data='{"message":"hello"}',
+            content_type="application/json",
+        )
+
+        self.assertEqual(response.status_code, 200)
+        payload = b"".join(response.streaming_content).decode("utf-8")
+        self.assertIn('"type": "error"', payload)
+        self.assertIn("채팅 서버와 연결하지 못했습니다. 잠시 후 다시 시도해 주세요.", payload)
