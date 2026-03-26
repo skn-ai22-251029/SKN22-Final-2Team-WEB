@@ -280,6 +280,7 @@ def used_products(request):
             "delivery_base_address": base_address,
             "delivery_detail_address": detail_address,
             "recipient_phone": phone,
+            "delivery_message": "",
             "payment_method": "우리카드 1234 / 일시불",
             "coupon_summary": "적용 가능한 쿠폰 2장",
             "mileage_summary": "사용 가능 3,200원",

@@ -217,6 +217,20 @@
     -moz-appearance: textfield;
     appearance: textfield;
   }
+
+  #deliveryMessageInput {
+    resize: none;
+  }
+
+  #deliveryMessageSelect {
+    appearance: none;
+    -webkit-appearance: none;
+    -moz-appearance: none;
+    background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='12' height='12' viewBox='0 0 12 12' fill='none'%3E%3Cpath d='M3 4.5L6 7.5L9 4.5' stroke='%23718096' stroke-width='1.4' stroke-linecap='round' stroke-linejoin='round'/%3E%3C/svg%3E");
+    background-position: right 14px center;
+    background-repeat: no-repeat;
+    background-size: 12px 12px;
+  }
 </style>
 {% endblock %}
 
@@ -459,6 +473,34 @@
 
         <div class="mt-4 rounded-[18px] border border-[#e2e8f0] bg-white px-4 py-4">
           <div class="flex items-start justify-between gap-4">
+            <div class="min-w-0 flex-1">
+              <p class="text-[13px] font-semibold text-[#2563eb]">배송 메시지</p>
+              <div class="mt-3 rounded-[16px] border border-[#dbe7f5] bg-[#f8fbff] px-4">
+                <select id="deliveryMessageSelect"
+                        class="h-[44px] w-full bg-transparent pr-8 text-[13px] font-medium text-[#4a5568] outline-none">
+                  <option value="직접 입력">직접 입력</option>
+                  <option value="문 앞에 놓아주세요">문 앞에 놓아주세요</option>
+                  <option value="배송 전에 미리 연락해 주세요">배송 전에 미리 연락해 주세요</option>
+                  <option value="부재 시 경비실에 맡겨 주세요">부재 시 경비실에 맡겨 주세요</option>
+                  <option value="부재 시 전화 또는 문자 남겨 주세요">부재 시 전화 또는 문자 남겨 주세요</option>
+                  <option value="배송 시 벨은 누르지 말아 주세요">배송 시 벨은 누르지 말아 주세요</option>
+                  <option value="도착 후 문 앞 사진을 남겨 주세요">도착 후 문 앞 사진을 남겨 주세요</option>
+                </select>
+              </div>
+              <div id="deliveryMessageCustomField" class="mt-2 rounded-[14px] border border-[#dbe7f5] bg-[#f8fbff] px-4">
+                <input id="deliveryMessageInput"
+                       type="text"
+                       maxlength="100"
+                       value="{{ delivery_message }}"
+                       placeholder="직접 입력"
+                       class="h-[40px] w-full bg-transparent text-[13px] font-medium text-[#4a5568] outline-none placeholder:text-[#a0aec0]" />
+              </div>
+            </div>
+          </div>
+        </div>
+
+        <div class="mt-4 rounded-[18px] border border-[#e2e8f0] bg-white px-4 py-4">
+          <div class="flex items-start justify-between gap-4">
             <p class="text-[13px] font-semibold text-[#2563eb]">할인 혜택</p>
             <button type="button" id="openDiscountModalBtn" class="mt-0.5 shrink-0 text-[12px] font-semibold text-[#3182ce]">적용</button>
           </div>
@@ -600,6 +642,9 @@
   var mileageSummaryText = document.getElementById('mileageSummaryText');
   var discountModal = document.getElementById('discountBenefitModal');
   var openDiscountModalBtn = document.getElementById('openDiscountModalBtn');
+  var deliveryMessageSelect = document.getElementById('deliveryMessageSelect');
+  var deliveryMessageCustomField = document.getElementById('deliveryMessageCustomField');
+  var deliveryMessageInput = document.getElementById('deliveryMessageInput');
   var discountTabCoupon = document.getElementById('discountTabCoupon');
   var discountTabMileage = document.getElementById('discountTabMileage');
   var discountPanelCoupon = document.getElementById('discountPanelCoupon');
@@ -855,6 +900,16 @@
     if (mileageSummaryText) {
       mileageSummaryText.textContent = selectedMileageValue > 0 ? '사용 ' + formatPrice(selectedMileageValue) : '사용 가능 3,200원';
     }
+  }
+
+  function syncDeliveryMessageField() {
+    if (!deliveryMessageSelect || !deliveryMessageCustomField || !deliveryMessageInput) return;
+    var isCustom = deliveryMessageSelect.value === '직접 입력';
+    deliveryMessageCustomField.classList.toggle('hidden', !isCustom);
+    if (!isCustom) {
+      deliveryMessageInput.value = deliveryMessageSelect.value;
+    }
+    scheduleViewportSync();
   }
 
   function updateDiscountPreview() {
@@ -1305,6 +1360,10 @@
     });
   }
 
+  if (deliveryMessageSelect) {
+    deliveryMessageSelect.addEventListener('change', syncDeliveryMessageField);
+  }
+
   var cartListViewport = document.getElementById('cartListViewport');
 
   function renderCartFromState(items) {
@@ -1334,6 +1393,7 @@
 
   updateDiscountSummaryTexts();
   updateDiscountPreview();
+  syncDeliveryMessageField();
   refreshProductsData();
   window.addEventListener('resize', scheduleViewportSync);
 })();
