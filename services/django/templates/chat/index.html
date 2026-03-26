@@ -36,14 +36,14 @@
     visibility: visible;
   }
 
-  #quickOrderToast {
+  #chatActionToast {
     opacity: 0;
     visibility: hidden;
     transform: translate(-50%, 10px) scale(0.98);
     transition: opacity 180ms ease, transform 180ms ease;
   }
 
-  #quickOrderToast.is-open {
+  #chatActionToast.is-open {
     opacity: 1;
     visibility: visible;
     transform: translate(-50%, 0) scale(1);
@@ -141,6 +141,40 @@
 
   #chatEmptyState.no-transition {
     transition: none;
+  }
+
+  #sendBtn.is-busy {
+    cursor: wait;
+    opacity: 0.82;
+  }
+
+  #messageInput:disabled,
+  #sendBtn:disabled {
+    cursor: not-allowed;
+  }
+
+  .chat-system-notice {
+    display: flex;
+    justify-content: center;
+  }
+
+  .chat-system-notice-badge {
+    max-width: 520px;
+    border-radius: 9999px;
+    border: 1px solid #dbe7f5;
+    background: #f8fbff;
+    padding: 10px 14px;
+    font-size: 12px;
+    font-weight: 600;
+    line-height: 1.5;
+    color: #4a5568;
+    text-align: center;
+  }
+
+  #chatNoticeHost {
+    margin-top: 18px;
+    display: flex;
+    justify-content: center;
   }
 
   .wishlist-heart svg:last-child {
@@ -591,10 +625,9 @@
       </div>
     </div>
 
-    <div id="quickOrderToast"
-         class="pointer-events-none absolute left-1/2 top-[88px] z-[70] flex h-[44px] min-w-[232px] -translate-x-1/2 items-center justify-center gap-[8px] rounded-full bg-[#1f2937] px-[18px] text-[13px] font-semibold text-white shadow-[0_14px_28px_rgba(15,23,42,0.28)]">
-      <span aria-hidden="true" class="text-[14px]">✓</span>
-      <span>주문이 완료되었습니다</span>
+    <div id="chatActionToast"
+         class="pointer-events-none absolute left-1/2 top-[88px] z-[70] flex min-h-[44px] min-w-[232px] max-w-[360px] -translate-x-1/2 items-center justify-center rounded-full bg-[#1f2937] px-[18px] py-[11px] text-center text-[13px] font-semibold text-white shadow-[0_14px_28px_rgba(15,23,42,0.28)]">
+      오류가 발생했습니다.
     </div>
     {% endif %}
 
@@ -828,6 +861,7 @@
                   🦷 치석 제거용 껌 추천
                 </button>
               </div>
+              <div id="chatNoticeHost"></div>
               {% else %}
               <p class="mt-[14px] text-[16px] text-[#718096]">로그인 후 AI 비서와 대화를 시작하고 다양한 혜택을 만나보세요.</p>
               {% endif %}
@@ -1216,6 +1250,7 @@
   var sendIcon = document.getElementById('sendIcon');
   var sendBtn = document.getElementById('sendBtn');
   var chatEmptyState = document.getElementById('chatEmptyState');
+  var chatNoticeHost = document.getElementById('chatNoticeHost');
   var chatSection = document.getElementById('chatSection');
   var chatThread = document.getElementById('chatThread');
   var chatMessages = document.getElementById('chatMessages');
@@ -1268,7 +1303,6 @@
   var SHARED_CART_COUNT_STORAGE_KEY = 'tailtalk_shared_cart_count';
   var SHARED_CART_ITEMS_STORAGE_KEY = 'tailtalk_shared_cart_items';
   var previewWishlistItems = [];
-  var quickOrderToastTimer = null;
   var quickOrderSlideEnabled = false;
   var quickOrderSlideDragging = false;
   var quickOrderSlideStartX = 0;
@@ -1278,6 +1312,8 @@
   var quickOrderSelectedCouponDiscount = 0;
   var quickOrderSelectedCouponMinTotal = 0;
   var quickOrderSelectedMileage = 0;
+  var isSendingMessage = false;
+  var chatActionToastTimer = null;
   // 선택된 펫 프로필 (FastAPI 요청에 사용)
   var activePetProfile = null;
   var activePetHealthConcerns = [];
@@ -1726,6 +1762,74 @@
     return wrapper;
   }
 
+  function ensureChatThreadVisible() {
+    if (chatEmptyState) chatEmptyState.classList.add('hidden');
+    if (chatThread) chatThread.classList.remove('hidden');
+    updateChatSectionState(true);
+  }
+
+  function appendSystemNotice(message) {
+    if (!chatMessages) return;
+    ensureChatThreadVisible();
+    var wrapper = document.createElement('div');
+    wrapper.className = 'chat-system-notice';
+
+    var badge = document.createElement('div');
+    badge.className = 'chat-system-notice-badge';
+    badge.textContent = message;
+
+    wrapper.appendChild(badge);
+    chatMessages.appendChild(wrapper);
+    scrollToBottom();
+    return wrapper;
+  }
+
+  function showChatNotice(message) {
+    if (!message) return;
+    if (activeSessionId) {
+      appendSystemNotice(message);
+      return;
+    }
+    if (!chatNoticeHost) return;
+    chatNoticeHost.innerHTML = '';
+    var badge = document.createElement('div');
+    badge.className = 'chat-system-notice-badge';
+    badge.textContent = message;
+    chatNoticeHost.appendChild(badge);
+    window.setTimeout(function () {
+      if (chatNoticeHost && chatNoticeHost.contains(badge)) {
+        chatNoticeHost.removeChild(badge);
+      }
+    }, 3200);
+  }
+
+  function showChatActionToast(message) {
+    var toast = document.getElementById('chatActionToast');
+    if (!toast || !message) return;
+    toast.textContent = message;
+    toast.classList.add('is-open');
+    if (chatActionToastTimer) {
+      window.clearTimeout(chatActionToastTimer);
+      chatActionToastTimer = null;
+    }
+    chatActionToastTimer = window.setTimeout(function () {
+      toast.classList.remove('is-open');
+      chatActionToastTimer = null;
+    }, 2600);
+  }
+
+  function setComposerBusy(nextBusy) {
+    isSendingMessage = !!nextBusy;
+    if (messageInput) {
+      messageInput.disabled = isSendingMessage;
+    }
+    if (sendBtn) {
+      sendBtn.disabled = isSendingMessage;
+      sendBtn.classList.toggle('is-busy', isSendingMessage);
+      sendBtn.setAttribute('aria-label', isSendingMessage ? '답변 생성 중' : (messageInput && messageInput.value.trim().length > 0 ? '메시지 전송' : '음성 입력'));
+    }
+  }
+
   function updateChatSectionState(hasSession) {
     if (!chatSection) return;
     chatSection.classList.toggle('is-empty', !hasSession);
@@ -1781,7 +1885,10 @@
         renderSessionThread(sessionId);
       }
     }).catch(function (error) {
-      window.alert(error.message || '대화 기록을 불러오지 못했습니다.');
+      if (activeSessionId === sessionId) {
+        renderSessionThread(sessionId);
+        showChatNotice(error.message || '대화 기록을 불러오지 못했습니다.');
+      }
     });
   }
 
@@ -1896,7 +2003,7 @@
       })
       .catch(function (error) {
         if (!config.silent) {
-          window.alert(error.message || '관심 상품 정보를 불러오지 못했습니다.');
+          showChatActionToast(error.message || '관심 상품 정보를 불러오지 못했습니다.');
         }
         return [];
       });
@@ -1939,6 +2046,7 @@
   function performResetState(showEmptyWithFade) {
       if (composerStage) composerStage.classList.add('no-transition');
       if (chatMessages) chatMessages.innerHTML = '';
+      if (chatNoticeHost) chatNoticeHost.innerHTML = '';
       if (chatThread) chatThread.classList.add('hidden');
       if (showEmptyWithFade) {
         showEmptyStateWithFade();
@@ -1987,7 +2095,9 @@
   window.sendMessage = function () {
     if (!messageInput) return;
     var msg = messageInput.value.trim();
-    if (!msg) return;
+    if (!msg || isSendingMessage) return;
+
+    setComposerBusy(true);
 
     var ensureSessionPromise;
     if (activeSessionId) {
@@ -2051,6 +2161,7 @@
               var errorText = assistantEl.querySelector('.assistant-text');
               if (errorText) errorText.textContent = message;
             }
+            setComposerBusy(false);
           });
         }
 
@@ -2064,7 +2175,10 @@
 
         function read() {
           reader.read().then(function (result) {
-            if (result.done) return;
+            if (result.done) {
+              setComposerBusy(false);
+              return;
+            }
             buf += decoder.decode(result.value, { stream: true });
             var lines = buf.split('\n\n');
             buf = lines.pop();
@@ -2085,12 +2199,14 @@
                   renderProductCards(evt.cards);
                 } else if (evt.type === 'done') {
                   ensureSessionState(sessionId).messages.push({ role: 'assistant', text: assistantText });
+                  setComposerBusy(false);
                 } else if (evt.type === 'error') {
                   assistantText = evt.message || '죄송합니다, 오류가 발생했습니다.';
                   if (assistantEl) {
                     var errorNode = assistantEl.querySelector('.assistant-text');
                     if (errorNode) errorNode.textContent = assistantText;
                   }
+                  setComposerBusy(false);
                 }
               } catch(e) {}
             });
@@ -2103,9 +2219,11 @@
           var p = assistantEl.querySelector('.assistant-text');
           if (p) p.textContent = '서버 연결에 실패했습니다.';
         }
+        setComposerBusy(false);
       });
     }).catch(function (error) {
-      window.alert(error.message || '세션 생성에 실패했습니다.');
+      showChatNotice(error.message || '세션 생성에 실패했습니다.');
+      setComposerBusy(false);
     });
   };
 
@@ -2421,7 +2539,7 @@
       })
       .catch(function (error) {
         if (!config.silent) {
-          window.alert(error.message || '관심 상품 정보를 불러오지 못했습니다.');
+          showChatActionToast(error.message || '관심 상품 정보를 불러오지 못했습니다.');
         }
         return [];
       });
@@ -2440,7 +2558,7 @@
       })
       .catch(function (error) {
         if (!config.silent) {
-          window.alert(error.message || '장바구니 정보를 불러오지 못했습니다.');
+          showChatActionToast(error.message || '장바구니 정보를 불러오지 못했습니다.');
         }
       });
   }
@@ -2551,7 +2669,7 @@
     }).then(function () {
       return refreshCartPanelFromApi({ silent: true, syncShared: true });
     }).catch(function (error) {
-      window.alert(error.message || '장바구니 수량을 변경하지 못했습니다.');
+      showChatActionToast(error.message || '장바구니 수량을 변경하지 못했습니다.');
     });
   };
 
@@ -2569,7 +2687,7 @@
     }).then(function () {
       return refreshCartPanelFromApi({ silent: true, syncShared: true });
     }).catch(function (error) {
-      window.alert(error.message || '장바구니 상품을 삭제하지 못했습니다.');
+      showChatActionToast(error.message || '장바구니 상품을 삭제하지 못했습니다.');
     });
   };
 
@@ -2605,7 +2723,7 @@
     return;
     {% endif %}
     if (!product.goodsId) {
-      window.alert('현재 추천 상품은 장바구니 연동 준비 중입니다.');
+      showChatActionToast('현재 추천 상품은 장바구니 연동 준비 중입니다.');
       return;
     }
     requestJson('/api/orders/cart/', {
@@ -2617,7 +2735,7 @@
     }).then(function () {
       return refreshCartPanelFromApi({ silent: true, syncShared: true });
     }).catch(function (error) {
-      window.alert(error.message || '장바구니에 상품을 담지 못했습니다.');
+      showChatActionToast(error.message || '장바구니에 상품을 담지 못했습니다.');
     });
   };
 
@@ -2625,7 +2743,7 @@
     if (!button) return;
     var productId = button.getAttribute('data-product-id');
     if (!productId) {
-      window.alert('상품 식별 정보를 찾을 수 없습니다.');
+      showChatActionToast('상품 식별 정보를 찾을 수 없습니다.');
       return;
     }
 
@@ -2664,7 +2782,7 @@
     }).then(function () {
       return refreshRecommendedWishlistState({ silent: true });
     }).catch(function (error) {
-      window.alert(error.message || '관심 상품 상태를 변경하지 못했습니다.');
+      showChatActionToast(error.message || '관심 상품 상태를 변경하지 못했습니다.');
     });
   };
 
@@ -2694,7 +2812,7 @@
     }).then(function () {
       return refreshRecommendedWishlistState({ silent: true });
     }).catch(function (error) {
-      window.alert(error.message || '관심 상품 상태를 변경하지 못했습니다.');
+      showChatActionToast(error.message || '관심 상품 상태를 변경하지 못했습니다.');
     });
   };
 
@@ -2739,7 +2857,7 @@
       switchProductTab('cart');
       return refreshCartPanelFromApi({ silent: true, syncShared: true });
     }).catch(function (error) {
-      window.alert(error.message || '장바구니에 상품을 담지 못했습니다.');
+      showChatActionToast(error.message || '장바구니에 상품을 담지 못했습니다.');
     });
   };
 
@@ -2868,20 +2986,6 @@
     }
   }
 
-  function showQuickOrderToast() {
-    var toast = document.getElementById('quickOrderToast');
-    if (!toast) return;
-    if (quickOrderToastTimer) {
-      window.clearTimeout(quickOrderToastTimer);
-      quickOrderToastTimer = null;
-    }
-    toast.classList.add('is-open');
-    quickOrderToastTimer = window.setTimeout(function () {
-      toast.classList.remove('is-open');
-      quickOrderToastTimer = null;
-    }, 2200);
-  }
-
   function updateQuickOrderSlideState(enabled) {
     var slide = document.getElementById('quickOrderSlide');
     var thumb = document.getElementById('quickOrderSlideThumb');
@@ -2983,7 +3087,6 @@
   window.submitQuickOrder = function () {
     closeQuickOrderModal();
     clearCartPanel();
-    showQuickOrderToast();
   };
 
   window.goToCartPage = function () {
@@ -3158,7 +3261,7 @@
           pendingDeleteId = null;
         });
       }).catch(function () {
-        window.alert('대화 기록 삭제에 실패했습니다. 잠시 후 다시 시도해 주세요.');
+        showChatNotice('대화 기록 삭제에 실패했습니다. 잠시 후 다시 시도해 주세요.');
       });
     });
   }
@@ -3233,7 +3336,7 @@
             if (data && data.title) span.textContent = data.title;
           });
         }).catch(function () {
-          window.alert('제목 수정에 실패했습니다. 잠시 후 다시 시도해 주세요.');
+          showChatNotice('제목 수정에 실패했습니다. 잠시 후 다시 시도해 주세요.');
         });
       }
       {% endif %}

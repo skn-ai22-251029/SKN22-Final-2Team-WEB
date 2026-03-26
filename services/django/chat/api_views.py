@@ -29,10 +29,29 @@ def _read_json_body(request):
         raise ValueError("유효한 JSON 요청이 필요합니다.")
 
 
+def _proxy_error_response(detail, status):
+    return JsonResponse({"detail": detail}, status=status)
+
+
+def _stream_error_event(message):
+    payload = {"type": "error", "message": message}
+    return f"data: {json.dumps(payload, ensure_ascii=False)}\n\n"
+
+
+def _map_upstream_exception(exc):
+    if isinstance(exc, httpx.TimeoutException):
+        return "채팅 서버 응답이 지연되고 있습니다. 잠시 후 다시 시도해 주세요.", 504
+    return "채팅 서버와 연결하지 못했습니다. 잠시 후 다시 시도해 주세요.", 502
+
+
 def _proxy_json(method, url, user_id, payload=None):
     headers = _internal_headers(user_id, include_content_type=payload is not None)
-    with httpx.Client(timeout=30.0) as client:
-        response = client.request(method, url, headers=headers, json=payload)
+    try:
+        with httpx.Client(timeout=30.0) as client:
+            response = client.request(method, url, headers=headers, json=payload)
+    except httpx.HTTPError as exc:
+        detail, status = _map_upstream_exception(exc)
+        return _proxy_error_response(detail, status)
 
     try:
         data = response.json()
@@ -45,22 +64,30 @@ def _proxy_json(method, url, user_id, payload=None):
 def _stream_fastapi_response(url, payload, user_id):
     headers = _internal_headers(user_id)
 
-    with httpx.Client(timeout=None) as client:
-        with client.stream("POST", url, headers=headers, json=payload) as response:
-            if response.status_code != 200:
-                detail = "채팅 요청 처리에 실패했습니다."
-                try:
-                    detail = response.json().get("detail", detail)
-                except Exception:
-                    text = response.text.strip()
-                    if text:
-                        detail = text
-                yield f"data: {json.dumps({'type': 'error', 'message': detail}, ensure_ascii=False)}\n\n"
-                return
+    try:
+        with httpx.Client(timeout=None) as client:
+            with client.stream("POST", url, headers=headers, json=payload) as response:
+                if response.status_code != 200:
+                    detail = "채팅 요청 처리에 실패했습니다."
+                    try:
+                        detail = response.json().get("detail", detail)
+                    except Exception:
+                        text = response.text.strip()
+                        if text:
+                            detail = text
+                    yield _stream_error_event(detail)
+                    return
 
-            for chunk in response.iter_bytes():
-                if chunk:
-                    yield chunk
+                try:
+                    for chunk in response.iter_bytes():
+                        if chunk:
+                            yield chunk
+                except httpx.HTTPError as exc:
+                    detail, _ = _map_upstream_exception(exc)
+                    yield _stream_error_event(detail)
+    except httpx.HTTPError as exc:
+        detail, _ = _map_upstream_exception(exc)
+        yield _stream_error_event(detail)
 
 
 def _require_authenticated(request):
