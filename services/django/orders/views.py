@@ -44,14 +44,14 @@ ORDER_STATUS_META = {
         "label": "배송 완료",
         "tone": "success",
         "can_reorder": True,
-        "detail_hint": "배송이 완료된 주문입니다. 필요한 상품은 다시 주문할 수 있어요.",
+        "detail_hint": "배송이 완료된 주문입니다\n필요한 상품은 다시 주문할 수 있어요",
         "cta_label": "다시 주문하기",
     },
     "cancelled": {
         "label": "주문 취소",
         "tone": "danger",
         "can_reorder": False,
-        "detail_hint": "취소된 주문입니다. 상세 정보를 확인한 뒤 다시 담을 수 있어요.",
+        "detail_hint": "취소된 주문입니다\n결제와 배송 정보를 확인해 주세요",
         "cta_label": "주문 정보 확인",
     },
 }
