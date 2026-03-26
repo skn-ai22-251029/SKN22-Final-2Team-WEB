@@ -249,11 +249,7 @@ Web repo는 Django 테스트만 통과한다고 끝내면 안 된다.
 
 분리 구조에서는 FastAPI EB 배포 정의 파일도 AI repo 쪽에 있어야 한다.
 
-권장 위치:
-
-- `deploy/eb/test-fastapi/docker-compose.yml` in AI repo root
-
-현재 서브모듈 안에는 이미 아래 경로로 추가돼 있다.
+현재 web repo에서는 아래 서브모듈 경로가 곧 AI repo root 기준 배포 파일이다.
 
 - `services/fastapi/deploy/eb/test-fastapi/docker-compose.yml`
 
