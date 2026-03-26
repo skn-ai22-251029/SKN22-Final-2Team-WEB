@@ -267,7 +267,7 @@
     <div id="productsLayoutGrid" class="mt-8 grid gap-6 lg:grid-cols-[minmax(0,1fr)_470px]">
       <section id="productsMainSection" class="min-h-[720px]">
         <div id="productsPanelCart" class="product-tab-panel is-active min-h-[720px]">
-        <div id="cartEmptyState" class="product-empty-state-compact hidden max-w-[650px] rounded-[20px] border border-dashed border-[#dbe7f5] bg-white px-6 py-9 text-center shadow-[0_6px_18px_rgba(45,55,72,0.04)]">
+        <div id="cartEmptyState" class="product-empty-state-compact {% if item_count != 0 %}hidden{% endif %} max-w-[650px] rounded-[20px] border border-dashed border-[#dbe7f5] bg-white px-6 py-9 text-center shadow-[0_6px_18px_rgba(45,55,72,0.04)]">
           <div class="product-empty-icon text-[28px] text-[#7aa6e9]">🛒</div>
           <p class="product-empty-title mt-[10px] text-[18px] font-bold text-[#2d3748]">장바구니가 비어 있어요</p>
           <p class="product-empty-copy mt-[6px] text-[14px] leading-[1.6] text-[#718096]">추천 상품 카드에서 +를 눌러<br>장바구니에 상품을 담아보세요</p>
@@ -275,7 +275,7 @@
             채팅으로 돌아가기
           </a>
         </div>
-        <div id="cartListViewport" class="product-list-viewport product-fixed-viewport min-h-[720px] max-w-[650px] space-y-3 lg:pr-2">
+        <div id="cartListViewport" class="product-list-viewport product-fixed-viewport {% if item_count == 0 %}hidden{% endif %} min-h-[720px] max-w-[650px] space-y-3 lg:pr-2">
         {% for item in cart_items %}
         <article class="relative rounded-[20px] border border-[#dbe7f5] bg-white px-4 py-4 shadow-[0_6px_18px_rgba(45,55,72,0.04)]"
                  data-cart-item
@@ -407,7 +407,7 @@
         </div>
       </section>
 
-      <aside id="cartPromoPanel" class="hidden self-start flex-col rounded-[24px] border border-[#dbe7f5] bg-white p-4 shadow-[0_10px_28px_rgba(45,55,72,0.05)]">
+      <aside id="cartPromoPanel" class="{% if item_count == 0 %}flex{% else %}hidden{% endif %} self-start flex-col rounded-[24px] border border-[#dbe7f5] bg-white p-4 shadow-[0_10px_28px_rgba(45,55,72,0.05)]{% if item_count == 0 %} product-promo-compact{% endif %}">
         <div class="product-promo-list space-y-3">
           <a href="/chat/" class="product-promo-hero group relative block overflow-hidden rounded-[20px] px-5 py-4 text-white shadow-[0_10px_24px_rgba(45,55,72,0.10)]" style="background: linear-gradient(135deg, #2563eb 0%, #3b82f6 100%);">
             <div class="pr-[82px]">
@@ -449,7 +449,7 @@
              data-recipient-phone="{{ recipient_phone }}"
              data-delivery-address="{{ delivery_base_address }} | {{ delivery_detail_address }}"
              data-payment-method="{{ payment_method }}"
-             class="flex min-h-[720px] flex-col rounded-[24px] border border-[#dbe7f5] bg-white p-6 shadow-[0_10px_28px_rgba(45,55,72,0.05)] lg:sticky lg:top-8">
+             class="{% if item_count == 0 %}hidden{% else %}flex{% endif %} min-h-[720px] flex-col rounded-[24px] border border-[#dbe7f5] bg-white p-6 shadow-[0_10px_28px_rgba(45,55,72,0.05)] lg:sticky lg:top-8">
         <h2 class="text-[22px] font-bold text-[#2d3748]">주문 정보</h2>
 
         <div class="mt-5 grid gap-3 md:grid-cols-2">

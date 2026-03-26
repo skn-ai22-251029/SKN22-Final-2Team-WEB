@@ -3,7 +3,7 @@ from django.shortcuts import render
 from django.db.models import Q
 
 from products.models import Product
-from .models import Order
+from .models import Cart, Order, Wishlist
 
 
 def _format_price(value):
@@ -191,6 +191,45 @@ def _load_product_panels():
     return cart_items, wishlist_items
 
 
+def _serialize_panel_product(product, quantity=1, is_wishlisted=False, note="가격 비교를 위해 보관한 상품"):
+    return {
+        "goods_id": product.goods_id,
+        "thumbnail_url": product.thumbnail_url,
+        "brand": product.brand_name,
+        "name": _display_product_name(product.brand_name, product.goods_name),
+        "summary": _product_summary(product),
+        "price": product.price,
+        "rating": product.rating,
+        "review_count": product.review_count,
+        "quantity": quantity,
+        "note": note,
+        "is_wishlisted": is_wishlisted,
+    }
+
+
+def _load_user_product_panels(user):
+    cart, _ = Cart.objects.get_or_create(user=user)
+    wishlist, _ = Wishlist.objects.get_or_create(user=user)
+
+    wishlist_items_qs = list(wishlist.items.select_related("product").order_by("-added_at"))
+    wishlist_ids = {item.product_id for item in wishlist_items_qs}
+
+    cart_items = [
+        _serialize_panel_product(
+            item.product,
+            quantity=item.quantity,
+            is_wishlisted=item.product_id in wishlist_ids,
+        )
+        for item in cart.items.select_related("product").order_by("-added_at")
+    ]
+    wishlist_items = [
+        _serialize_panel_product(item.product, quantity=1)
+        for item in wishlist_items_qs
+    ]
+
+    return cart_items, wishlist_items
+
+
 def _order_groups():
     base_products = list(_single_product_queryset()[:5])
 
@@ -293,9 +332,9 @@ def order_list(request):
 
 @login_required
 def used_products(request):
-    items, wishlist_items = _load_product_panels()
+    items, wishlist_items = _load_user_product_panels(request.user)
     product_total = sum(item["price"] * item["quantity"] for item in items)
-    discount = 5400
+    discount = 0
     shipping_fee = 0 if product_total >= 30000 else 3000
     final_total = product_total - discount + shipping_fee
     profile = getattr(request.user, "profile", None)
@@ -329,7 +368,7 @@ def used_products(request):
             "recipient_phone": phone,
             "delivery_message": "",
             "payment_method": "우리카드 1234 / 일시불",
-            "coupon_summary": "적용 가능한 쿠폰 2장",
+            "coupon_summary": "적용된 쿠폰 없음",
             "mileage_summary": "사용 가능 3,200원",
             "discount_total_raw": discount,
             "shipping_fee_raw": shipping_fee,
