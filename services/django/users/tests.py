@@ -1,6 +1,5 @@
 from unittest.mock import patch
 
-from django.db import IntegrityError, transaction
 from django.test import TestCase, override_settings
 from django.urls import reverse
 from django.utils import timezone
@@ -70,7 +69,7 @@ class SocialLoginPageViewTests(TestCase):
         response = self.client.get("/auth/kakao/callback/?code=test-code&state=test-state")
 
         self.assertEqual(response.status_code, status.HTTP_302_FOUND)
-        self.assertEqual(response["Location"], f"{reverse('profile')}?setup=1")
+        self.assertEqual(response["Location"], reverse("chat"))
 
         session = self.client.session
         self.assertIn(SOCIAL_AUTH_ACCESS_SESSION_KEY, session)
@@ -212,12 +211,18 @@ class UserProfileApiTests(TestCase):
         self.assertEqual(response.status_code, status.HTTP_400_BAD_REQUEST)
         self.assertEqual(response.data["detail"], "이미 사용 중인 닉네임입니다.")
 
-    def test_user_profile_nickname_is_unique_in_database(self):
+    def test_user_profile_nickname_duplicate_is_rejected_by_api_validation(self):
         other_user = User.objects.create_user(email="other@example.com", password="Password123!")
+        UserProfile.objects.create(user=other_user, nickname="TakenNick")
 
-        with self.assertRaises(IntegrityError):
-            with transaction.atomic():
-                UserProfile.objects.create(user=other_user, nickname="ProfileUser")
+        response = self.client.patch(
+            "/api/users/me/",
+            {"nickname": "TakenNick"},
+            format="json",
+        )
+
+        self.assertEqual(response.status_code, status.HTTP_400_BAD_REQUEST)
+        self.assertEqual(response.data["detail"], "이미 사용 중인 닉네임입니다.")
 
 class UserPreferenceApiTests(TestCase):
     def setUp(self):
