@@ -30,7 +30,7 @@
 
 1. EB 배포 번들에는 앱 비밀값이 들어 있는 `.env` 파일을 넣지 않는다.
 2. EB 환경 속성(`Environment properties`)에 값을 저장한다.
-3. 배포 시 EB가 런타임 환경변수를 컨테이너에 전달하도록 사용한다.
+3. 배포 시 EB가 제공하는 `.env` 값을 Docker Compose 변수 치환에 사용하고, 배포 compose에 명시한 키만 컨테이너에 전달한다.
 
 AWS 공식 문서도 Elastic Beanstalk 환경변수를 `Environment properties`에서 관리하도록 안내한다.
 
@@ -167,14 +167,11 @@ Value: 실제 OpenAI API key
 - `DJANGO_SESSION_COOKIE_SECURE`
 - `DJANGO_CSRF_COOKIE_SECURE`
 - `SOCIAL_AUTH_REQUESTS_TIMEOUT`
-- `AWS_S3_BUCKET_NAME`
-- `AWS_S3_REGION_NAME`
-- `AWS_S3_CUSTOM_DOMAIN`
-- `AWS_S3_ENDPOINT_URL`
-- `AWS_ACCESS_KEY_ID`
-- `AWS_SECRET_ACCESS_KEY`
-- `USE_SQLITE`
-- `SQLITE_NAME`
+
+주의:
+
+- 현재 테스트 EB 배포 compose에는 `AWS_S3_*`, `AWS_ACCESS_KEY_ID`, `AWS_SECRET_ACCESS_KEY`, `USE_SQLITE`, `SQLITE_NAME`를 전달하지 않는다.
+- 위 값들은 현재 코드의 테스트 EB 배포 경로에서는 사용하지 않는다.
 
 ### `APP_BASE_URL` 입력 기준
 
@@ -224,9 +221,6 @@ http://test-tailtalk-django-env.eba-idn3t8gh.ap-northeast-2.elasticbeanstalk.com
 - `POSTGRES_PASSWORD`
 - `POSTGRES_HOST`
 - `POSTGRES_PORT`
-- `INTERNAL_SERVICE_TOKEN`
-- `QDRANT_HOST`
-- `QDRANT_PORT`
 - `OPENAI_API_KEY`
 
 ### 지금 점검 또는 교체가 필요한 키
@@ -235,11 +229,10 @@ http://test-tailtalk-django-env.eba-idn3t8gh.ap-northeast-2.elasticbeanstalk.com
 
 현재 테스트 환경에는 이 키가 존재하지만, 실제 서비스 호출에 쓸 값인지 반드시 확인하고 필요하면 교체해야 한다.
 
-### 선택적으로 입력할 수 있는 키
+주의:
 
-- `LLM_MODEL`
-
-별도로 지정하지 않으면 코드 기본값이 사용된다.
+- 현재 FastAPI 테스트 EB 배포 compose는 `POSTGRES_*`와 `OPENAI_API_KEY`만 컨테이너에 전달한다.
+- 즉 레거시 벡터 DB 관련 키, `INTERNAL_SERVICE_TOKEN`, `LLM_MODEL`은 현재 테스트 EB 배포 경로에서 사용하지 않는다.
 
 ## 레거시 키 메모
 
@@ -255,11 +248,10 @@ http://test-tailtalk-django-env.eba-idn3t8gh.ap-northeast-2.elasticbeanstalk.com
 값을 넣기 전에 아래를 확인한다.
 
 1. 키 이름 오타가 없는지 확인한다.
-2. Django와 FastAPI에 공통으로 들어가는 `INTERNAL_SERVICE_TOKEN` 값이 서로 같은지 확인한다.
-3. `POSTGRES_*` 값이 Django와 FastAPI에서 같은 DB를 바라보는지 확인한다.
-4. `APP_BASE_URL`과 OAuth provider 콘솔의 redirect URI가 서로 일치하는지 확인한다.
-5. `OPENAI_API_KEY`는 테스트용 문자열이 아니라 실제 사용 가능한 키인지 확인한다.
-6. HTTPS가 필요한 provider를 쓰는 경우 SSL 도메인이 준비되어 있는지 확인한다.
+2. `APP_BASE_URL`과 OAuth provider 콘솔의 redirect URI가 서로 일치하는지 확인한다.
+3. `OPENAI_API_KEY`는 테스트용 문자열이 아니라 실제 사용 가능한 키인지 확인한다.
+4. `POSTGRES_*` 값이 현재 FastAPI 런타임이 접근 가능한 PostgreSQL을 가리키는지 확인한다.
+5. HTTPS가 필요한 provider를 쓰는 경우 SSL 도메인이 준비되어 있는지 확인한다.
 
 ## 운영 팁
 

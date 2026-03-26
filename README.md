@@ -10,7 +10,7 @@
     │
 [Nginx]  ──── /api/chat/*  ────► [FastAPI + LangGraph]
     │                                   │
-    └────── 그 외  ────► [Django]    Qdrant Hybrid Search
+    └────── 그 외  ────► [Django]   PostgreSQL + pgvector
                             │           │
                         PostgreSQL    LLM (GPT-4o-mini)
 ```
@@ -21,8 +21,8 @@
 |------|------|
 | Frontend | Django Template (MVT), Tailwind CSS, Vanilla JS |
 | Backend | Django (Auth/User/Pet/Order), FastAPI (챗봇/추천) |
-| AI | LangGraph 멀티에이전트, GPT-4o-mini, Qdrant Hybrid Search |
-| DB | PostgreSQL 16, Qdrant (Dense + Sparse BM25 + RRF) |
+| AI | LangGraph 멀티에이전트, GPT-4o-mini, PostgreSQL Hybrid Search |
+| DB | PostgreSQL 16, pgvector, Full-text Search |
 | Infra | Docker Compose, Nginx, AWS EC2, GitHub Actions CI/CD |
 
 ## 로컬 실행
@@ -42,7 +42,7 @@ services/
   fastapi/    # 챗봇 · 추천 마이크로서비스 (LangGraph 파이프라인 포함)
 infra/        # Docker Compose, Nginx 설정
 notebooks/    # 데이터 파이프라인 실험, LangGraph 테스트
-scripts/      # ETL, Qdrant 적재 스크립트
+scripts/      # ETL, PostgreSQL 적재/복원 스크립트
 docs/         # 기획/설계 문서
 ```
 
