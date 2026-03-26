@@ -1,6 +1,7 @@
-from django.contrib.auth.decorators import login_required
-from django.shortcuts import render
 from django.db.models import Q
+from django.contrib.auth.decorators import login_required
+from django.core.paginator import Paginator
+from django.shortcuts import render
 
 from products.models import Product
 from .models import Cart, Order, Wishlist
@@ -31,6 +32,32 @@ def _display_product_name(brand_name, goods_name):
     return normalized_name
 
 
+def _display_delivery_address(value):
+    fallback = "배송지 정보가 아직 등록되지 않았어요"
+    if not value:
+        return fallback
+
+    parts = [part.strip() for part in value.split("|", 1)]
+    base_address = parts[0] if parts else ""
+    detail_address = parts[1] if len(parts) > 1 else ""
+
+    placeholder_values = {
+        "기본 배송지가 아직 등록되지 않았습니다.",
+        "상세 주소 정보가 아직 없습니다.",
+    }
+
+    base_is_placeholder = not base_address or base_address in placeholder_values
+    detail_is_placeholder = not detail_address or detail_address in placeholder_values
+
+    if base_is_placeholder and detail_is_placeholder:
+        return fallback
+    if detail_is_placeholder:
+        return base_address or fallback
+    if base_is_placeholder:
+        return detail_address or fallback
+    return f"{base_address}, {detail_address}"
+
+
 def _recommended_note(index):
     notes = [
         "최근 상담 키워드와 잘 맞는 후보",
@@ -41,10 +68,41 @@ def _recommended_note(index):
 
 
 ORDER_STATUS_VIEW_META = {
-    "pending": {"label": "주문 접수", "class": "bg-[#fef3c7] text-[#b45309]"},
-    "completed": {"label": "배송 완료", "class": "bg-[#dcfce7] text-[#15803d]"},
-    "cancelled": {"label": "주문 취소", "class": "bg-[#fee2e2] text-[#dc2626]"},
+    "pending": {
+        "label": "주문 접수",
+        "class": "bg-[#fef3c7] text-[#b45309]",
+        "can_reorder": True,
+        "detail_hint": "상품 준비가 시작되면\n배송 상태가 업데이트됩니다",
+        "cta_label": "같은 구성 다시 담기",
+    },
+    "shipping": {
+        "label": "배송 중",
+        "class": "bg-[#dbeafe] text-[#2563eb]",
+        "can_reorder": True,
+        "detail_hint": "상품이 배송 중입니다\n필요한 구성은 다시 주문할 수 있어요",
+        "cta_label": "같은 구성 다시 담기",
+    },
+    "completed": {
+        "label": "배송 완료",
+        "class": "bg-[#dcfce7] text-[#15803d]",
+        "can_reorder": True,
+        "detail_hint": "배송이 완료된 주문입니다. 필요한 상품은 다시 주문할 수 있어요.",
+        "cta_label": "다시 주문하기",
+    },
+    "cancelled": {
+        "label": "주문 취소",
+        "class": "bg-[#fee2e2] text-[#dc2626]",
+        "can_reorder": False,
+        "detail_hint": "취소된 주문입니다. 결제와 배송 정보를 확인해 주세요.",
+        "cta_label": "주문 정보 확인",
+    },
 }
+
+ORDER_LIST_ORDERING = {
+    "latest": {"label": "최신순", "queryset": "-created_at"},
+    "oldest": {"label": "오래된순", "queryset": "created_at"},
+}
+DEFAULT_ORDER_PAGE_SIZE = 12
 
 
 def _serialize_order_item(product, quantity=1):
@@ -60,7 +118,16 @@ def _serialize_order_item(product, quantity=1):
 
 
 def _serialize_order_group(order):
-    status_meta = ORDER_STATUS_VIEW_META.get(order.status, {"label": order.status, "class": "bg-[#edf2f7] text-[#4a5568]"})
+    status_meta = ORDER_STATUS_VIEW_META.get(
+        order.status,
+        {
+            "label": order.status,
+            "class": "bg-[#edf2f7] text-[#4a5568]",
+            "can_reorder": False,
+            "detail_hint": "",
+            "cta_label": "주문 정보 확인",
+        },
+    )
     items = []
     total_quantity = 0
     for item in order.items.select_related("product").all():
@@ -82,15 +149,50 @@ def _serialize_order_group(order):
         "created_at": order.created_at.strftime("%Y.%m.%d"),
         "status": status_meta["label"],
         "status_class": status_meta["class"],
+        "can_reorder": status_meta["can_reorder"],
+        "detail_hint": status_meta["detail_hint"],
+        "cta_label": status_meta["cta_label"],
         "recipient": order.recipient_name,
         "recipient_phone": order.recipient_phone,
-        "delivery_address": order.delivery_address.replace("|", ","),
+        "delivery_address": _display_delivery_address(order.delivery_address),
         "total_price": _format_price(order.total_price),
         "delivery_message": order.delivery_message,
         "payment_method": order.payment_method,
         "item_count": total_quantity,
         "items": items,
     }
+
+
+def _parse_order_list_options(request):
+    status_filter = (request.GET.get("status") or "all").strip() or "all"
+    if status_filter != "all" and status_filter not in ORDER_STATUS_VIEW_META:
+        status_filter = "all"
+
+    ordering_key = (request.GET.get("ordering") or "latest").strip() or "latest"
+    if ordering_key not in ORDER_LIST_ORDERING:
+        ordering_key = "latest"
+
+    try:
+        page = max(int(request.GET.get("page", 1) or 1), 1)
+    except (TypeError, ValueError):
+        page = 1
+
+    return {
+        "status_filter": status_filter,
+        "ordering_key": ordering_key,
+        "page": page,
+    }
+
+
+def _build_order_list_query(status_filter, ordering_key, page=None):
+    query = []
+    if status_filter and status_filter != "all":
+        query.append(f"status={status_filter}")
+    if ordering_key and ordering_key != "latest":
+        query.append(f"ordering={ordering_key}")
+    if page and page != 1:
+        query.append(f"page={page}")
+    return "&".join(query)
 
 
 def _single_product_queryset():
@@ -274,6 +376,9 @@ def _order_groups():
             "created_at": "2026.03.25",
             "status": "배송 중",
             "status_class": "bg-[#dbeafe] text-[#2563eb]",
+            "can_reorder": True,
+            "detail_hint": "상품이 배송 중입니다\n필요한 구성은 다시 주문할 수 있어요",
+            "cta_label": "같은 구성 다시 담기",
             "recipient": "왈냥",
             "recipient_phone": "010-1234-5678",
             "delivery_address": "서울 강동구 올림픽로 123, 101동 1203호",
@@ -287,6 +392,9 @@ def _order_groups():
             "created_at": "2026.03.18",
             "status": "배송 완료",
             "status_class": "bg-[#dcfce7] text-[#15803d]",
+            "can_reorder": True,
+            "detail_hint": "배송이 완료된 주문입니다. 필요한 상품은 다시 주문할 수 있어요.",
+            "cta_label": "다시 주문하기",
             "recipient": "왈냥",
             "recipient_phone": "010-1234-5678",
             "delivery_address": "서울 강동구 올림픽로 123, 101동 1203호",
@@ -300,6 +408,9 @@ def _order_groups():
             "created_at": "2026.03.10",
             "status": "주문 취소",
             "status_class": "bg-[#fee2e2] text-[#dc2626]",
+            "can_reorder": False,
+            "detail_hint": "취소된 주문입니다. 결제와 배송 정보를 확인해 주세요.",
+            "cta_label": "주문 정보 확인",
             "recipient": "왈냥",
             "recipient_phone": "010-1234-5678",
             "delivery_address": "서울 강동구 올림픽로 123, 101동 1203호",
@@ -313,19 +424,74 @@ def _order_groups():
 
 @login_required
 def order_list(request):
-    order_queryset = (
-        Order.objects.filter(user=request.user)
-        .prefetch_related("items__product")
-        .order_by("-created_at")
+    options = _parse_order_list_options(request)
+    order_queryset = Order.objects.filter(user=request.user).prefetch_related("items__product")
+    if options["status_filter"] != "all":
+        order_queryset = order_queryset.filter(status=options["status_filter"])
+    order_queryset = order_queryset.order_by(ORDER_LIST_ORDERING[options["ordering_key"]]["queryset"])
+
+    paginator = Paginator(order_queryset, DEFAULT_ORDER_PAGE_SIZE)
+    page_obj = paginator.get_page(options["page"])
+    orders = [_serialize_order_group(order) for order in page_obj.object_list]
+
+    filter_options = [
+        {
+            "code": "all",
+            "label": "전체",
+            "is_active": options["status_filter"] == "all",
+            "query": _build_order_list_query("all", options["ordering_key"]),
+        }
+    ]
+    filter_options.extend(
+        {
+            "code": code,
+            "label": meta["label"],
+            "is_active": options["status_filter"] == code,
+            "query": _build_order_list_query(code, options["ordering_key"]),
+        }
+        for code, meta in ORDER_STATUS_VIEW_META.items()
     )
-    orders = [_serialize_order_group(order) for order in order_queryset]
+    ordering_options = [
+        {
+            "code": key,
+            "label": meta["label"],
+            "is_active": options["ordering_key"] == key,
+            "query": _build_order_list_query(options["status_filter"], key),
+        }
+        for key, meta in ORDER_LIST_ORDERING.items()
+    ]
+
+    pagination_links = []
+    if paginator.num_pages > 1:
+        start_page = max(page_obj.number - 2, 1)
+        end_page = min(start_page + 4, paginator.num_pages)
+        start_page = max(end_page - 4, 1)
+        for number in range(start_page, end_page + 1):
+            pagination_links.append(
+                {
+                    "number": number,
+                    "is_active": page_obj.number == number,
+                    "query": _build_order_list_query(
+                        options["status_filter"],
+                        options["ordering_key"],
+                        page=number,
+                    ),
+                }
+            )
+
     return render(
         request,
         "orders/list.html",
         {
             "order_groups": orders,
-            "order_count": len(orders),
+            "order_count": paginator.count,
             "active_tab": "orders",
+            "order_filter_options": filter_options,
+            "order_ordering_options": ordering_options,
+            "order_page_obj": page_obj,
+            "order_pagination_links": pagination_links,
+            "order_current_status": options["status_filter"],
+            "order_current_ordering": options["ordering_key"],
         },
     )
 
@@ -339,10 +505,10 @@ def used_products(request):
     final_total = product_total - discount + shipping_fee
     profile = getattr(request.user, "profile", None)
     recipient_name = getattr(profile, "nickname", "") or request.user.username or "주문자 정보 미등록"
-    address = getattr(profile, "address", "") or "기본 배송지가 아직 등록되지 않았습니다."
+    address = getattr(profile, "address", "") or ""
     address_parts = [part.strip() for part in address.split("|", 1)] if address else []
-    base_address = address_parts[0] if address_parts else address
-    detail_address = address_parts[1] if len(address_parts) > 1 else "상세 주소 정보가 아직 없습니다."
+    base_address = address_parts[0] if address_parts else "배송지 정보가 아직 등록되지 않았어요"
+    detail_address = address_parts[1] if len(address_parts) > 1 else ""
     phone = getattr(profile, "phone", "") or "연락처 정보가 아직 없습니다."
     for item in items:
         item["price_label"] = _format_price(item["price"])

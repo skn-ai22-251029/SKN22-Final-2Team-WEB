@@ -46,7 +46,12 @@ class WishlistItem(models.Model):
 
 
 class Order(models.Model):
-    STATUS_CHOICES = [("pending", "주문 접수"), ("completed", "배송 완료"), ("cancelled", "취소")]
+    STATUS_CHOICES = [
+        ("pending", "주문 접수"),
+        ("shipping", "배송 중"),
+        ("completed", "배송 완료"),
+        ("cancelled", "주문 취소"),
+    ]
 
     order_id         = models.UUIDField(primary_key=True, default=uuid.uuid4, editable=False)
     user             = models.ForeignKey(User, on_delete=models.RESTRICT, related_name="orders")
