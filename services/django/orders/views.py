@@ -342,6 +342,17 @@ def normalize_delivery_address(data, user):
     return get_profile_value(user, "address").strip()
 
 
+def get_delivery_defaults(user):
+    quick_purchase = serialize_quick_purchase_profile(user)
+    return {
+        "recipient_name": quick_purchase["recipient_name"].strip(),
+        "recipient_phone": quick_purchase["recipient_phone"].strip(),
+        "postal_code": quick_purchase["postal_code"].strip(),
+        "address_main": quick_purchase["address_main"].strip(),
+        "address_detail": quick_purchase["address_detail"].strip(),
+    }
+
+
 def parse_positive_int(value, field_name):
     try:
         parsed = int(value or 0)
@@ -378,9 +389,20 @@ def get_coupon_or_400(coupon_id):
 
 
 def validate_checkout_payload(data, user, cart_items):
-    recipient_name = (data.get("recipient_name") or get_profile_value(user, "recipient_name") or get_profile_value(user, "nickname")).strip()
-    recipient_phone = (data.get("recipient_phone") or get_profile_value(user, "phone")).strip()
-    delivery_address = normalize_delivery_address(data, user)
+    delivery_defaults = get_delivery_defaults(user)
+    recipient_name = (data.get("recipient_name") or delivery_defaults["recipient_name"] or get_profile_value(user, "nickname")).strip()
+    recipient_phone = (data.get("recipient_phone") or delivery_defaults["recipient_phone"]).strip()
+    postal_code = (data.get("postal_code") or delivery_defaults["postal_code"]).strip()
+    address_main = (data.get("delivery_address_main") or delivery_defaults["address_main"]).strip()
+    address_detail = (data.get("delivery_address_detail") or delivery_defaults["address_detail"]).strip()
+    delivery_address = normalize_delivery_address(
+        {
+            **data,
+            "delivery_address_main": address_main,
+            "delivery_address_detail": address_detail,
+        },
+        user,
+    )
     delivery_message = (data.get("delivery_message") or "").strip()
     payment_method = (data.get("payment_method") or get_profile_value(user, "payment_method")).strip()
     missing_fields = []
@@ -389,8 +411,12 @@ def validate_checkout_payload(data, user, cart_items):
         missing_fields.append("recipient_name")
     if not recipient_phone:
         missing_fields.append("recipient_phone")
-    if not delivery_address:
-        missing_fields.append("delivery_address")
+    if not postal_code:
+        missing_fields.append("postal_code")
+    if not address_main:
+        missing_fields.append("delivery_address_main")
+    if not address_detail:
+        missing_fields.append("delivery_address_detail")
     if not payment_method:
         missing_fields.append("payment_method")
 

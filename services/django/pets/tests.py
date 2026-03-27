@@ -2,6 +2,7 @@ from datetime import date, timedelta
 from decimal import Decimal
 
 from django.test import TestCase
+from django.urls import reverse
 from rest_framework import status
 from rest_framework.test import APIClient
 
@@ -228,3 +229,28 @@ class PetApiTests(TestCase):
         self.assertEqual(response.status_code, status.HTTP_302_FOUND)
         self.assertEqual(response["Location"], "/pets/")
         self.assertFalse(Pet.objects.filter(pet_id=pet.pet_id).exists())
+
+
+class PetPageTests(TestCase):
+    def setUp(self):
+        self.user = User.objects.create_user(email="pet-page@example.com", password="Password123!")
+        UserProfile.objects.create(user=self.user, nickname="Pet Page")
+        self.client.force_login(self.user)
+
+    def test_pet_list_renders_food_preference_labels(self):
+        pet = Pet.objects.create(
+            user=self.user,
+            name="콩이",
+            species="dog",
+            gender="male",
+            budget_range="5_10",
+        )
+        PetFoodPreference.objects.create(pet=pet, food_type="dry")
+        PetFoodPreference.objects.create(pet=pet, food_type="freeze_dried")
+
+        response = self.client.get(reverse("pet_list"))
+
+        self.assertEqual(response.status_code, 200)
+        self.assertContains(response, "선호 사료")
+        self.assertContains(response, "건식")
+        self.assertContains(response, "동결건조/에어드라이")

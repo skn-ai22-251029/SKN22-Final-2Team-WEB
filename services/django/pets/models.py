@@ -54,8 +54,13 @@ class PetAllergy(models.Model):
 
 class PetFoodPreference(models.Model):
     FOOD_TYPE_CHOICES = [
-        ("dry", "건식"), ("wet_can", "습식캔"), ("wet_pouch", "습식파우치"),
-        ("freeze_dried", "동결건조"), ("raw", "생식"),
+        ("dry", "건식"),
+        ("wet_can", "습식"),
+        ("wet_pouch", "습식파우치"),
+        ("freeze_dried", "동결건조/에어드라이"),
+        ("raw", "혼합/자연식"),
+        ("soft", "소프트"),
+        ("cooked", "화식"),
     ]
     id        = models.UUIDField(primary_key=True, default=uuid.uuid4, editable=False)
     pet       = models.ForeignKey(Pet, on_delete=models.CASCADE, related_name="food_preferences")

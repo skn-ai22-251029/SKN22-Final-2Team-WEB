@@ -1208,6 +1208,8 @@
             <div class="mx-[12px] h-px bg-[#edf2f7]"></div>
             <a href="{% if is_preview_member %}/pets/?preview=filled{% else %}/pets/{% endif %}" class="flex h-[44px] w-full items-center px-[16px] text-[14px] text-[#2d3748] hover:bg-[#edf2f7]">반려동물 정보</a>
             <div class="mx-[12px] h-px bg-[#edf2f7]"></div>
+            <a href="{% if is_preview_member %}#{% else %}/products/?tab=wishlist{% endif %}" class="flex h-[44px] w-full items-center px-[16px] text-[14px] text-[#2d3748] hover:bg-[#edf2f7]" {% if is_preview_member %}onclick="return false"{% endif %}>관심 상품</a>
+            <div class="mx-[12px] h-px bg-[#edf2f7]"></div>
             <a href="{% if is_preview_member %}#{% else %}/orders/{% endif %}" class="flex h-[44px] w-full items-center px-[16px] text-[14px] text-[#2d3748] hover:bg-[#edf2f7]" {% if is_preview_member %}onclick="return false"{% endif %}>주문 내역</a>
             <div class="mx-[12px] h-px bg-[#edf2f7]"></div>
             <a href="{% if is_preview_member %}#{% else %}/logout/{% endif %}" class="flex h-[44px] w-full items-center rounded-b-[16px] px-[16px] text-[14px] text-[#ef4444] hover:bg-[#fef2f2]" {% if is_preview_member %}onclick="return false"{% endif %}>로그아웃</a>

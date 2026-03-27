@@ -594,12 +594,17 @@ def used_products(request):
     base_address = address_parts[0] if address_parts else "배송지 정보가 아직 등록되지 않았어요"
     detail_address = address_parts[1] if len(address_parts) > 1 else ""
     phone = getattr(profile, "phone", "") or "연락처 정보가 아직 없습니다."
+    postal_code = getattr(profile, "postal_code", "") or ""
     payment_method = getattr(profile, "payment_method", "") or "결제 수단 정보가 아직 없습니다."
     for item in items:
         item["price_label"] = _format_price(item["price"])
         item["line_total_label"] = _format_price(item["price"] * item["quantity"])
     for item in wishlist_items:
         item["price_label"] = _format_price(item["price"])
+
+    active_tab = (request.GET.get("tab") or "cart").strip().lower()
+    if active_tab not in {"cart", "wishlist"}:
+        active_tab = "cart"
 
     return render(
         request,
@@ -617,13 +622,14 @@ def used_products(request):
             "delivery_base_address": base_address,
             "delivery_detail_address": detail_address,
             "recipient_phone": phone,
+            "delivery_postal_code": postal_code,
             "delivery_message": "",
             "payment_method": payment_method,
             "coupon_summary": "적용된 쿠폰 없음",
             "mileage_summary": "사용 가능 3,200원",
             "discount_total_raw": discount,
             "shipping_fee_raw": shipping_fee,
-            "active_tab": "cart",
+            "active_tab": active_tab,
         },
     )
 

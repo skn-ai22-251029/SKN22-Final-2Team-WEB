@@ -12,10 +12,18 @@ SPECIES_OPTIONS = [
 ]
 AGE_YEAR_OPTIONS = list(range(0, 31))
 AGE_MONTH_OPTIONS = list(range(0, 12))
-FOOD_OPTIONS = [
+DOG_FOOD_OPTIONS = [
     ("dry", "건식"),
+    ("cooked", "화식"),
+    ("soft", "소프트"),
     ("wet_can", "습식"),
-    ("raw", "혼합/자연식"),
+    ("freeze_dried", "동결건조/에어드라이"),
+]
+CAT_FOOD_OPTIONS = [
+    ("dry", "건식"),
+    ("wet_can", "주식캔"),
+    ("wet_pouch", "주식파우치"),
+    ("freeze_dried", "에어/동결건조"),
 ]
 FUTURE_HOUSING_OPTIONS = [
     ("studio", "원룸"),
@@ -42,6 +50,18 @@ BUDGET_OPTIONS = [
     ("10_20", "10만 원 ~ 20만 원 미만"),
     ("over_20", "20만 원 이상"),
 ]
+
+
+def _food_options_for_species(species):
+    if species == "dog":
+        return DOG_FOOD_OPTIONS
+    return CAT_FOOD_OPTIONS
+
+
+def _food_preference_labels(food_values, species):
+    label_map = dict(_food_options_for_species(species))
+    fallback_label_map = dict(PetFoodPreference.FOOD_TYPE_CHOICES)
+    return [label_map.get(value, fallback_label_map.get(value, value)) for value in food_values]
 
 
 @dataclass
@@ -162,7 +182,7 @@ def _step3_context(pet, species, step2_data=None, step3_data=None):
         "species": species,
         "step2_data": step2_data,
         "step3_data": step3_data,
-        "food_options": FOOD_OPTIONS,
+        "food_options": _food_options_for_species(species),
         "health_options": PetHealthConcern.CONCERN_CHOICES,
         "budget_options": BUDGET_OPTIONS,
     }
@@ -257,9 +277,14 @@ def pet_list(request):
         pets = _preview_pets()
         actual_pet_count = len(pets)
     elif getattr(request.user, "is_authenticated", False):
-        pets = list(Pet.objects.filter(user=request.user))
+        pets = list(Pet.objects.filter(user=request.user).prefetch_related("food_preferences"))
         actual_pet_count = len(pets)
         future_pet = _future_pet_list_item(request.session.get("future_pet_profile"))
+        for pet in pets:
+            pet.food_preference_labels = _food_preference_labels(
+                list(pet.food_preferences.values_list("food_type", flat=True)),
+                pet.species,
+            )
         if future_pet:
             pets.append(future_pet)
         pets = _sort_pet_list_items(pets)
@@ -323,9 +348,21 @@ def pet_add_details(request):
 
     pet_seed = {
         "species": species,
-        "gender": "male",
-        "age_years": 0,
-        "age_months": 0,
+        "name": request.GET.get("name", "").strip(),
+        "breed": request.GET.get("breed", "").strip(),
+        "gender": request.GET.get("gender", "male"),
+        "age_years": int(request.GET.get("age_years", 0) or 0),
+        "age_months": int(request.GET.get("age_months", 0) or 0),
+        "weight_kg": request.GET.get("weight_kg", "").strip(),
+        "neutered": True if request.GET.get("neutered") == "yes" else False if request.GET.get("neutered") == "no" else None,
+    }
+    step3_data = {
+        "vaccination_date": request.GET.get("vaccination_date", "").strip(),
+        "health_concerns": request.GET.getlist("health_concerns"),
+        "allergies": request.GET.get("allergies", "").strip(),
+        "food_preferences": request.GET.getlist("food_preferences"),
+        "budget_range": request.GET.get("budget_range", "").strip(),
+        "special_notes": request.GET.get("special_notes", "").strip(),
     }
     return render(
         request,
@@ -335,6 +372,7 @@ def pet_add_details(request):
             "species": species,
             "age_year_options": AGE_YEAR_OPTIONS,
             "age_month_options": AGE_MONTH_OPTIONS,
+            "step3_data": step3_data,
         },
     )
 
@@ -385,7 +423,7 @@ def pet_add_health(request):
             PetAllergy.objects.get_or_create(pet=pet, ingredient=ingredient)
 
         for food_type in request.POST.getlist("food_preferences"):
-            if food_type in dict(FOOD_OPTIONS):
+            if food_type in dict(_food_options_for_species(species)):
                 PetFoodPreference.objects.get_or_create(pet=pet, food_type=food_type)
 
         return redirect("chat")
