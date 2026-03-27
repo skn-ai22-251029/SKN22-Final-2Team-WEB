@@ -104,6 +104,75 @@ jobs:
       - name: Run Django tests
         run: docker compose -f infra/docker-compose.yml run --rm django python manage.py test
 
+      - name: Smoke test deploy bundle runtime
+        run: |
+          rm -rf .deploy-django
+          mkdir -p .deploy-django
+          python3 - <<'PY'
+          from pathlib import Path
+          src = Path("deploy/eb/test-django/docker-compose.yml").read_text()
+          Path(".deploy-django/docker-compose.yml").write_text(
+              src.replace("__DJANGO_IMAGE__", "tailtalk-django:latest")
+          )
+          PY
+          cp -r deploy/eb/test-django/nginx .deploy-django/nginx
+          cat <<'EOF' > .deploy-django/docker-compose.smoke.yml
+          services:
+            django:
+              depends_on:
+                postgres:
+                  condition: service_healthy
+            postgres:
+              image: pgvector/pgvector:pg16
+              platform: linux/amd64
+              environment:
+                POSTGRES_DB: ${POSTGRES_DB}
+                POSTGRES_USER: ${POSTGRES_USER}
+                POSTGRES_PASSWORD: ${POSTGRES_PASSWORD}
+              expose:
+                - "5432"
+              healthcheck:
+                test: ["CMD-SHELL", "pg_isready -U ${POSTGRES_USER} -d ${POSTGRES_DB}"]
+                interval: 5s
+                timeout: 5s
+                retries: 10
+          EOF
+          cat <<'EOF' > .deploy-django/.env
+          DJANGO_SECRET_KEY=test-secret
+          DJANGO_DEBUG=False
+          DJANGO_ALLOWED_HOSTS=localhost,127.0.0.1
+          APP_BASE_URL=http://localhost
+          FASTAPI_INTERNAL_CHAT_URL=http://fastapi.example.com/api/chat/
+          INTERNAL_SERVICE_TOKEN=dev-internal-token
+          POSTGRES_DB=test_db
+          POSTGRES_USER=test_user
+          POSTGRES_PASSWORD=test_password
+          POSTGRES_HOST=postgres
+          POSTGRES_PORT=5432
+          CORS_ALLOWED_ORIGINS=
+          EOF
+          cleanup() {
+            docker compose \
+              -f .deploy-django/docker-compose.yml \
+              -f .deploy-django/docker-compose.smoke.yml \
+              --env-file .deploy-django/.env \
+              down -v --remove-orphans || true
+          }
+          trap cleanup EXIT
+          docker compose \
+            -f .deploy-django/docker-compose.yml \
+            -f .deploy-django/docker-compose.smoke.yml \
+            --env-file .deploy-django/.env \
+            up -d
+          for _ in $(seq 1 20); do
+            if curl --fail --silent http://127.0.0.1/health/ > /dev/null; then
+              break
+            fi
+            sleep 3
+          done
+          curl --fail --silent --show-error http://127.0.0.1/health/ > /dev/null
+          curl --fail --silent --show-error http://127.0.0.1/static/admin/css/base.css > /dev/null
+
       - name: Teardown
         if: always()
         run: docker compose -f infra/docker-compose.yml down -v --remove-orphans
