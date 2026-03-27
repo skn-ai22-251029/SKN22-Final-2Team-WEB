@@ -38,6 +38,7 @@ from .social_auth import (
     build_authorization_url,
     complete_social_login,
 )
+from .quick_purchase import build_delivery_info, build_payment_info, serialize_quick_purchase_profile, split_legacy_address
 
 
 def deactivate_user_and_purge_personal_data(user):
@@ -177,17 +178,27 @@ def serialize_user_profile(user):
         user=user,
         defaults={"nickname": build_unique_nickname(user.email.split("@")[0], exclude_user=user)},
     )
+    delivery_info = build_delivery_info(profile)
+    payment_info = build_payment_info(profile)
     return {
         "id": user.id,
         "email": user.email,
         "nickname": profile.nickname,
+        "recipient_name": delivery_info["recipient_name"],
         "age": profile.age,
         "gender": profile.gender,
+        "postal_code": delivery_info["postal_code"],
+        "address_main": delivery_info["address_main"],
+        "address_detail": delivery_info["address_detail"],
         "address": profile.address,
         "phone": profile.phone,
         "phone_verified": profile.phone_verified,
         "phone_verified_at": profile.phone_verified_at,
-        "payment_method": profile.payment_method,
+        "payment_method": payment_info["payment_summary"],
+        "payment_card_provider": payment_info["card_provider"],
+        "payment_card_masked_number": payment_info["masked_card_number"],
+        "payment_is_default": payment_info["payment_is_default"],
+        "payment_token_reference": payment_info["payment_token_reference"],
         "marketing_consent": profile.marketing_consent,
         "profile_image_url": profile.profile_image_url,
     }
@@ -414,13 +425,38 @@ class UserMeView(APIView):
                 return Response({"detail": nickname_error}, status=status.HTTP_400_BAD_REQUEST)
 
         dirty_fields = []
-        for field in ["nickname", "age", "gender", "address", "phone", "payment_method"]:
+        for field in [
+            "nickname",
+            "recipient_name",
+            "age",
+            "gender",
+            "postal_code",
+            "address_main",
+            "address_detail",
+            "address",
+            "phone",
+            "payment_method",
+            "payment_card_provider",
+            "payment_card_masked_number",
+            "payment_token_reference",
+        ]:
             if field not in request.data:
                 continue
             value = request.data.get(field)
             if field == "nickname":
                 value = (value or "").strip()
-            elif field in {"address", "phone", "payment_method"}:
+            elif field in {
+                "recipient_name",
+                "postal_code",
+                "address_main",
+                "address_detail",
+                "address",
+                "phone",
+                "payment_method",
+                "payment_card_provider",
+                "payment_card_masked_number",
+                "payment_token_reference",
+            }:
                 value = (value or "").strip() or None
             elif value == "":
                 value = None if field != "nickname" else profile.nickname
@@ -441,6 +477,35 @@ class UserMeView(APIView):
                         dirty_fields.extend(["phone_verified", "phone_verified_at", "phone_verification_code", "phone_verification_target", "phone_verification_expires_at"])
                 setattr(profile, field, value)
                 dirty_fields.append(field)
+
+        if "nickname" in request.data and "recipient_name" not in request.data:
+            next_recipient_name = (profile.nickname or "").strip() or None
+            if profile.recipient_name != next_recipient_name:
+                profile.recipient_name = next_recipient_name
+                dirty_fields.append("recipient_name")
+
+        if any(field in request.data for field in {"postal_code", "address_main", "address_detail", "address"}):
+            address_main = (profile.address_main or "").strip()
+            address_detail = (profile.address_detail or "").strip()
+            if not address_main and not address_detail and profile.address:
+                address_main, address_detail = split_legacy_address(profile.address)
+                profile.address_main = address_main or None
+                profile.address_detail = address_detail or None
+                dirty_fields.extend(["address_main", "address_detail"])
+            combined_address = " | ".join(part for part in [address_main, address_detail] if part) or None
+            if profile.address != combined_address:
+                profile.address = combined_address
+                dirty_fields.append("address")
+
+        if any(field in request.data for field in {"payment_method", "payment_card_provider", "payment_card_masked_number"}):
+            provider = (profile.payment_card_provider or "").strip()
+            masked_number = (profile.payment_card_masked_number or "").strip()
+            payment_summary = (profile.payment_method or "").strip()
+            if not payment_summary and provider and masked_number:
+                payment_summary = f"{provider} / {masked_number}"
+            if profile.payment_method != (payment_summary or None):
+                profile.payment_method = payment_summary or None
+                dirty_fields.append("payment_method")
 
         if "marketing_consent" in request.data:
             raw_value = request.data.get("marketing_consent")
@@ -466,6 +531,14 @@ class UserMeView(APIView):
                 return Response({"detail": "이미 사용 중인 닉네임입니다."}, status=status.HTTP_400_BAD_REQUEST)
 
         return Response({"user": serialize_user_profile(request.user)})
+
+
+class UserQuickPurchaseDefaultsView(APIView):
+    authentication_classes = [JWTAuthentication, SessionAuthentication]
+    permission_classes = [IsAuthenticated]
+
+    def get(self, request):
+        return Response({"quick_purchase": serialize_quick_purchase_profile(request.user)})
 
 
 class UserPhoneVerificationRequestView(APIView):

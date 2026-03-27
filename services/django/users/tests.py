@@ -198,6 +198,10 @@ class ProfilePageViewTests(TestCase):
         self.user.refresh_from_db()
         self.assertIn(response.status_code, {status.HTTP_200_OK, status.HTTP_302_FOUND})
         self.assertEqual(self.user.profile.nickname, "PageProfile2")
+        self.assertEqual(self.user.profile.recipient_name, "PageProfile2")
+        self.assertEqual(self.user.profile.postal_code, "12345")
+        self.assertEqual(self.user.profile.address_main, "서울 강동구 올림픽로 123")
+        self.assertEqual(self.user.profile.address_detail, "101동 1203호")
         self.assertEqual(self.user.profile.address, "서울 강동구 올림픽로 123 | 101동 1203호")
         self.assertEqual(self.user.profile.payment_method, "카카오페이 / 일시불")
 
@@ -234,8 +238,12 @@ class UserProfileApiTests(TestCase):
             {
                 "nickname": "UpdatedUser",
                 "phone": "01012341234",
-                "address": "서울 강동구 올림픽로 123 | 101동 1203호",
-                "payment_method": "네이버페이 / 일시불",
+                "postal_code": "12345",
+                "address_main": "서울 강동구 올림픽로 123",
+                "address_detail": "101동 1203호",
+                "payment_method": "현대카드 M / 1234 **** **** 5678",
+                "payment_card_provider": "현대카드 M",
+                "payment_card_masked_number": "1234 **** **** 5678",
                 "marketing_consent": True,
             },
             format="json",
@@ -244,10 +252,41 @@ class UserProfileApiTests(TestCase):
         self.assertEqual(response.status_code, status.HTTP_200_OK)
         self.user.refresh_from_db()
         self.assertEqual(self.user.profile.nickname, "UpdatedUser")
+        self.assertEqual(self.user.profile.recipient_name, "UpdatedUser")
         self.assertEqual(self.user.profile.phone, "01012341234")
+        self.assertEqual(self.user.profile.postal_code, "12345")
+        self.assertEqual(self.user.profile.address_main, "서울 강동구 올림픽로 123")
+        self.assertEqual(self.user.profile.address_detail, "101동 1203호")
         self.assertEqual(self.user.profile.address, "서울 강동구 올림픽로 123 | 101동 1203호")
-        self.assertEqual(self.user.profile.payment_method, "네이버페이 / 일시불")
+        self.assertEqual(self.user.profile.payment_method, "현대카드 M / 1234 **** **** 5678")
+        self.assertEqual(self.user.profile.payment_card_provider, "현대카드 M")
+        self.assertEqual(self.user.profile.payment_card_masked_number, "1234 **** **** 5678")
         self.assertTrue(self.user.profile.marketing_consent)
+
+    def test_get_quick_purchase_defaults_returns_structured_profile_data(self):
+        self.user.profile.nickname = "배송받는사람"
+        self.user.profile.recipient_name = "배송받는사람"
+        self.user.profile.phone = "01012341234"
+        self.user.profile.postal_code = "12345"
+        self.user.profile.address_main = "서울 강동구 올림픽로 123"
+        self.user.profile.address_detail = "101동 1203호"
+        self.user.profile.address = "서울 강동구 올림픽로 123 | 101동 1203호"
+        self.user.profile.payment_method = "현대카드 M / 1234 **** **** 5678"
+        self.user.profile.payment_card_provider = "현대카드 M"
+        self.user.profile.payment_card_masked_number = "1234 **** **** 5678"
+        self.user.profile.save()
+
+        response = self.client.get("/api/users/me/quick-purchase/")
+
+        self.assertEqual(response.status_code, status.HTTP_200_OK)
+        quick_purchase = response.data["quick_purchase"]
+        self.assertTrue(quick_purchase["has_delivery_info"])
+        self.assertTrue(quick_purchase["has_payment_method"])
+        self.assertEqual(quick_purchase["recipient_name"], "배송받는사람")
+        self.assertEqual(quick_purchase["postal_code"], "12345")
+        self.assertEqual(quick_purchase["address_main"], "서울 강동구 올림픽로 123")
+        self.assertEqual(quick_purchase["address_detail"], "101동 1203호")
+        self.assertEqual(quick_purchase["payment_summary"], "현대카드 M / 1234 **** **** 5678")
 
     @override_settings(DEBUG=True)
     def test_phone_verification_request_returns_code_in_debug(self):

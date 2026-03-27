@@ -130,7 +130,7 @@
       <div class="mt-3">
         <div class="mb-2 text-[14px] font-bold text-[#4a5568]">주소 <span class="text-[12px] font-medium text-[#a0aec0]">(선택)</span></div>
         <div class="flex gap-3">
-          <input name="zipcode" id="zipcodeInput" placeholder="우편번호" readonly
+          <input name="zipcode" id="zipcodeInput" value="{{ profile_zipcode }}" placeholder="우편번호" readonly
                  class="h-[36px] w-[140px] cursor-not-allowed rounded-[8px] border border-[#e2e8f0] bg-[#f7fafc] px-3 text-[12px] text-[#718096] outline-none placeholder:text-[#718096]" />
           <button type="button" id="postcodeButton"
                   class="h-[36px] w-[110px] rounded-[8px] border border-[#3182ce] text-[14px] font-bold text-[#3182ce]">우편번호 찾기</button>
@@ -148,11 +148,14 @@
 
       <div class="mt-4 text-[18px] font-bold text-[#2d3748]">2. 결제 수단</div>
       <div class="mt-3 w-full rounded-[12px] border border-[#e2e8f0] bg-[#f7fafc] px-4 py-3.5 md:max-w-[calc(50%-0.5rem)]">
-        <div class="flex items-center justify-between gap-4">
+          <div class="flex items-center justify-between gap-4">
           <div class="min-w-0 flex-1">
             <div id="paymentMethodSummary" class="text-[13px] {% if profile_payment_method %}text-[#4a5568]{% else %}text-[#718096]{% endif %}">{{ profile_payment_method|default:"저장된 결제 수단이 없습니다" }}</div>
           </div>
           <input type="hidden" name="payment_method" id="paymentMethodInput" value="{{ profile_payment_method }}" />
+          <input type="hidden" name="payment_card_provider" id="paymentCardProviderInput" value="{{ profile_payment_card_provider }}" />
+          <input type="hidden" name="payment_card_masked_number" id="paymentCardMaskedNumberInput" value="{{ profile_payment_card_masked_number }}" />
+          <input type="hidden" name="payment_token_reference" id="paymentTokenReferenceInput" value="{{ profile_payment_token_reference }}" />
           <button id="paymentRegisterButton" type="button" onclick="openPaymentModal()"
                   class="h-[36px] rounded-[8px] border border-[#3182ce] px-4 text-[13px] font-bold text-[#3182ce]">
             {% if profile_payment_method %}수정{% else %}등록{% endif %}
@@ -315,12 +318,14 @@
     var expiryInput = document.getElementById('paymentExpiryInput');
     var summary = document.getElementById('paymentMethodSummary');
     var paymentMethodInput = document.getElementById('paymentMethodInput');
+    var paymentCardProviderInput = document.getElementById('paymentCardProviderInput');
+    var paymentCardMaskedNumberInput = document.getElementById('paymentCardMaskedNumberInput');
     var button = document.getElementById('paymentRegisterButton');
     var nameStatus = document.getElementById('paymentCardNameStatus');
     var numberStatus = document.getElementById('paymentCardNumberStatus');
     var expiryStatus = document.getElementById('paymentExpiryStatus');
 
-    if (!nameInput || !numberInput || !expiryInput || !summary || !paymentMethodInput || !button || !nameStatus || !numberStatus || !expiryStatus) return;
+    if (!nameInput || !numberInput || !expiryInput || !summary || !paymentMethodInput || !paymentCardProviderInput || !paymentCardMaskedNumberInput || !button || !nameStatus || !numberStatus || !expiryStatus) return;
 
     var cardName = nameInput.value.trim();
     var rawCardNumber = numberInput.value.trim();
@@ -362,6 +367,8 @@
     summary.textContent = paymentMethod;
     summary.className = 'text-[13px] text-[#4a5568]';
     paymentMethodInput.value = paymentMethod;
+    paymentCardProviderInput.value = cardName;
+    paymentCardMaskedNumberInput.value = maskedCard;
     button.textContent = '수정';
     try {
       window.localStorage.setItem(PROFILE_PAYMENT_STORAGE_KEY, JSON.stringify({
