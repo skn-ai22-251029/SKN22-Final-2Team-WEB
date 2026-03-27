@@ -12,6 +12,7 @@ from social_core.exceptions import AuthCanceled, AuthConnectionError, AuthExcept
 from .models import UserProfile
 from .nickname_utils import build_unique_nickname, get_nickname_validation_error
 from .onboarding import get_onboarding_redirect_url
+from .quick_purchase import build_payment_info, split_legacy_address
 from .social_auth import (
     SOCIAL_AUTH_ACCESS_SESSION_KEY,
     SOCIAL_AUTH_REFRESH_SESSION_KEY,
@@ -27,16 +28,6 @@ User = get_user_model()
 logger = logging.getLogger(__name__)
 
 
-def _split_profile_address(address):
-    if not address:
-        return "", ""
-
-    parts = [part.strip() for part in address.split("|", 1)]
-    base_address = parts[0] if parts else ""
-    detail_address = parts[1] if len(parts) > 1 else ""
-    return base_address, detail_address
-
-
 def _get_profile(user):
     profile, _ = UserProfile.objects.get_or_create(
         user=user,
@@ -46,15 +37,23 @@ def _get_profile(user):
 
 
 def _render_profile(request, profile):
-    address_main, address_detail = _split_profile_address(profile.address)
+    address_main = (profile.address_main or "").strip()
+    address_detail = (profile.address_detail or "").strip()
+    if not address_main and not address_detail:
+        address_main, address_detail = split_legacy_address(profile.address)
+    payment_info = build_payment_info(profile)
     return render(
         request,
         "users/profile.html",
         {
             "profile": profile,
+            "profile_zipcode": profile.postal_code or "",
             "profile_address_main": address_main,
             "profile_address_detail": address_detail,
-            "profile_payment_method": profile.payment_method or "",
+            "profile_payment_method": payment_info["payment_summary"],
+            "profile_payment_card_provider": payment_info["card_provider"],
+            "profile_payment_card_masked_number": payment_info["masked_card_number"],
+            "profile_payment_token_reference": payment_info["payment_token_reference"],
             "profile_phone_verified": profile.phone_verified,
             "social_accounts": {account.provider: account for account in request.user.social_accounts.all()},
             "setup_mode": request.GET.get("setup") == "1",
@@ -122,6 +121,7 @@ def profile_view(request):
     if request.method == "POST":
         setup_mode = request.GET.get("setup") == "1"
         profile.nickname = request.POST.get("nickname", "").strip()
+        profile.recipient_name = profile.nickname
         submitted_phone = "".join(char for char in request.POST.get("phone", "") if char.isdigit())[:11]
         if submitted_phone and not 10 <= len(submitted_phone) <= 11:
             messages.error(request, "연락처는 10~11자리 숫자만 입력해 주세요.")
@@ -139,12 +139,20 @@ def profile_view(request):
             profile.clear_phone_verification()
         else:
             profile.phone = submitted_phone
+        postal_code = request.POST.get("zipcode", "").strip()
         address_main = request.POST.get("address_main", "").strip()
         address_detail = request.POST.get("address_detail", "").strip()
+        profile.postal_code = postal_code
+        profile.address_main = address_main
+        profile.address_detail = address_detail
         if address_main or address_detail:
             profile.address = " | ".join(part for part in [address_main, address_detail] if part)
         else:
             profile.address = ""
+        profile.payment_card_provider = request.POST.get("payment_card_provider", "").strip()
+        profile.payment_card_masked_number = request.POST.get("payment_card_masked_number", "").strip()
+        profile.payment_token_reference = request.POST.get("payment_token_reference", "").strip()
+        profile.payment_is_default = True
         profile.payment_method = request.POST.get("payment_method", "").strip()
         profile.marketing_consent = request.POST.get("marketing") == "on"
         nickname_error = get_nickname_validation_error(profile.nickname, exclude_user=request.user)
@@ -155,13 +163,21 @@ def profile_view(request):
             with transaction.atomic():
                 profile.save(update_fields=[
                     "nickname",
+                    "recipient_name",
                     "phone",
                     "phone_verified",
                     "phone_verified_at",
                     "phone_verification_code",
                     "phone_verification_target",
                     "phone_verification_expires_at",
+                    "postal_code",
+                    "address_main",
+                    "address_detail",
                     "address",
+                    "payment_card_provider",
+                    "payment_card_masked_number",
+                    "payment_is_default",
+                    "payment_token_reference",
                     "payment_method",
                     "marketing_consent",
                     "updated_at",

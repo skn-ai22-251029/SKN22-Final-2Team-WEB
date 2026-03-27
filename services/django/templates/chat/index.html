@@ -1316,6 +1316,10 @@
   var quickOrderSelectedCouponDiscount = 0;
   var quickOrderSelectedCouponMinTotal = 0;
   var quickOrderSelectedMileage = 0;
+  var quickOrderDefaults = {
+    has_delivery_info: false,
+    has_payment_method: false,
+  };
   var isSendingMessage = false;
   var chatActionToastTimer = null;
   // 선택된 펫 프로필 (FastAPI 요청에 사용)
@@ -2936,37 +2940,39 @@
     return items;
   }
 
-  function applyQuickOrderLocalPreview() {
-    try {
-      var savedAddress = JSON.parse(window.localStorage.getItem(PROFILE_ADDRESS_STORAGE_KEY) || 'null');
-      if (savedAddress) {
-        if (
-          quickOrderAddressSummary &&
-          quickOrderAddressSummary.textContent.indexOf('없습니다') !== -1 &&
-          savedAddress.addressMain
-        ) {
-          var addressText = savedAddress.addressMain || '';
-          if (savedAddress.addressDetail) {
-            addressText += ' ' + savedAddress.addressDetail;
-          }
-          quickOrderAddressSummary.textContent = addressText.trim();
-        }
-      }
-    } catch (e) {}
+  function applyQuickOrderDefaults(data) {
+    quickOrderDefaults = data || {
+      has_delivery_info: false,
+      has_payment_method: false,
+    };
 
-    try {
-      var savedPayment = JSON.parse(window.localStorage.getItem(PROFILE_PAYMENT_STORAGE_KEY) || 'null');
-      if (
-        savedPayment &&
-        quickOrderCardSummary &&
-        quickOrderCardSummary.textContent.indexOf('없습니다') !== -1 &&
-        savedPayment.cardName &&
-        savedPayment.maskedCard
-      ) {
-        quickOrderCardSummary.textContent = savedPayment.cardName + ' / ' + savedPayment.maskedCard;
-        quickOrderCardSummary.classList.remove('text-[#718096]');
-      }
-    } catch (e) {}
+    if (quickOrderRecipientSummary) {
+      quickOrderRecipientSummary.textContent = quickOrderDefaults.recipient_name || '이름 정보가 없습니다';
+    }
+    if (quickOrderAddressSummary) {
+      quickOrderAddressSummary.textContent = quickOrderDefaults.delivery_summary || '배송지 정보가 없습니다';
+    }
+    if (quickOrderPhoneSummary) {
+      quickOrderPhoneSummary.textContent = quickOrderDefaults.recipient_phone || '연락처 정보가 없습니다';
+    }
+    if (quickOrderCardSummary) {
+      quickOrderCardSummary.textContent = quickOrderDefaults.payment_summary || '등록된 결제수단이 없습니다';
+      quickOrderCardSummary.classList.toggle('text-[#718096]', !quickOrderDefaults.has_payment_method);
+      quickOrderCardSummary.classList.toggle('text-[#4a5568]', !!quickOrderDefaults.has_payment_method);
+    }
+  }
+
+  function loadQuickOrderDefaults() {
+    return requestJson('/api/users/me/quick-purchase/')
+      .then(function (data) {
+        var quickPurchase = data && data.quick_purchase ? data.quick_purchase : {};
+        applyQuickOrderDefaults(quickPurchase);
+        return quickPurchase;
+      })
+      .catch(function () {
+        applyQuickOrderDefaults(null);
+        return quickOrderDefaults;
+      });
   }
 
   function getQuickOrderSubtotalValue() {
@@ -3067,29 +3073,15 @@
       }
     }
 
-    if (quickOrderCardSummary && quickOrderCardSummary.textContent.indexOf('등록된 결제수단이 없습니다') !== -1) {
-      quickOrderCardSummary.textContent = '등록된 결제수단이 없습니다';
-    }
-
-    applyQuickOrderLocalPreview();
-
-    var hasProfileInfo = !!(
-      (quickOrderRecipientSummary && quickOrderRecipientSummary.textContent.trim() && quickOrderRecipientSummary.textContent.indexOf('없습니다') === -1) &&
-      (quickOrderAddressSummary && quickOrderAddressSummary.textContent.trim() && quickOrderAddressSummary.textContent.indexOf('없습니다') === -1) &&
-      (quickOrderPhoneSummary && quickOrderPhoneSummary.textContent.trim() && quickOrderPhoneSummary.textContent.indexOf('없습니다') === -1)
-    );
-    var hasPaymentInfo = false;
-    if (quickOrderCardSummary) {
-      hasPaymentInfo = quickOrderCardSummary.textContent.trim().indexOf('없습니다') === -1;
-    }
-
-    updateQuickOrderSlideState(hasProfileInfo && hasPaymentInfo && items.length > 0);
+    updateQuickOrderSlideState(!!quickOrderDefaults.has_delivery_info && !!quickOrderDefaults.has_payment_method && items.length > 0);
   }
 
   window.openQuickOrderModal = function () {
     if (!quickOrderModal) return;
-    renderQuickOrderSummary();
-    quickOrderModal.classList.add('is-open');
+    loadQuickOrderDefaults().finally(function () {
+      renderQuickOrderSummary();
+      quickOrderModal.classList.add('is-open');
+    });
   };
 
   window.closeQuickOrderModal = function (e) {
@@ -3098,30 +3090,9 @@
     quickOrderModal.classList.remove('is-open');
   };
 
-  function normalizeQuickOrderPaymentMethod(value) {
-    var normalized = String(value || '').trim();
-    if (!normalized || normalized.indexOf('없습니다') !== -1) {
-      return '';
-    }
-    if (normalized.indexOf('카카오') !== -1) {
-      return '카카오페이 / 일시불';
-    }
-    if (normalized.indexOf('네이버') !== -1) {
-      return '네이버페이 / 일시불';
-    }
-    return '우리카드 1234 / 일시불';
-  }
-
   function buildQuickOrderPayload() {
-    var addressText = quickOrderAddressSummary ? quickOrderAddressSummary.textContent.trim() : '';
-    var paymentMethod = quickOrderCardSummary ? quickOrderCardSummary.textContent.trim() : '';
-
     return {
-      recipient_name: quickOrderRecipientSummary ? quickOrderRecipientSummary.textContent.trim() : '',
-      recipient_phone: quickOrderPhoneSummary ? quickOrderPhoneSummary.textContent.trim() : '',
-      delivery_address: addressText,
       delivery_message: '',
-      payment_method: normalizeQuickOrderPaymentMethod(paymentMethod),
       coupon_id: quickOrderSelectedCouponId || 'none',
       mileage_amount: quickOrderSelectedMileage || 0,
     };
@@ -3129,7 +3100,7 @@
 
   window.submitQuickOrder = function () {
     var payload = buildQuickOrderPayload();
-    requestJson('/api/orders/', {
+    requestJson('/api/orders/quick-purchase/', {
       method: 'POST',
       body: JSON.stringify(payload),
     }).then(function (data) {
