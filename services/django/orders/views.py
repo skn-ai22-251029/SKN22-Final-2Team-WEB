@@ -278,7 +278,7 @@ def validate_checkout_payload(request, cart_items):
     recipient_phone = (request.data.get("recipient_phone") or get_profile_value(request.user, "phone")).strip()
     delivery_address = normalize_delivery_address(request.data, request.user)
     delivery_message = (request.data.get("delivery_message") or "").strip()
-    payment_method = (request.data.get("payment_method") or get_profile_value(request.user, "payment_method")).strip()
+    payment_method = (request.data.get("payment_method") or "").strip()
 
     if not recipient_name:
         return None, Response({"detail": "recipient_name is required."}, status=status.HTTP_400_BAD_REQUEST)

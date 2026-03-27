@@ -853,16 +853,13 @@
     var addressParts = splitAddressParts(orderSummaryPanel.dataset.deliveryAddress || '');
     var paymentMethod = (orderSummaryPanel.dataset.paymentMethod || '').trim();
 
-    var hasServerAddress = addressParts.base && addressParts.base.indexOf('없습니다') === -1;
-    var hasServerPaymentMethod = paymentMethod && paymentMethod.indexOf('없습니다') === -1;
-
-    if (!hasServerAddress && addressPreview && (addressPreview.addressMain || addressPreview.addressDetail)) {
+    if (addressPreview && (addressPreview.addressMain || addressPreview.addressDetail)) {
       addressParts.base = (addressPreview.addressMain || '').trim() || addressParts.base;
       addressParts.detail = (addressPreview.addressDetail || '').trim();
       orderSummaryPanel.dataset.deliveryAddress = [addressParts.base, addressParts.detail].filter(Boolean).join(' | ');
     }
 
-    if (!hasServerPaymentMethod && paymentPreview && paymentPreview.cardName && paymentPreview.maskedCard) {
+    if (paymentPreview && paymentPreview.cardName && paymentPreview.maskedCard) {
       paymentMethod = paymentPreview.cardName + ' / ' + paymentPreview.maskedCard;
       orderSummaryPanel.dataset.paymentMethod = paymentMethod;
     }

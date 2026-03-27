@@ -588,13 +588,12 @@ def used_products(request):
     shipping_fee = 0 if product_total >= 30000 else 3000
     final_total = product_total - discount + shipping_fee
     profile = getattr(request.user, "profile", None)
-    recipient_name = getattr(profile, "nickname", "") or request.user.email.split("@")[0] or "주문자 정보 미등록"
+    recipient_name = getattr(profile, "nickname", "") or request.user.username or "주문자 정보 미등록"
     address = getattr(profile, "address", "") or ""
     address_parts = [part.strip() for part in address.split("|", 1)] if address else []
     base_address = address_parts[0] if address_parts else "배송지 정보가 아직 등록되지 않았어요"
     detail_address = address_parts[1] if len(address_parts) > 1 else ""
     phone = getattr(profile, "phone", "") or "연락처 정보가 아직 없습니다."
-    payment_method = getattr(profile, "payment_method", "") or "결제 수단 정보가 아직 없습니다."
     for item in items:
         item["price_label"] = _format_price(item["price"])
         item["line_total_label"] = _format_price(item["price"] * item["quantity"])
@@ -618,7 +617,7 @@ def used_products(request):
             "delivery_detail_address": detail_address,
             "recipient_phone": phone,
             "delivery_message": "",
-            "payment_method": payment_method,
+            "payment_method": "우리카드 1234 / 일시불",
             "coupon_summary": "적용된 쿠폰 없음",
             "mileage_summary": "사용 가능 3,200원",
             "discount_total_raw": discount,
