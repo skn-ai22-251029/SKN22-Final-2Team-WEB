@@ -468,6 +468,9 @@
       <aside id="orderSummaryPanel"
              data-recipient-name="{{ recipient_name }}"
              data-recipient-phone="{{ recipient_phone }}"
+             data-postal-code="{{ delivery_postal_code|default:'' }}"
+             data-delivery-address-main="{{ delivery_base_address }}"
+             data-delivery-address-detail="{{ delivery_detail_address }}"
              data-delivery-address="{{ delivery_base_address }} | {{ delivery_detail_address }}"
              data-payment-method="{{ payment_method }}"
              class="{% if item_count == 0 %}hidden{% else %}flex{% endif %} min-h-[720px] flex-col rounded-[24px] border border-[#dbe7f5] bg-white p-6 shadow-[0_10px_28px_rgba(45,55,72,0.05)] lg:sticky lg:top-8">
@@ -902,6 +905,9 @@
       body: JSON.stringify({
         recipient_name: orderSummaryPanel.dataset.recipientName || '',
         recipient_phone: orderSummaryPanel.dataset.recipientPhone || '',
+        postal_code: orderSummaryPanel.dataset.postalCode || '',
+        delivery_address_main: orderSummaryPanel.dataset.deliveryAddressMain || '',
+        delivery_address_detail: orderSummaryPanel.dataset.deliveryAddressDetail || '',
         delivery_address: orderSummaryPanel.dataset.deliveryAddress || '',
         delivery_message: getDeliveryMessageValue(),
         payment_method: orderSummaryPanel.dataset.paymentMethod || '',

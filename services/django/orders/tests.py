@@ -277,7 +277,34 @@ class OrderCreateApiTests(TestCase):
         self.assertEqual(response.data["detail"], "recipient_name is required.")
         self.assertEqual(response.data["code"], "missing_required_fields")
         self.assertEqual(response.data["field"], "recipient_name")
-        self.assertEqual(response.data["missing_fields"], ["recipient_name", "recipient_phone", "delivery_address"])
+        self.assertEqual(
+            response.data["missing_fields"],
+            ["recipient_name", "recipient_phone", "postal_code", "delivery_address_main", "delivery_address_detail"],
+        )
+
+    def test_post_order_requires_structured_delivery_info_even_if_legacy_address_exists(self):
+        self.add_cart_items()
+        self.user.profile.postal_code = ""
+        self.user.profile.address_main = ""
+        self.user.profile.address_detail = ""
+        self.user.profile.address = "서울 강동구 올림픽로 123 | 101동 1203호"
+        self.user.profile.save(update_fields=["postal_code", "address_main", "address_detail", "address", "updated_at"])
+
+        response = self.client.post(
+            "/api/orders/",
+            {
+                "payment_method": "우리카드 1234 / 일시불",
+            },
+            format="json",
+        )
+
+        self.assertEqual(response.status_code, status.HTTP_400_BAD_REQUEST)
+        self.assertEqual(response.data["code"], "missing_required_fields")
+        self.assertEqual(response.data["field"], "postal_code")
+        self.assertEqual(
+            response.data["missing_fields"],
+            ["postal_code", "delivery_address_main", "delivery_address_detail"],
+        )
 
     def test_post_order_rejects_invalid_payment_method_with_available_options(self):
         self.add_cart_items()

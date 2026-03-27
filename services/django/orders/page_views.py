@@ -594,6 +594,7 @@ def used_products(request):
     base_address = address_parts[0] if address_parts else "배송지 정보가 아직 등록되지 않았어요"
     detail_address = address_parts[1] if len(address_parts) > 1 else ""
     phone = getattr(profile, "phone", "") or "연락처 정보가 아직 없습니다."
+    postal_code = getattr(profile, "postal_code", "") or ""
     payment_method = getattr(profile, "payment_method", "") or "결제 수단 정보가 아직 없습니다."
     for item in items:
         item["price_label"] = _format_price(item["price"])
@@ -621,6 +622,7 @@ def used_products(request):
             "delivery_base_address": base_address,
             "delivery_detail_address": detail_address,
             "recipient_phone": phone,
+            "delivery_postal_code": postal_code,
             "delivery_message": "",
             "payment_method": payment_method,
             "coupon_summary": "적용된 쿠폰 없음",
