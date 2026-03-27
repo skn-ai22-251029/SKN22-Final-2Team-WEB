@@ -314,6 +314,24 @@ def _preview_session_threads():
     }
 
 
+def _build_quick_order_profile_context(user):
+    profile = getattr(user, "profile", None)
+    if profile is None:
+        return {
+            "quick_order_recipient": "이름 정보가 없습니다",
+            "quick_order_address": "배송지 정보가 없습니다",
+            "quick_order_phone": "연락처 정보가 없습니다",
+            "quick_order_payment_method": "등록된 결제수단이 없습니다",
+        }
+
+    return {
+        "quick_order_recipient": (profile.nickname or "").strip() or "이름 정보가 없습니다",
+        "quick_order_address": (profile.address or "").strip() or "배송지 정보가 없습니다",
+        "quick_order_phone": (profile.phone or "").strip() or "연락처 정보가 없습니다",
+        "quick_order_payment_method": (profile.payment_method or "").strip() or "등록된 결제수단이 없습니다",
+    }
+
+
 @ensure_csrf_cookie
 def chat_view(request):
     onboarding_redirect_url = get_onboarding_redirect_url(request)
@@ -493,6 +511,13 @@ def chat_view(request):
             cart_products = []
             cart_total = 0
 
+    quick_order_profile = _build_quick_order_profile_context(request.user) if is_authenticated else {
+        "quick_order_recipient": "이름 정보가 없습니다",
+        "quick_order_address": "배송지 정보가 없습니다",
+        "quick_order_phone": "연락처 정보가 없습니다",
+        "quick_order_payment_method": "등록된 결제수단이 없습니다",
+    }
+
     future_pet = _serialize_future_pet(request.session.get("future_pet_profile"))
     if future_pet:
         member_pets.append(future_pet)
@@ -526,5 +551,6 @@ def chat_view(request):
             "cart_total": _format_price(cart_total),
             "promo_banners": promo_banners,
             "session_threads": session_threads,
+            **quick_order_profile,
         },
     )
