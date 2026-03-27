@@ -26,13 +26,14 @@ def split_legacy_payment_method(payment_method):
 def build_delivery_info(profile):
     address_main = (getattr(profile, "address_main", "") or "").strip()
     address_detail = (getattr(profile, "address_detail", "") or "").strip()
-    if not address_main and not address_detail:
-        address_main, address_detail = split_legacy_address(getattr(profile, "address", ""))
 
     recipient_name = (getattr(profile, "recipient_name", "") or getattr(profile, "nickname", "") or "").strip()
     recipient_phone = (getattr(profile, "phone", "") or "").strip()
     postal_code = (getattr(profile, "postal_code", "") or "").strip()
     delivery_summary = " ".join(part for part in [address_main, address_detail] if part).strip()
+    if not delivery_summary:
+        legacy_address_main, legacy_address_detail = split_legacy_address(getattr(profile, "address", ""))
+        delivery_summary = " ".join(part for part in [legacy_address_main, legacy_address_detail] if part).strip()
 
     return {
         "recipient_name": recipient_name,

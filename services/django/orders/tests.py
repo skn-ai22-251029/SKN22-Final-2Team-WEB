@@ -411,6 +411,32 @@ class OrderCreateApiTests(TestCase):
         self.assertEqual(response.status_code, status.HTTP_400_BAD_REQUEST)
         self.assertEqual(response.data["code"], "quick_purchase_requirements_missing")
 
+    def test_post_quick_purchase_rejects_legacy_address_without_structured_fields(self):
+        self.add_cart_items()
+        self.user.profile.address_main = ""
+        self.user.profile.address_detail = ""
+        self.user.profile.address = "서울 강동구 올림픽로 123 | 101동 1203호"
+        self.user.profile.payment_method = "현대카드 M / 1234 **** **** 3456"
+        self.user.profile.payment_card_provider = "현대카드 M"
+        self.user.profile.payment_card_masked_number = "1234 **** **** 3456"
+        self.user.profile.save(
+            update_fields=[
+                "address_main",
+                "address_detail",
+                "address",
+                "payment_method",
+                "payment_card_provider",
+                "payment_card_masked_number",
+                "updated_at",
+            ]
+        )
+
+        response = self.client.post("/api/orders/quick-purchase/", {}, format="json")
+
+        self.assertEqual(response.status_code, status.HTTP_400_BAD_REQUEST)
+        self.assertEqual(response.data["code"], "quick_purchase_requirements_missing")
+        self.assertEqual(response.data["missing_fields"], ["delivery_info"])
+
 
 class OrderReadApiTests(TestCase):
     def setUp(self):
