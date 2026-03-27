@@ -8,6 +8,7 @@ from rest_framework.views import APIView
 from rest_framework_simplejwt.authentication import JWTAuthentication
 
 from products.models import Product
+from users.quick_purchase import serialize_quick_purchase_profile
 
 from .models import Cart, CartItem, Order, OrderItem, UserInteraction, Wishlist, WishlistItem
 
@@ -315,6 +316,19 @@ def get_profile_value(user, field_name):
     return getattr(profile, field_name, "") or ""
 
 
+def is_valid_payment_method(payment_method):
+    normalized = str(payment_method or "").strip()
+    if not normalized:
+        return False
+    if normalized in PAYMENT_METHODS:
+        return True
+    if " / " in normalized and "*" in normalized:
+        return True
+    if "페이" in normalized or "pay" in normalized.lower():
+        return True
+    return False
+
+
 def normalize_delivery_address(data, user):
     delivery_address = (data.get("delivery_address") or "").strip()
     if delivery_address:
@@ -363,12 +377,12 @@ def get_coupon_or_400(coupon_id):
     return normalized_coupon_id, coupon, None
 
 
-def validate_checkout_payload(request, cart_items):
-    recipient_name = (request.data.get("recipient_name") or get_profile_value(request.user, "nickname")).strip()
-    recipient_phone = (request.data.get("recipient_phone") or get_profile_value(request.user, "phone")).strip()
-    delivery_address = normalize_delivery_address(request.data, request.user)
-    delivery_message = (request.data.get("delivery_message") or "").strip()
-    payment_method = (request.data.get("payment_method") or get_profile_value(request.user, "payment_method")).strip()
+def validate_checkout_payload(data, user, cart_items):
+    recipient_name = (data.get("recipient_name") or get_profile_value(user, "recipient_name") or get_profile_value(user, "nickname")).strip()
+    recipient_phone = (data.get("recipient_phone") or get_profile_value(user, "phone")).strip()
+    delivery_address = normalize_delivery_address(data, user)
+    delivery_message = (data.get("delivery_message") or "").strip()
+    payment_method = (data.get("payment_method") or get_profile_value(user, "payment_method")).strip()
     missing_fields = []
 
     if not recipient_name:
@@ -399,7 +413,7 @@ def validate_checkout_payload(request, cart_items):
             field="recipient_phone",
         )
 
-    if payment_method not in PAYMENT_METHODS:
+    if not is_valid_payment_method(payment_method):
         return None, error_response(
             "invalid payment_method.",
             code="invalid_payment_method",
@@ -413,7 +427,7 @@ def validate_checkout_payload(request, cart_items):
     product_total = sum(item.product.price * item.quantity for item in cart_items)
     shipping_fee = 0 if product_total >= FREE_SHIPPING_THRESHOLD else BASE_SHIPPING_FEE
 
-    coupon_id, coupon, coupon_error = get_coupon_or_400(request.data.get("coupon_id"))
+    coupon_id, coupon, coupon_error = get_coupon_or_400(data.get("coupon_id"))
     if coupon_error:
         return None, coupon_error
     if product_total < coupon["min_total"]:
@@ -424,7 +438,7 @@ def validate_checkout_payload(request, cart_items):
             field="coupon_id",
         )
 
-    mileage_amount, mileage_error = parse_positive_int(request.data.get("mileage_amount", 0), "mileage_amount")
+    mileage_amount, mileage_error = parse_positive_int(data.get("mileage_amount", 0), "mileage_amount")
     if mileage_error:
         return None, mileage_error
     if mileage_amount > AVAILABLE_MILEAGE:
@@ -459,6 +473,49 @@ def validate_checkout_payload(request, cart_items):
         "shipping_fee": shipping_fee,
         "total_price": total_price,
     }, None
+
+
+def create_order_from_cart(user, checkout_data, cart_items):
+    order = Order.objects.create(
+        user=user,
+        recipient_name=checkout_data["recipient_name"],
+        recipient_phone=checkout_data["recipient_phone"],
+        delivery_address=checkout_data["delivery_address"],
+        delivery_message=checkout_data["delivery_message"],
+        payment_method=checkout_data["payment_method"],
+        applied_coupon_id=checkout_data["coupon_id"],
+        product_total=checkout_data["product_total"],
+        coupon_discount=checkout_data["coupon_discount"],
+        mileage_discount=checkout_data["mileage_discount"],
+        shipping_fee=checkout_data["shipping_fee"],
+        total_price=checkout_data["total_price"],
+        status="pending",
+    )
+
+    order_items = []
+    interactions = []
+    for cart_item in cart_items:
+        order_items.append(
+            OrderItem(
+                order=order,
+                product=cart_item.product,
+                quantity=cart_item.quantity,
+                price_at_order=cart_item.product.price,
+            )
+        )
+        interactions.append(
+            UserInteraction(
+                user=user,
+                product=cart_item.product,
+                interaction_type="purchase",
+                weight=max(cart_item.quantity, 1),
+            )
+        )
+
+    OrderItem.objects.bulk_create(order_items)
+    UserInteraction.objects.bulk_create(interactions)
+    Cart.objects.get(user=user).items.all().delete()
+    return Order.objects.prefetch_related("items__product").get(pk=order.pk)
 
 
 def get_product_or_400(product_id):
@@ -568,55 +625,72 @@ class OrderListView(APIView):
                 status_code=status.HTTP_400_BAD_REQUEST,
             )
 
-        checkout_data, checkout_error_response = validate_checkout_payload(request, cart_items)
+        checkout_data, checkout_error_response = validate_checkout_payload(request.data, request.user, cart_items)
         if checkout_error_response:
             return checkout_error_response
 
-        order = Order.objects.create(
-            user=request.user,
-            recipient_name=checkout_data["recipient_name"],
-            recipient_phone=checkout_data["recipient_phone"],
-            delivery_address=checkout_data["delivery_address"],
-            delivery_message=checkout_data["delivery_message"],
-            payment_method=checkout_data["payment_method"],
-            applied_coupon_id=checkout_data["coupon_id"],
-            product_total=checkout_data["product_total"],
-            coupon_discount=checkout_data["coupon_discount"],
-            mileage_discount=checkout_data["mileage_discount"],
-            shipping_fee=checkout_data["shipping_fee"],
-            total_price=checkout_data["total_price"],
-            status="pending",
-        )
-
-        order_items = []
-        interactions = []
-        for cart_item in cart_items:
-            order_items.append(
-                OrderItem(
-                    order=order,
-                    product=cart_item.product,
-                    quantity=cart_item.quantity,
-                    price_at_order=cart_item.product.price,
-                )
-            )
-            interactions.append(
-                UserInteraction(
-                    user=request.user,
-                    product=cart_item.product,
-                    interaction_type="purchase",
-                    weight=max(cart_item.quantity, 1),
-                )
-            )
-
-        OrderItem.objects.bulk_create(order_items)
-        UserInteraction.objects.bulk_create(interactions)
-        cart.items.all().delete()
-
-        order = Order.objects.prefetch_related("items__product").get(pk=order.pk)
+        order = create_order_from_cart(request.user, checkout_data, cart_items)
         return Response(
             {
                 "order": serialize_order(order),
                 "completion": serialize_order_completion(order),
+            },
+            status=status.HTTP_201_CREATED,
+        )
+
+
+class QuickPurchaseView(APIView):
+    authentication_classes = [JWTAuthentication, SessionAuthentication]
+    permission_classes = [IsAuthenticated]
+
+    @transaction.atomic
+    def post(self, request):
+        cart, _ = Cart.objects.get_or_create(user=request.user)
+        cart_items = list(cart.items.select_related("product").order_by("-added_at"))
+        if not cart_items:
+            return error_response(
+                "cart is empty.",
+                code="cart_empty",
+                status_code=status.HTTP_400_BAD_REQUEST,
+            )
+
+        quick_purchase = serialize_quick_purchase_profile(request.user)
+        if not quick_purchase["has_delivery_info"] or not quick_purchase["has_payment_method"]:
+            missing_requirements = []
+            if not quick_purchase["has_delivery_info"]:
+                missing_requirements.append("delivery_info")
+            if not quick_purchase["has_payment_method"]:
+                missing_requirements.append("payment_method")
+            return error_response(
+                "quick purchase requires saved delivery info and payment method.",
+                code="quick_purchase_requirements_missing",
+                status_code=status.HTTP_400_BAD_REQUEST,
+                missing_fields=missing_requirements,
+            )
+
+        payload = {
+            "recipient_name": quick_purchase["recipient_name"],
+            "recipient_phone": quick_purchase["recipient_phone"],
+            "delivery_address_main": quick_purchase["address_main"],
+            "delivery_address_detail": quick_purchase["address_detail"],
+            "delivery_message": request.data.get("delivery_message", ""),
+            "payment_method": quick_purchase["payment_summary"],
+            "coupon_id": request.data.get("coupon_id", "none"),
+            "mileage_amount": request.data.get("mileage_amount", 0),
+        }
+        checkout_data, checkout_error_response = validate_checkout_payload(payload, request.user, cart_items)
+        if checkout_error_response:
+            return checkout_error_response
+
+        order = create_order_from_cart(request.user, checkout_data, cart_items)
+        return Response(
+            {
+                "order": serialize_order(order),
+                "completion": serialize_order_completion(order),
+                "quick_purchase": {
+                    "has_delivery_info": True,
+                    "has_payment_method": True,
+                },
             },
             status=status.HTTP_201_CREATED,
         )

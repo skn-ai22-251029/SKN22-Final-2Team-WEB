@@ -138,6 +138,10 @@ class OrderCreateApiTests(TestCase):
         UserProfile.objects.create(
             user=self.user,
             nickname="주문자",
+            recipient_name="주문자",
+            postal_code="12345",
+            address_main="서울 강동구 올림픽로 123",
+            address_detail="101동 1203호",
             address="서울 강동구 올림픽로 123 | 101동 1203호",
             phone="01012341234",
         )
@@ -281,7 +285,7 @@ class OrderCreateApiTests(TestCase):
         response = self.client.post(
             "/api/orders/",
             {
-                "payment_method": "현대카드 M / 1234 **** **** 3456",
+                "payment_method": "현대카드 M",
             },
             format="json",
         )
@@ -294,6 +298,20 @@ class OrderCreateApiTests(TestCase):
             response.data["available_payment_methods"],
             sorted(["우리카드 1234 / 일시불", "카카오페이 / 일시불", "네이버페이 / 일시불"]),
         )
+
+    def test_post_order_accepts_masked_card_payment_method(self):
+        self.add_cart_items()
+
+        response = self.client.post(
+            "/api/orders/",
+            {
+                "payment_method": "현대카드 M / 1234 **** **** 3456",
+            },
+            format="json",
+        )
+
+        self.assertEqual(response.status_code, status.HTTP_201_CREATED)
+        self.assertEqual(response.data["order"]["payment_method"], "현대카드 M / 1234 **** **** 3456")
 
     def test_post_order_rejects_invalid_phone_number(self):
         self.add_cart_items()
@@ -315,8 +333,10 @@ class OrderCreateApiTests(TestCase):
 
     def test_post_order_uses_saved_profile_payment_method_when_request_omits_it(self):
         self.add_cart_items()
-        self.user.profile.payment_method = "카카오페이 / 일시불"
-        self.user.profile.save(update_fields=["payment_method", "updated_at"])
+        self.user.profile.payment_method = "현대카드 M / 1234 **** **** 3456"
+        self.user.profile.payment_card_provider = "현대카드 M"
+        self.user.profile.payment_card_masked_number = "1234 **** **** 3456"
+        self.user.profile.save(update_fields=["payment_method", "payment_card_provider", "payment_card_masked_number", "updated_at"])
 
         response = self.client.post(
             "/api/orders/",
@@ -327,8 +347,42 @@ class OrderCreateApiTests(TestCase):
         )
 
         self.assertEqual(response.status_code, status.HTTP_201_CREATED)
-        self.assertEqual(response.data["order"]["payment_method"], "카카오페이 / 일시불")
-        self.assertEqual(response.data["completion"]["payment_method"], "카카오페이 / 일시불")
+        self.assertEqual(response.data["order"]["payment_method"], "현대카드 M / 1234 **** **** 3456")
+        self.assertEqual(response.data["completion"]["payment_method"], "현대카드 M / 1234 **** **** 3456")
+
+    def test_post_quick_purchase_uses_saved_delivery_and_payment_defaults(self):
+        self.add_cart_items()
+        self.user.profile.payment_method = "현대카드 M / 1234 **** **** 3456"
+        self.user.profile.payment_card_provider = "현대카드 M"
+        self.user.profile.payment_card_masked_number = "1234 **** **** 3456"
+        self.user.profile.save(update_fields=["payment_method", "payment_card_provider", "payment_card_masked_number", "updated_at"])
+
+        response = self.client.post(
+            "/api/orders/quick-purchase/",
+            {
+                "coupon_id": "new-member",
+                "mileage_amount": 1200,
+            },
+            format="json",
+        )
+
+        self.assertEqual(response.status_code, status.HTTP_201_CREATED)
+        self.assertEqual(response.data["order"]["recipient_name"], "주문자")
+        self.assertEqual(response.data["order"]["payment_method"], "현대카드 M / 1234 **** **** 3456")
+        self.assertEqual(response.data["completion"]["recipient_phone"], "01012341234")
+
+    def test_post_quick_purchase_rejects_when_saved_defaults_missing(self):
+        self.add_cart_items()
+        self.user.profile.postal_code = None
+        self.user.profile.payment_method = None
+        self.user.profile.payment_card_provider = None
+        self.user.profile.payment_card_masked_number = None
+        self.user.profile.save(update_fields=["postal_code", "payment_method", "payment_card_provider", "payment_card_masked_number", "updated_at"])
+
+        response = self.client.post("/api/orders/quick-purchase/", {}, format="json")
+
+        self.assertEqual(response.status_code, status.HTTP_400_BAD_REQUEST)
+        self.assertEqual(response.data["code"], "quick_purchase_requirements_missing")
 
 
 class OrderReadApiTests(TestCase):
