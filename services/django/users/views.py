@@ -1,5 +1,7 @@
 import os
+import random
 import uuid
+from datetime import timedelta
 from pathlib import Path
 
 import boto3
@@ -8,10 +10,13 @@ from django.contrib.auth import authenticate, login, logout
 from django.db import IntegrityError, transaction
 from django.db.models import ProtectedError
 from django.urls import reverse
+from django.utils import timezone
 from rest_framework import status
+from rest_framework.authentication import SessionAuthentication
 from rest_framework.permissions import AllowAny, IsAuthenticated
 from rest_framework.response import Response
 from rest_framework.views import APIView
+from rest_framework_simplejwt.authentication import JWTAuthentication
 from rest_framework_simplejwt.tokens import RefreshToken
 from social_core.exceptions import AuthCanceled, AuthConnectionError, AuthException, AuthForbidden, AuthMissingParameter
 
@@ -33,6 +38,33 @@ from .social_auth import (
     build_authorization_url,
     complete_social_login,
 )
+
+
+def deactivate_user_and_purge_personal_data(user):
+    anonymized_email = f"withdrawn-{user.pk}-{uuid.uuid4().hex[:12]}@deleted.local"
+
+    if hasattr(user, "chat_sessions"):
+        user.chat_sessions.all().delete()
+    if hasattr(user, "cart"):
+        user.cart.delete()
+    if hasattr(user, "wishlist"):
+        user.wishlist.delete()
+    if hasattr(user, "pets"):
+        user.pets.all().delete()
+    if hasattr(user, "social_accounts"):
+        user.social_accounts.all().delete()
+    if hasattr(user, "used_products"):
+        user.used_products.all().delete()
+    if hasattr(user, "userinteraction_set"):
+        user.userinteraction_set.all().delete()
+
+    UserPreference.objects.filter(user=user).delete()
+    UserProfile.objects.filter(user=user).delete()
+
+    user.email = anonymized_email
+    user.is_active = False
+    user.set_unusable_password()
+    user.save(update_fields=["email", "is_active", "password"])
 
 
 @transaction.atomic
@@ -153,10 +185,25 @@ def serialize_user_profile(user):
         "gender": profile.gender,
         "address": profile.address,
         "phone": profile.phone,
+        "phone_verified": profile.phone_verified,
+        "phone_verified_at": profile.phone_verified_at,
         "payment_method": profile.payment_method,
         "marketing_consent": profile.marketing_consent,
         "profile_image_url": profile.profile_image_url,
     }
+
+
+def normalize_phone(value):
+    return "".join(char for char in str(value or "") if char.isdigit())[:11]
+
+
+def validate_phone_or_400(phone):
+    normalized_phone = normalize_phone(phone)
+    if not normalized_phone:
+        return None, Response({"detail": "phone is required."}, status=status.HTTP_400_BAD_REQUEST)
+    if not 10 <= len(normalized_phone) <= 11:
+        return None, Response({"detail": "phone must be 10~11 digits."}, status=status.HTTP_400_BAD_REQUEST)
+    return normalized_phone, None
 
 
 def serialize_user_preferences(user):
@@ -284,6 +331,7 @@ class AuthLoginView(APIView):
 
 
 class AuthLogoutView(APIView):
+    authentication_classes = [JWTAuthentication, SessionAuthentication]
     permission_classes = [IsAuthenticated]
 
     def post(self, request):
@@ -302,6 +350,7 @@ class AuthLogoutView(APIView):
 
 
 class AuthWithdrawView(APIView):
+    authentication_classes = [JWTAuthentication, SessionAuthentication]
     permission_classes = [IsAuthenticated]
 
     @transaction.atomic
@@ -316,13 +365,7 @@ class AuthWithdrawView(APIView):
             except Exception:
                 return Response({"detail": "유효하지 않은 refresh token 입니다."}, status=status.HTTP_400_BAD_REQUEST)
 
-        try:
-            user.delete()
-        except ProtectedError:
-            return Response(
-                {"detail": "진행 중이거나 보존이 필요한 주문 데이터가 있어 탈퇴할 수 없습니다."},
-                status=status.HTTP_409_CONFLICT,
-            )
+        deactivate_user_and_purge_personal_data(user)
 
         logout(request)
         return Response(status=status.HTTP_204_NO_CONTENT)
@@ -352,6 +395,7 @@ class NicknameAvailabilityView(APIView):
 
 
 class UserMeView(APIView):
+    authentication_classes = [JWTAuthentication, SessionAuthentication]
     permission_classes = [IsAuthenticated]
 
     def get(self, request):
@@ -385,7 +429,16 @@ class UserMeView(APIView):
                     value = int(value)
                 except (TypeError, ValueError):
                     return Response({"detail": "age must be an integer."}, status=status.HTTP_400_BAD_REQUEST)
+            if field == "phone" and value is not None:
+                value = normalize_phone(value)
+                if value and not 10 <= len(value) <= 11:
+                    return Response({"detail": "phone must be 10~11 digits."}, status=status.HTTP_400_BAD_REQUEST)
             if getattr(profile, field) != value:
+                if field == "phone":
+                    if value != profile.phone:
+                        profile.mark_phone_unverified()
+                        profile.clear_phone_verification()
+                        dirty_fields.extend(["phone_verified", "phone_verified_at", "phone_verification_code", "phone_verification_target", "phone_verification_expires_at"])
                 setattr(profile, field, value)
                 dirty_fields.append(field)
 
@@ -415,7 +468,95 @@ class UserMeView(APIView):
         return Response({"user": serialize_user_profile(request.user)})
 
 
+class UserPhoneVerificationRequestView(APIView):
+    authentication_classes = [JWTAuthentication, SessionAuthentication]
+    permission_classes = [IsAuthenticated]
+
+    def post(self, request):
+        profile, _ = UserProfile.objects.get_or_create(
+            user=request.user,
+            defaults={"nickname": build_unique_nickname(request.user.email.split("@")[0], exclude_user=request.user)},
+        )
+        phone, error_response = validate_phone_or_400(request.data.get("phone"))
+        if error_response:
+            return error_response
+
+        verification_code = f"{random.randint(0, 999999):06d}"
+        profile.phone_verification_target = phone
+        profile.phone_verification_code = verification_code
+        profile.phone_verification_expires_at = timezone.now() + timedelta(minutes=5)
+        profile.phone_verified = False
+        profile.phone_verified_at = None
+        profile.save(
+            update_fields=[
+                "phone_verification_target",
+                "phone_verification_code",
+                "phone_verification_expires_at",
+                "phone_verified",
+                "phone_verified_at",
+                "updated_at",
+            ]
+        )
+
+        response_payload = {
+            "detail": "인증번호를 전송했습니다.",
+            "phone": phone,
+            "expires_in_seconds": 300,
+        }
+        if settings.DEBUG:
+            response_payload["verification_code"] = verification_code
+        return Response(response_payload, status=status.HTTP_200_OK)
+
+
+class UserPhoneVerificationConfirmView(APIView):
+    authentication_classes = [JWTAuthentication, SessionAuthentication]
+    permission_classes = [IsAuthenticated]
+
+    def post(self, request):
+        profile, _ = UserProfile.objects.get_or_create(
+            user=request.user,
+            defaults={"nickname": build_unique_nickname(request.user.email.split("@")[0], exclude_user=request.user)},
+        )
+        phone, error_response = validate_phone_or_400(request.data.get("phone"))
+        if error_response:
+            return error_response
+
+        verification_code = (request.data.get("verification_code") or "").strip()
+        if not verification_code:
+            return Response({"detail": "verification_code is required."}, status=status.HTTP_400_BAD_REQUEST)
+
+        if (
+            profile.phone_verification_target != phone or
+            not profile.phone_verification_code or
+            profile.phone_verification_code != verification_code
+        ):
+            return Response({"detail": "인증번호가 올바르지 않습니다."}, status=status.HTTP_400_BAD_REQUEST)
+
+        if not profile.phone_verification_expires_at or profile.phone_verification_expires_at < timezone.now():
+            profile.clear_phone_verification()
+            profile.save(update_fields=["phone_verification_code", "phone_verification_target", "phone_verification_expires_at", "updated_at"])
+            return Response({"detail": "인증번호가 만료되었습니다. 다시 요청해 주세요."}, status=status.HTTP_400_BAD_REQUEST)
+
+        profile.phone = phone
+        profile.phone_verified = True
+        profile.phone_verified_at = timezone.now()
+        profile.clear_phone_verification()
+        profile.save(
+            update_fields=[
+                "phone",
+                "phone_verified",
+                "phone_verified_at",
+                "phone_verification_code",
+                "phone_verification_target",
+                "phone_verification_expires_at",
+                "updated_at",
+            ]
+        )
+        return Response({"detail": "연락처 인증이 완료되었습니다.", "user": serialize_user_profile(request.user)})
+
+
 class UserMePreferenceView(APIView):
+    authentication_classes = [JWTAuthentication, SessionAuthentication]
     permission_classes = [IsAuthenticated]
 
     def get(self, request):
@@ -435,6 +576,7 @@ class UserMePreferenceView(APIView):
 
 
 class UserMeUsedProductView(APIView):
+    authentication_classes = [JWTAuthentication, SessionAuthentication]
     permission_classes = [IsAuthenticated]
 
     def post(self, request):

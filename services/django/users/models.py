@@ -47,9 +47,23 @@ class UserProfile(models.Model):
     address           = models.TextField(null=True, blank=True)
     phone             = models.CharField(max_length=20, null=True, blank=True)
     payment_method    = models.CharField(max_length=120, null=True, blank=True)
+    phone_verified    = models.BooleanField(default=False)
+    phone_verified_at = models.DateTimeField(null=True, blank=True)
+    phone_verification_code = models.CharField(max_length=6, null=True, blank=True)
+    phone_verification_target = models.CharField(max_length=20, null=True, blank=True)
+    phone_verification_expires_at = models.DateTimeField(null=True, blank=True)
     marketing_consent = models.BooleanField(default=False)
     profile_image_url = models.TextField(null=True, blank=True)
     updated_at        = models.DateTimeField(auto_now=True)
+
+    def clear_phone_verification(self):
+        self.phone_verification_code = None
+        self.phone_verification_target = None
+        self.phone_verification_expires_at = None
+
+    def mark_phone_unverified(self):
+        self.phone_verified = False
+        self.phone_verified_at = None
 
     class Meta:
         db_table = "user_profile"
