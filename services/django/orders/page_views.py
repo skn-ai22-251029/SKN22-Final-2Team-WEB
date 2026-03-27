@@ -601,6 +601,10 @@ def used_products(request):
     for item in wishlist_items:
         item["price_label"] = _format_price(item["price"])
 
+    active_tab = (request.GET.get("tab") or "cart").strip().lower()
+    if active_tab not in {"cart", "wishlist"}:
+        active_tab = "cart"
+
     return render(
         request,
         "orders/products.html",
@@ -623,7 +627,7 @@ def used_products(request):
             "mileage_summary": "사용 가능 3,200원",
             "discount_total_raw": discount,
             "shipping_fee_raw": shipping_fee,
-            "active_tab": "cart",
+            "active_tab": active_tab,
         },
     )
 

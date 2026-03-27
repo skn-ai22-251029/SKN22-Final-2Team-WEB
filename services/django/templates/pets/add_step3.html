@@ -60,9 +60,16 @@
             </div>
             <div class="flex flex-wrap gap-[8px]">
               {% for value, label in food_options %}
-              <label class="food-option flex h-[42px] flex-1 cursor-pointer items-center justify-center rounded-[8px] border text-[14px] {% if value in step3_data.food_preferences %}border-[#3182ce] bg-[#f7fbff] font-bold text-[#3182ce]{% else %}border-[#e2e8f0] bg-white text-[#4a5568]{% endif %}">
+              <label class="food-option flex min-h-[42px] flex-1 cursor-pointer items-center justify-center rounded-[8px] border px-2 py-2 text-[14px] {% if value in step3_data.food_preferences %}border-[#3182ce] bg-[#f7fbff] font-bold text-[#3182ce]{% else %}border-[#e2e8f0] bg-white text-[#4a5568]{% endif %}">
                 <input type="checkbox" class="hidden food-checkbox" name="food_preferences" value="{{ value }}" {% if value in step3_data.food_preferences %}checked{% endif %} />
+                {% if species == "dog" and value == "freeze_dried" %}
+                <span class="block text-center leading-[1.1] whitespace-normal">
+                  <span class="block">동결건조/</span>
+                  <span class="block">에어드라이</span>
+                </span>
+                {% else %}
                 {{ label }}
+                {% endif %}
               </label>
               {% endfor %}
             </div>
@@ -126,7 +133,11 @@
         </div>
 
         <div class="mt-[28px] flex flex-col-reverse gap-[10px] md:flex-row md:items-end md:gap-[14px]">
-          <a href="{% if is_preview_edit %}/pets/preview/{{ pet_id }}/edit/{% elif is_edit %}/pets/{{ pet_id }}/edit/{% else %}/pets/add/health/?species={{ step2_data.species|urlencode }}&name={{ step2_data.name|urlencode }}&breed={{ step2_data.breed|urlencode }}&gender={{ step2_data.gender|urlencode }}&age_years={{ step2_data.age_years|urlencode }}&age_months={{ step2_data.age_months|urlencode }}&weight_kg={{ step2_data.weight_kg|urlencode }}&neutered={{ step2_data.neutered|urlencode }}{% endif %}" class="flex h-[44px] w-full items-center justify-center rounded-[10px] bg-[#edf2f7] text-[16px] font-bold text-[#4a5568] md:w-[128px]">이전으로</a>
+          <a
+            href="{% if is_preview_edit %}/pets/preview/{{ pet_id }}/edit/{% elif is_edit %}/pets/{{ pet_id }}/edit/{% else %}/pets/add/details/{% endif %}"
+            id="step3BackLink"
+            class="flex h-[44px] w-full items-center justify-center rounded-[10px] bg-[#edf2f7] text-[16px] font-bold text-[#4a5568] md:w-[128px]"
+          >이전으로</a>
           <button type="submit" class="flex h-[44px] flex-1 items-center justify-center rounded-[10px] bg-[#3182ce] text-[16px] font-bold text-white">{% if is_edit %}수정 완료{% else %}등록 완료{% endif %}</button>
         </div>
       </form>
@@ -159,6 +170,7 @@
     var allergyInput = document.getElementById('allergyTextInput');
     var allergiesHidden = document.getElementById('allergiesInput');
     var tagsContainer = document.getElementById('allergyTags');
+    var backLink = document.getElementById('step3BackLink');
     var tags = allergiesHidden.value ? allergiesHidden.value.split(',').map(function (item) { return item.trim(); }).filter(Boolean) : [];
     var vaccinationDateInput = document.getElementById('vaccinationDateInput');
     var vaccinationDatePicker = document.getElementById('vaccinationDatePicker');
@@ -347,6 +359,40 @@
           event.preventDefault();
           showStatus(vaccinationDateStatus, '날짜는 2000-01-01부터 오늘까지만 입력할 수 있어요');
         }
+      });
+    }
+
+    if (backLink) {
+      backLink.addEventListener('click', function (event) {
+        {% if not is_edit and not is_preview_edit %}
+        event.preventDefault();
+        var params = new URLSearchParams();
+        params.set('type', '{{ step2_data.species|escapejs }}');
+        params.set('name', '{{ step2_data.name|escapejs }}');
+        params.set('breed', '{{ step2_data.breed|escapejs }}');
+        params.set('gender', '{{ step2_data.gender|escapejs }}');
+        params.set('age_years', '{{ step2_data.age_years|escapejs }}');
+        params.set('age_months', '{{ step2_data.age_months|escapejs }}');
+        params.set('weight_kg', '{{ step2_data.weight_kg|escapejs }}');
+        params.set('neutered', '{{ step2_data.neutered|escapejs }}');
+        params.set('vaccination_date', vaccinationDateInput ? vaccinationDateInput.value : '');
+        params.set('allergies', allergiesHidden ? allergiesHidden.value : '');
+
+        var budgetSelect = document.querySelector('select[name="budget_range"]');
+        params.set('budget_range', budgetSelect ? budgetSelect.value : '');
+
+        var specialNotesInput = document.querySelector('input[name="special_notes"], textarea[name="special_notes"]');
+        params.set('special_notes', specialNotesInput ? specialNotesInput.value : '');
+
+        document.querySelectorAll('.health-checkbox:checked').forEach(function (input) {
+          params.append('health_concerns', input.value);
+        });
+        document.querySelectorAll('.food-checkbox:checked').forEach(function (input) {
+          params.append('food_preferences', input.value);
+        });
+
+        window.location.href = backLink.getAttribute('href') + '?' + params.toString();
+        {% endif %}
       });
     }
 

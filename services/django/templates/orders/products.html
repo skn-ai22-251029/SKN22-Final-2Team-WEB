@@ -266,18 +266,18 @@
 
     <div class="product-tabs-row mt-8 flex items-center justify-start">
       <div class="inline-flex rounded-full border border-[#dbe7f5] bg-white p-[4px] shadow-[0_6px_18px_rgba(45,55,72,0.04)]">
-        <button type="button" id="productsTabCart" class="inline-flex h-[38px] min-w-[124px] items-center justify-center rounded-full bg-[#2d3748] px-4 text-[13px] font-semibold text-white transition-colors">
+        <button type="button" id="productsTabCart" class="inline-flex h-[38px] min-w-[124px] items-center justify-center rounded-full px-4 text-[13px] font-semibold transition-colors {% if active_tab == 'wishlist' %}text-[#718096] hover:text-[#2d3748]{% else %}bg-[#2d3748] text-white{% endif %}">
           <span class="inline-flex h-[18px] items-center justify-center gap-3.5">
             <span class="inline-flex h-[18px] items-center leading-none">장바구니</span>
-            <span id="productsTabCartCount" class="inline-flex h-[18px] min-w-[20px] items-center justify-center rounded-full bg-white/18 px-1.5 text-[11px] font-bold leading-none text-white {% if item_count == 0 %}hidden{% endif %}">
+            <span id="productsTabCartCount" class="inline-flex h-[18px] min-w-[20px] items-center justify-center rounded-full px-1.5 text-[11px] font-bold leading-none {% if active_tab == 'wishlist' %}bg-[#edf2f7] text-[#4a5568]{% else %}bg-white/18 text-white{% endif %} {% if item_count == 0 %}hidden{% endif %}">
               <span class="inline-flex h-[18px] items-center">{{ item_count }}</span>
             </span>
           </span>
         </button>
-        <button type="button" id="productsTabWishlist" class="inline-flex h-[38px] min-w-[124px] items-center justify-center rounded-full px-4 text-[13px] font-semibold text-[#718096] transition-colors hover:text-[#2d3748]">
+        <button type="button" id="productsTabWishlist" class="inline-flex h-[38px] min-w-[124px] items-center justify-center rounded-full px-4 text-[13px] font-semibold transition-colors {% if active_tab == 'wishlist' %}bg-[#2d3748] text-white{% else %}text-[#718096] hover:text-[#2d3748]{% endif %}">
           <span class="inline-flex h-[18px] items-center justify-center gap-3.5">
             <span class="inline-flex h-[18px] items-center leading-none">관심 상품</span>
-            <span id="productsTabWishlistCount" class="inline-flex h-[18px] min-w-[20px] items-center justify-center rounded-full bg-[#edf2f7] px-1.5 text-[11px] font-bold leading-none text-[#4a5568] {% if wishlist_count == 0 %}hidden{% endif %}">
+            <span id="productsTabWishlistCount" class="inline-flex h-[18px] min-w-[20px] items-center justify-center rounded-full px-1.5 text-[11px] font-bold leading-none {% if active_tab == 'wishlist' %}bg-white/18 text-white{% else %}bg-[#edf2f7] text-[#4a5568]{% endif %} {% if wishlist_count == 0 %}hidden{% endif %}">
               <span class="inline-flex h-[18px] items-center">{{ wishlist_count }}</span>
             </span>
           </span>
@@ -287,7 +287,7 @@
 
     <div id="productsLayoutGrid" class="mt-8 grid gap-6 lg:grid-cols-[minmax(0,1fr)_470px]">
       <section id="productsMainSection" class="min-h-[720px]">
-        <div id="productsPanelCart" class="product-tab-panel is-active min-h-[720px]">
+        <div id="productsPanelCart" class="product-tab-panel {% if active_tab != 'wishlist' %}is-active{% endif %} min-h-[720px]">
         <div id="cartEmptyState" class="product-empty-state-compact {% if item_count != 0 %}hidden{% endif %} max-w-[650px] rounded-[20px] border border-dashed border-[#dbe7f5] bg-white px-6 py-9 text-center shadow-[0_6px_18px_rgba(45,55,72,0.04)]">
           <div class="product-empty-icon text-[28px] text-[#7aa6e9]">🛒</div>
           <p class="product-empty-title mt-[10px] text-[18px] font-bold text-[#2d3748]">장바구니가 비어 있어요</p>
@@ -365,7 +365,7 @@
         </div>
         </div>
 
-        <div id="productsPanelWishlist" class="product-tab-panel min-h-[720px]">
+        <div id="productsPanelWishlist" class="product-tab-panel {% if active_tab == 'wishlist' %}is-active{% endif %} min-h-[720px]">
         <div id="wishlistEmptyState" class="product-empty-state-compact hidden max-w-[650px] rounded-[20px] border border-dashed border-[#dbe7f5] bg-white px-6 py-9 text-center shadow-[0_6px_18px_rgba(45,55,72,0.04)]">
           <div class="product-empty-icon text-[28px] text-[#e97b7b]">♡</div>
           <p class="product-empty-title mt-[10px] text-[18px] font-bold text-[#2d3748]">관심 상품이 아직 없어요</p>
@@ -1384,6 +1384,17 @@
     scheduleViewportSync();
   }
 
+  function applyInitialProductsTab() {
+    try {
+      var params = new URLSearchParams(window.location.search || '');
+      if (params.get('tab') === 'wishlist') {
+        setActiveTab('wishlist');
+        return;
+      }
+    } catch (error) {}
+    setActiveTab('cart');
+  }
+
   function renderWishlistFromState(items) {
     if (!wishlistListViewport) return;
     wishlistListViewport.innerHTML = '';
@@ -1671,6 +1682,7 @@
   syncDeliveryMessageField();
   syncCheckoutSummaryPreview();
   syncCheckoutNotice();
+  applyInitialProductsTab();
   refreshProductsData();
   window.addEventListener('resize', scheduleViewportSync);
 })();

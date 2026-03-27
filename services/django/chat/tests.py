@@ -39,6 +39,21 @@ class ChatPageTests(TestCase):
         self.assertEqual(serialized_pet["allergies"], ["chicken"])
         self.assertEqual(serialized_pet["food_preferences"], ["dry"])
 
+    def test_chat_page_profile_menu_includes_wishlist_link(self):
+        Pet.objects.create(
+            user=self.user,
+            name="Bori",
+            species="dog",
+            gender="male",
+            budget_range="5_10",
+        )
+
+        response = self.client.get(reverse("chat"))
+
+        self.assertEqual(response.status_code, 200)
+        self.assertContains(response, "/products/?tab=wishlist")
+        self.assertContains(response, "관심 상품")
+
     def test_chat_page_redirects_to_pet_add_when_profile_complete_but_no_pet(self):
         response = self.client.get(reverse("chat"))
 

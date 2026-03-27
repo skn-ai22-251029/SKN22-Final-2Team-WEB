@@ -28,6 +28,16 @@
       <form method="post" class="contents" novalidate action="{% if is_preview_edit %}/pets/preview/{{ pet.pet_id }}/edit/{% elif is_edit %}/pets/{{ pet.pet_id }}/edit/{% else %}/pets/add/health/{% endif %}">
         {% csrf_token %}
         <input type="hidden" name="species" value="{{ species }}" />
+        <input type="hidden" name="vaccination_date" value="{{ step3_data.vaccination_date|default:'' }}" />
+        <input type="hidden" name="allergies" value="{{ step3_data.allergies|default:'' }}" />
+        <input type="hidden" name="budget_range" value="{{ step3_data.budget_range|default:'' }}" />
+        <input type="hidden" name="special_notes" value="{{ step3_data.special_notes|default:'' }}" />
+        {% for concern in step3_data.health_concerns %}
+        <input type="hidden" name="health_concerns" value="{{ concern }}" />
+        {% endfor %}
+        {% for food in step3_data.food_preferences %}
+        <input type="hidden" name="food_preferences" value="{{ food }}" />
+        {% endfor %}
 
         <div class="mt-[30px] grid gap-x-[28px] gap-y-[24px] {% if is_edit %}grid-cols-2{% else %}grid-cols-1 sm:grid-cols-2{% endif %} {% if is_edit %}gap-y-[28px]{% else %}sm:gap-y-[28px]{% endif %}">
           <div class="space-y-[12px]">
