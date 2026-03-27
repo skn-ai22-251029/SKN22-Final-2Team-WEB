@@ -1,9 +1,16 @@
 import json
+from datetime import timedelta
 
 import httpx
 from django.conf import settings
+from django.core.exceptions import ValidationError
 from django.http import JsonResponse, StreamingHttpResponse
+from django.utils import timezone
 from django.views.decorators.http import require_http_methods
+
+from pets.models import Pet
+
+from .models import ChatMessage, ChatSession
 
 
 def _chat_base_url():
@@ -44,24 +51,99 @@ def _map_upstream_exception(exc):
     return "채팅 서버와 연결하지 못했습니다. 잠시 후 다시 시도해 주세요.", 502
 
 
-def _proxy_json(method, url, user_id, payload=None):
-    headers = _internal_headers(user_id, include_content_type=payload is not None)
+def _serialize_session(session):
+    updated_at = timezone.localtime(session.updated_at)
+    return {
+        "session_id": str(session.session_id),
+        "title": session.title,
+        "target_pet_id": str(session.target_pet_id) if session.target_pet_id else None,
+        "display_date": updated_at.strftime("%y/%m/%d"),
+        "created_at": timezone.localtime(session.created_at).isoformat(),
+        "updated_at": updated_at.isoformat(),
+    }
+
+
+def _serialize_message(message):
+    return {
+        "message_id": str(message.message_id),
+        "role": message.role,
+        "content": message.content,
+        "created_at": timezone.localtime(message.created_at).isoformat(),
+    }
+
+
+def _serialize_session_groups(sessions):
+    today = timezone.localdate()
+    yesterday = today - timedelta(days=1)
+    groups = []
+    grouped = {}
+
+    for session in sessions:
+        session_date = timezone.localtime(session.updated_at).date()
+        if session_date == today:
+            key, label = "today", "오늘"
+        elif session_date == yesterday:
+            key, label = "yesterday", "어제"
+        else:
+            key, label = session_date.isoformat(), timezone.localtime(session.updated_at).strftime("%y/%m/%d")
+
+        if key not in grouped:
+            grouped[key] = {"key": key, "label": label, "sessions": []}
+            groups.append(grouped[key])
+        grouped[key]["sessions"].append(_serialize_session(session))
+
+    return groups
+
+
+def _get_owned_session(user, session_id):
     try:
-        with httpx.Client(timeout=30.0) as client:
-            response = client.request(method, url, headers=headers, json=payload)
-    except httpx.HTTPError as exc:
-        detail, status = _map_upstream_exception(exc)
-        return _proxy_error_response(detail, status)
+        return (
+            ChatSession.objects.select_related("target_pet")
+            .filter(session_id=session_id, user=user)
+            .first()
+        )
+    except (ValidationError, ValueError, TypeError):
+        return None
+
+
+def _get_owned_target_pet(user, pet_id):
+    if not pet_id:
+        return None
 
     try:
-        data = response.json()
-    except ValueError:
-        data = {"detail": response.text.strip() or "요청 처리에 실패했습니다."}
-
-    return JsonResponse(data, status=response.status_code, safe=not isinstance(data, list))
+        return Pet.objects.filter(pet_id=pet_id, user=user).first()
+    except (ValidationError, ValueError, TypeError):
+        return None
 
 
-def _stream_fastapi_response(url, payload, user_id):
+def _touch_session(session):
+    session.updated_at = timezone.now()
+    session.save(update_fields=["updated_at"])
+
+
+def _capture_sse_event(event_lines, capture):
+    payload = None
+    for line in event_lines:
+        if not line.startswith("data:"):
+            continue
+        try:
+            payload = json.loads(line[5:].strip())
+        except json.JSONDecodeError:
+            continue
+
+    if not payload:
+        return
+
+    event_type = payload.get("type")
+    if event_type == "token":
+        capture["assistant_text"] += payload.get("content", "")
+    elif event_type == "error":
+        capture["error_message"] = payload.get("message") or "죄송합니다, 오류가 발생했습니다."
+    elif event_type == "done":
+        capture["completed"] = True
+
+
+def _stream_fastapi_response(url, payload, user_id, capture=None):
     headers = _internal_headers(user_id)
 
     try:
@@ -75,19 +157,80 @@ def _stream_fastapi_response(url, payload, user_id):
                         text = response.text.strip()
                         if text:
                             detail = text
+                    if capture is not None:
+                        capture["error_message"] = detail
                     yield _stream_error_event(detail)
                     return
 
                 try:
-                    for chunk in response.iter_bytes():
-                        if chunk:
-                            yield chunk
+                    event_lines = []
+                    for line in response.iter_lines():
+                        if line == "":
+                            if event_lines:
+                                if capture is not None:
+                                    _capture_sse_event(event_lines, capture)
+                                yield "\n".join(event_lines) + "\n\n"
+                                event_lines = []
+                            continue
+                        event_lines.append(line)
+
+                    if event_lines:
+                        if capture is not None:
+                            _capture_sse_event(event_lines, capture)
+                        yield "\n".join(event_lines) + "\n\n"
                 except httpx.HTTPError as exc:
                     detail, _ = _map_upstream_exception(exc)
+                    if capture is not None:
+                        capture["error_message"] = detail
                     yield _stream_error_event(detail)
     except httpx.HTTPError as exc:
         detail, _ = _map_upstream_exception(exc)
+        if capture is not None:
+            capture["error_message"] = detail
         yield _stream_error_event(detail)
+
+
+def _build_chat_payload(payload, user_id, thread_id=None, target_pet_id=None):
+    safe_payload = {
+        "message": (payload.get("message") or "").strip(),
+        "pet_profile": payload.get("pet_profile"),
+        "health_concerns": payload.get("health_concerns") or [],
+        "allergies": payload.get("allergies") or [],
+        "food_preferences": payload.get("food_preferences") or [],
+        "user_id": str(user_id),
+    }
+    if thread_id:
+        safe_payload["thread_id"] = str(thread_id)
+    elif payload.get("thread_id"):
+        safe_payload["thread_id"] = payload.get("thread_id")
+    else:
+        safe_payload["thread_id"] = "default"
+    resolved_target_pet_id = target_pet_id or payload.get("target_pet_id")
+    if resolved_target_pet_id:
+        safe_payload["target_pet_id"] = str(resolved_target_pet_id)
+    return safe_payload
+
+
+def _persist_streamed_response(session, url, payload, user_id):
+    capture = {
+        "assistant_text": "",
+        "error_message": None,
+        "completed": False,
+    }
+
+    try:
+        for chunk in _stream_fastapi_response(url, payload, user_id, capture=capture):
+            yield chunk
+    finally:
+        content = ""
+        if capture["error_message"]:
+            content = capture["error_message"].strip()
+        elif capture["completed"]:
+            content = capture["assistant_text"].strip()
+
+        if content:
+            ChatMessage.objects.create(session=session, role="assistant", content=content)
+            _touch_session(session)
 
 
 def _require_authenticated(request):
@@ -111,14 +254,7 @@ def chat_proxy_view(request):
     if not message:
         return JsonResponse({"detail": "message is required."}, status=400)
 
-    safe_payload = {
-        "message": message,
-        "thread_id": payload.get("thread_id") or "default",
-        "pet_profile": payload.get("pet_profile"),
-        "health_concerns": payload.get("health_concerns") or [],
-        "allergies": payload.get("allergies") or [],
-        "food_preferences": payload.get("food_preferences") or [],
-    }
+    safe_payload = _build_chat_payload(payload, request.user.id, target_pet_id=payload.get("target_pet_id"))
 
     return StreamingHttpResponse(
         _stream_fastapi_response(_chat_base_url() + "/", safe_payload, request.user.id),
@@ -136,20 +272,36 @@ def sessions_proxy_view(request):
     if unauthorized:
         return unauthorized
 
-    url = _chat_base_url() + "/sessions/"
     if request.method == "GET":
-        return _proxy_json("GET", url, request.user.id)
+        sessions = list(
+            request.user.chat_sessions.select_related("target_pet").order_by("-updated_at", "-created_at")
+        )
+        return JsonResponse(
+            {
+                "sessions": [_serialize_session(session) for session in sessions],
+                "groups": _serialize_session_groups(sessions),
+            }
+        )
 
     try:
         payload = _read_json_body(request)
     except ValueError as exc:
         return JsonResponse({"detail": str(exc)}, status=400)
 
-    safe_payload = {
-        "title": payload.get("title"),
-        "target_pet_id": payload.get("target_pet_id"),
-    }
-    return _proxy_json("POST", url, request.user.id, payload=safe_payload)
+    title = (payload.get("title") or "").strip() or "새 대화"
+    target_pet_id = payload.get("target_pet_id")
+    target_pet = None
+    if target_pet_id:
+        target_pet = _get_owned_target_pet(request.user, target_pet_id)
+        if target_pet is None:
+            return JsonResponse({"detail": "선택한 반려동물을 찾을 수 없습니다."}, status=404)
+
+    session = ChatSession.objects.create(
+        user=request.user,
+        target_pet=target_pet,
+        title=title,
+    )
+    return JsonResponse(_serialize_session(session), status=201)
 
 
 @require_http_methods(["PATCH", "DELETE"])
@@ -158,16 +310,26 @@ def session_detail_proxy_view(request, session_id):
     if unauthorized:
         return unauthorized
 
-    url = f"{_chat_base_url()}/sessions/{session_id}/"
+    session = _get_owned_session(request.user, session_id)
+    if session is None:
+        return JsonResponse({"detail": "대화를 찾을 수 없습니다."}, status=404)
+
     if request.method == "DELETE":
-        return _proxy_json("DELETE", url, request.user.id)
+        session.delete()
+        return JsonResponse({"deleted": True})
 
     try:
         payload = _read_json_body(request)
     except ValueError as exc:
         return JsonResponse({"detail": str(exc)}, status=400)
 
-    return _proxy_json("PATCH", url, request.user.id, payload={"title": payload.get("title")})
+    next_title = (payload.get("title") or "").strip() or session.title or "새 대화"
+    if session.title != next_title:
+        session.title = next_title
+        session.save(update_fields=["title", "updated_at"])
+    else:
+        _touch_session(session)
+    return JsonResponse(_serialize_session(session))
 
 
 @require_http_methods(["GET", "POST"])
@@ -176,9 +338,22 @@ def session_messages_proxy_view(request, session_id):
     if unauthorized:
         return unauthorized
 
-    url = f"{_chat_base_url()}/sessions/{session_id}/messages/"
+    session = _get_owned_session(request.user, session_id)
+    if session is None:
+        return JsonResponse({"detail": "대화를 찾을 수 없습니다."}, status=404)
+
     if request.method == "GET":
-        return _proxy_json("GET", url, request.user.id)
+        messages = [
+            _serialize_message(message)
+            for message in session.messages.order_by("created_at")
+        ]
+        return JsonResponse(
+            {
+                "session_id": str(session.session_id),
+                "messages": messages,
+                "history_trimmed": False,
+            }
+        )
 
     try:
         payload = _read_json_body(request)
@@ -189,15 +364,17 @@ def session_messages_proxy_view(request, session_id):
     if not message:
         return JsonResponse({"detail": "message is required."}, status=400)
 
-    safe_payload = {
-        "message": message,
-        "pet_profile": payload.get("pet_profile"),
-        "health_concerns": payload.get("health_concerns") or [],
-        "allergies": payload.get("allergies") or [],
-        "food_preferences": payload.get("food_preferences") or [],
-    }
+    ChatMessage.objects.create(session=session, role="user", content=message)
+    _touch_session(session)
+
+    safe_payload = _build_chat_payload(
+        payload,
+        request.user.id,
+        thread_id=session.session_id,
+        target_pet_id=session.target_pet_id,
+    )
     return StreamingHttpResponse(
-        _stream_fastapi_response(url, safe_payload, request.user.id),
+        _persist_streamed_response(session, _chat_base_url() + "/", safe_payload, request.user.id),
         content_type="text/event-stream",
         headers={
             "Cache-Control": "no-cache",

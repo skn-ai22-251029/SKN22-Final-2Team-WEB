@@ -243,6 +243,8 @@ Web repo는 Django 테스트만 통과한다고 끝내면 안 된다.
 
 - FastAPI는 runtime DB/OpenAI 설정을 EB 환경변수에서 받으므로,
   GitHub Actions secret에 `POSTGRES_*`, `OPENAI_API_KEY`를 꼭 넣어야 하는 구조는 아니다.
+- LangSmith tracing을 쓸 경우에도 `LANGSMITH_*`는 GitHub Actions secret보다
+  EB `Environment properties`에 두는 쪽이 맞다.
 - 대신 EB `Environment properties`에 값이 정확히 들어 있어야 한다.
 
 ### 5. FastAPI deploy bundle을 AI repo 소유로 고정

@@ -765,7 +765,7 @@
             </span>
             <div class="absolute right-0 top-[12px] h-[16px] w-[66px]">
               <span class="history-date absolute right-0 top-0 w-full whitespace-nowrap text-right text-[11px] leading-none tabular-nums text-[#a0aec0]">
-                {% if session.created_at|date:"y/m/d" != "" %}{{ session.created_at|date:"y/m/d" }}{% else %}{{ session.created_at }}{% endif %}
+                {% if session.updated_at|date:"y/m/d" != "" %}{{ session.updated_at|date:"y/m/d" }}{% else %}{{ session.updated_at }}{% endif %}
               </span>
               <div class="history-actions absolute right-0 top-0 hidden flex items-center justify-end gap-[7px]">
                 <button type="button" class="flex h-[18px] w-[18px] items-center justify-center text-[12px]"

@@ -230,9 +230,35 @@ http://test-tailtalk-django-env.eba-idn3t8gh.ap-northeast-2.elasticbeanstalk.com
 
 현재 테스트 환경에는 이 키가 존재하지만, 실제 서비스 호출에 쓸 값인지 반드시 확인하고 필요하면 교체해야 한다.
 
+### LangSmith 추적을 켜려면 추가할 키
+
+LangSmith에서 FastAPI 답변 생성 흐름을 추적하려면 아래 키를 `test-tailtalk-fastapi-env`의
+`Environment properties`에 추가한다.
+
+- `LANGSMITH_TRACING`
+- `LANGSMITH_API_KEY`
+- `LANGSMITH_PROJECT`
+- `LANGSMITH_ENDPOINT`
+- `LANGSMITH_WORKSPACE_ID`
+
+권장 예시는 아래와 같다.
+
+```text
+LANGSMITH_TRACING=true
+LANGSMITH_PROJECT=tailtalk-fastapi
+LANGSMITH_ENDPOINT=https://api.smith.langchain.com
+```
+
+설명:
+
+- `LANGSMITH_API_KEY`: LangSmith API key
+- `LANGSMITH_PROJECT`: 트레이스를 모아볼 프로젝트 이름
+- `LANGSMITH_WORKSPACE_ID`: 여러 workspace를 쓰는 경우에만 필요
+- `LANGSMITH_ENDPOINT`: 기본 SaaS를 쓰면 보통 `https://api.smith.langchain.com`
+
 주의:
 
-- 현재 FastAPI 테스트 EB 배포 compose는 `POSTGRES_*`와 `OPENAI_API_KEY`만 컨테이너에 전달한다.
+- 현재 FastAPI 테스트 EB 배포 compose는 `POSTGRES_*`, `OPENAI_API_KEY`, `LANGSMITH_*`를 컨테이너에 전달한다.
 - 즉 레거시 벡터 DB 관련 키, `INTERNAL_SERVICE_TOKEN`, `LLM_MODEL`은 현재 테스트 EB 배포 경로에서 사용하지 않는다.
 
 ## 레거시 키 메모

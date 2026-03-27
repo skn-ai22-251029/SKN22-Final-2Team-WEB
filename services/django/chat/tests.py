@@ -1,3 +1,4 @@
+import json
 from unittest.mock import patch
 
 import httpx
@@ -5,6 +6,7 @@ from django.conf import settings
 from django.test import TestCase
 from django.urls import reverse
 
+from chat.models import ChatMessage, ChatSession
 from pets.models import Pet, PetAllergy, PetFoodPreference, PetHealthConcern
 from users.models import User, UserProfile
 from users.onboarding import ONBOARDING_FORCE_PROFILE_SESSION_KEY
@@ -97,22 +99,14 @@ class _FakeStreamResponse:
     def __exit__(self, exc_type, exc, tb):
         return False
 
-    def iter_bytes(self):
+    def iter_lines(self):
         for chunk in self._chunks:
-            yield chunk
+            text = chunk.decode("utf-8") if isinstance(chunk, bytes) else str(chunk)
+            for line in text.splitlines():
+                yield line
 
     def json(self):
         return {"detail": "error"}
-
-
-class _FakeJsonResponse:
-    def __init__(self, payload, status_code=200):
-        self._payload = payload
-        self.status_code = status_code
-        self.text = ""
-
-    def json(self):
-        return self._payload
 
 
 class _ExplodingHttpxClient:
@@ -150,7 +144,6 @@ class _TimeoutHttpxClient:
 
 
 class _FakeHttpxClient:
-    last_request = None
     last_stream_request = None
 
     def __init__(self, *args, **kwargs):
@@ -161,75 +154,6 @@ class _FakeHttpxClient:
 
     def __exit__(self, exc_type, exc, tb):
         return False
-
-    def request(self, method, url, headers=None, json=None):
-        self.__class__.last_request = {
-            "method": method,
-            "url": url,
-            "headers": headers,
-            "json": json,
-        }
-        if method == "GET" and url.endswith("/sessions/"):
-            return _FakeJsonResponse(
-                {
-                    "sessions": [
-                        {
-                            "session_id": "11111111-1111-1111-1111-111111111111",
-                            "title": "기존 세션",
-                            "display_date": "26/03/23",
-                        }
-                    ],
-                    "groups": [
-                        {
-                            "key": "today",
-                            "label": "오늘",
-                            "sessions": [
-                                {
-                                    "session_id": "11111111-1111-1111-1111-111111111111",
-                                    "title": "기존 세션",
-                                    "display_date": "26/03/23",
-                                }
-                            ],
-                        }
-                    ],
-                }
-            )
-        if method == "GET" and url.endswith("/messages/"):
-            return _FakeJsonResponse(
-                {
-                    "session_id": "11111111-1111-1111-1111-111111111111",
-                    "messages": [
-                        {
-                            "message_id": "22222222-2222-2222-2222-222222222222",
-                            "role": "user",
-                            "content": "hello",
-                            "created_at": "2026-03-23T10:00:00+09:00",
-                        }
-                    ],
-                    "history_trimmed": False,
-                }
-            )
-        if method == "POST" and url.endswith("/sessions/"):
-            return _FakeJsonResponse(
-                {
-                    "session_id": "33333333-3333-3333-3333-333333333333",
-                    "title": json.get("title"),
-                    "target_pet_id": json.get("target_pet_id"),
-                    "display_date": "26/03/23",
-                },
-                status_code=201,
-            )
-        if method == "PATCH":
-            return _FakeJsonResponse(
-                {
-                    "session_id": "11111111-1111-1111-1111-111111111111",
-                    "title": json.get("title"),
-                    "display_date": "26/03/23",
-                }
-            )
-        if method == "DELETE":
-            return _FakeJsonResponse({"deleted": True})
-        return _FakeJsonResponse({"detail": "ok"})
 
     def stream(self, method, url, headers=None, json=None):
         self.__class__.last_stream_request = {
@@ -246,6 +170,13 @@ class _FakeHttpxClient:
         )
 
 
+def _read_streaming_response(response):
+    chunks = []
+    for chunk in response.streaming_content:
+        chunks.append(chunk.decode("utf-8") if isinstance(chunk, bytes) else chunk)
+    return "".join(chunks)
+
+
 class ChatProxyTests(TestCase):
     def setUp(self):
         self.user = User.objects.create_user(
@@ -253,6 +184,22 @@ class ChatProxyTests(TestCase):
             password="Password123!",
         )
         UserProfile.objects.create(user=self.user, nickname="ChatProxy")
+        self.pet = Pet.objects.create(
+            user=self.user,
+            name="Nabi",
+            species="cat",
+            gender="female",
+            budget_range="5_10",
+        )
+        self.other_user = User.objects.create_user(
+            email="other-chat-owner@example.com",
+            password="Password123!",
+        )
+        UserProfile.objects.create(user=self.other_user, nickname="OtherUser")
+        self.other_session = ChatSession.objects.create(
+            user=self.other_user,
+            title="다른 사람 세션",
+        )
 
     def test_chat_proxy_requires_authentication(self):
         response = self.client.post(
@@ -275,7 +222,7 @@ class ChatProxyTests(TestCase):
 
         self.assertEqual(response.status_code, 200)
         self.assertEqual(response["Content-Type"], "text/event-stream")
-        payload = b"".join(response.streaming_content).decode("utf-8")
+        payload = _read_streaming_response(response)
         self.assertIn('"type":"token"', payload)
         self.assertEqual(_FakeHttpxClient.last_stream_request["url"], settings.FASTAPI_INTERNAL_CHAT_URL)
         self.assertEqual(
@@ -284,90 +231,130 @@ class ChatProxyTests(TestCase):
         )
         self.assertEqual(_FakeHttpxClient.last_stream_request["headers"]["X-User-Id"], str(self.user.id))
         self.assertEqual(_FakeHttpxClient.last_stream_request["json"]["thread_id"], "thread-1")
+        self.assertEqual(_FakeHttpxClient.last_stream_request["json"]["user_id"], str(self.user.id))
 
-    @patch("chat.api_views.httpx.Client", _FakeHttpxClient)
-    def test_sessions_proxy_supports_list_create_update_delete_and_message_load(self):
+    def test_sessions_proxy_crud_and_message_load_are_backed_by_db(self):
         self.client.force_login(self.user)
+
+        existing_session = ChatSession.objects.create(
+            user=self.user,
+            target_pet=self.pet,
+            title="기존 세션",
+        )
+        stored_message = ChatMessage.objects.create(
+            session=existing_session,
+            role="user",
+            content="hello",
+        )
 
         list_response = self.client.get("/api/chat/sessions/")
         self.assertEqual(list_response.status_code, 200)
+        self.assertEqual(list_response.json()["sessions"][0]["session_id"], str(existing_session.session_id))
         self.assertEqual(list_response.json()["groups"][0]["key"], "today")
-        self.assertEqual(_FakeHttpxClient.last_request["url"], settings.FASTAPI_INTERNAL_CHAT_URL.rstrip("/") + "/sessions/")
 
         create_response = self.client.post(
             "/api/chat/sessions/",
-            data='{"title":"신규 세션","target_pet_id":"44444444-4444-4444-4444-444444444444"}',
+            data=json.dumps({"title": "신규 세션", "target_pet_id": str(self.pet.pet_id)}),
             content_type="application/json",
         )
         self.assertEqual(create_response.status_code, 201)
         self.assertEqual(create_response.json()["title"], "신규 세션")
-        self.assertEqual(_FakeHttpxClient.last_request["json"]["target_pet_id"], "44444444-4444-4444-4444-444444444444")
+        created_session = ChatSession.objects.get(session_id=create_response.json()["session_id"])
+        self.assertEqual(created_session.user_id, self.user.id)
+        self.assertEqual(created_session.target_pet_id, self.pet.pet_id)
 
         patch_response = self.client.patch(
-            "/api/chat/sessions/11111111-1111-1111-1111-111111111111/",
+            f"/api/chat/sessions/{existing_session.session_id}/",
             data='{"title":"수정 제목"}',
             content_type="application/json",
         )
         self.assertEqual(patch_response.status_code, 200)
         self.assertEqual(patch_response.json()["title"], "수정 제목")
+        existing_session.refresh_from_db()
+        self.assertEqual(existing_session.title, "수정 제목")
 
-        messages_response = self.client.get("/api/chat/sessions/11111111-1111-1111-1111-111111111111/messages/")
+        messages_response = self.client.get(f"/api/chat/sessions/{existing_session.session_id}/messages/")
         self.assertEqual(messages_response.status_code, 200)
         self.assertEqual(messages_response.json()["messages"][0]["content"], "hello")
+        self.assertEqual(messages_response.json()["messages"][0]["message_id"], str(stored_message.message_id))
 
-        delete_response = self.client.delete("/api/chat/sessions/11111111-1111-1111-1111-111111111111/")
+        delete_response = self.client.delete(f"/api/chat/sessions/{created_session.session_id}/")
         self.assertEqual(delete_response.status_code, 200)
         self.assertTrue(delete_response.json()["deleted"])
+        self.assertFalse(ChatSession.objects.filter(session_id=created_session.session_id).exists())
 
     @patch("chat.api_views.httpx.Client", _FakeHttpxClient)
-    def test_session_messages_proxy_streams_to_fastapi(self):
+    def test_session_messages_proxy_persists_user_and_assistant_messages(self):
         self.client.force_login(self.user)
+        secondary_pet = Pet.objects.create(
+            user=self.user,
+            name="Bori",
+            species="dog",
+            gender="male",
+            budget_range="10_15",
+        )
+        session = ChatSession.objects.create(user=self.user, target_pet=self.pet, title="추천 세션")
 
         response = self.client.post(
-            "/api/chat/sessions/11111111-1111-1111-1111-111111111111/messages/",
+            f"/api/chat/sessions/{session.session_id}/messages/",
             data='{"message":"hello","pet_profile":{"species":"cat"}}',
             content_type="application/json",
         )
 
         self.assertEqual(response.status_code, 200)
         self.assertEqual(response["Content-Type"], "text/event-stream")
-        payload = b"".join(response.streaming_content).decode("utf-8")
+        payload = _read_streaming_response(response)
         self.assertIn('"type":"done"', payload)
-        self.assertEqual(
-            _FakeHttpxClient.last_stream_request["url"],
-            settings.FASTAPI_INTERNAL_CHAT_URL.rstrip("/") + "/sessions/11111111-1111-1111-1111-111111111111/messages/",
-        )
+        self.assertEqual(_FakeHttpxClient.last_stream_request["url"], settings.FASTAPI_INTERNAL_CHAT_URL)
         self.assertEqual(_FakeHttpxClient.last_stream_request["json"]["message"], "hello")
+        self.assertEqual(_FakeHttpxClient.last_stream_request["json"]["thread_id"], str(session.session_id))
+        self.assertEqual(_FakeHttpxClient.last_stream_request["json"]["user_id"], str(self.user.id))
+        self.assertEqual(_FakeHttpxClient.last_stream_request["json"]["target_pet_id"], str(self.pet.pet_id))
+        self.assertNotEqual(_FakeHttpxClient.last_stream_request["json"]["target_pet_id"], str(secondary_pet.pet_id))
+
+        messages = list(session.messages.order_by("created_at").values_list("role", "content"))
+        self.assertEqual(messages, [("user", "hello"), ("assistant", "hello")])
 
     @patch("chat.api_views.httpx.Client", _ExplodingHttpxClient)
-    def test_sessions_proxy_returns_controlled_error_when_fastapi_is_unreachable(self):
+    def test_session_messages_proxy_persists_error_message_when_fastapi_is_unreachable(self):
         self.client.force_login(self.user)
-
-        response = self.client.get("/api/chat/sessions/")
-
-        self.assertEqual(response.status_code, 502)
-        self.assertEqual(response.json()["detail"], "채팅 서버와 연결하지 못했습니다. 잠시 후 다시 시도해 주세요.")
-
-    @patch("chat.api_views.httpx.Client", _TimeoutHttpxClient)
-    def test_sessions_proxy_returns_timeout_error_when_fastapi_response_is_delayed(self):
-        self.client.force_login(self.user)
-
-        response = self.client.get("/api/chat/sessions/")
-
-        self.assertEqual(response.status_code, 504)
-        self.assertEqual(response.json()["detail"], "채팅 서버 응답이 지연되고 있습니다. 잠시 후 다시 시도해 주세요.")
-
-    @patch("chat.api_views.httpx.Client", _ExplodingHttpxClient)
-    def test_session_messages_proxy_streams_controlled_error_event_when_fastapi_is_unreachable(self):
-        self.client.force_login(self.user)
+        session = ChatSession.objects.create(user=self.user, title="실패 세션")
 
         response = self.client.post(
-            "/api/chat/sessions/11111111-1111-1111-1111-111111111111/messages/",
+            f"/api/chat/sessions/{session.session_id}/messages/",
             data='{"message":"hello"}',
             content_type="application/json",
         )
 
         self.assertEqual(response.status_code, 200)
-        payload = b"".join(response.streaming_content).decode("utf-8")
+        payload = _read_streaming_response(response)
         self.assertIn('"type": "error"', payload)
         self.assertIn("채팅 서버와 연결하지 못했습니다. 잠시 후 다시 시도해 주세요.", payload)
+        messages = list(session.messages.order_by("created_at").values_list("role", "content"))
+        self.assertEqual(
+            messages,
+            [
+                ("user", "hello"),
+                ("assistant", "채팅 서버와 연결하지 못했습니다. 잠시 후 다시 시도해 주세요."),
+            ],
+        )
+
+    def test_session_messages_proxy_rejects_other_users_session_access(self):
+        self.client.force_login(self.user)
+
+        response = self.client.get(f"/api/chat/sessions/{self.other_session.session_id}/messages/")
+
+        self.assertEqual(response.status_code, 404)
+        self.assertEqual(response.json()["detail"], "대화를 찾을 수 없습니다.")
+
+    def test_sessions_proxy_rejects_unknown_target_pet(self):
+        self.client.force_login(self.user)
+
+        response = self.client.post(
+            "/api/chat/sessions/",
+            data='{"title":"신규 세션","target_pet_id":"44444444-4444-4444-4444-444444444444"}',
+            content_type="application/json",
+        )
+
+        self.assertEqual(response.status_code, 404)
+        self.assertEqual(response.json()["detail"], "선택한 반려동물을 찾을 수 없습니다.")
