@@ -197,6 +197,21 @@ class OrderCreateApiTests(TestCase):
         self.assertEqual(order.shipping_fee, 0)
         self.assertEqual(order.total_price, 45800)
         self.assertEqual(response.data["order"]["total_price"], 45800)
+        self.assertEqual(response.data["order"]["status"], "pending")
+        self.assertIn("completion", response.data)
+        self.assertEqual(response.data["completion"]["order_id"], str(order.order_id))
+        self.assertEqual(response.data["completion"]["status"], "pending")
+        self.assertEqual(response.data["completion"]["status_label"], "주문 접수")
+        self.assertEqual(response.data["completion"]["recipient_name"], "주문자")
+        self.assertEqual(response.data["completion"]["recipient_phone"], "01012341234")
+        self.assertEqual(response.data["completion"]["delivery_base_address"], "서울 강동구 올림픽로 123")
+        self.assertEqual(response.data["completion"]["delivery_detail_address"], "101동 1203호")
+        self.assertEqual(response.data["completion"]["payment_method"], "우리카드 1234 / 일시불")
+        self.assertEqual(response.data["completion"]["total_price"], 45800)
+        self.assertEqual(response.data["completion"]["total_price_label"], "45,800원")
+        self.assertEqual(response.data["completion"]["shipping_fee_label"], "무료")
+        self.assertEqual(response.data["completion"]["item_count"], 3)
+        self.assertEqual(len(response.data["completion"]["items"]), 2)
 
     def test_post_order_rejects_empty_cart(self):
         response = self.client.post(
@@ -207,6 +222,7 @@ class OrderCreateApiTests(TestCase):
 
         self.assertEqual(response.status_code, status.HTTP_400_BAD_REQUEST)
         self.assertEqual(response.data["detail"], "cart is empty.")
+        self.assertEqual(response.data["code"], "cart_empty")
 
     def test_post_order_rejects_invalid_coupon_for_cart_total(self):
         self.client.post("/api/orders/cart/", {"product_id": self.product_a.goods_id, "quantity": 1}, format="json")
@@ -222,6 +238,8 @@ class OrderCreateApiTests(TestCase):
 
         self.assertEqual(response.status_code, status.HTTP_400_BAD_REQUEST)
         self.assertEqual(response.data["detail"], "coupon is not available for current cart total.")
+        self.assertEqual(response.data["code"], "coupon_not_available")
+        self.assertEqual(response.data["field"], "coupon_id")
 
     def test_post_order_rejects_mileage_above_available_balance(self):
         self.add_cart_items()
@@ -237,6 +255,8 @@ class OrderCreateApiTests(TestCase):
 
         self.assertEqual(response.status_code, status.HTTP_400_BAD_REQUEST)
         self.assertEqual(response.data["detail"], "mileage exceeds available balance.")
+        self.assertEqual(response.data["code"], "mileage_exceeds_balance")
+        self.assertEqual(response.data["field"], "mileage_amount")
 
     def test_post_order_requires_delivery_info_if_profile_missing(self):
         user = User.objects.create_user(email="missing@example.com", password="Password123!")
@@ -251,6 +271,47 @@ class OrderCreateApiTests(TestCase):
 
         self.assertEqual(response.status_code, status.HTTP_400_BAD_REQUEST)
         self.assertEqual(response.data["detail"], "recipient_name is required.")
+        self.assertEqual(response.data["code"], "missing_required_fields")
+        self.assertEqual(response.data["field"], "recipient_name")
+        self.assertEqual(response.data["missing_fields"], ["recipient_name", "recipient_phone", "delivery_address"])
+
+    def test_post_order_rejects_invalid_payment_method_with_available_options(self):
+        self.add_cart_items()
+
+        response = self.client.post(
+            "/api/orders/",
+            {
+                "payment_method": "현대카드 M / 1234 **** **** 3456",
+            },
+            format="json",
+        )
+
+        self.assertEqual(response.status_code, status.HTTP_400_BAD_REQUEST)
+        self.assertEqual(response.data["detail"], "invalid payment_method.")
+        self.assertEqual(response.data["code"], "invalid_payment_method")
+        self.assertEqual(response.data["field"], "payment_method")
+        self.assertEqual(
+            response.data["available_payment_methods"],
+            sorted(["우리카드 1234 / 일시불", "카카오페이 / 일시불", "네이버페이 / 일시불"]),
+        )
+
+    def test_post_order_rejects_invalid_phone_number(self):
+        self.add_cart_items()
+
+        response = self.client.post(
+            "/api/orders/",
+            {
+                "recipient_phone": "12-34",
+                "delivery_address": "서울 강동구 올림픽로 123 | 101동 1203호",
+                "payment_method": "우리카드 1234 / 일시불",
+            },
+            format="json",
+        )
+
+        self.assertEqual(response.status_code, status.HTTP_400_BAD_REQUEST)
+        self.assertEqual(response.data["detail"], "recipient_phone must be a valid phone number.")
+        self.assertEqual(response.data["code"], "invalid_phone_number")
+        self.assertEqual(response.data["field"], "recipient_phone")
 
 
 class OrderReadApiTests(TestCase):

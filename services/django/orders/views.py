@@ -62,6 +62,20 @@ ORDER_LIST_ORDERING = {
 DEFAULT_ORDER_PAGE_SIZE = 12
 
 
+def error_response(detail, *, code, status_code, field=None, missing_fields=None, extra=None):
+    payload = {
+        "detail": detail,
+        "code": code,
+    }
+    if field:
+        payload["field"] = field
+    if missing_fields:
+        payload["missing_fields"] = missing_fields
+    if extra:
+        payload.update(extra)
+    return Response(payload, status=status_code)
+
+
 def _display_product_name(brand_name, goods_name):
     if not goods_name:
         return ""
@@ -182,6 +196,48 @@ def serialize_order(order: Order) -> dict:
     }
 
 
+def split_delivery_address(value):
+    if not value:
+        return "", ""
+
+    parts = [part.strip() for part in value.split("|", 1)]
+    base_address = parts[0] if parts else ""
+    detail_address = parts[1] if len(parts) > 1 else ""
+    return base_address, detail_address
+
+
+def serialize_order_completion(order: Order) -> dict:
+    serialized = serialize_order(order)
+    delivery_base_address, delivery_detail_address = split_delivery_address(serialized["delivery_address"])
+    return {
+        "order_id": serialized["order_id"],
+        "status": serialized["status"],
+        "status_label": serialized["status_label"],
+        "status_meta": serialized["status_meta"],
+        "recipient_name": serialized["recipient_name"],
+        "recipient_phone": serialized["recipient_phone"],
+        "delivery_address": serialized["delivery_address"],
+        "delivery_base_address": delivery_base_address,
+        "delivery_detail_address": delivery_detail_address,
+        "delivery_message": serialized["delivery_message"] or "배송 메시지 없음",
+        "payment_method": serialized["payment_method"],
+        "product_total": serialized["product_total"],
+        "product_total_label": serialized["product_total_label"],
+        "coupon_discount": serialized["coupon_discount"],
+        "coupon_discount_label": serialized["coupon_discount_label"],
+        "mileage_discount": serialized["mileage_discount"],
+        "mileage_discount_label": serialized["mileage_discount_label"],
+        "shipping_fee": serialized["shipping_fee"],
+        "shipping_fee_label": "무료" if serialized["shipping_fee"] == 0 else serialized["shipping_fee_label"],
+        "total_price": serialized["total_price"],
+        "total_price_label": serialized["total_price_label"],
+        "item_count": serialized["item_count"],
+        "items": serialized["items"],
+        "created_at": serialized["created_at"],
+        "created_date": serialized["created_date"],
+    }
+
+
 def serialize_order_summary(order: Order) -> dict:
     serialized = serialize_order(order)
     items = serialized["items"]
@@ -207,21 +263,40 @@ def serialize_order_summary(order: Order) -> dict:
 def parse_order_list_options(request):
     status_filter = (request.query_params.get("status") or "all").strip() or "all"
     if status_filter != "all" and status_filter not in ORDER_STATUS_META:
-        return None, Response({"detail": "invalid status filter."}, status=status.HTTP_400_BAD_REQUEST)
+        return None, error_response(
+            "invalid status filter.",
+            code="invalid_status_filter",
+            status_code=status.HTTP_400_BAD_REQUEST,
+            field="status",
+        )
 
     ordering_key = (request.query_params.get("ordering") or "latest").strip() or "latest"
     ordering = ORDER_LIST_ORDERING.get(ordering_key)
     if ordering is None:
-        return None, Response({"detail": "invalid ordering."}, status=status.HTTP_400_BAD_REQUEST)
+        return None, error_response(
+            "invalid ordering.",
+            code="invalid_ordering",
+            status_code=status.HTTP_400_BAD_REQUEST,
+            field="ordering",
+        )
 
     try:
         page = max(int(request.query_params.get("page", 1) or 1), 1)
         page_size = int(request.query_params.get("page_size", DEFAULT_ORDER_PAGE_SIZE) or DEFAULT_ORDER_PAGE_SIZE)
     except (TypeError, ValueError):
-        return None, Response({"detail": "page and page_size must be numbers."}, status=status.HTTP_400_BAD_REQUEST)
+        return None, error_response(
+            "page and page_size must be numbers.",
+            code="invalid_pagination",
+            status_code=status.HTTP_400_BAD_REQUEST,
+        )
 
     if page_size < 1 or page_size > 50:
-        return None, Response({"detail": "page_size must be between 1 and 50."}, status=status.HTTP_400_BAD_REQUEST)
+        return None, error_response(
+            "page_size must be between 1 and 50.",
+            code="invalid_page_size",
+            status_code=status.HTTP_400_BAD_REQUEST,
+            field="page_size",
+        )
 
     return {
         "status_filter": status_filter,
@@ -257,10 +332,20 @@ def parse_positive_int(value, field_name):
     try:
         parsed = int(value or 0)
     except (TypeError, ValueError):
-        return None, Response({"detail": f"{field_name} must be a number."}, status=status.HTTP_400_BAD_REQUEST)
+        return None, error_response(
+            f"{field_name} must be a number.",
+            code="invalid_number",
+            status_code=status.HTTP_400_BAD_REQUEST,
+            field=field_name,
+        )
 
     if parsed < 0:
-        return None, Response({"detail": f"{field_name} must be at least 0."}, status=status.HTTP_400_BAD_REQUEST)
+        return None, error_response(
+            f"{field_name} must be at least 0.",
+            code="invalid_number",
+            status_code=status.HTTP_400_BAD_REQUEST,
+            field=field_name,
+        )
 
     return parsed, None
 
@@ -269,7 +354,12 @@ def get_coupon_or_400(coupon_id):
     normalized_coupon_id = (coupon_id or "none").strip() or "none"
     coupon = COUPON_RULES.get(normalized_coupon_id)
     if coupon is None:
-        return None, None, Response({"detail": "invalid coupon_id."}, status=status.HTTP_400_BAD_REQUEST)
+        return None, None, error_response(
+            "invalid coupon_id.",
+            code="invalid_coupon_id",
+            status_code=status.HTTP_400_BAD_REQUEST,
+            field="coupon_id",
+        )
     return normalized_coupon_id, coupon, None
 
 
@@ -279,15 +369,46 @@ def validate_checkout_payload(request, cart_items):
     delivery_address = normalize_delivery_address(request.data, request.user)
     delivery_message = (request.data.get("delivery_message") or "").strip()
     payment_method = (request.data.get("payment_method") or "").strip()
+    missing_fields = []
 
     if not recipient_name:
-        return None, Response({"detail": "recipient_name is required."}, status=status.HTTP_400_BAD_REQUEST)
+        missing_fields.append("recipient_name")
     if not recipient_phone:
-        return None, Response({"detail": "recipient_phone is required."}, status=status.HTTP_400_BAD_REQUEST)
+        missing_fields.append("recipient_phone")
     if not delivery_address:
-        return None, Response({"detail": "delivery_address is required."}, status=status.HTTP_400_BAD_REQUEST)
+        missing_fields.append("delivery_address")
+    if not payment_method:
+        missing_fields.append("payment_method")
+
+    if missing_fields:
+        primary_field = missing_fields[0]
+        return None, error_response(
+            f"{primary_field} is required.",
+            code="missing_required_fields",
+            status_code=status.HTTP_400_BAD_REQUEST,
+            field=primary_field,
+            missing_fields=missing_fields,
+        )
+
+    normalized_phone = "".join(char for char in recipient_phone if char.isdigit())
+    if len(normalized_phone) < 9:
+        return None, error_response(
+            "recipient_phone must be a valid phone number.",
+            code="invalid_phone_number",
+            status_code=status.HTTP_400_BAD_REQUEST,
+            field="recipient_phone",
+        )
+
     if payment_method not in PAYMENT_METHODS:
-        return None, Response({"detail": "invalid payment_method."}, status=status.HTTP_400_BAD_REQUEST)
+        return None, error_response(
+            "invalid payment_method.",
+            code="invalid_payment_method",
+            status_code=status.HTTP_400_BAD_REQUEST,
+            field="payment_method",
+            extra={
+                "available_payment_methods": sorted(PAYMENT_METHODS),
+            },
+        )
 
     product_total = sum(item.product.price * item.quantity for item in cart_items)
     shipping_fee = 0 if product_total >= FREE_SHIPPING_THRESHOLD else BASE_SHIPPING_FEE
@@ -296,18 +417,33 @@ def validate_checkout_payload(request, cart_items):
     if coupon_error:
         return None, coupon_error
     if product_total < coupon["min_total"]:
-        return None, Response({"detail": "coupon is not available for current cart total."}, status=status.HTTP_400_BAD_REQUEST)
+        return None, error_response(
+            "coupon is not available for current cart total.",
+            code="coupon_not_available",
+            status_code=status.HTTP_400_BAD_REQUEST,
+            field="coupon_id",
+        )
 
     mileage_amount, mileage_error = parse_positive_int(request.data.get("mileage_amount", 0), "mileage_amount")
     if mileage_error:
         return None, mileage_error
     if mileage_amount > AVAILABLE_MILEAGE:
-        return None, Response({"detail": "mileage exceeds available balance."}, status=status.HTTP_400_BAD_REQUEST)
+        return None, error_response(
+            "mileage exceeds available balance.",
+            code="mileage_exceeds_balance",
+            status_code=status.HTTP_400_BAD_REQUEST,
+            field="mileage_amount",
+        )
 
     coupon_discount = coupon["discount"]
     max_usable_mileage = max(product_total - coupon_discount, 0)
     if mileage_amount > max_usable_mileage:
-        return None, Response({"detail": "mileage exceeds payable product total."}, status=status.HTTP_400_BAD_REQUEST)
+        return None, error_response(
+            "mileage exceeds payable product total.",
+            code="mileage_exceeds_payable_total",
+            status_code=status.HTTP_400_BAD_REQUEST,
+            field="mileage_amount",
+        )
 
     total_price = max(product_total - coupon_discount - mileage_amount, 0) + shipping_fee
     return {
@@ -327,11 +463,21 @@ def validate_checkout_payload(request, cart_items):
 
 def get_product_or_400(product_id):
     if not product_id:
-        return None, Response({"detail": "product_id is required."}, status=status.HTTP_400_BAD_REQUEST)
+        return None, error_response(
+            "product_id is required.",
+            code="missing_product_id",
+            status_code=status.HTTP_400_BAD_REQUEST,
+            field="product_id",
+        )
 
     product = Product.objects.filter(goods_id=product_id).first()
     if product is None:
-        return None, Response({"detail": "product not found."}, status=status.HTTP_404_NOT_FOUND)
+        return None, error_response(
+            "product not found.",
+            code="product_not_found",
+            status_code=status.HTTP_404_NOT_FOUND,
+            field="product_id",
+        )
 
     return product, None
 
@@ -366,9 +512,9 @@ class OrderListView(APIView):
     permission_classes = [IsAuthenticated]
 
     def get(self, request):
-        options, error_response = parse_order_list_options(request)
-        if error_response:
-            return error_response
+        options, options_error_response = parse_order_list_options(request)
+        if options_error_response:
+            return options_error_response
 
         orders = Order.objects.filter(user=request.user).prefetch_related("items__product")
         if options["status_filter"] != "all":
@@ -416,11 +562,15 @@ class OrderListView(APIView):
         cart, _ = Cart.objects.get_or_create(user=request.user)
         cart_items = list(cart.items.select_related("product").order_by("-added_at"))
         if not cart_items:
-            return Response({"detail": "cart is empty."}, status=status.HTTP_400_BAD_REQUEST)
+            return error_response(
+                "cart is empty.",
+                code="cart_empty",
+                status_code=status.HTTP_400_BAD_REQUEST,
+            )
 
-        checkout_data, error_response = validate_checkout_payload(request, cart_items)
-        if error_response:
-            return error_response
+        checkout_data, checkout_error_response = validate_checkout_payload(request, cart_items)
+        if checkout_error_response:
+            return checkout_error_response
 
         order = Order.objects.create(
             user=request.user,
@@ -463,7 +613,13 @@ class OrderListView(APIView):
         cart.items.all().delete()
 
         order = Order.objects.prefetch_related("items__product").get(pk=order.pk)
-        return Response({"order": serialize_order(order)}, status=status.HTTP_201_CREATED)
+        return Response(
+            {
+                "order": serialize_order(order),
+                "completion": serialize_order_completion(order),
+            },
+            status=status.HTTP_201_CREATED,
+        )
 
 
 class OrderDetailView(APIView):
@@ -477,7 +633,11 @@ class OrderDetailView(APIView):
             .first()
         )
         if order is None:
-            return Response({"detail": "order not found."}, status=status.HTTP_404_NOT_FOUND)
+            return error_response(
+                "order not found.",
+                code="order_not_found",
+                status_code=status.HTTP_404_NOT_FOUND,
+            )
 
         return Response({"order": serialize_order(order)})
 
@@ -491,9 +651,9 @@ class CartView(APIView):
 
     @transaction.atomic
     def post(self, request):
-        product, error_response = get_product_or_400(request.data.get("product_id"))
-        if error_response:
-            return error_response
+        product, product_error_response = get_product_or_400(request.data.get("product_id"))
+        if product_error_response:
+            return product_error_response
 
         quantity = int(request.data.get("quantity", 1) or 1)
         if quantity < 1:
@@ -516,9 +676,9 @@ class CartView(APIView):
 
     @transaction.atomic
     def patch(self, request):
-        product, error_response = get_product_or_400(request.data.get("product_id"))
-        if error_response:
-            return error_response
+        product, product_error_response = get_product_or_400(request.data.get("product_id"))
+        if product_error_response:
+            return product_error_response
 
         quantity = request.data.get("quantity")
         if quantity is None:
@@ -539,9 +699,9 @@ class CartView(APIView):
 
     @transaction.atomic
     def delete(self, request):
-        product, error_response = get_product_or_400(request.data.get("product_id"))
-        if error_response:
-            return error_response
+        product, product_error_response = get_product_or_400(request.data.get("product_id"))
+        if product_error_response:
+            return product_error_response
 
         cart, _ = Cart.objects.get_or_create(user=request.user)
         deleted, _ = CartItem.objects.filter(cart=cart, product=product).delete()
@@ -560,9 +720,9 @@ class WishlistView(APIView):
 
     @transaction.atomic
     def post(self, request):
-        product, error_response = get_product_or_400(request.data.get("product_id"))
-        if error_response:
-            return error_response
+        product, product_error_response = get_product_or_400(request.data.get("product_id"))
+        if product_error_response:
+            return product_error_response
 
         wishlist, _ = Wishlist.objects.get_or_create(user=request.user)
         wishlist_item, created = WishlistItem.objects.get_or_create(wishlist=wishlist, product=product)
@@ -573,9 +733,9 @@ class WishlistView(APIView):
 
     @transaction.atomic
     def delete(self, request):
-        product, error_response = get_product_or_400(request.data.get("product_id"))
-        if error_response:
-            return error_response
+        product, product_error_response = get_product_or_400(request.data.get("product_id"))
+        if product_error_response:
+            return product_error_response
 
         wishlist, _ = Wishlist.objects.get_or_create(user=request.user)
         deleted, _ = WishlistItem.objects.filter(wishlist=wishlist, product=product).delete()
