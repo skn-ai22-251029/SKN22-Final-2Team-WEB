@@ -926,11 +926,14 @@
     if (!checkoutConfirmModal) return;
     if (event && event.target !== checkoutConfirmModal) return;
     checkoutConfirmModal.classList.remove('is-open');
+    setConfirmCheckoutLoading(false);
   };
 
   function submitOrderRequest() {
     if (!orderSummaryPanel) return;
+    if (confirmCheckoutSubmitBtn && confirmCheckoutSubmitBtn.disabled) return;
     setOrderSubmitLoading(true);
+    setConfirmCheckoutLoading(true);
     requestJson('/api/orders/', {
       method: 'POST',
       body: JSON.stringify({
@@ -952,6 +955,7 @@
     }).catch(function (error) {
       showProductToast(error.message || '주문을 완료하지 못했습니다.');
       setOrderSubmitLoading(false);
+      setConfirmCheckoutLoading(false);
     });
   }
 
@@ -1185,6 +1189,17 @@
     submitOrderBtn.textContent = isLoading ? '주문 처리 중...' : submitOrderBtn.dataset.defaultLabel;
     submitOrderBtn.classList.toggle('opacity-60', isLoading);
     submitOrderBtn.classList.toggle('cursor-not-allowed', isLoading);
+  }
+
+  function setConfirmCheckoutLoading(isLoading) {
+    if (!confirmCheckoutSubmitBtn) return;
+    if (!confirmCheckoutSubmitBtn.dataset.defaultLabel) {
+      confirmCheckoutSubmitBtn.dataset.defaultLabel = confirmCheckoutSubmitBtn.textContent.trim();
+    }
+    confirmCheckoutSubmitBtn.disabled = isLoading;
+    confirmCheckoutSubmitBtn.textContent = isLoading ? '주문 처리 중...' : confirmCheckoutSubmitBtn.dataset.defaultLabel;
+    confirmCheckoutSubmitBtn.classList.toggle('opacity-60', isLoading);
+    confirmCheckoutSubmitBtn.classList.toggle('cursor-not-allowed', isLoading);
   }
 
   function updateDiscountPreview() {
