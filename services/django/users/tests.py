@@ -6,6 +6,7 @@ from django.utils import timezone
 from rest_framework import status
 from rest_framework.test import APIClient
 
+from orders.models import Order
 from products.models import Product
 from users.models import SocialAccount, User, UserProfile
 from users.social_auth import (
@@ -52,7 +53,7 @@ class SocialLoginPageViewTests(TestCase):
         self.assertEqual(response["Location"], "https://nid.naver.com/oauth2.0/authorize?state=test")
 
     @patch("users.page_views.complete_social_login")
-    def test_social_login_callback_redirects_to_profile_and_stores_jwt(self, complete_social_login_mock):
+    def test_social_login_callback_redirects_new_user_to_profile_setup_and_stores_jwt(self, complete_social_login_mock):
         user = User.objects.create_user(email="page@example.com")
         UserProfile.objects.create(user=user, nickname="PageUser")
         complete_social_login_mock.return_value = SocialLoginResult(
@@ -69,7 +70,7 @@ class SocialLoginPageViewTests(TestCase):
         response = self.client.get("/auth/kakao/callback/?code=test-code&state=test-state")
 
         self.assertEqual(response.status_code, status.HTTP_302_FOUND)
-        self.assertEqual(response["Location"], reverse("chat"))
+        self.assertEqual(response["Location"], f"{reverse('profile')}?setup=1")
 
         session = self.client.session
         self.assertIn(SOCIAL_AUTH_ACCESS_SESSION_KEY, session)
@@ -111,7 +112,7 @@ class AuthApiTests(TestCase):
         refresh_response = self.client.post("/api/auth/token/refresh/", {"refresh": refresh}, format="json")
         self.assertEqual(refresh_response.status_code, status.HTTP_401_UNAUTHORIZED)
 
-    def test_withdraw_deletes_user(self):
+    def test_withdraw_deactivates_user_and_scrubs_identity(self):
         login_response = self.client.post(
             "/api/auth/login/",
             {"email": "auth@example.com", "password": "Password123!"},
@@ -124,7 +125,41 @@ class AuthApiTests(TestCase):
         response = self.client.delete("/api/auth/withdraw/", {"refresh": refresh}, format="json")
 
         self.assertEqual(response.status_code, status.HTTP_204_NO_CONTENT)
-        self.assertFalse(User.objects.filter(email="auth@example.com").exists())
+        self.user.refresh_from_db()
+        self.assertFalse(self.user.is_active)
+        self.assertNotEqual(self.user.email, "auth@example.com")
+        self.assertFalse(self.user.has_usable_password())
+        self.assertFalse(UserProfile.objects.filter(user=self.user).exists())
+
+    def test_withdraw_preserves_orders(self):
+        Order.objects.create(
+            user=self.user,
+            recipient_name="탈퇴 사용자",
+            recipient_phone="01012341234",
+            delivery_address="서울 강동구 올림픽로 123 | 101동 1203호",
+            payment_method="카카오페이 / 일시불",
+            product_total=10000,
+            coupon_discount=0,
+            mileage_discount=0,
+            shipping_fee=0,
+            total_price=10000,
+        )
+
+        login_response = self.client.post(
+            "/api/auth/login/",
+            {"email": "auth@example.com", "password": "Password123!"},
+            format="json",
+        )
+        access = login_response.data["access"]
+        refresh = login_response.data["refresh"]
+
+        self.client.credentials(HTTP_AUTHORIZATION=f"Bearer {access}")
+        response = self.client.delete("/api/auth/withdraw/", {"refresh": refresh}, format="json")
+
+        self.assertEqual(response.status_code, status.HTTP_204_NO_CONTENT)
+        self.user.refresh_from_db()
+        self.assertFalse(self.user.is_active)
+        self.assertEqual(Order.objects.filter(user=self.user).count(), 1)
 
 
 class ProfilePageViewTests(TestCase):
@@ -148,6 +183,36 @@ class ProfilePageViewTests(TestCase):
         self.user.refresh_from_db()
         self.assertEqual(self.user.profile.nickname, "PageProfile")
 
+    def test_profile_post_saves_address_and_payment_method(self):
+        response = self.client.post(
+            "/profile/",
+            {
+                "nickname": "PageProfile2",
+                "zipcode": "12345",
+                "address_main": "서울 강동구 올림픽로 123",
+                "address_detail": "101동 1203호",
+                "payment_method": "카카오페이 / 일시불",
+            },
+        )
+
+        self.user.refresh_from_db()
+        self.assertIn(response.status_code, {status.HTTP_200_OK, status.HTTP_302_FOUND})
+        self.assertEqual(self.user.profile.nickname, "PageProfile2")
+        self.assertEqual(self.user.profile.address, "서울 강동구 올림픽로 123 | 101동 1203호")
+        self.assertEqual(self.user.profile.payment_method, "카카오페이 / 일시불")
+
+    def test_profile_post_requires_phone_verification_for_changed_phone(self):
+        response = self.client.post(
+            "/profile/",
+            {
+                "nickname": "PageProfile",
+                "phone": "01099998888",
+            },
+        )
+
+        self.assertEqual(response.status_code, status.HTTP_200_OK)
+        self.assertContains(response, "연락처 인증을 완료해 주세요.")
+
 
 class UserProfileApiTests(TestCase):
     def setUp(self):
@@ -169,6 +234,8 @@ class UserProfileApiTests(TestCase):
             {
                 "nickname": "UpdatedUser",
                 "phone": "01012341234",
+                "address": "서울 강동구 올림픽로 123 | 101동 1203호",
+                "payment_method": "네이버페이 / 일시불",
                 "marketing_consent": True,
             },
             format="json",
@@ -178,7 +245,62 @@ class UserProfileApiTests(TestCase):
         self.user.refresh_from_db()
         self.assertEqual(self.user.profile.nickname, "UpdatedUser")
         self.assertEqual(self.user.profile.phone, "01012341234")
+        self.assertEqual(self.user.profile.address, "서울 강동구 올림픽로 123 | 101동 1203호")
+        self.assertEqual(self.user.profile.payment_method, "네이버페이 / 일시불")
         self.assertTrue(self.user.profile.marketing_consent)
+
+    @override_settings(DEBUG=True)
+    def test_phone_verification_request_returns_code_in_debug(self):
+        response = self.client.post(
+            "/api/users/me/phone-verification/request/",
+            {"phone": "01012341234"},
+            format="json",
+        )
+
+        self.assertEqual(response.status_code, status.HTTP_200_OK)
+        self.assertEqual(response.data["phone"], "01012341234")
+        self.assertIn("verification_code", response.data)
+        self.user.refresh_from_db()
+        self.assertEqual(self.user.profile.phone_verification_target, "01012341234")
+
+    @override_settings(DEBUG=True)
+    def test_phone_verification_confirm_marks_phone_verified(self):
+        request_response = self.client.post(
+            "/api/users/me/phone-verification/request/",
+            {"phone": "01012341234"},
+            format="json",
+        )
+
+        response = self.client.post(
+            "/api/users/me/phone-verification/confirm/",
+            {
+                "phone": "01012341234",
+                "verification_code": request_response.data["verification_code"],
+            },
+            format="json",
+        )
+
+        self.assertEqual(response.status_code, status.HTTP_200_OK)
+        self.user.refresh_from_db()
+        self.assertEqual(self.user.profile.phone, "01012341234")
+        self.assertTrue(self.user.profile.phone_verified)
+        self.assertIsNone(self.user.profile.phone_verification_code)
+
+    def test_patch_me_resets_phone_verified_when_phone_changes(self):
+        self.user.profile.phone = "01012341234"
+        self.user.profile.phone_verified = True
+        self.user.profile.save(update_fields=["phone", "phone_verified", "updated_at"])
+
+        response = self.client.patch(
+            "/api/users/me/",
+            {"phone": "01099998888"},
+            format="json",
+        )
+
+        self.assertEqual(response.status_code, status.HTTP_200_OK)
+        self.user.refresh_from_db()
+        self.assertEqual(self.user.profile.phone, "01099998888")
+        self.assertFalse(self.user.profile.phone_verified)
 
     def test_nickname_availability_returns_available_for_current_nickname(self):
         response = self.client.get("/api/users/nickname-availability/?nickname=ProfileUser")

@@ -39,6 +39,25 @@ class ChatPageTests(TestCase):
         self.assertEqual(serialized_pet["allergies"], ["chicken"])
         self.assertEqual(serialized_pet["food_preferences"], ["dry"])
 
+    def test_chat_page_redirects_to_pet_add_when_profile_complete_but_no_pet(self):
+        response = self.client.get(reverse("chat"))
+
+        self.assertEqual(response.status_code, 302)
+        self.assertEqual(response["Location"], reverse("pet_add"))
+
+    def test_chat_page_redirects_to_profile_setup_when_profile_is_incomplete(self):
+        incomplete_user = User.objects.create_user(
+            email="chat-incomplete@example.com",
+            password="Password123!",
+        )
+        UserProfile.objects.create(user=incomplete_user, nickname="")
+        self.client.force_login(incomplete_user)
+
+        response = self.client.get(reverse("chat"))
+
+        self.assertEqual(response.status_code, 302)
+        self.assertEqual(response["Location"], f"{reverse('profile')}?setup=1")
+
 
 class _FakeStreamResponse:
     def __init__(self, chunks, status_code=200):
