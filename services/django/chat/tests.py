@@ -7,6 +7,7 @@ from django.urls import reverse
 
 from pets.models import Pet, PetAllergy, PetFoodPreference, PetHealthConcern
 from users.models import User, UserProfile
+from users.onboarding import ONBOARDING_FORCE_PROFILE_SESSION_KEY
 
 
 class ChatPageTests(TestCase):
@@ -52,6 +53,16 @@ class ChatPageTests(TestCase):
         )
         UserProfile.objects.create(user=incomplete_user, nickname="")
         self.client.force_login(incomplete_user)
+
+        response = self.client.get(reverse("chat"))
+
+        self.assertEqual(response.status_code, 302)
+        self.assertEqual(response["Location"], f"{reverse('profile')}?setup=1")
+
+    def test_chat_page_redirects_to_profile_setup_when_new_user_force_flag_exists(self):
+        session = self.client.session
+        session[ONBOARDING_FORCE_PROFILE_SESSION_KEY] = True
+        session.save()
 
         response = self.client.get(reverse("chat"))
 

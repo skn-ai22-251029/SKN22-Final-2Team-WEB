@@ -18,6 +18,7 @@ from rest_framework.response import Response
 from rest_framework.views import APIView
 from rest_framework_simplejwt.authentication import JWTAuthentication
 from rest_framework_simplejwt.tokens import RefreshToken
+from social_django.models import UserSocialAuth
 from social_core.exceptions import AuthCanceled, AuthConnectionError, AuthException, AuthForbidden, AuthMissingParameter
 
 from products.models import Product
@@ -54,6 +55,7 @@ def deactivate_user_and_purge_personal_data(user):
         user.pets.all().delete()
     if hasattr(user, "social_accounts"):
         user.social_accounts.all().delete()
+    UserSocialAuth.objects.filter(user=user).delete()
     if hasattr(user, "used_products"):
         user.used_products.all().delete()
     if hasattr(user, "userinteraction_set"):

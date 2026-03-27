@@ -1,5 +1,9 @@
+from django.contrib.auth import get_user_model
+
 from .models import SocialAccount, UserProfile
 from .nickname_utils import build_unique_nickname
+
+User = get_user_model()
 
 
 PROVIDER_NAME_MAP = {
@@ -23,6 +27,21 @@ def ensure_email(details, backend, response, uid=None, *args, **kwargs):
     normalized_details = details.copy()
     normalized_details["email"] = fallback_email
     return {"details": normalized_details}
+
+
+def associate_active_user_by_email(details, user=None, *args, **kwargs):
+    if user is not None:
+        return None
+
+    email = (details or {}).get("email")
+    if not email:
+        return None
+
+    matched_user = User.objects.filter(email__iexact=email, is_active=True).first()
+    if matched_user is None:
+        return None
+
+    return {"user": matched_user, "is_new": False}
 
 
 def sync_tailtalk_social_data(backend, user=None, uid=None, response=None, *args, **kwargs):
