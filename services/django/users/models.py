@@ -46,6 +46,7 @@ class UserProfile(models.Model):
     gender            = models.CharField(max_length=20, null=True, blank=True)
     address           = models.TextField(null=True, blank=True)
     phone             = models.CharField(max_length=20, null=True, blank=True)
+    payment_method    = models.CharField(max_length=120, null=True, blank=True)
     marketing_consent = models.BooleanField(default=False)
     profile_image_url = models.TextField(null=True, blank=True)
     updated_at        = models.DateTimeField(auto_now=True)

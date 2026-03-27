@@ -27,6 +27,16 @@ User = get_user_model()
 logger = logging.getLogger(__name__)
 
 
+def _split_profile_address(address):
+    if not address:
+        return "", ""
+
+    parts = [part.strip() for part in address.split("|", 1)]
+    base_address = parts[0] if parts else ""
+    detail_address = parts[1] if len(parts) > 1 else ""
+    return base_address, detail_address
+
+
 def _get_profile(user):
     profile, _ = UserProfile.objects.get_or_create(
         user=user,
@@ -36,11 +46,15 @@ def _get_profile(user):
 
 
 def _render_profile(request, profile):
+    address_main, address_detail = _split_profile_address(profile.address)
     return render(
         request,
         "users/profile.html",
         {
             "profile": profile,
+            "profile_address_main": address_main,
+            "profile_address_detail": address_detail,
+            "profile_payment_method": profile.payment_method or "",
             "social_accounts": {account.provider: account for account in request.user.social_accounts.all()},
             "setup_mode": request.GET.get("setup") == "1",
             "profile_preview": False,
@@ -99,6 +113,13 @@ def profile_view(request):
         setup_mode = request.GET.get("setup") == "1"
         profile.nickname = request.POST.get("nickname", "").strip()
         profile.phone = request.POST.get("phone", "").strip()
+        address_main = request.POST.get("address_main", "").strip()
+        address_detail = request.POST.get("address_detail", "").strip()
+        if address_main or address_detail:
+            profile.address = " | ".join(part for part in [address_main, address_detail] if part)
+        else:
+            profile.address = ""
+        profile.payment_method = request.POST.get("payment_method", "").strip()
         profile.marketing_consent = request.POST.get("marketing") == "on"
         nickname_error = get_nickname_validation_error(profile.nickname, exclude_user=request.user)
         if nickname_error:
@@ -106,7 +127,7 @@ def profile_view(request):
             return _render_profile(request, profile)
         try:
             with transaction.atomic():
-                profile.save(update_fields=["nickname", "phone", "marketing_consent", "updated_at"])
+                profile.save(update_fields=["nickname", "phone", "address", "payment_method", "marketing_consent", "updated_at"])
         except IntegrityError:
             messages.error(request, "이미 사용 중인 닉네임입니다.")
             return _render_profile(request, profile)

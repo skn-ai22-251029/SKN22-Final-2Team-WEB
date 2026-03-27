@@ -153,6 +153,7 @@ def serialize_user_profile(user):
         "gender": profile.gender,
         "address": profile.address,
         "phone": profile.phone,
+        "payment_method": profile.payment_method,
         "marketing_consent": profile.marketing_consent,
         "profile_image_url": profile.profile_image_url,
     }
@@ -369,12 +370,14 @@ class UserMeView(APIView):
                 return Response({"detail": nickname_error}, status=status.HTTP_400_BAD_REQUEST)
 
         dirty_fields = []
-        for field in ["nickname", "age", "gender", "address", "phone"]:
+        for field in ["nickname", "age", "gender", "address", "phone", "payment_method"]:
             if field not in request.data:
                 continue
             value = request.data.get(field)
             if field == "nickname":
                 value = (value or "").strip()
+            elif field in {"address", "phone", "payment_method"}:
+                value = (value or "").strip() or None
             elif value == "":
                 value = None if field != "nickname" else profile.nickname
             if field == "age" and value is not None:

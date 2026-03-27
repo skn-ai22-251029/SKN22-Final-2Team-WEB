@@ -126,8 +126,10 @@
                   class="h-[36px] w-[110px] rounded-[8px] border border-[#3182ce] text-[14px] font-bold text-[#3182ce]">우편번호 찾기</button>
         </div>
         <input name="address_main" id="addressMainInput" placeholder="기본 주소" readonly
+               value="{{ profile_address_main }}"
                class="mt-2 h-[36px] w-full rounded-[8px] border border-[#e2e8f0] bg-[#f7fafc] px-3 text-[12px] text-[#718096] outline-none placeholder:text-[#718096]" />
         <input name="address_detail" id="addressDetailInput" placeholder="상세 주소"
+               value="{{ profile_address_detail }}"
                class="mt-2 h-[36px] w-full rounded-[8px] border border-[#e2e8f0] px-3 text-[12px] text-[#718096] outline-none focus:border-[#3182ce] placeholder:text-[#718096]" />
         <p id="addressStatus" class="mt-1 min-h-[16px] text-right text-[12px]"></p>
       </div>
@@ -138,11 +140,12 @@
       <div class="mt-3 w-full max-w-[420px] rounded-[12px] border border-[#e2e8f0] bg-[#f7fafc] px-4 py-3.5">
         <div class="flex items-center justify-between gap-4">
           <div class="min-w-0 flex-1">
-            <div id="paymentMethodSummary" class="text-[13px] text-[#718096]">저장된 결제 수단이 없습니다</div>
+            <div id="paymentMethodSummary" class="text-[13px] {% if profile_payment_method %}text-[#4a5568]{% else %}text-[#718096]{% endif %}">{{ profile_payment_method|default:"저장된 결제 수단이 없습니다" }}</div>
           </div>
+          <input type="hidden" name="payment_method" id="paymentMethodInput" value="{{ profile_payment_method }}" />
           <button id="paymentRegisterButton" type="button" onclick="openPaymentModal()"
                   class="h-[36px] rounded-[8px] border border-[#3182ce] px-4 text-[13px] font-bold text-[#3182ce]">
-            등록
+            {% if profile_payment_method %}수정{% else %}등록{% endif %}
           </button>
         </div>
       </div>
@@ -256,12 +259,13 @@
     var numberInput = document.getElementById('paymentCardNumberInput');
     var expiryInput = document.getElementById('paymentExpiryInput');
     var summary = document.getElementById('paymentMethodSummary');
+    var paymentMethodInput = document.getElementById('paymentMethodInput');
     var button = document.getElementById('paymentRegisterButton');
     var nameStatus = document.getElementById('paymentCardNameStatus');
     var numberStatus = document.getElementById('paymentCardNumberStatus');
     var expiryStatus = document.getElementById('paymentExpiryStatus');
 
-    if (!nameInput || !numberInput || !expiryInput || !summary || !button || !nameStatus || !numberStatus || !expiryStatus) return;
+    if (!nameInput || !numberInput || !expiryInput || !summary || !paymentMethodInput || !button || !nameStatus || !numberStatus || !expiryStatus) return;
 
     var cardName = nameInput.value.trim();
     var cardNumber = numberInput.value.replace(/\D/g, '').slice(0, 16);
@@ -296,8 +300,10 @@
     }
 
     var maskedCard = cardNumber.slice(0, 4) + ' **** **** ' + cardNumber.slice(-4);
-    summary.textContent = cardName + ' / ' + maskedCard;
+    var paymentMethod = cardName + ' / ' + maskedCard;
+    summary.textContent = paymentMethod;
     summary.className = 'text-[13px] text-[#4a5568]';
+    paymentMethodInput.value = paymentMethod;
     button.textContent = '수정';
     try {
       window.localStorage.setItem(PROFILE_PAYMENT_STORAGE_KEY, JSON.stringify({
@@ -332,6 +338,7 @@
     var paymentCardNumberInput = document.getElementById('paymentCardNumberInput');
     var paymentExpiryInput = document.getElementById('paymentExpiryInput');
     var paymentSummary = document.getElementById('paymentMethodSummary');
+    var paymentMethodInput = document.getElementById('paymentMethodInput');
     var paymentButton = document.getElementById('paymentRegisterButton');
 
     if (!input || !button || !status || !form) return;
@@ -348,6 +355,7 @@
 
     function loadAddressPreview() {
       if (!zipcodeInput || !addressMainInput || !addressDetailInput) return;
+      if (addressMainInput.value.trim() || addressDetailInput.value.trim()) return;
       try {
         var saved = JSON.parse(window.localStorage.getItem(PROFILE_ADDRESS_STORAGE_KEY) || 'null');
         if (!saved) return;
@@ -369,11 +377,13 @@
     }
 
     function loadPaymentPreview() {
-      if (!paymentSummary || !paymentButton) return;
+      if (!paymentSummary || !paymentMethodInput || !paymentButton) return;
+      if (paymentMethodInput.value.trim()) return;
       try {
         var saved = JSON.parse(window.localStorage.getItem(PROFILE_PAYMENT_STORAGE_KEY) || 'null');
         if (!saved || !saved.cardName || !saved.maskedCard) return;
-        paymentSummary.textContent = saved.cardName + ' / ' + saved.maskedCard;
+        paymentMethodInput.value = saved.cardName + ' / ' + saved.maskedCard;
+        paymentSummary.textContent = paymentMethodInput.value;
         paymentSummary.className = 'text-[13px] text-[#4a5568]';
         paymentButton.textContent = '수정';
       } catch (e) {}

@@ -148,6 +148,23 @@ class ProfilePageViewTests(TestCase):
         self.user.refresh_from_db()
         self.assertEqual(self.user.profile.nickname, "PageProfile")
 
+    def test_profile_post_saves_address_and_payment_method(self):
+        response = self.client.post(
+            "/profile/",
+            {
+                "nickname": "PageProfile",
+                "phone": "01012341234",
+                "address_main": "서울 강동구 올림픽로 123",
+                "address_detail": "101동 1203호",
+                "payment_method": "카카오페이 / 일시불",
+            },
+        )
+
+        self.assertEqual(response.status_code, status.HTTP_302_FOUND)
+        self.user.refresh_from_db()
+        self.assertEqual(self.user.profile.address, "서울 강동구 올림픽로 123 | 101동 1203호")
+        self.assertEqual(self.user.profile.payment_method, "카카오페이 / 일시불")
+
 
 class UserProfileApiTests(TestCase):
     def setUp(self):
@@ -169,6 +186,8 @@ class UserProfileApiTests(TestCase):
             {
                 "nickname": "UpdatedUser",
                 "phone": "01012341234",
+                "address": "서울 강동구 올림픽로 123 | 101동 1203호",
+                "payment_method": "네이버페이 / 일시불",
                 "marketing_consent": True,
             },
             format="json",
@@ -178,6 +197,8 @@ class UserProfileApiTests(TestCase):
         self.user.refresh_from_db()
         self.assertEqual(self.user.profile.nickname, "UpdatedUser")
         self.assertEqual(self.user.profile.phone, "01012341234")
+        self.assertEqual(self.user.profile.address, "서울 강동구 올림픽로 123 | 101동 1203호")
+        self.assertEqual(self.user.profile.payment_method, "네이버페이 / 일시불")
         self.assertTrue(self.user.profile.marketing_consent)
 
     def test_nickname_availability_returns_available_for_current_nickname(self):
