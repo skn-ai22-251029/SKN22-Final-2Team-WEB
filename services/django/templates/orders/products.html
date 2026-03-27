@@ -758,9 +758,6 @@
   var discountMode = 'coupon';
   var viewportSyncFrame = null;
   var productToastTimer = null;
-  var PROFILE_ADDRESS_STORAGE_KEY = 'tailtalk_profile_address_preview';
-  var PROFILE_PAYMENT_STORAGE_KEY = 'tailtalk_profile_payment_preview';
-
   if (!cartTab || !wishlistTab || !cartPanel || !wishlistPanel) return;
 
   function formatPrice(value) {
@@ -822,50 +819,13 @@
     };
   }
 
-  function normalizeCheckoutPaymentMethod(value) {
-    var normalized = String(value || '').trim();
-    if (!normalized || normalized.indexOf('없습니다') !== -1) {
-      return '';
-    }
-    if (normalized.indexOf('카카오') !== -1) {
-      return '카카오페이 / 일시불';
-    }
-    if (normalized.indexOf('네이버') !== -1) {
-      return '네이버페이 / 일시불';
-    }
-    return '우리카드 1234 / 일시불';
-  }
-
   function syncCheckoutSummaryPreview() {
     if (!orderSummaryPanel) return;
-
-    var addressPreview = null;
-    var paymentPreview = null;
-    try {
-      addressPreview = JSON.parse(window.localStorage.getItem(PROFILE_ADDRESS_STORAGE_KEY) || 'null');
-    } catch (e) {}
-    try {
-      paymentPreview = JSON.parse(window.localStorage.getItem(PROFILE_PAYMENT_STORAGE_KEY) || 'null');
-    } catch (e) {}
 
     var recipientName = (orderSummaryPanel.dataset.recipientName || '').trim();
     var recipientPhone = (orderSummaryPanel.dataset.recipientPhone || '').trim();
     var addressParts = splitAddressParts(orderSummaryPanel.dataset.deliveryAddress || '');
     var paymentMethod = (orderSummaryPanel.dataset.paymentMethod || '').trim();
-
-    var hasServerAddress = addressParts.base && addressParts.base.indexOf('없습니다') === -1;
-    var hasServerPaymentMethod = paymentMethod && paymentMethod.indexOf('없습니다') === -1;
-
-    if (!hasServerAddress && addressPreview && (addressPreview.addressMain || addressPreview.addressDetail)) {
-      addressParts.base = (addressPreview.addressMain || '').trim() || addressParts.base;
-      addressParts.detail = (addressPreview.addressDetail || '').trim();
-      orderSummaryPanel.dataset.deliveryAddress = [addressParts.base, addressParts.detail].filter(Boolean).join(' | ');
-    }
-
-    if (!hasServerPaymentMethod && paymentPreview && paymentPreview.cardName && paymentPreview.maskedCard) {
-      paymentMethod = paymentPreview.cardName + ' / ' + paymentPreview.maskedCard;
-      orderSummaryPanel.dataset.paymentMethod = paymentMethod;
-    }
 
     if (checkoutRecipientName) checkoutRecipientName.textContent = recipientName || '수령인 정보가 아직 없습니다';
     if (checkoutRecipientPhone) checkoutRecipientPhone.textContent = recipientPhone || '연락처 정보가 아직 없습니다';
@@ -944,7 +904,7 @@
         recipient_phone: orderSummaryPanel.dataset.recipientPhone || '',
         delivery_address: orderSummaryPanel.dataset.deliveryAddress || '',
         delivery_message: getDeliveryMessageValue(),
-        payment_method: normalizeCheckoutPaymentMethod(orderSummaryPanel.dataset.paymentMethod || ''),
+        payment_method: orderSummaryPanel.dataset.paymentMethod || '',
         coupon_id: selectedCouponId || 'none',
         mileage_amount: selectedMileageValue || 0,
       }),

@@ -1302,8 +1302,6 @@
   var promoIndex = 0;
   var promoTimer = null;
   var activePetId = '{{ active_pet_id|escapejs }}';
-  var PROFILE_ADDRESS_STORAGE_KEY = 'tailtalk_profile_address_preview';
-  var PROFILE_PAYMENT_STORAGE_KEY = 'tailtalk_profile_payment_preview';
   var SHARED_CART_COUNT_STORAGE_KEY = 'tailtalk_shared_cart_count';
   var SHARED_CART_ITEMS_STORAGE_KEY = 'tailtalk_shared_cart_items';
   var previewWishlistItems = [];
@@ -2971,6 +2969,7 @@
       })
       .catch(function () {
         applyQuickOrderDefaults(null);
+        showChatNotice('빠른 구매 정보를 불러오지 못했습니다.');
         return quickOrderDefaults;
       });
   }
