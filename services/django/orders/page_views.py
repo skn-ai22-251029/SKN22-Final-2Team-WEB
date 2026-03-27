@@ -1,7 +1,7 @@
 from django.db.models import Q
 from django.contrib.auth.decorators import login_required
 from django.core.paginator import Paginator
-from django.shortcuts import render
+from django.shortcuts import get_object_or_404, render
 
 from products.models import Product
 from .models import Cart, Order, Wishlist
@@ -56,6 +56,16 @@ def _display_delivery_address(value):
     if base_is_placeholder:
         return detail_address or fallback
     return f"{base_address}, {detail_address}"
+
+
+def _split_delivery_address(value):
+    if not value:
+        return "", ""
+
+    parts = [part.strip() for part in value.split("|", 1)]
+    base_address = parts[0] if parts else ""
+    detail_address = parts[1] if len(parts) > 1 else ""
+    return base_address, detail_address
 
 
 def _recommended_note(index):
@@ -160,6 +170,44 @@ def _serialize_order_group(order):
         "payment_method": order.payment_method,
         "item_count": total_quantity,
         "items": items,
+    }
+
+
+def _serialize_order_completion(order):
+    base_address, detail_address = _split_delivery_address(order.delivery_address)
+    items = []
+    total_quantity = 0
+
+    for item in order.items.select_related("product").all():
+        total_quantity += item.quantity
+        items.append(
+            {
+                "name": _display_product_name(item.product.brand_name, item.product.goods_name),
+                "brand": item.product.brand_name,
+                "thumbnail_url": item.product.thumbnail_url,
+                "quantity": item.quantity,
+                "line_total": _format_price(item.price_at_order * item.quantity),
+            }
+        )
+
+    return {
+        "order_id": str(order.order_id),
+        "created_at": order.created_at.strftime("%Y.%m.%d %H:%M"),
+        "recipient_name": order.recipient_name,
+        "recipient_phone": order.recipient_phone,
+        "delivery_base_address": base_address,
+        "delivery_detail_address": detail_address,
+        "delivery_address_display": _display_delivery_address(order.delivery_address),
+        "delivery_message": order.delivery_message or "배송 메시지 없음",
+        "payment_method": order.payment_method,
+        "product_total": _format_price(order.product_total),
+        "coupon_discount": _format_price(order.coupon_discount),
+        "mileage_discount": _format_price(order.mileage_discount),
+        "shipping_fee": "무료" if order.shipping_fee == 0 else _format_price(order.shipping_fee),
+        "total_price": _format_price(order.total_price),
+        "item_count": total_quantity,
+        "items": items,
+        "primary_item_name": items[0]["name"] if items else "주문 상품",
     }
 
 
@@ -575,5 +623,26 @@ def used_products(request):
             "discount_total_raw": discount,
             "shipping_fee_raw": shipping_fee,
             "active_tab": "cart",
+        },
+    )
+
+
+@login_required
+def order_complete(request, order_id):
+    order = get_object_or_404(
+        Order.objects.filter(user=request.user).prefetch_related("items__product"),
+        order_id=order_id,
+    )
+    entry = (request.GET.get("entry") or "cart").strip().lower()
+    if entry not in {"cart", "quick"}:
+        entry = "cart"
+
+    return render(
+        request,
+        "orders/complete.html",
+        {
+            "active_tab": "orders",
+            "order_completion": _serialize_order_completion(order),
+            "order_entry": entry,
         },
     )

@@ -3088,9 +3088,65 @@
     quickOrderModal.classList.remove('is-open');
   };
 
+  function normalizeQuickOrderPaymentMethod(value) {
+    var normalized = String(value || '').trim();
+    if (!normalized || normalized.indexOf('없습니다') !== -1) {
+      return '';
+    }
+    if (normalized.indexOf('카카오') !== -1) {
+      return '카카오페이 / 일시불';
+    }
+    if (normalized.indexOf('네이버') !== -1) {
+      return '네이버페이 / 일시불';
+    }
+    return '우리카드 1234 / 일시불';
+  }
+
+  function buildQuickOrderPayload() {
+    var addressText = quickOrderAddressSummary ? quickOrderAddressSummary.textContent.trim() : '';
+    var paymentMethod = quickOrderCardSummary ? quickOrderCardSummary.textContent.trim() : '';
+
+    try {
+      var savedAddress = JSON.parse(window.localStorage.getItem(PROFILE_ADDRESS_STORAGE_KEY) || 'null');
+      if (savedAddress && (savedAddress.addressMain || savedAddress.addressDetail)) {
+        addressText = [savedAddress.addressMain || '', savedAddress.addressDetail || ''].filter(Boolean).join(' | ');
+      }
+    } catch (e) {}
+
+    try {
+      var savedPayment = JSON.parse(window.localStorage.getItem(PROFILE_PAYMENT_STORAGE_KEY) || 'null');
+      if (savedPayment && savedPayment.cardName && savedPayment.maskedCard) {
+        paymentMethod = savedPayment.cardName + ' / ' + savedPayment.maskedCard;
+      }
+    } catch (e) {}
+
+    return {
+      recipient_name: quickOrderRecipientSummary ? quickOrderRecipientSummary.textContent.trim() : '',
+      recipient_phone: quickOrderPhoneSummary ? quickOrderPhoneSummary.textContent.trim() : '',
+      delivery_address: addressText,
+      delivery_message: '',
+      payment_method: normalizeQuickOrderPaymentMethod(paymentMethod),
+      coupon_id: quickOrderSelectedCouponId || 'none',
+      mileage_amount: quickOrderSelectedMileage || 0,
+    };
+  }
+
   window.submitQuickOrder = function () {
-    closeQuickOrderModal();
-    clearCartPanel();
+    var payload = buildQuickOrderPayload();
+    requestJson('/api/orders/', {
+      method: 'POST',
+      body: JSON.stringify(payload),
+    }).then(function (data) {
+      var orderId = data && data.order && data.order.order_id;
+      if (!orderId) {
+        throw new Error('주문 완료 정보를 확인하지 못했습니다.');
+      }
+      closeQuickOrderModal();
+      window.location.href = '/orders/complete/' + orderId + '/?entry=quick';
+    }).catch(function (error) {
+      showChatNotice(error.message || '빠른 주문을 완료하지 못했습니다.');
+      renderQuickOrderSummary();
+    });
   };
 
   window.goToCartPage = function () {
