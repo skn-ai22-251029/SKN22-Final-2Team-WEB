@@ -29,6 +29,27 @@
     display: flex;
   }
 
+  .checkout-confirm-modal {
+    display: none;
+  }
+
+  .checkout-confirm-modal.is-open {
+    display: flex;
+  }
+
+  .product-feedback-toast {
+    opacity: 0;
+    visibility: hidden;
+    transform: translate(-50%, 10px) scale(0.98);
+    transition: opacity 180ms ease, transform 180ms ease;
+  }
+
+  .product-feedback-toast.is-open {
+    opacity: 1;
+    visibility: visible;
+    transform: translate(-50%, 0) scale(1);
+  }
+
   .product-list-viewport {
     scrollbar-gutter: stable;
   }
@@ -452,15 +473,23 @@
              class="{% if item_count == 0 %}hidden{% else %}flex{% endif %} min-h-[720px] flex-col rounded-[24px] border border-[#dbe7f5] bg-white p-6 shadow-[0_10px_28px_rgba(45,55,72,0.05)] lg:sticky lg:top-8">
         <h2 class="text-[22px] font-bold text-[#2d3748]">주문 정보</h2>
 
+        <div id="checkoutStatusNotice" class="mt-4 hidden rounded-[18px] border border-[#fed7d7] bg-[#fff5f5] px-4 py-4">
+          <p id="checkoutStatusTitle" class="text-[13px] font-semibold text-[#c53030]">주문 전에 확인이 필요해요</p>
+          <p id="checkoutStatusBody" class="mt-1 text-[13px] leading-[1.6] text-[#9b2c2c]">배송지와 결제 수단을 먼저 확인해 주세요.</p>
+          <a href="/profile/" class="mt-3 inline-flex h-[34px] items-center justify-center rounded-full bg-white px-4 text-[12px] font-semibold text-[#c53030]">
+            프로필 보완하기
+          </a>
+        </div>
+
         <div class="mt-5 grid gap-3 md:grid-cols-2">
           <div class="rounded-[18px] border border-[#e2e8f0] bg-white px-4 py-4">
             <div class="flex items-start justify-between gap-4">
               <div class="min-w-0 flex-1">
                 <p class="text-[13px] font-semibold text-[#2563eb]">배송 정보</p>
-                <p class="mt-2 text-[13px] font-semibold text-[#4a5568]">{{ recipient_name }}</p>
-                <p class="mt-1 text-[13px] leading-[1.6] text-[#718096]">{{ delivery_base_address }}</p>
-                <p class="mt-1 text-[13px] leading-[1.6] text-[#718096]">{{ delivery_detail_address }}</p>
-                <p class="mt-1 text-[13px] text-[#718096]">{{ recipient_phone }}</p>
+                <p id="checkoutRecipientName" class="mt-2 text-[13px] font-semibold text-[#4a5568]">{{ recipient_name }}</p>
+                <p id="checkoutDeliveryBaseAddress" class="mt-1 text-[13px] leading-[1.6] text-[#718096]">{{ delivery_base_address }}</p>
+                <p id="checkoutDeliveryDetailAddress" class="mt-1 text-[13px] leading-[1.6] text-[#718096]">{{ delivery_detail_address }}</p>
+                <p id="checkoutRecipientPhone" class="mt-1 text-[13px] text-[#718096]">{{ recipient_phone }}</p>
               </div>
               <a href="/profile/" class="mt-0.5 shrink-0 text-[12px] font-semibold text-[#3182ce]">수정</a>
             </div>
@@ -469,7 +498,7 @@
             <div class="flex items-start justify-between gap-4">
               <div class="min-w-0 flex-1">
                 <p class="text-[13px] font-semibold text-[#2563eb]">결제 수단</p>
-                <p class="mt-2 text-[13px] leading-[1.6] text-[#718096]">{{ payment_method }}</p>
+                <p id="checkoutPaymentMethod" class="mt-2 text-[13px] leading-[1.6] text-[#718096]">{{ payment_method }}</p>
               </div>
               <a href="/profile/" class="mt-0.5 shrink-0 text-[12px] font-semibold text-[#3182ce]">수정</a>
             </div>
@@ -549,6 +578,53 @@
           주문하기
         </button>
       </aside>
+    </div>
+  </div>
+</div>
+
+<div id="productFeedbackToast"
+     class="product-feedback-toast pointer-events-none fixed left-1/2 top-[88px] z-[70] flex min-h-[44px] min-w-[232px] max-w-[360px] -translate-x-1/2 items-center justify-center rounded-full bg-[#1f2937] px-[18px] py-[11px] text-center text-[13px] font-semibold text-white shadow-[0_14px_28px_rgba(15,23,42,0.28)]">
+  오류가 발생했습니다.
+</div>
+
+<div id="checkoutConfirmModal" class="checkout-confirm-modal fixed inset-0 z-[60] items-center justify-center bg-black/10 px-4"
+     onclick="closeCheckoutConfirmModal(event)">
+  <div class="w-full max-w-[420px] rounded-[20px] border border-[#dbe7f5] bg-white px-8 pb-7 pt-8 shadow-[0_14px_36px_rgba(45,55,72,0.10)]"
+       onclick="event.stopPropagation()">
+    <div class="mx-auto flex h-[81px] w-[81px] items-center justify-center rounded-full border-[4px] border-[#3182ce]">
+      <span class="relative top-[-1px] text-[44px] font-bold leading-none text-[#3182ce]">?</span>
+    </div>
+    <p class="mt-6 text-center text-[19px] font-bold leading-none text-[#2d3748]">주문을 진행할까요?</p>
+    <p class="mt-4 text-center text-[14px] leading-[1.6] text-[#718096]">
+      배송 정보와 결제 금액을 확인한 뒤<br>주문이 접수됩니다.
+    </p>
+    <div class="mt-6 rounded-[14px] border border-[#dbe7f5] bg-[#f8fbff] px-4 py-3">
+      <div class="flex items-center justify-between gap-3 text-[13px]">
+        <span class="font-semibold text-[#90a4b8]">최종 결제 금액</span>
+        <span id="checkoutConfirmAmount" class="font-bold text-[#2563eb]">0원</span>
+      </div>
+      <div class="mt-2 flex items-center justify-between gap-3 text-[13px]">
+        <span class="font-semibold text-[#90a4b8]">수령인</span>
+        <span id="checkoutConfirmRecipient" class="text-right font-semibold text-[#2d3748]"></span>
+      </div>
+      <div class="mt-2 flex items-center justify-between gap-3 text-[13px]">
+        <span class="font-semibold text-[#90a4b8]">연락처</span>
+        <span id="checkoutConfirmPhone" class="text-right font-semibold text-[#2d3748]"></span>
+      </div>
+      <div class="mt-2 flex items-start justify-between gap-3 text-[13px]">
+        <span class="shrink-0 font-semibold text-[#90a4b8]">배송지</span>
+        <span id="checkoutConfirmAddress" class="text-right font-semibold leading-[1.6] text-[#2d3748]"></span>
+      </div>
+    </div>
+    <div class="mt-6 flex h-[42px] items-center justify-between gap-3">
+      <button type="button" onclick="closeCheckoutConfirmModal()"
+              class="flex h-full flex-1 items-center justify-center rounded-[8px] bg-[#edf2f7] text-[14px] font-bold text-[#4a5568]">
+        취소
+      </button>
+      <button type="button" id="confirmCheckoutSubmitBtn"
+              class="flex h-full flex-1 items-center justify-center rounded-[8px] bg-[#3182ce] text-[14px] font-bold text-white">
+        주문하기
+      </button>
     </div>
   </div>
 </div>
@@ -651,6 +727,21 @@
   var deliveryMessageCustomField = document.getElementById('deliveryMessageCustomField');
   var deliveryMessageInput = document.getElementById('deliveryMessageInput');
   var submitOrderBtn = document.getElementById('submitOrderBtn');
+  var checkoutConfirmModal = document.getElementById('checkoutConfirmModal');
+  var checkoutConfirmAmount = document.getElementById('checkoutConfirmAmount');
+  var checkoutConfirmRecipient = document.getElementById('checkoutConfirmRecipient');
+  var checkoutConfirmPhone = document.getElementById('checkoutConfirmPhone');
+  var checkoutConfirmAddress = document.getElementById('checkoutConfirmAddress');
+  var confirmCheckoutSubmitBtn = document.getElementById('confirmCheckoutSubmitBtn');
+  var productFeedbackToast = document.getElementById('productFeedbackToast');
+  var checkoutStatusNotice = document.getElementById('checkoutStatusNotice');
+  var checkoutStatusTitle = document.getElementById('checkoutStatusTitle');
+  var checkoutStatusBody = document.getElementById('checkoutStatusBody');
+  var checkoutRecipientName = document.getElementById('checkoutRecipientName');
+  var checkoutDeliveryBaseAddress = document.getElementById('checkoutDeliveryBaseAddress');
+  var checkoutDeliveryDetailAddress = document.getElementById('checkoutDeliveryDetailAddress');
+  var checkoutRecipientPhone = document.getElementById('checkoutRecipientPhone');
+  var checkoutPaymentMethod = document.getElementById('checkoutPaymentMethod');
   var discountTabCoupon = document.getElementById('discountTabCoupon');
   var discountTabMileage = document.getElementById('discountTabMileage');
   var discountPanelCoupon = document.getElementById('discountPanelCoupon');
@@ -666,6 +757,9 @@
   var selectedMileageValue = 0;
   var discountMode = 'coupon';
   var viewportSyncFrame = null;
+  var productToastTimer = null;
+  var PROFILE_ADDRESS_STORAGE_KEY = 'tailtalk_profile_address_preview';
+  var PROFILE_PAYMENT_STORAGE_KEY = 'tailtalk_profile_payment_preview';
 
   if (!cartTab || !wishlistTab || !cartPanel || !wishlistPanel) return;
 
@@ -705,6 +799,163 @@
         }
         return data;
       });
+    });
+  }
+
+  function showProductToast(message) {
+    if (!productFeedbackToast) return;
+    productFeedbackToast.textContent = message || '요청 처리에 실패했습니다.';
+    productFeedbackToast.classList.add('is-open');
+    if (productToastTimer) {
+      window.clearTimeout(productToastTimer);
+    }
+    productToastTimer = window.setTimeout(function () {
+      productFeedbackToast.classList.remove('is-open');
+    }, 2400);
+  }
+
+  function splitAddressParts(value) {
+    var parts = String(value || '').split('|');
+    return {
+      base: (parts[0] || '').trim(),
+      detail: (parts[1] || '').trim(),
+    };
+  }
+
+  function normalizeCheckoutPaymentMethod(value) {
+    var normalized = String(value || '').trim();
+    if (!normalized || normalized.indexOf('없습니다') !== -1) {
+      return '';
+    }
+    if (normalized.indexOf('카카오') !== -1) {
+      return '카카오페이 / 일시불';
+    }
+    if (normalized.indexOf('네이버') !== -1) {
+      return '네이버페이 / 일시불';
+    }
+    return '우리카드 1234 / 일시불';
+  }
+
+  function syncCheckoutSummaryPreview() {
+    if (!orderSummaryPanel) return;
+
+    var addressPreview = null;
+    var paymentPreview = null;
+    try {
+      addressPreview = JSON.parse(window.localStorage.getItem(PROFILE_ADDRESS_STORAGE_KEY) || 'null');
+    } catch (e) {}
+    try {
+      paymentPreview = JSON.parse(window.localStorage.getItem(PROFILE_PAYMENT_STORAGE_KEY) || 'null');
+    } catch (e) {}
+
+    var recipientName = (orderSummaryPanel.dataset.recipientName || '').trim();
+    var recipientPhone = (orderSummaryPanel.dataset.recipientPhone || '').trim();
+    var addressParts = splitAddressParts(orderSummaryPanel.dataset.deliveryAddress || '');
+    var paymentMethod = (orderSummaryPanel.dataset.paymentMethod || '').trim();
+
+    if (addressPreview && (addressPreview.addressMain || addressPreview.addressDetail)) {
+      addressParts.base = (addressPreview.addressMain || '').trim() || addressParts.base;
+      addressParts.detail = (addressPreview.addressDetail || '').trim();
+      orderSummaryPanel.dataset.deliveryAddress = [addressParts.base, addressParts.detail].filter(Boolean).join(' | ');
+    }
+
+    if (paymentPreview && paymentPreview.cardName && paymentPreview.maskedCard) {
+      paymentMethod = paymentPreview.cardName + ' / ' + paymentPreview.maskedCard;
+      orderSummaryPanel.dataset.paymentMethod = paymentMethod;
+    }
+
+    if (checkoutRecipientName) checkoutRecipientName.textContent = recipientName || '수령인 정보가 아직 없습니다';
+    if (checkoutRecipientPhone) checkoutRecipientPhone.textContent = recipientPhone || '연락처 정보가 아직 없습니다';
+    if (checkoutDeliveryBaseAddress) checkoutDeliveryBaseAddress.textContent = addressParts.base || '배송지 정보가 아직 없습니다';
+    if (checkoutDeliveryDetailAddress) {
+      checkoutDeliveryDetailAddress.textContent = addressParts.detail || (addressParts.base ? '' : '상세 주소 정보가 아직 없습니다');
+    }
+    if (checkoutPaymentMethod) checkoutPaymentMethod.textContent = paymentMethod || '결제 수단 정보가 아직 없습니다';
+  }
+
+  function validateCheckoutState() {
+    if (!orderSummaryPanel) {
+      return { valid: false, message: '주문 정보를 불러오지 못했습니다.' };
+    }
+
+    var recipientName = (orderSummaryPanel.dataset.recipientName || '').trim();
+    var recipientPhone = (orderSummaryPanel.dataset.recipientPhone || '').trim();
+    var addressParts = splitAddressParts(orderSummaryPanel.dataset.deliveryAddress || '');
+    var paymentMethod = (orderSummaryPanel.dataset.paymentMethod || '').trim();
+    var missing = [];
+
+    if (!recipientName) missing.push('수령인');
+    if (!recipientPhone || recipientPhone.indexOf('없습니다') !== -1) missing.push('연락처');
+    if (!addressParts.base || addressParts.base.indexOf('없습니다') !== -1) missing.push('배송지');
+    if (!paymentMethod || paymentMethod.indexOf('없습니다') !== -1) missing.push('결제 수단');
+
+    return {
+      valid: missing.length === 0,
+      message: missing.length ? (missing.join(', ') + ' 정보를 먼저 확인해 주세요.') : '',
+    };
+  }
+
+  function syncCheckoutNotice() {
+    if (!checkoutStatusNotice) return;
+    var validation = validateCheckoutState();
+    checkoutStatusNotice.classList.toggle('hidden', validation.valid);
+    if (!validation.valid) {
+      if (checkoutStatusTitle) checkoutStatusTitle.textContent = '필수 정보가 아직 부족해요';
+      if (checkoutStatusBody) checkoutStatusBody.textContent = validation.message;
+    }
+  }
+
+  function updateCheckoutConfirmSummary() {
+    if (checkoutConfirmAmount) {
+      var finalTotalNode = document.getElementById('finalTotalAmount');
+      checkoutConfirmAmount.textContent = finalTotalNode ? finalTotalNode.textContent : '0원';
+    }
+    if (checkoutConfirmRecipient) {
+      checkoutConfirmRecipient.textContent = orderSummaryPanel ? ((orderSummaryPanel.dataset.recipientName || '').trim() || '수령인 정보가 아직 없습니다') : '';
+    }
+    if (checkoutConfirmPhone) {
+      checkoutConfirmPhone.textContent = orderSummaryPanel ? ((orderSummaryPanel.dataset.recipientPhone || '').trim() || '연락처 정보가 아직 없습니다') : '';
+    }
+    if (checkoutConfirmAddress) {
+      var addressParts = splitAddressParts(orderSummaryPanel ? (orderSummaryPanel.dataset.deliveryAddress || '') : '');
+      checkoutConfirmAddress.textContent = [addressParts.base, addressParts.detail].filter(Boolean).join(', ') || '배송지 정보가 아직 없습니다';
+    }
+  }
+
+  window.closeCheckoutConfirmModal = function (event) {
+    if (!checkoutConfirmModal) return;
+    if (event && event.target !== checkoutConfirmModal) return;
+    checkoutConfirmModal.classList.remove('is-open');
+    setConfirmCheckoutLoading(false);
+  };
+
+  function submitOrderRequest() {
+    if (!orderSummaryPanel) return;
+    if (confirmCheckoutSubmitBtn && confirmCheckoutSubmitBtn.disabled) return;
+    setOrderSubmitLoading(true);
+    setConfirmCheckoutLoading(true);
+    requestJson('/api/orders/', {
+      method: 'POST',
+      body: JSON.stringify({
+        recipient_name: orderSummaryPanel.dataset.recipientName || '',
+        recipient_phone: orderSummaryPanel.dataset.recipientPhone || '',
+        delivery_address: orderSummaryPanel.dataset.deliveryAddress || '',
+        delivery_message: getDeliveryMessageValue(),
+        payment_method: normalizeCheckoutPaymentMethod(orderSummaryPanel.dataset.paymentMethod || ''),
+        coupon_id: selectedCouponId || 'none',
+        mileage_amount: selectedMileageValue || 0,
+      }),
+    }).then(function (data) {
+      var orderId = data && data.order && data.order.order_id;
+      if (!orderId) {
+        throw new Error('주문 완료 정보를 확인하지 못했습니다.');
+      }
+      window.closeCheckoutConfirmModal();
+      window.location.href = '/orders/complete/' + orderId + '/?entry=cart';
+    }).catch(function (error) {
+      showProductToast(error.message || '주문을 완료하지 못했습니다.');
+      setOrderSubmitLoading(false);
+      setConfirmCheckoutLoading(false);
     });
   }
 
@@ -842,9 +1093,13 @@
       cartCountBadge.classList.toggle('hidden', cartCount === 0);
     }
 
-    var compactEmptyCart = cartItemCount === 0 && cartPanel.classList.contains('is-active');
-    var compactEmptyWishlist = wishlistCount === 0 && wishlistPanel.classList.contains('is-active');
-    var compactEmptyPanel = compactEmptyCart || compactEmptyWishlist;
+    var cartActive = cartPanel.classList.contains('is-active');
+    var wishlistActive = wishlistPanel.classList.contains('is-active');
+    var compactEmptyCart = cartItemCount === 0 && cartActive;
+    var compactEmptyWishlist = wishlistCount === 0 && wishlistActive;
+    var showOrderSummaryPanel = cartActive && cartItemCount > 0;
+    var showPromoPanel = wishlistActive || compactEmptyCart;
+    var compactPromoPanel = compactEmptyCart || compactEmptyWishlist;
 
     if (wishlistCountBadge) {
       wishlistCountBadge.textContent = String(wishlistCount);
@@ -868,17 +1123,16 @@
     }
 
     if (orderSummaryPanel) {
-      orderSummaryPanel.classList.toggle('hidden', compactEmptyPanel);
+      orderSummaryPanel.classList.toggle('hidden', !showOrderSummaryPanel);
     }
 
     if (cartPromoPanel) {
-      var showPromoPanel = compactEmptyPanel;
       cartPromoPanel.classList.toggle('hidden', !showPromoPanel);
       cartPromoPanel.classList.toggle('flex', showPromoPanel);
-      cartPromoPanel.classList.toggle('product-promo-compact', compactEmptyPanel);
+      cartPromoPanel.classList.toggle('product-promo-compact', compactPromoPanel);
     }
     if (productsMainSection) {
-      productsMainSection.classList.toggle('product-empty-compact', compactEmptyPanel);
+      productsMainSection.classList.toggle('product-empty-compact', compactPromoPanel);
     }
     if (cartPanel) {
       cartPanel.classList.toggle('product-empty-compact', compactEmptyCart);
@@ -935,6 +1189,17 @@
     submitOrderBtn.textContent = isLoading ? '주문 처리 중...' : submitOrderBtn.dataset.defaultLabel;
     submitOrderBtn.classList.toggle('opacity-60', isLoading);
     submitOrderBtn.classList.toggle('cursor-not-allowed', isLoading);
+  }
+
+  function setConfirmCheckoutLoading(isLoading) {
+    if (!confirmCheckoutSubmitBtn) return;
+    if (!confirmCheckoutSubmitBtn.dataset.defaultLabel) {
+      confirmCheckoutSubmitBtn.dataset.defaultLabel = confirmCheckoutSubmitBtn.textContent.trim();
+    }
+    confirmCheckoutSubmitBtn.disabled = isLoading;
+    confirmCheckoutSubmitBtn.textContent = isLoading ? '주문 처리 중...' : confirmCheckoutSubmitBtn.dataset.defaultLabel;
+    confirmCheckoutSubmitBtn.classList.toggle('opacity-60', isLoading);
+    confirmCheckoutSubmitBtn.classList.toggle('cursor-not-allowed', isLoading);
   }
 
   function updateDiscountPreview() {
@@ -1208,6 +1473,8 @@
       });
 
       renderWishlistFromState(wishlistData.items || []);
+      syncCheckoutSummaryPreview();
+      syncCheckoutNotice();
       updateCartSummary();
       updateTabCounts();
       scheduleViewportSync();
@@ -1221,7 +1488,7 @@
         window.scrollTo(0, preservedWindowScrollY);
       });
     }).catch(function (error) {
-      window.alert(error.message || '장바구니 정보를 불러오지 못했습니다.');
+      showProductToast(error.message || '장바구니 정보를 불러오지 못했습니다.');
     });
   }
 
@@ -1233,7 +1500,7 @@
     if (cartItem) {
       var goodsId = cartItem.getAttribute('data-goods-id');
       if (!goodsId) {
-        window.alert('상품 식별 정보를 찾을 수 없습니다.');
+        showProductToast('상품 식별 정보를 찾을 수 없습니다.');
         return;
       }
       var nextActive = !button.classList.contains('is-active');
@@ -1243,7 +1510,7 @@
       }).then(function () {
         return refreshProductsData();
       }).catch(function (error) {
-        window.alert(error.message || '관심 상품 상태를 변경하지 못했습니다.');
+        showProductToast(error.message || '관심 상품 상태를 변경하지 못했습니다.');
       });
       return;
     }
@@ -1251,7 +1518,7 @@
     if (wishlistItem) {
       var goodsId = wishlistItem.getAttribute('data-goods-id');
       if (!goodsId) {
-        window.alert('상품 식별 정보를 찾을 수 없습니다.');
+        showProductToast('상품 식별 정보를 찾을 수 없습니다.');
         return;
       }
       requestJson('/api/orders/wishlist/', {
@@ -1260,7 +1527,7 @@
       }).then(function () {
         return refreshProductsData();
       }).catch(function (error) {
-        window.alert(error.message || '관심 상품 상태를 변경하지 못했습니다.');
+        showProductToast(error.message || '관심 상품 상태를 변경하지 못했습니다.');
       });
     }
   };
@@ -1292,7 +1559,7 @@
       updateCartSummary();
       updateCartQuantityBadge();
     }).catch(function (error) {
-      window.alert(error.message || '장바구니 수량을 변경하지 못했습니다.');
+      showProductToast(error.message || '장바구니 수량을 변경하지 못했습니다.');
     });
   };
 
@@ -1305,7 +1572,7 @@
     }).then(function () {
       return refreshProductsData();
     }).catch(function (error) {
-      window.alert(error.message || '장바구니 상품을 삭제하지 못했습니다.');
+      showProductToast(error.message || '장바구니 상품을 삭제하지 못했습니다.');
     });
   };
 
@@ -1321,7 +1588,7 @@
     }).then(function () {
       return refreshProductsData();
     }).catch(function (error) {
-      window.alert(error.message || '장바구니에 상품을 담지 못했습니다.');
+      showProductToast(error.message || '장바구니에 상품을 담지 못했습니다.');
     });
   };
 
@@ -1392,26 +1659,21 @@
   if (submitOrderBtn) {
     submitOrderBtn.addEventListener('click', function () {
       if (!orderSummaryPanel) return;
-
-      setOrderSubmitLoading(true);
-      requestJson('/api/orders/', {
-        method: 'POST',
-        body: JSON.stringify({
-          recipient_name: orderSummaryPanel.dataset.recipientName || '',
-          recipient_phone: orderSummaryPanel.dataset.recipientPhone || '',
-          delivery_address: orderSummaryPanel.dataset.deliveryAddress || '',
-          delivery_message: getDeliveryMessageValue(),
-          payment_method: orderSummaryPanel.dataset.paymentMethod || '',
-          coupon_id: selectedCouponId || 'none',
-          mileage_amount: selectedMileageValue || 0,
-        }),
-      }).then(function () {
-        window.location.href = '/orders/';
-      }).catch(function (error) {
-        window.alert(error.message || '주문을 완료하지 못했습니다.');
-        setOrderSubmitLoading(false);
-      });
+      var validation = validateCheckoutState();
+      syncCheckoutNotice();
+      if (!validation.valid) {
+        showProductToast(validation.message || '주문 전에 필수 정보를 먼저 확인해 주세요.');
+        return;
+      }
+      updateCheckoutConfirmSummary();
+      if (checkoutConfirmModal) {
+        checkoutConfirmModal.classList.add('is-open');
+      }
     });
+  }
+
+  if (confirmCheckoutSubmitBtn) {
+    confirmCheckoutSubmitBtn.addEventListener('click', submitOrderRequest);
   }
 
   var cartListViewport = document.getElementById('cartListViewport');
@@ -1444,6 +1706,8 @@
   updateDiscountSummaryTexts();
   updateDiscountPreview();
   syncDeliveryMessageField();
+  syncCheckoutSummaryPreview();
+  syncCheckoutNotice();
   refreshProductsData();
   window.addEventListener('resize', scheduleViewportSync);
 })();
