@@ -5,15 +5,18 @@ from django.urls import reverse
 from django.utils import timezone
 from rest_framework import status
 from rest_framework.test import APIClient
+from social_django.models import UserSocialAuth
 
 from orders.models import Order
 from products.models import Product
 from users.models import SocialAccount, User, UserProfile
+from users.onboarding import ONBOARDING_FORCE_PROFILE_SESSION_KEY
 from users.social_auth import (
     SOCIAL_AUTH_ACCESS_SESSION_KEY,
     SOCIAL_AUTH_REFRESH_SESSION_KEY,
     SocialLoginResult,
 )
+from users.social_pipeline import associate_active_user_by_email
 
 
 TEST_SOCIAL_PROVIDERS = {
@@ -75,6 +78,16 @@ class SocialLoginPageViewTests(TestCase):
         session = self.client.session
         self.assertIn(SOCIAL_AUTH_ACCESS_SESSION_KEY, session)
         self.assertIn(SOCIAL_AUTH_REFRESH_SESSION_KEY, session)
+        self.assertTrue(session[ONBOARDING_FORCE_PROFILE_SESSION_KEY])
+
+    def test_associate_active_user_by_email_ignores_inactive_user(self):
+        withdrawn_user = User.objects.create_user(email="social@example.com")
+        withdrawn_user.is_active = False
+        withdrawn_user.save(update_fields=["is_active"])
+
+        result = associate_active_user_by_email({"email": "social@example.com"})
+
+        self.assertIsNone(result)
 
 
 @override_settings(SOCIAL_AUTH_PROVIDERS=TEST_SOCIAL_PROVIDERS)
@@ -113,6 +126,8 @@ class AuthApiTests(TestCase):
         self.assertEqual(refresh_response.status_code, status.HTTP_401_UNAUTHORIZED)
 
     def test_withdraw_deactivates_user_and_scrubs_identity(self):
+        UserSocialAuth.objects.create(user=self.user, provider="kakao", uid="oauth-uid-1")
+
         login_response = self.client.post(
             "/api/auth/login/",
             {"email": "auth@example.com", "password": "Password123!"},
@@ -130,6 +145,7 @@ class AuthApiTests(TestCase):
         self.assertNotEqual(self.user.email, "auth@example.com")
         self.assertFalse(self.user.has_usable_password())
         self.assertFalse(UserProfile.objects.filter(user=self.user).exists())
+        self.assertFalse(UserSocialAuth.objects.filter(user=self.user).exists())
 
     def test_withdraw_preserves_orders(self):
         Order.objects.create(

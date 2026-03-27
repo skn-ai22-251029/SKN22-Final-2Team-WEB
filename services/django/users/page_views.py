@@ -11,7 +11,7 @@ from social_core.exceptions import AuthCanceled, AuthConnectionError, AuthExcept
 
 from .models import UserProfile
 from .nickname_utils import build_unique_nickname, get_nickname_validation_error
-from .onboarding import get_onboarding_redirect_url
+from .onboarding import ONBOARDING_FORCE_PROFILE_SESSION_KEY, get_onboarding_redirect_url
 from .quick_purchase import build_payment_info, split_legacy_address
 from .social_auth import (
     SOCIAL_AUTH_ACCESS_SESSION_KEY,
@@ -187,6 +187,7 @@ def profile_view(request):
             return _render_profile(request, profile)
         messages.success(request, "프로필 정보가 저장되었습니다.")
         if setup_mode:
+            request.session.pop(ONBOARDING_FORCE_PROFILE_SESSION_KEY, None)
             return redirect("pet_add")
         return redirect("chat")
 
@@ -259,6 +260,7 @@ def social_login_callback_view(request, provider):
     request.session.pop(SOCIAL_AUTH_REMEMBER_SESSION_KEY, None)
     messages.success(request, "소셜 로그인이 완료되었습니다.")
     if result.is_new_user:
+        request.session[ONBOARDING_FORCE_PROFILE_SESSION_KEY] = True
         return redirect(f"{reverse('profile')}?setup=1")
     onboarding_redirect_url = get_onboarding_redirect_url(request)
     if onboarding_redirect_url:

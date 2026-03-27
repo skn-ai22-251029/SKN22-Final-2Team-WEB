@@ -250,9 +250,6 @@
 {% block scripts %}
 <script src="//t1.daumcdn.net/mapjsapi/bundle/postcode/prod/postcode.v2.js"></script>
 <script>
-  var PROFILE_ADDRESS_STORAGE_KEY = 'tailtalk_profile_address_preview';
-  var PROFILE_PAYMENT_STORAGE_KEY = 'tailtalk_profile_payment_preview';
-
   window.closeWithdrawModal = function (e) {
     if (e && e.target !== document.getElementById('withdrawModal')) return;
     document.getElementById('withdrawModal').style.display = 'none';
@@ -287,16 +284,7 @@
       expiryInput.value = '';
 
       if (!isNewMode) {
-        try {
-          var saved = JSON.parse(window.localStorage.getItem(PROFILE_PAYMENT_STORAGE_KEY) || 'null');
-          if (saved) {
-            nameInput.value = saved.cardName || '';
-            numberInput.value = saved.maskedCard || '';
-            expiryInput.value = saved.expiry || '';
-          }
-        } catch (e) {}
-
-        if (!nameInput.value && existingPaymentMethod) {
+        if (existingPaymentMethod) {
           var parts = existingPaymentMethod.split(' / ');
           nameInput.value = parts[0] || '';
           numberInput.value = parts[1] || '';
@@ -370,13 +358,6 @@
     paymentCardProviderInput.value = cardName;
     paymentCardMaskedNumberInput.value = maskedCard;
     button.textContent = '수정';
-    try {
-      window.localStorage.setItem(PROFILE_PAYMENT_STORAGE_KEY, JSON.stringify({
-        cardName: cardName,
-        maskedCard: maskedCard,
-        expiry: expiry
-      }));
-    } catch (e) {}
     closePaymentModal();
   };
 
@@ -508,41 +489,6 @@
       });
     }
 
-    function loadAddressPreview() {
-      if (!zipcodeInput || !addressMainInput || !addressDetailInput) return;
-      try {
-        var saved = JSON.parse(window.localStorage.getItem(PROFILE_ADDRESS_STORAGE_KEY) || 'null');
-        if (!saved) return;
-        if (!zipcodeInput.value.trim()) zipcodeInput.value = saved.zipcode || '';
-        if (!addressMainInput.value.trim()) addressMainInput.value = saved.addressMain || '';
-        if (!addressDetailInput.value.trim()) addressDetailInput.value = saved.addressDetail || '';
-      } catch (e) {}
-    }
-
-    function saveAddressPreview() {
-      if (!zipcodeInput || !addressMainInput || !addressDetailInput) return;
-      try {
-        window.localStorage.setItem(PROFILE_ADDRESS_STORAGE_KEY, JSON.stringify({
-          zipcode: zipcodeInput.value.trim(),
-          addressMain: addressMainInput.value.trim(),
-          addressDetail: addressDetailInput.value.trim()
-        }));
-      } catch (e) {}
-    }
-
-    function loadPaymentPreview() {
-      if (!paymentSummary || !paymentMethodInput || !paymentButton) return;
-      if (paymentMethodInput.value.trim()) return;
-      try {
-        var saved = JSON.parse(window.localStorage.getItem(PROFILE_PAYMENT_STORAGE_KEY) || 'null');
-        if (!saved || !saved.cardName || !saved.maskedCard) return;
-        paymentMethodInput.value = saved.cardName + ' / ' + saved.maskedCard;
-        paymentSummary.textContent = paymentMethodInput.value;
-        paymentSummary.className = 'text-[13px] text-[#4a5568]';
-        paymentButton.textContent = '수정';
-      } catch (e) {}
-    }
-
     function sanitizeNickname() {
       var sanitized = input.value.replace(allowedNicknamePattern, '').slice(0, 12);
       if (input.value !== sanitized) {
@@ -610,8 +556,6 @@
     }
 
     sanitizeNickname();
-    loadAddressPreview();
-    loadPaymentPreview();
     updatePhoneVerificationUi();
 
     input.addEventListener('compositionstart', function () {
@@ -847,7 +791,6 @@
             }
 
             addressStatus.textContent = '';
-            saveAddressPreview();
             addressDetailInput.focus();
           }
         }).open();
@@ -865,12 +808,7 @@
         ) {
           addressStatus.textContent = '';
         }
-        saveAddressPreview();
       });
-    }
-
-    if (addressMainInput) {
-      addressMainInput.addEventListener('change', saveAddressPreview);
     }
 
     if (paymentCardNumberInput) {
