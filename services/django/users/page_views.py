@@ -11,6 +11,7 @@ from social_core.exceptions import AuthCanceled, AuthConnectionError, AuthExcept
 
 from .models import UserProfile
 from .nickname_utils import build_unique_nickname, get_nickname_validation_error
+from .onboarding import get_onboarding_redirect_url
 from .social_auth import (
     SOCIAL_AUTH_ACCESS_SESSION_KEY,
     SOCIAL_AUTH_REFRESH_SESSION_KEY,
@@ -64,18 +65,27 @@ def _render_profile(request, profile):
 
 def home(request):
     if request.user.is_authenticated:
+        onboarding_redirect_url = get_onboarding_redirect_url(request)
+        if onboarding_redirect_url:
+            return redirect(onboarding_redirect_url)
         return redirect("chat")
     return render(request, "chat/index.html")
 
 
 def login_view(request):
     if request.user.is_authenticated:
+        onboarding_redirect_url = get_onboarding_redirect_url(request)
+        if onboarding_redirect_url:
+            return redirect(onboarding_redirect_url)
         return redirect("chat")
     return render(request, "users/login.html")
 
 
 def signup_view(request):
     if request.user.is_authenticated:
+        onboarding_redirect_url = get_onboarding_redirect_url(request)
+        if onboarding_redirect_url:
+            return redirect(onboarding_redirect_url)
         return redirect("chat")
     return render(request, "users/signup.html")
 
@@ -232,4 +242,9 @@ def social_login_callback_view(request, provider):
     request.session[SOCIAL_AUTH_REFRESH_SESSION_KEY] = tokens["refresh"]
     request.session.pop(SOCIAL_AUTH_REMEMBER_SESSION_KEY, None)
     messages.success(request, "소셜 로그인이 완료되었습니다.")
+    if result.is_new_user:
+        return redirect(f"{reverse('profile')}?setup=1")
+    onboarding_redirect_url = get_onboarding_redirect_url(request)
+    if onboarding_redirect_url:
+        return redirect(onboarding_redirect_url)
     return redirect("chat")

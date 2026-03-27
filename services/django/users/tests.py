@@ -53,7 +53,7 @@ class SocialLoginPageViewTests(TestCase):
         self.assertEqual(response["Location"], "https://nid.naver.com/oauth2.0/authorize?state=test")
 
     @patch("users.page_views.complete_social_login")
-    def test_social_login_callback_redirects_to_profile_and_stores_jwt(self, complete_social_login_mock):
+    def test_social_login_callback_redirects_new_user_to_profile_setup_and_stores_jwt(self, complete_social_login_mock):
         user = User.objects.create_user(email="page@example.com")
         UserProfile.objects.create(user=user, nickname="PageUser")
         complete_social_login_mock.return_value = SocialLoginResult(
@@ -70,7 +70,7 @@ class SocialLoginPageViewTests(TestCase):
         response = self.client.get("/auth/kakao/callback/?code=test-code&state=test-state")
 
         self.assertEqual(response.status_code, status.HTTP_302_FOUND)
-        self.assertEqual(response["Location"], reverse("chat"))
+        self.assertEqual(response["Location"], f"{reverse('profile')}?setup=1")
 
         session = self.client.session
         self.assertIn(SOCIAL_AUTH_ACCESS_SESSION_KEY, session)

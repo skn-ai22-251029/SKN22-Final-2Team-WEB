@@ -1,11 +1,12 @@
 import json
 
 from django.db.models import Q
-from django.shortcuts import render
+from django.shortcuts import redirect, render
 from django.views.decorators.csrf import ensure_csrf_cookie
 
 from orders.models import Cart
 from products.models import Product
+from users.onboarding import get_onboarding_redirect_url
 
 
 def _format_price(value):
@@ -333,6 +334,10 @@ def _build_quick_order_profile_context(user):
 
 @ensure_csrf_cookie
 def chat_view(request):
+    onboarding_redirect_url = get_onboarding_redirect_url(request)
+    if onboarding_redirect_url:
+        return redirect(onboarding_redirect_url)
+
     sessions = []
     preview_member = request.GET.get("preview") == "member"
     is_authenticated = request.user.is_authenticated
