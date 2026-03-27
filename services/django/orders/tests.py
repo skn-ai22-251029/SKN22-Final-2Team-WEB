@@ -313,6 +313,23 @@ class OrderCreateApiTests(TestCase):
         self.assertEqual(response.data["code"], "invalid_phone_number")
         self.assertEqual(response.data["field"], "recipient_phone")
 
+    def test_post_order_uses_saved_profile_payment_method_when_request_omits_it(self):
+        self.add_cart_items()
+        self.user.profile.payment_method = "카카오페이 / 일시불"
+        self.user.profile.save(update_fields=["payment_method", "updated_at"])
+
+        response = self.client.post(
+            "/api/orders/",
+            {
+                "delivery_message": "문 앞에 두세요",
+            },
+            format="json",
+        )
+
+        self.assertEqual(response.status_code, status.HTTP_201_CREATED)
+        self.assertEqual(response.data["order"]["payment_method"], "카카오페이 / 일시불")
+        self.assertEqual(response.data["completion"]["payment_method"], "카카오페이 / 일시불")
+
 
 class OrderReadApiTests(TestCase):
     def setUp(self):

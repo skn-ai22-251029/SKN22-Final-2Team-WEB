@@ -512,9 +512,9 @@
                   <div class="flex min-w-0 flex-1 items-start gap-[8px]">
                     <div class="w-[14px] shrink-0 pt-[1px] text-[13px] leading-none text-[#2d3748]" aria-hidden="true">🚚</div>
                     <div class="min-w-0 flex-1 space-y-[5px] text-[12px] text-[#4a5568]">
-                      <p id="quickOrderRecipientSummary" class="leading-[1.5]">{{ request.user.profile.nickname|default:"이름 정보가 없습니다" }}</p>
-                      <p id="quickOrderAddressSummary" class="leading-[1.55]">{{ request.user.profile.address|default:"배송지 정보가 없습니다" }}</p>
-                      <p id="quickOrderPhoneSummary" class="leading-[1.5]">{{ request.user.profile.phone|default:"연락처 정보가 없습니다" }}</p>
+                      <p id="quickOrderRecipientSummary" class="leading-[1.5]">{{ quick_order_recipient }}</p>
+                      <p id="quickOrderAddressSummary" class="leading-[1.55]">{{ quick_order_address }}</p>
+                      <p id="quickOrderPhoneSummary" class="leading-[1.5]">{{ quick_order_phone }}</p>
                     </div>
                   </div>
                   <button type="button"
@@ -530,7 +530,7 @@
                   <div class="flex min-w-0 flex-1 items-start gap-[8px]">
                     <div class="w-[14px] shrink-0 pt-[1px] text-[13px] leading-none text-[#2d3748]" aria-hidden="true">💳</div>
                     <div class="min-w-0 flex-1 space-y-[5px] text-[12px] text-[#4a5568]">
-                      <p id="quickOrderCardSummary" class="leading-[1.5] text-[#718096]">등록된 결제수단이 없습니다 / 일시불</p>
+                      <p id="quickOrderCardSummary" class="leading-[1.5] {% if quick_order_payment_method == '등록된 결제수단이 없습니다' %}text-[#718096]{% else %}text-[#4a5568]{% endif %}">{{ quick_order_payment_method }}</p>
                     </div>
                   </div>
                   <button type="button"
@@ -2940,7 +2940,11 @@
     try {
       var savedAddress = JSON.parse(window.localStorage.getItem(PROFILE_ADDRESS_STORAGE_KEY) || 'null');
       if (savedAddress) {
-        if (quickOrderAddressSummary && savedAddress.addressMain) {
+        if (
+          quickOrderAddressSummary &&
+          quickOrderAddressSummary.textContent.indexOf('없습니다') !== -1 &&
+          savedAddress.addressMain
+        ) {
           var addressText = savedAddress.addressMain || '';
           if (savedAddress.addressDetail) {
             addressText += ' ' + savedAddress.addressDetail;
@@ -2952,7 +2956,13 @@
 
     try {
       var savedPayment = JSON.parse(window.localStorage.getItem(PROFILE_PAYMENT_STORAGE_KEY) || 'null');
-      if (savedPayment && quickOrderCardSummary && savedPayment.cardName && savedPayment.maskedCard) {
+      if (
+        savedPayment &&
+        quickOrderCardSummary &&
+        quickOrderCardSummary.textContent.indexOf('없습니다') !== -1 &&
+        savedPayment.cardName &&
+        savedPayment.maskedCard
+      ) {
         quickOrderCardSummary.textContent = savedPayment.cardName + ' / ' + savedPayment.maskedCard;
         quickOrderCardSummary.classList.remove('text-[#718096]');
       }
@@ -3105,20 +3115,6 @@
   function buildQuickOrderPayload() {
     var addressText = quickOrderAddressSummary ? quickOrderAddressSummary.textContent.trim() : '';
     var paymentMethod = quickOrderCardSummary ? quickOrderCardSummary.textContent.trim() : '';
-
-    try {
-      var savedAddress = JSON.parse(window.localStorage.getItem(PROFILE_ADDRESS_STORAGE_KEY) || 'null');
-      if (savedAddress && (savedAddress.addressMain || savedAddress.addressDetail)) {
-        addressText = [savedAddress.addressMain || '', savedAddress.addressDetail || ''].filter(Boolean).join(' | ');
-      }
-    } catch (e) {}
-
-    try {
-      var savedPayment = JSON.parse(window.localStorage.getItem(PROFILE_PAYMENT_STORAGE_KEY) || 'null');
-      if (savedPayment && savedPayment.cardName && savedPayment.maskedCard) {
-        paymentMethod = savedPayment.cardName + ' / ' + savedPayment.maskedCard;
-      }
-    } catch (e) {}
 
     return {
       recipient_name: quickOrderRecipientSummary ? quickOrderRecipientSummary.textContent.trim() : '',
