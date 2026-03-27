@@ -71,23 +71,25 @@ input:disabled {
 
 .auth-legacy-remember {
   position: absolute;
-  display: flex;
+  display: inline-flex;
   align-items: center;
   justify-content: flex-start;
-  gap: 7px;
+  gap: 8px;
   border: 0;
   background: transparent;
   padding: 0;
+  font: inherit;
+  line-height: 1;
   appearance: none;
 }
 
 .auth-legacy-checkbox {
-  position: relative;
-  display: block;
-  width: 18px;
-  height: 18px;
-  left: 0;
-  top: 4px;
+  position: static;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 16px;
+  height: 16px;
   z-index: 1;
 }
 
@@ -95,15 +97,14 @@ input:disabled {
   display: block;
   white-space: nowrap;
   font-size: 15px;
-  line-height: 18px;
+  line-height: 1;
   letter-spacing: -0.01em;
   color: #5f6b7a;
-  transform: translate(0, 4px);
   z-index: 2;
 }
 
 .auth-legacy-remember .auth-legacy-checkbox {
-  flex: 0 0 18px;
+  flex: 0 0 16px;
   white-space: nowrap;
 }
 
