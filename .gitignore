@@ -79,3 +79,9 @@ domain-data/
 
 # Local workspace data
 .local/
+
+# Test
+output_gold/
+test/
+GEMINI.md
+01_midterm_script.md
