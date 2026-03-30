@@ -6,6 +6,7 @@ from django.views.decorators.csrf import ensure_csrf_cookie
 
 from orders.models import Cart
 from pets.future_profile import get_future_pet_profile_for_request
+from products.catalog_menu import build_catalog_menu_context
 from products.models import Product
 from users.onboarding import get_onboarding_redirect_url
 
@@ -210,6 +211,10 @@ def _serialize_future_pet(profile):
             ", ".join(interests) if interests else "",
         ],
     }
+
+
+def _build_catalog_menu_context():
+    return build_catalog_menu_context()
 
 
 def _sort_member_pets(pets):
@@ -552,6 +557,7 @@ def chat_view(request):
             "cart_total": _format_price(cart_total),
             "promo_banners": promo_banners,
             "session_threads": session_threads,
+            "catalog_menu_sections": _build_catalog_menu_context(),
             **quick_order_profile,
         },
     )

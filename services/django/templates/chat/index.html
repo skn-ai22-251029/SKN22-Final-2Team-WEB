@@ -1173,10 +1173,43 @@
 
     <div class="absolute left-0 top-0 z-30 h-[72px] w-full pointer-events-none">
       <div class="absolute right-[32px] top-[16px] flex h-[40px] items-center gap-[17px] pointer-events-auto">
-        <div class="h-[36px] w-[72px] rounded-full border border-[#e2e8f0] bg-white">
-          <div class="flex h-full w-full items-center justify-between px-[10px] text-[16px]">
-            <span class="text-[#f6ad55]">☀️</span>
-            <span class="text-[#a0aec0]">🌙</span>
+        <div class="relative h-[40px] w-[40px]" id="catalogMenuWrapper">
+          <button type="button"
+                  class="flex h-[40px] w-[40px] items-center justify-center rounded-full border border-[#e2e8f0] bg-white shadow-[0_2px_8px_rgba(45,55,72,0.05)]"
+                  aria-label="상품 목록 열기"
+                  onclick="toggleCatalogMenu()">
+            <svg viewBox="0 0 24 24" class="h-[22px] w-[22px] text-[#4a5568]" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+              <rect x="4" y="4" width="6" height="6" rx="1.5"></rect>
+              <rect x="14" y="4" width="6" height="6" rx="1.5"></rect>
+              <rect x="4" y="14" width="6" height="6" rx="1.5"></rect>
+              <rect x="14" y="14" width="6" height="6" rx="1.5"></rect>
+            </svg>
+          </button>
+          <div id="catalogMenu"
+               class="fixed z-[90] origin-top-right overflow-y-auto rounded-[20px] border border-[#dbe7f5] bg-white p-[20px] transition-all duration-[180ms] ease-[cubic-bezier(0.22,1,0.36,1)] pointer-events-none translate-y-[-8px] scale-95 opacity-0">
+            <div class="mb-[14px] flex items-center justify-between">
+              <div>
+                <p class="text-[20px] font-bold text-[#2d3748]">상품 카테고리</p>
+              </div>
+              <a href="{% if is_preview_member %}#{% else %}/catalog/{% endif %}"
+                 class="inline-flex h-[32px] items-center rounded-full bg-[#edf2f7] px-[12px] text-[12px] font-bold text-[#4a5568]"
+                 {% if is_preview_member %}onclick="return false"{% endif %}>전체 보기</a>
+            </div>
+            <div id="catalogPetList" class="mb-[14px] flex items-center gap-[8px]"></div>
+            <div class="grid gap-[18px] md:grid-cols-[210px_minmax(0,1fr)] xl:grid-cols-[210px_220px_minmax(0,1fr)]">
+              <div id="catalogCategoryColumn" class="rounded-[18px] border border-[#edf2f7] bg-[#f8fbff] p-[10px]">
+                <div id="catalogCategoryList"></div>
+              </div>
+              <div class="grid gap-[18px] xl:contents">
+                <div id="catalogGroupPanel" class="rounded-[18px] border border-[#edf2f7] bg-[#f8fbff] p-[10px]">
+                  <div id="catalogGroupList"></div>
+                </div>
+                <div id="catalogSubcategoryPanel" class="rounded-[18px] border border-[#edf2f7] bg-[#f8fbff] p-[14px]">
+                  <p id="catalogSubcategoryTitle" class="text-[14px] font-bold text-[#2d3748]"></p>
+                  <div id="catalogSubcategoryList" class="mt-[10px] flex flex-wrap gap-[8px]"></div>
+                </div>
+              </div>
+            </div>
           </div>
         </div>
 
@@ -1233,6 +1266,7 @@
 
 {% block scripts %}
 {{ session_threads|json_script:"sessionThreadsData" }}
+{{ catalog_menu_sections|json_script:"catalogMenuData" }}
 <script>
 (function () {
   var DRAWER_WIDTH = 281;
@@ -1248,6 +1282,17 @@
   var pageGate = document.getElementById('pageGate');
   var deleteModal = document.getElementById('deleteModal');
   var quickOrderModal = document.getElementById('quickOrderModal');
+  var catalogMenu = document.getElementById('catalogMenu');
+  var catalogMenuWrapper = document.getElementById('catalogMenuWrapper');
+  var catalogPetList = document.getElementById('catalogPetList');
+  var catalogCategoryColumn = document.getElementById('catalogCategoryColumn');
+  var catalogCategoryList = document.getElementById('catalogCategoryList');
+  var catalogGroupPanel = document.getElementById('catalogGroupPanel');
+  var catalogGroupList = document.getElementById('catalogGroupList');
+  var catalogSubcategoryPanel = document.getElementById('catalogSubcategoryPanel');
+  var catalogSubcategoryTitle = document.getElementById('catalogSubcategoryTitle');
+  var catalogSubcategoryList = document.getElementById('catalogSubcategoryList');
+  var catalogMenuDataNode = document.getElementById('catalogMenuData');
   var profileMenu = document.getElementById('profileMenu');
   var profileWrapper = document.getElementById('profileMenuWrapper');
   var messageInput = document.getElementById('messageInput');
@@ -1295,7 +1340,12 @@
   var chatHistoryList = document.getElementById('chatHistoryList');
   var sessionThreadsNode = document.getElementById('sessionThreadsData');
   var sessionThreads = sessionThreadsNode ? JSON.parse(sessionThreadsNode.textContent) : {};
+  var catalogMenuSections = catalogMenuDataNode ? JSON.parse(catalogMenuDataNode.textContent) : [];
   var csrfToken = getCookie('csrftoken');
+
+  if (catalogMenu && catalogMenu.parentElement !== document.body) {
+    document.body.appendChild(catalogMenu);
+  }
 
   var isOpen = false;
   var pendingDeleteId = null;
@@ -1327,6 +1377,9 @@
   var activePetHealthConcerns = [];
   var activePetAllergies = [];
   var activePetFoodPreferences = [];
+  var activeCatalogPetIndex = 0;
+  var activeCatalogCategoryIndex = 0;
+  var activeCatalogGroupIndex = 0;
 
   function getCookie(name) {
     var cookieValue = null;
@@ -1347,6 +1400,202 @@
       .replace(/>/g, '&gt;')
       .replace(/"/g, '&quot;')
       .replace(/'/g, '&#39;');
+  }
+
+  function buildCatalogLink(href, label, extraClassName, disabled) {
+    var className = extraClassName || '';
+    if (disabled) {
+      return '<span class="' + className + ' cursor-default opacity-60">' + escapeHtml(label) + '</span>';
+    }
+    return '<a href="' + escapeHtml(href || '/catalog/') + '" class="' + className + '">' + escapeHtml(label) + '</a>';
+  }
+
+  function renderCatalogPetList() {
+    if (!catalogPetList) return;
+    var disabled = {{ is_preview_member|yesno:"true,false" }};
+    catalogPetList.innerHTML = catalogMenuSections.map(function (section, index) {
+      var isActive = index === activeCatalogPetIndex;
+      var buttonClass = isActive
+        ? 'inline-flex items-center rounded-full bg-[#3182ce] px-[14px] py-[8px] text-[13px] font-bold text-white'
+        : 'inline-flex items-center rounded-full border border-[#e2e8f0] bg-white px-[14px] py-[8px] text-[13px] font-semibold text-[#4a5568] transition-colors hover:border-[#bfdbfe] hover:text-[#2b6cb0]';
+      return ''
+        + '<button type="button" class="' + buttonClass + '" data-catalog-pet-index="' + index + '">'
+        + escapeHtml(section.label)
+        + '</button>';
+    }).join('');
+
+    Array.prototype.forEach.call(catalogPetList.querySelectorAll('[data-catalog-pet-index]'), function (button) {
+      button.addEventListener('mouseenter', function () {
+        setActiveCatalogPet(Number(button.getAttribute('data-catalog-pet-index') || '0'));
+      });
+      button.addEventListener('focus', function () {
+        setActiveCatalogPet(Number(button.getAttribute('data-catalog-pet-index') || '0'));
+      });
+      button.addEventListener('click', function () {
+        setActiveCatalogPet(Number(button.getAttribute('data-catalog-pet-index') || '0'));
+      });
+    });
+  }
+
+  function renderCatalogCategoryList() {
+    if (!catalogCategoryList) return;
+    var section = catalogMenuSections[activeCatalogPetIndex] || { categories: [] };
+    var disabled = {{ is_preview_member|yesno:"true,false" }};
+    if (!section.categories.length) {
+      catalogCategoryList.innerHTML = '';
+      activeCatalogCategoryIndex = -1;
+      activeCatalogGroupIndex = -1;
+      return;
+    }
+    catalogCategoryList.innerHTML = section.categories.map(function (category, index) {
+      var isActive = index === activeCatalogCategoryIndex;
+      var href = disabled ? '#' : (category.href || '/catalog/');
+      var linkClass = isActive
+        ? 'flex w-full items-center justify-between rounded-[14px] bg-[#edf6ff] px-[12px] py-[10px] text-left text-[13px] font-bold text-[#2b6cb0]'
+        : 'flex w-full items-center justify-between rounded-[14px] px-[12px] py-[10px] text-left text-[13px] font-semibold text-[#4a5568] transition-colors hover:bg-[#f7fafc] hover:text-[#2b6cb0]';
+      return ''
+        + '<div class="space-y-[6px]">'
+        + buildCatalogLink(href, category.label, linkClass, disabled)
+        + '</div>';
+    }).join('');
+
+    Array.prototype.forEach.call(catalogCategoryList.children, function (node, index) {
+      node.addEventListener('mouseenter', function () {
+        setActiveCatalogCategory(index);
+      });
+      node.addEventListener('focusin', function () {
+        setActiveCatalogCategory(index);
+      });
+    });
+  }
+
+  function renderCatalogGroupList() {
+    if (!catalogGroupList) return;
+    var section = catalogMenuSections[activeCatalogPetIndex] || { categories: [] };
+    var category = section.categories[activeCatalogCategoryIndex];
+    if (!category || !(category.groups || []).length) {
+      catalogGroupList.innerHTML = '';
+      activeCatalogGroupIndex = -1;
+      return;
+    }
+
+    catalogGroupList.innerHTML = category.groups.map(function (group, index) {
+      var isActive = index === activeCatalogGroupIndex;
+      var groupClass = isActive
+        ? 'flex w-full items-center rounded-[14px] bg-[#edf6ff] px-[12px] py-[10px] text-left text-[13px] font-bold text-[#2b6cb0]'
+        : 'flex w-full items-center rounded-[14px] px-[12px] py-[10px] text-left text-[13px] font-semibold text-[#4a5568] transition-colors hover:bg-[#f7fafc] hover:text-[#2b6cb0]';
+      return '<button type="button" class="' + groupClass + '" data-catalog-group-index="' + index + '">' + escapeHtml(group.label) + '</button>';
+    }).join('');
+
+    Array.prototype.forEach.call(catalogGroupList.querySelectorAll('[data-catalog-group-index]'), function (button) {
+      button.addEventListener('mouseenter', function () {
+        setActiveCatalogGroup(Number(button.getAttribute('data-catalog-group-index') || '0'));
+      });
+      button.addEventListener('focus', function () {
+        setActiveCatalogGroup(Number(button.getAttribute('data-catalog-group-index') || '0'));
+      });
+      button.addEventListener('click', function () {
+        setActiveCatalogGroup(Number(button.getAttribute('data-catalog-group-index') || '0'));
+      });
+    });
+  }
+
+  function renderCatalogSubcategories() {
+    if (!catalogSubcategoryPanel || !catalogSubcategoryTitle || !catalogSubcategoryList) return;
+    var section = catalogMenuSections[activeCatalogPetIndex] || { categories: [] };
+    var category = section.categories[activeCatalogCategoryIndex];
+    var group = category && (category.groups || [])[activeCatalogGroupIndex];
+    var disabled = {{ is_preview_member|yesno:"true,false" }};
+    if (!category || !group) {
+      catalogSubcategoryTitle.textContent = '그룹을 선택해 주세요';
+      catalogSubcategoryList.innerHTML = '';
+      return;
+    }
+
+    catalogSubcategoryTitle.textContent = category.label + ' · ' + group.label;
+    catalogSubcategoryList.innerHTML = (group.items || []).map(function (subcategory) {
+      return buildCatalogLink(
+        disabled ? '#' : (subcategory.href || category.href || '/catalog/'),
+        subcategory.label,
+        'inline-flex items-center rounded-full border border-[#dbe7f5] bg-white px-[10px] py-[6px] text-[12px] font-medium text-[#4a5568] transition-colors hover:border-[#90cdf4] hover:text-[#2b6cb0]',
+        disabled
+      );
+    }).join('');
+  }
+
+  function setActiveCatalogPet(index) {
+    if (!catalogMenuSections.length) return;
+    activeCatalogPetIndex = Math.max(0, Math.min(index, catalogMenuSections.length - 1));
+    activeCatalogCategoryIndex = 0;
+    activeCatalogGroupIndex = 0;
+    renderCatalogPetList();
+    renderCatalogCategoryList();
+    renderCatalogGroupList();
+    renderCatalogSubcategories();
+  }
+
+  function setActiveCatalogCategory(index) {
+    var section = catalogMenuSections[activeCatalogPetIndex] || { categories: [] };
+    if (!section.categories.length) {
+      activeCatalogCategoryIndex = 0;
+      activeCatalogGroupIndex = 0;
+      renderCatalogCategoryList();
+      renderCatalogGroupList();
+      renderCatalogSubcategories();
+      return;
+    }
+    activeCatalogCategoryIndex = Math.max(0, Math.min(index, section.categories.length - 1));
+    activeCatalogGroupIndex = 0;
+    renderCatalogCategoryList();
+    renderCatalogGroupList();
+    renderCatalogSubcategories();
+  }
+
+  function setActiveCatalogGroup(index) {
+    var section = catalogMenuSections[activeCatalogPetIndex] || { categories: [] };
+    var category = section.categories[activeCatalogCategoryIndex] || { groups: [] };
+    if (!category.groups.length) {
+      activeCatalogGroupIndex = 0;
+      renderCatalogGroupList();
+      renderCatalogSubcategories();
+      return;
+    }
+    activeCatalogGroupIndex = Math.max(0, Math.min(index, category.groups.length - 1));
+    renderCatalogGroupList();
+    renderCatalogSubcategories();
+  }
+
+  function initializeCatalogMenu() {
+    if (!catalogMenuSections.length) return;
+    activeCatalogPetIndex = 0;
+    activeCatalogCategoryIndex = 0;
+    activeCatalogGroupIndex = 0;
+    renderCatalogPetList();
+    renderCatalogCategoryList();
+    renderCatalogGroupList();
+    renderCatalogSubcategories();
+  }
+
+  function positionCatalogMenu() {
+    if (!catalogMenu || !catalogMenuWrapper) return;
+    var rect = catalogMenuWrapper.getBoundingClientRect();
+    var menuWidth = Math.min(1040, Math.max(420, window.innerWidth - 48));
+    var left = Math.max(24, rect.right - menuWidth);
+    var top = rect.bottom + 12;
+    catalogMenu.style.width = menuWidth + 'px';
+    catalogMenu.style.left = left + 'px';
+    catalogMenu.style.top = top + 'px';
+    catalogMenu.style.maxHeight = Math.min(window.innerHeight * 0.72, 760) + 'px';
+  }
+
+  function closeCatalogMenu(resetState) {
+    if (!catalogMenu) return;
+    catalogMenu.style.opacity = '0';
+    catalogMenu.style.transform = 'translateY(-8px) scale(0.95)';
+    catalogMenu.style.pointerEvents = 'none';
+    if (resetState) {
+      initializeCatalogMenu();
+    }
   }
 
   function splitBrandAndName(brand, name) {
@@ -1609,15 +1858,54 @@
     closeSidebar();
   });
 
+  window.toggleCatalogMenu = function () {
+    if (!catalogMenu) return;
+    var open = catalogMenu.style.opacity === '1';
+    if (open) {
+      closeCatalogMenu(true);
+    } else {
+      initializeCatalogMenu();
+      positionCatalogMenu();
+      catalogMenu.style.opacity = '1';
+      catalogMenu.style.transform = 'translateY(0) scale(1)';
+      catalogMenu.style.pointerEvents = 'auto';
+    }
+    if (!open && profileMenu) {
+      profileMenu.style.opacity = '0';
+      profileMenu.style.transform = 'translateY(-8px) scale(0.95)';
+      profileMenu.style.pointerEvents = 'none';
+    }
+  };
+
   window.toggleProfileMenu = function () {
     if (!profileMenu) return;
     var open = profileMenu.style.opacity === '1';
     profileMenu.style.opacity = open ? '0' : '1';
     profileMenu.style.transform = open ? 'translateY(-8px) scale(0.95)' : 'translateY(0) scale(1)';
     profileMenu.style.pointerEvents = open ? 'none' : 'auto';
+    if (!open && catalogMenu) {
+      catalogMenu.style.opacity = '0';
+      catalogMenu.style.transform = 'translateY(-8px) scale(0.95)';
+      catalogMenu.style.pointerEvents = 'none';
+    }
   };
 
+  window.addEventListener('resize', function () {
+    if (catalogMenu && catalogMenu.style.opacity === '1') {
+      positionCatalogMenu();
+    }
+  });
+
   document.addEventListener('mousedown', function (e) {
+    if (
+      catalogMenu &&
+      catalogMenuWrapper &&
+      !catalogMenuWrapper.contains(e.target) &&
+      !catalogMenu.contains(e.target)
+    ) {
+      closeCatalogMenu(true);
+    }
+
     if (profileWrapper && !profileWrapper.contains(e.target) && profileMenu) {
       profileMenu.style.opacity = '0';
       profileMenu.style.transform = 'translateY(-8px) scale(0.95)';
@@ -1628,6 +1916,8 @@
       closePetDropdown();
     }
   });
+
+  initializeCatalogMenu();
 
   function openPetDropdown() {
     if (!petDropdownMenu || !petDropdownButton || !petDropdownChevron) return;

@@ -1,0 +1,454 @@
+{% extends "base.html" %}
+{% block title %}상품 목록 — TailTalk{% endblock %}
+
+{% block head %}
+<style>
+  html,
+  body,
+  body.bg-white {
+    background: #f7fafc !important;
+  }
+
+  .catalog-chip {
+    transition: background-color 160ms ease, border-color 160ms ease, color 160ms ease;
+  }
+
+  .catalog-chip.is-active {
+    background: #2d3748;
+    border-color: #2d3748;
+    color: #fff;
+  }
+
+  .catalog-feedback-toast {
+    opacity: 0;
+    visibility: hidden;
+    transform: translate(-50%, 10px) scale(0.98);
+    transition: opacity 180ms ease, transform 180ms ease;
+  }
+
+  .catalog-feedback-toast.is-open {
+    opacity: 1;
+    visibility: visible;
+    transform: translate(-50%, 0) scale(1);
+  }
+
+  .catalog-card {
+    transition: transform 180ms ease, box-shadow 180ms ease, border-color 180ms ease;
+  }
+
+  .catalog-card:hover {
+    transform: translateY(-2px);
+    box-shadow: 0 14px 28px rgba(45, 55, 72, 0.08);
+    border-color: #cbd5e0;
+  }
+
+  .catalog-thumb {
+    aspect-ratio: 1 / 1;
+  }
+
+  .wishlist-heart svg:last-child {
+    display: none;
+  }
+
+  .wishlist-heart {
+    color: #4a5568;
+  }
+
+  .wishlist-heart.is-active {
+    color: #e53e3e;
+  }
+
+  .wishlist-heart.is-active svg:first-child {
+    display: none;
+  }
+
+  .wishlist-heart.is-active svg:last-child {
+    display: block;
+  }
+
+  .catalog-sort-tooltip-wrap:hover .catalog-sort-tooltip,
+  .catalog-sort-tooltip-wrap:focus-within .catalog-sort-tooltip {
+    opacity: 1;
+    transform: translateY(0);
+    pointer-events: auto;
+  }
+
+  .catalog-sort-select {
+    appearance: none;
+    -webkit-appearance: none;
+    -moz-appearance: none;
+    background-image: linear-gradient(45deg, transparent 50%, #718096 50%), linear-gradient(135deg, #718096 50%, transparent 50%);
+    background-position: calc(100% - 18px) calc(50% - 1px), calc(100% - 13px) calc(50% - 1px);
+    background-size: 5px 5px, 5px 5px;
+    background-repeat: no-repeat;
+    padding-right: 38px;
+  }
+
+  .catalog-more-summary {
+    list-style: none;
+  }
+
+  .catalog-more-summary::-webkit-details-marker {
+    display: none;
+  }
+
+  .catalog-more-summary-label::after {
+    content: "＋";
+    margin-left: 8px;
+    font-size: 11px;
+    color: #718096;
+  }
+
+  details[open] .catalog-more-summary-label::after {
+    content: "－";
+  }
+  @media (max-width: 767px) {
+    .catalog-header-stack {
+      flex-direction: column;
+      align-items: flex-start;
+    }
+  }
+</style>
+{% endblock %}
+
+{% block content %}
+<div class="min-h-screen bg-[#f7fafc]">
+  <div class="mx-auto max-w-[1320px] px-4 py-8 md:px-6">
+    <div class="catalog-header-stack flex items-center justify-between gap-4">
+      <div>
+        <a href="/chat/" class="text-[26px] font-bold leading-none text-[#2d3748]" aria-label="메인으로 이동">
+          <span class="text-[#3182ce]">Tail</span><span>Talk</span>
+        </a>
+        <p class="mt-3 text-[28px] font-bold text-[#2d3748]">상품 목록</p>
+        <p class="mt-2 text-[14px] leading-[1.7] text-[#718096]">반려동물 유형과 카테고리 기준으로 전체 상품을 탐색해보세요</p>
+      </div>
+      <div class="flex flex-wrap items-center gap-2">
+        <a href="/chat/" class="inline-flex h-[40px] items-center justify-center rounded-full border border-[#dbe7f5] bg-white px-4 text-[13px] font-semibold text-[#4a5568]">채팅으로 돌아가기</a>
+        <a href="/products/" class="inline-flex h-[40px] items-center justify-center rounded-full bg-[#2d3748] px-4 text-[13px] font-semibold text-white">장바구니 / 관심상품</a>
+      </div>
+    </div>
+
+    <div class="mt-8 grid gap-6 lg:grid-cols-[280px_minmax(0,1fr)]">
+      <aside class="space-y-4">
+        <section class="rounded-[24px] border border-[#dbe7f5] bg-white p-5 shadow-[0_8px_24px_rgba(45,55,72,0.04)]">
+          <p class="text-[13px] font-bold text-[#90a4b8]">반려동물</p>
+          <div class="mt-3 flex flex-wrap gap-2">
+            <a href="/catalog/" class="catalog-chip inline-flex h-[34px] items-center justify-center rounded-full border border-[#dbe7f5] px-4 text-[12px] font-semibold {% if not catalog_current_pet %}is-active{% else %}bg-[#f8fbff] text-[#4a5568]{% endif %}">전체</a>
+            {% for option in catalog_menu_sections %}
+            <a href="{{ option.href }}" class="catalog-chip inline-flex h-[34px] items-center justify-center rounded-full border border-[#dbe7f5] px-4 text-[12px] font-semibold {% if option.is_active %}is-active{% else %}bg-[#f8fbff] text-[#4a5568]{% endif %}">{{ option.label }}</a>
+            {% endfor %}
+          </div>
+        </section>
+
+        {% if catalog_current_pet %}
+        <section class="rounded-[24px] border border-[#dbe7f5] bg-white p-5 shadow-[0_8px_24px_rgba(45,55,72,0.04)]">
+          <div class="flex h-[24px] items-center justify-between gap-3">
+            <p class="flex h-[24px] items-center text-[13px] font-bold leading-none text-[#90a4b8]">카테고리</p>
+            {% if catalog_current_category %}
+            <a href="/catalog/{% if catalog_clear_category_query %}?{{ catalog_clear_category_query }}{% endif %}" class="inline-flex h-[24px] items-center text-[12px] font-semibold leading-none text-[#7aa6e9]">초기화</a>
+            {% endif %}
+          </div>
+          <div class="mt-3 flex flex-wrap gap-2">
+            {% for option in catalog_category_options %}
+            <a href="{{ option.href }}" class="catalog-chip inline-flex h-[34px] items-center justify-center rounded-full border border-[#dbe7f5] px-4 text-[12px] font-semibold {% if option.is_active %}is-active{% else %}bg-[#f8fbff] text-[#4a5568]{% endif %}">{{ option.label }}</a>
+            {% endfor %}
+          </div>
+        </section>
+        {% endif %}
+
+        {% if catalog_group_options %}
+        <section class="rounded-[24px] border border-[#dbe7f5] bg-white p-5 shadow-[0_8px_24px_rgba(45,55,72,0.04)]">
+          {% if catalog_current_category != '사료' %}
+          <div class="flex h-[24px] items-center justify-between gap-3">
+            <p class="flex h-[24px] items-center text-[13px] font-bold leading-none text-[#90a4b8]">세부 항목</p>
+            {% if catalog_current_subcategory or catalog_current_brand %}
+            <a href="/catalog/{% if catalog_clear_detail_query %}?{{ catalog_clear_detail_query }}{% endif %}" class="inline-flex h-[24px] items-center text-[12px] font-semibold leading-none text-[#7aa6e9]">초기화</a>
+            {% endif %}
+          </div>
+          {% elif catalog_current_subcategory or catalog_current_brand %}
+          <div class="flex h-[24px] items-center justify-end">
+            <a href="/catalog/{% if catalog_clear_detail_query %}?{{ catalog_clear_detail_query }}{% endif %}" class="inline-flex h-[24px] items-center text-[12px] font-semibold leading-none text-[#7aa6e9]">초기화</a>
+          </div>
+          {% endif %}
+          {% for group in catalog_group_options %}
+          <div class="{% if not forloop.first %}mt-5 border-t border-[#edf2f7] pt-5{% else %}{% if catalog_current_category == '사료' and not catalog_current_subcategory and not catalog_current_brand %}mt-0{% elif catalog_current_category == '사료' %}mt-3{% else %}mt-3{% endif %}{% endif %}">
+            {% if group.label != '전체' %}
+            <p class="text-[13px] font-bold text-[#90a4b8]">{{ group.label }}</p>
+            {% endif %}
+            <div class="{% if group.label != '전체' %}mt-3{% endif %} flex flex-wrap gap-2">
+            {% for option in group.items %}
+            <a href="{{ option.href }}" class="catalog-chip inline-flex min-h-[34px] items-center justify-center rounded-full border border-[#dbe7f5] px-4 py-2 text-[12px] font-semibold {% if option.is_active %}is-active{% else %}bg-[#f8fbff] text-[#4a5568]{% endif %}">{{ option.label }}</a>
+            {% endfor %}
+            </div>
+          </div>
+          {% endfor %}
+        </section>
+        {% endif %}
+
+        {% if catalog_brand_options %}
+        <section class="rounded-[24px] border border-[#dbe7f5] bg-white p-5 shadow-[0_8px_24px_rgba(45,55,72,0.04)]">
+          <div class="flex h-[24px] items-center justify-between gap-3">
+            <p class="flex h-[24px] items-center text-[13px] font-bold leading-none text-[#90a4b8]">브랜드 (가나다순)</p>
+            {% if catalog_current_brand %}
+            <a href="/catalog/{% if catalog_clear_brand_query %}?{{ catalog_clear_brand_query }}{% endif %}" class="inline-flex h-[24px] items-center text-[12px] font-semibold leading-none text-[#7aa6e9]">초기화</a>
+            {% endif %}
+          </div>
+          <div class="mt-3 flex flex-wrap gap-2">
+            {% for option in catalog_brand_options %}
+            <a href="{{ option.href }}" class="catalog-chip inline-flex min-h-[34px] items-center justify-center rounded-full border border-[#dbe7f5] px-4 py-2 text-[12px] font-semibold {% if option.is_active %}is-active{% else %}bg-[#f8fbff] text-[#4a5568]{% endif %}">{{ option.label }}</a>
+            {% endfor %}
+          </div>
+          {% if catalog_brand_hidden_options %}
+          <details class="mt-3">
+            <summary class="catalog-more-summary inline-flex h-[32px] cursor-pointer items-center rounded-full bg-transparent px-1 text-[12px] font-semibold text-[#718096] underline-offset-2 hover:text-[#4a5568] hover:underline">
+              <span class="catalog-more-summary-label">더보기</span>
+            </summary>
+            <div class="mt-3 flex flex-wrap gap-2">
+              {% for option in catalog_brand_hidden_options %}
+              <a href="{{ option.href }}" class="catalog-chip inline-flex min-h-[34px] items-center justify-center rounded-full border border-[#dbe7f5] px-4 py-2 text-[12px] font-semibold {% if option.is_active %}is-active{% else %}bg-[#f8fbff] text-[#4a5568]{% endif %}">{{ option.label }}</a>
+              {% endfor %}
+            </div>
+          </details>
+          {% endif %}
+        </section>
+        {% endif %}
+      </aside>
+
+      <section class="min-w-0">
+        <div class="rounded-[24px] border border-[#dbe7f5] bg-white p-5 shadow-[0_8px_24px_rgba(45,55,72,0.04)]">
+          <div class="flex flex-wrap items-start justify-between gap-4">
+            <div>
+              <p class="text-[14px] font-semibold text-[#90a4b8]">검색 결과</p>
+              <p class="mt-2 text-[26px] font-bold text-[#2d3748]">{{ catalog_count }}개 상품</p>
+            </div>
+            <div class="flex flex-wrap items-center justify-end gap-2">
+              {% if catalog_current_pet %}
+              <span class="inline-flex h-[32px] items-center justify-center rounded-full bg-[#edf2f7] px-3 text-[12px] font-semibold text-[#4a5568]">{{ catalog_current_pet }}</span>
+              {% endif %}
+              {% if catalog_current_category %}
+              {% if catalog_current_pet %}
+              <span class="text-[13px] font-semibold text-[#a0aec0]">&gt;</span>
+              {% endif %}
+              <span class="inline-flex h-[32px] items-center justify-center rounded-full bg-[#edf2f7] px-3 text-[12px] font-semibold text-[#4a5568]">{{ catalog_current_category }}</span>
+              {% endif %}
+              {% if catalog_current_subcategory %}
+              {% if catalog_current_category %}
+              <span class="text-[13px] font-semibold text-[#a0aec0]">&gt;</span>
+              {% endif %}
+              <span class="inline-flex min-h-[32px] items-center justify-center rounded-full bg-[#edf2f7] px-3 py-1 text-[12px] font-semibold text-[#4a5568]">{{ catalog_current_subcategory }}</span>
+              {% endif %}
+              {% if catalog_current_brand %}
+              {% if catalog_current_subcategory or catalog_current_category %}
+              <span class="text-[13px] font-semibold text-[#a0aec0]">&gt;</span>
+              {% endif %}
+              <span class="inline-flex min-h-[32px] items-center justify-center rounded-full bg-[#edf2f7] px-3 py-1 text-[12px] font-semibold text-[#4a5568]">{{ catalog_current_brand }}</span>
+              {% endif %}
+            </div>
+          </div>
+        </div>
+
+        {% if catalog_items %}
+        <div class="mt-6 flex items-center justify-end">
+          <div class="relative">
+            <div class="flex items-center gap-2">
+              <select id="catalogSort"
+                      class="catalog-sort-select h-[36px] rounded-full border border-[#dbe7f5] bg-white pl-4 text-[12px] font-semibold text-[#4a5568] outline-none transition-colors focus:border-[#90cdf4]"
+                      onchange="if (this.value) { window.location.href = this.value; }">
+                {% for option in catalog_sort_options %}
+                <option value="/catalog/{% if option.query %}?{{ option.query }}{% endif %}" {% if option.is_active %}selected{% endif %}>{{ option.label }}</option>
+                {% endfor %}
+              </select>
+              <div class="catalog-sort-tooltip-wrap relative">
+                <button type="button"
+                        class="catalog-sort-trigger inline-flex h-[20px] w-[20px] items-center justify-center rounded-full border border-[#dbe7f5] bg-white text-[11px] font-bold text-[#718096]"
+                        aria-label="TailTalk 추천순 설명">
+                  i
+                </button>
+                <div class="catalog-sort-tooltip pointer-events-none absolute right-0 top-[28px] z-10 w-[240px] rounded-[16px] border border-[#dbe7f5] bg-white p-3 text-[12px] leading-[1.6] text-[#4a5568] opacity-0 shadow-[0_12px_24px_rgba(45,55,72,0.08)] transition-all duration-150 ease-out">
+                  TailTalk 추천순은 상품 점수와<br>리뷰 수를 함께 반영해 정렬합니다
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
+        <div class="mt-6 grid gap-5 sm:grid-cols-2 xl:grid-cols-3">
+          {% for item in catalog_items %}
+          <article class="catalog-card overflow-hidden rounded-[24px] border border-[#e2e8f0] bg-white shadow-[0_8px_24px_rgba(45,55,72,0.04)]">
+            <a href="{{ item.product_url }}" target="_blank" rel="noreferrer" class="catalog-thumb block overflow-hidden bg-[#f8fbff]">
+              <img src="{{ item.thumbnail_url }}" alt="{{ item.name }}" class="h-full w-full object-cover">
+            </a>
+            <div class="p-5">
+              <div class="flex items-start justify-between gap-3">
+                <p class="min-w-0 truncate text-[12px] font-semibold text-[#90a4b8]">{{ item.brand_name }}</p>
+                <button type="button"
+                        class="wishlist-heart {% if item.is_wishlisted %}is-active {% endif %}inline-flex h-[28px] w-[28px] shrink-0 items-center justify-center rounded-full border border-[#e2e8f0] bg-white leading-none transition-colors hover:text-[#e53e3e]"
+                        aria-label="관심 상품 상태 변경"
+                        data-product-id="{{ item.product_id }}"
+                        onclick="toggleCatalogWishlist(this)">
+                  <svg width="15" height="15" viewBox="0 0 24 24" fill="none" aria-hidden="true">
+                    <path d="M12 20.4 4.9 13.8a4.8 4.8 0 0 1 6.8-6.8L12 7.3l.3-.3a4.8 4.8 0 0 1 6.8 6.8L12 20.4Z" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"/>
+                  </svg>
+                  <svg width="15" height="15" viewBox="0 0 24 24" fill="currentColor" aria-hidden="true">
+                    <path d="M12 20.4 4.9 13.8a4.8 4.8 0 0 1 6.8-6.8L12 7.3l.3-.3a4.8 4.8 0 0 1 6.8 6.8L12 20.4Z"/>
+                  </svg>
+                </button>
+              </div>
+              <a href="{{ item.product_url }}" target="_blank" rel="noreferrer" class="mt-2 block min-h-[48px] text-[17px] font-bold leading-[1.45] text-[#2d3748] hover:text-[#3182ce]">
+                {{ item.name }}
+              </a>
+              <p class="mt-2 text-[13px] leading-[1.6] text-[#718096]">{{ item.summary }}</p>
+              <div class="mt-4 flex items-end justify-between gap-3">
+                <div>
+                  <p class="text-[20px] font-bold text-[#2d3748]">{{ item.price_label }}</p>
+                  <p class="mt-1 flex items-center gap-1 text-[12px] text-[#a0aec0]">
+                    {% if item.rating %}
+                    <span class="text-[#f6ad55]">★</span>
+                    <span>{{ item.rating }}</span>
+                    <span>·</span>
+                    <span>리뷰 {{ item.review_count }}</span>
+                    {% else %}
+                    <span>리뷰 {{ item.review_count }}</span>
+                    {% endif %}
+                  </p>
+                </div>
+                  <button type="button"
+                          class="inline-flex h-[38px] w-[38px] shrink-0 items-center justify-center rounded-full bg-[#2d3748] text-[24px] font-semibold leading-none text-white"
+                          data-product-id="{{ item.product_id }}"
+                          data-in-cart="{% if item.is_in_cart %}1{% else %}0{% endif %}"
+                          aria-label="장바구니에 상품 추가"
+                          onclick="addCatalogToCart(this)">
+                    <span class="relative top-[-2px]">+</span>
+                  </button>
+              </div>
+            </div>
+          </article>
+          {% endfor %}
+        </div>
+
+        {% if catalog_page_obj.paginator.num_pages > 1 %}
+        <div class="mt-8 flex items-center justify-center gap-2">
+          {% if catalog_page_obj.has_previous %}
+          <a href="/catalog/{% if catalog_prev_query %}?{{ catalog_prev_query }}{% endif %}" class="inline-flex h-[36px] min-w-[36px] items-center justify-center rounded-full border border-[#dbe7f5] bg-white px-3 text-[13px] font-semibold text-[#4a5568]">이전</a>
+          {% endif %}
+          {% for page_link in catalog_pagination_links %}
+          <a href="/catalog/?{{ page_link.query }}" class="inline-flex h-[36px] min-w-[36px] items-center justify-center rounded-full border px-3 text-[13px] font-semibold {% if page_link.is_active %}border-[#2d3748] bg-[#2d3748] text-white{% else %}border-[#dbe7f5] bg-white text-[#4a5568]{% endif %}">{{ page_link.number }}</a>
+          {% endfor %}
+          {% if catalog_page_obj.has_next %}
+          <a href="/catalog/{% if catalog_next_query %}?{{ catalog_next_query }}{% endif %}" class="inline-flex h-[36px] min-w-[36px] items-center justify-center rounded-full border border-[#dbe7f5] bg-white px-3 text-[13px] font-semibold text-[#4a5568]">다음</a>
+          {% endif %}
+        </div>
+        {% endif %}
+        {% else %}
+        <div class="mt-6 flex min-h-[420px] flex-col items-center justify-center rounded-[24px] border border-dashed border-[#dbe7f5] bg-white px-6 py-10 text-center shadow-[0_8px_24px_rgba(45,55,72,0.04)]">
+          <div class="text-[38px] text-[#7aa6e9]">🔎</div>
+          <p class="mt-4 text-[22px] font-bold text-[#2d3748]">조건에 맞는 상품이 없습니다</p>
+          <p class="mt-3 max-w-[420px] text-[14px] leading-[1.7] text-[#718096]">선택한 반려동물 유형이나 카테고리를 조금 넓혀서 다시 탐색해보세요.</p>
+          <a href="/catalog/{% if catalog_clear_category_query %}?{{ catalog_clear_category_query }}{% endif %}" class="mt-6 inline-flex h-[42px] items-center justify-center rounded-full bg-[#2d3748] px-5 text-[13px] font-semibold text-white">필터 초기화</a>
+        </div>
+        {% endif %}
+      </section>
+    </div>
+  </div>
+</div>
+
+<div id="catalogFeedbackToast"
+     class="catalog-feedback-toast pointer-events-none fixed left-1/2 top-[88px] z-[70] flex min-h-[44px] min-w-[232px] max-w-[360px] -translate-x-1/2 items-center justify-center rounded-full bg-[#1f2937] px-[18px] py-[11px] text-center text-[13px] font-semibold text-white shadow-[0_14px_28px_rgba(15,23,42,0.28)]">
+  오류가 발생했습니다.
+</div>
+{% endblock %}
+
+{% block scripts %}
+<script>
+(function () {
+  var catalogFeedbackToast = document.getElementById('catalogFeedbackToast');
+  var catalogToastTimer = null;
+
+  function getCsrfToken() {
+    var match = document.cookie.match(/(?:^|;\s*)csrftoken=([^;]+)/);
+    return match ? decodeURIComponent(match[1]) : '';
+  }
+
+  function requestJson(url, options) {
+    var fetchOptions = Object.assign(
+      {
+        headers: {
+          'Content-Type': 'application/json',
+          'X-CSRFToken': getCsrfToken(),
+        },
+        credentials: 'same-origin',
+      },
+      options || {}
+    );
+
+    return fetch(url, fetchOptions).then(function (response) {
+      return response.text().then(function (text) {
+        var data = {};
+        if (text) {
+          try {
+            data = JSON.parse(text);
+          } catch (e) {
+            data = {};
+          }
+        }
+        if (!response.ok) {
+          throw new Error(data.detail || '요청 처리에 실패했습니다.');
+        }
+        return data;
+      });
+    });
+  }
+
+  function showCatalogToast(message) {
+    if (!catalogFeedbackToast) return;
+    catalogFeedbackToast.textContent = message || '요청 처리에 실패했습니다.';
+    catalogFeedbackToast.classList.add('is-open');
+    if (catalogToastTimer) {
+      window.clearTimeout(catalogToastTimer);
+    }
+    catalogToastTimer = window.setTimeout(function () {
+      catalogFeedbackToast.classList.remove('is-open');
+    }, 2400);
+  }
+
+  window.toggleCatalogWishlist = function (button) {
+    var productId = button && button.dataset ? button.dataset.productId : '';
+    if (!productId) {
+      showCatalogToast('상품 식별 정보를 찾을 수 없습니다.');
+      return;
+    }
+
+    var isActive = button.classList.contains('is-active');
+    requestJson('/api/orders/wishlist/', {
+      method: isActive ? 'DELETE' : 'POST',
+      body: JSON.stringify({ product_id: productId }),
+    }).then(function () {
+      button.classList.toggle('is-active', !isActive);
+      showCatalogToast(isActive ? '관심 상품에서 제거했습니다.' : '관심 상품에 저장했습니다.');
+    }).catch(function (error) {
+      showCatalogToast(error.message || '관심 상품 상태를 변경하지 못했습니다.');
+    });
+  };
+
+  window.addCatalogToCart = function (button) {
+    var productId = button && button.dataset ? button.dataset.productId : '';
+    if (!productId) {
+      showCatalogToast('상품 식별 정보를 찾을 수 없습니다.');
+      return;
+    }
+
+    requestJson('/api/orders/cart/', {
+      method: 'POST',
+      body: JSON.stringify({
+        product_id: productId,
+        quantity: 1,
+      }),
+    }).then(function () {
+      button.dataset.inCart = '1';
+      showCatalogToast('장바구니에 상품을 담았습니다.');
+    }).catch(function (error) {
+      showCatalogToast(error.message || '장바구니에 상품을 담지 못했습니다.');
+    });
+  };
+})();
+</script>
+{% endblock %}
