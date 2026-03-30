@@ -217,12 +217,7 @@ jobs:
             ${{ env.DJANGO_IMAGE_REPO }}:latest
             ${{ env.DJANGO_IMAGE_REPO }}:${{ steps.django-meta.outputs.short_sha }}
 
-      - name: Validate required Django deployment secrets
-        run: |
-          if [ -z "${{ secrets.DJANGO_SECRET_KEY }}" ]; then
-            echo "Missing required secret: DJANGO_SECRET_KEY"
-            exit 1
-          fi
+    
 
       - name: Create Django deployment bundle
         run: |
@@ -244,6 +239,7 @@ jobs:
           POSTGRES_HOST=${{ secrets.POSTGRES_HOST }}
           POSTGRES_PORT=${{ secrets.POSTGRES_PORT || 5432 }}
 
+          DJANGO_SECRET_KEY=${{ secrets.DJANGO_SECRET_KEY }}
           DJANGO_DEBUG=False
           DJANGO_ALLOWED_HOSTS=*.elasticbeanstalk.com
           DJANGO_SECURE_SSL_REDIRECT=True
