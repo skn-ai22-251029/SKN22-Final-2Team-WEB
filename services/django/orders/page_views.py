@@ -1,8 +1,11 @@
+from urllib.parse import parse_qs, urlencode, urlparse
+
 from django.db.models import Q
 from django.contrib.auth.decorators import login_required
 from django.core.paginator import Paginator
 from django.shortcuts import get_object_or_404, render
 
+from products.catalog_menu import build_catalog_menu_context
 from products.models import Product
 from .models import Cart, Order, Wishlist
 
@@ -113,6 +116,7 @@ ORDER_LIST_ORDERING = {
     "oldest": {"label": "오래된순", "queryset": "created_at"},
 }
 DEFAULT_ORDER_PAGE_SIZE = 12
+DEFAULT_CATALOG_PAGE_SIZE = 24
 
 
 def _serialize_order_item(product, quantity=1):
@@ -125,6 +129,82 @@ def _serialize_order_item(product, quantity=1):
         "unit_price": _format_price(product.price),
         "price": _format_price(product.price * quantity),
     }
+
+
+def _serialize_catalog_item(product):
+    return {
+        "product_id": product.goods_id,
+        "thumbnail_url": product.thumbnail_url,
+        "product_url": product.product_url,
+        "brand_name": product.brand_name,
+        "name": _display_product_name(product.brand_name, product.goods_name),
+        "summary": _product_summary(product),
+        "price": product.price,
+        "price_label": _format_price(product.price),
+        "rating": f"{product.rating:.1f}" if product.rating is not None else None,
+        "review_count": product.review_count or 0,
+        "pet_type": product.pet_type,
+        "category": product.category,
+        "subcategory": product.subcategory,
+    }
+
+
+def _catalog_query_params(request, overrides=None):
+    params = {}
+    for key in ("pet", "category", "subcategory", "brand", "page"):
+        value = (request.GET.get(key) or "").strip()
+        if value:
+            params[key] = value
+    if overrides:
+        for key, value in overrides.items():
+            if value:
+                params[key] = value
+            else:
+                params.pop(key, None)
+    if not params:
+        return ""
+    return "&".join(f"{key}={value}" for key, value in params.items())
+
+
+def _build_catalog_filter_options(queryset, field_name):
+    values = []
+    for row in queryset.values_list(field_name, flat=True):
+        if not row:
+            continue
+        for item in row:
+            if item and item not in values:
+                values.append(item)
+    return values
+
+
+def _catalog_querystring(current_params, **overrides):
+    params = dict(current_params)
+    for key, value in overrides.items():
+        if value is None or value == "":
+            params.pop(key, None)
+        else:
+            params[key] = value
+    page_value = params.get("page")
+    if page_value in {"", None, 1, "1"}:
+        params.pop("page", None)
+    if not params:
+        return ""
+    return urlencode(params)
+
+
+def _href_query_matches(href, current_params):
+    parsed = parse_qs(urlparse(href).query)
+    for key in ("pet", "category", "subcategory", "brand"):
+        current_value = (current_params.get(key) or "").strip()
+        href_value = (parsed.get(key) or [""])[0].strip()
+        if current_value != href_value:
+            return False
+    return True
+
+
+def _query_value_from_href(href, key):
+    parsed = parse_qs(urlparse(href).query)
+    return (parsed.get(key) or [""])[0].strip()
 
 
 def _serialize_order_group(order):
@@ -632,6 +712,119 @@ def used_products(request):
             "active_tab": active_tab,
         },
     )
+
+
+@login_required
+def catalog(request):
+    pet = (request.GET.get("pet") or "").strip()
+    category = (request.GET.get("category") or "").strip()
+    subcategory = (request.GET.get("subcategory") or "").strip()
+    brand = (request.GET.get("brand") or "").strip()
+
+    queryset = Product.objects.filter(soldout_yn=False)
+    if pet:
+        queryset = queryset.filter(pet_type__contains=[pet])
+    if category:
+        queryset = queryset.filter(category__contains=[category])
+    if subcategory:
+        queryset = queryset.filter(subcategory__contains=[subcategory])
+    if brand:
+        queryset = queryset.filter(brand_name=brand)
+
+    queryset = queryset.order_by("-popularity_score", "-review_count", "goods_name")
+    paginator = Paginator(queryset, DEFAULT_CATALOG_PAGE_SIZE)
+    page_obj = paginator.get_page(request.GET.get("page") or 1)
+
+    current_params = {
+        "pet": pet,
+        "category": category,
+        "subcategory": subcategory,
+        "brand": brand,
+        "page": request.GET.get("page") or "",
+    }
+    catalog_menu_sections = build_catalog_menu_context()
+    selected_pet_section = next((section for section in catalog_menu_sections if section["label"] == pet), None)
+    selected_category = None
+    if selected_pet_section and category:
+        selected_category = next(
+            (
+                item
+                for item in selected_pet_section["categories"]
+                if item["label"] == category or _query_value_from_href(item["href"], "category") == category
+            ),
+            None,
+        )
+        if selected_category is None:
+            selected_category = next(
+                (
+                    item
+                    for item in selected_pet_section["categories"]
+                    if any(
+                        _href_query_matches(entry["href"], current_params)
+                        for group in item.get("groups", [])
+                        for entry in group.get("items", [])
+                    )
+                ),
+                None,
+            )
+
+    pagination_links = []
+    if paginator.num_pages > 1:
+        start_page = max(page_obj.number - 2, 1)
+        end_page = min(start_page + 4, paginator.num_pages)
+        start_page = max(end_page - 4, 1)
+        for number in range(start_page, end_page + 1):
+            pagination_links.append(
+                {
+                    "number": number,
+                    "is_active": page_obj.number == number,
+                    "query": _catalog_querystring(current_params, page=number),
+                }
+            )
+
+    context = {
+        "catalog_items": [_serialize_catalog_item(product) for product in page_obj.object_list],
+        "catalog_count": paginator.count,
+        "catalog_page_obj": page_obj,
+        "catalog_pagination_links": pagination_links,
+        "catalog_prev_query": _catalog_querystring(current_params, page=page_obj.previous_page_number()) if page_obj.has_previous() else "",
+        "catalog_next_query": _catalog_querystring(current_params, page=page_obj.next_page_number()) if page_obj.has_next() else "",
+        "catalog_current_pet": pet,
+        "catalog_current_category": category,
+        "catalog_current_subcategory": subcategory,
+        "catalog_current_brand": brand,
+        "catalog_menu_sections": [
+            {
+                **section,
+                "is_active": section["label"] == pet,
+            }
+            for section in catalog_menu_sections
+        ],
+        "catalog_category_options": [
+            {
+                **item,
+                "is_active": item["label"] == category,
+            }
+            for item in (selected_pet_section["categories"] if selected_pet_section else [])
+        ],
+        "catalog_group_options": [
+            {
+                "label": group["label"],
+                "items": [
+                    {
+                        **entry,
+                        "is_active": _href_query_matches(entry["href"], current_params),
+                    }
+                    for entry in group["items"]
+                ],
+            }
+            for group in (selected_category["groups"] if selected_category else [])
+        ],
+        "catalog_query_all": _catalog_querystring(current_params, page=None),
+        "catalog_clear_category_query": _catalog_querystring(current_params, category=None, subcategory=None, brand=None, page=None),
+        "catalog_clear_detail_query": _catalog_querystring(current_params, subcategory=None, brand=None, page=None),
+    }
+    return render(request, "orders/catalog.html", context)
 
 
 @login_required
