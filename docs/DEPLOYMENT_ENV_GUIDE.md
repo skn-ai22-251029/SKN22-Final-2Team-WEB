@@ -297,11 +297,12 @@ LANGSMITH_WORKSPACE_ID → (워크스페이스 ID)
 
 ### 배포 자격증명
 ```
-DOCKERHUB_USERNAME     → (DockerHub 사용자명)
-DOCKERHUB_TOKEN        → (DockerHub 토큰)
+DOCKERHUB_USERNAME     → (DockerHub 사용자명 - EB 이미지 다운로드시 필수)
+DOCKERHUB_TOKEN        → (DockerHub Personal Access Token - EB 이미지 다운로드시 필수)
 AWS_ACCESS_KEY_ID      → (AWS IAM 액세스 키)
 AWS_SECRET_ACCESS_KEY  → (AWS IAM 시크릿 키)
 ```
+**⚠️ 주의**: DOCKERHUB_USERNAME과 DOCKERHUB_TOKEN은 EB 인스턴스가 Docker Hub에서 이미지를 다운로드할 때 필수입니다. CI/CD 빌드 단계에서 이미지를 푸시할 때도 필요합니다.
 
 ### Django 전용
 ```
@@ -340,6 +341,51 @@ KAKAO_CLIENT_SECRET    → (카카오 OAuth)
 ---
 
 ## 🔧 문제 해결
+
+### 배포 실패 - Docker 이미지 다운로드 실패
+**증상**: EB 배포 중 "Instance deployment failed to download the Docker image" 오류
+
+**근본 원인**: EC2 인스턴스가 Docker Hub에서 Docker 이미지를 다운로드할 수 없음
+- 이미지가 비공개인 경우 인증 정보 필요
+- Docker Hub 자격증명이 제대로 설정되지 않음
+
+**해결방법**:
+
+**1단계**: GitHub Secrets 확인
+```bash
+# GitHub Repository Settings → Secrets and variables → Actions 에서 아래 확인:
+✅ DOCKERHUB_USERNAME (예: kimheejoon91)
+✅ DOCKERHUB_TOKEN (Docker Hub Personal Access Token)
+```
+
+**2단계**: Docker Hub 토큰 생성 (필요시)
+```bash
+# Docker Hub > Account Settings > Security > New Access Token 생성
+# 토큰 권한: Read, Write 필요
+```
+
+**3단계**: CI/CD 워크플로우 확인
+- FastAPI: `.github/workflows/ci-cd.yml` 에서 다음 포함 확인:
+  ```yaml
+  DOCKER_USERNAME=${{ secrets.DOCKERHUB_USERNAME }}
+  DOCKER_PASSWORD=${{ secrets.DOCKERHUB_TOKEN }}
+  ```
+
+**4단계**: docker-compose.yml 확인
+- `deploy/eb/test-fastapi/docker-compose.yml` 에 인증 정보 포함 확인:
+  ```yaml
+  services:
+    fastapi:
+      auth:
+        username: ${DOCKER_USERNAME}
+        password: ${DOCKER_PASSWORD}
+  ```
+
+**대안**: 이미지를 공개로 설정
+- Docker Hub 리포지토리를 공개로 변경하여 임시로 인증 우회
+- 테스트 후 다시 비공개로 변경 권장
+
+---
 
 ### 배포 실패 - 환경변수 미로드
 **증상**: EB 배포 후 애플리케이션이 시작되지 않음
