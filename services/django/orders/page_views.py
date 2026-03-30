@@ -150,7 +150,7 @@ def _serialize_order_item(product, quantity=1):
     }
 
 
-def _serialize_catalog_item(product):
+def _serialize_catalog_item(product, *, is_wishlisted=False, cart_quantity=0):
     return {
         "product_id": product.goods_id,
         "thumbnail_url": product.thumbnail_url,
@@ -165,6 +165,9 @@ def _serialize_catalog_item(product):
         "pet_type": product.pet_type,
         "category": product.category,
         "subcategory": product.subcategory,
+        "is_wishlisted": is_wishlisted,
+        "cart_quantity": cart_quantity,
+        "is_in_cart": cart_quantity > 0,
     }
 
 
@@ -804,6 +807,14 @@ def catalog(request):
     paginator = Paginator(queryset, DEFAULT_CATALOG_PAGE_SIZE)
     page_obj = paginator.get_page(request.GET.get("page") or 1)
 
+    cart, _ = Cart.objects.get_or_create(user=request.user)
+    wishlist, _ = Wishlist.objects.get_or_create(user=request.user)
+    wishlist_product_ids = set(wishlist.items.values_list("product_id", flat=True))
+    cart_quantities = {
+        product_id: quantity
+        for product_id, quantity in cart.items.values_list("product_id", "quantity")
+    }
+
     current_params = {
         "pet": pet,
         "category": category,
@@ -853,7 +864,14 @@ def catalog(request):
             )
 
     context = {
-        "catalog_items": [_serialize_catalog_item(product) for product in page_obj.object_list],
+        "catalog_items": [
+            _serialize_catalog_item(
+                product,
+                is_wishlisted=product.goods_id in wishlist_product_ids,
+                cart_quantity=cart_quantities.get(product.goods_id, 0),
+            )
+            for product in page_obj.object_list
+        ],
         "catalog_count": paginator.count,
         "catalog_page_obj": page_obj,
         "catalog_pagination_links": pagination_links,
