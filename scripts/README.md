@@ -65,6 +65,22 @@ bash scripts/dump_db.sh backup/my_backup.dump
 
 ---
 
+### AWS Test RDS를 DBeaver로 확인
+
+테스트 RDS는 private 이므로 직접 접속이 아니라 EB 인스턴스 경유 SSH 터널이 필요합니다.
+
+```bash
+# 접속 정보만 출력
+PRINT_ONLY=1 bash scripts/aws/start_test_rds_dbeaver_tunnel.sh
+
+# 실제 터널 열기
+bash scripts/aws/start_test_rds_dbeaver_tunnel.sh
+```
+
+상세 사용법은 `docs/infra/08_dbeaver_rds_tunnel.md` 문서를 참고합니다.
+
+---
+
 ## 팀원 온보딩 (처음 셋업)
 
 ```bash
@@ -138,6 +154,8 @@ python scripts/domain/convert_domain_data.py
 scripts/
 ├── setup_db.sh                     # 로컬 DB 셋업/복원
 ├── dump_db.sh                      # DB 덤프 생성
+├── aws/
+│   └── start_test_rds_dbeaver_tunnel.sh  # Test RDS용 SSH 터널
 ├── ingest_postgres.py              # 상품/리뷰/벡터 적재
 ├── config.py                       # ETL 공통 설정
 ├── domain/
