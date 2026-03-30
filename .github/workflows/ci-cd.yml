@@ -264,8 +264,10 @@ jobs:
           KAKAO_CLIENT_SECRET=${{ secrets.KAKAO_CLIENT_SECRET }}
           EOF
           docker compose -f .deploy-django/docker-compose.yml --env-file .deploy-django/.env config -q
+          # .ebextensions 디렉토리 복사 (EB 기본 설정)
+          cp -r deploy/eb/test-django/.ebextensions .deploy-django/.ebextensions
           cd .deploy-django
-          zip -r ../django-deploy.zip docker-compose.yml .env nginx
+          zip -r ../django-deploy.zip docker-compose.yml .env nginx .ebextensions
 
       - name: Deploy Django to Elastic Beanstalk
         uses: einaregilsson/beanstalk-deploy@v22
