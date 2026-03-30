@@ -1,6 +1,7 @@
 from urllib.parse import parse_qs, urlencode, urlparse
 
-from django.db.models import Q
+from django.db.models import DecimalField, IntegerField, Q, Value
+from django.db.models.functions import Coalesce
 from django.contrib.auth.decorators import login_required
 from django.core.paginator import Paginator
 from django.shortcuts import get_object_or_404, render
@@ -117,6 +118,24 @@ ORDER_LIST_ORDERING = {
 }
 DEFAULT_ORDER_PAGE_SIZE = 12
 DEFAULT_CATALOG_PAGE_SIZE = 24
+CATALOG_SORT_OPTIONS = {
+    "tailtalk": {
+        "label": "TailTalk 추천순",
+        "ordering": ("-_sort_popularity_score", "-_sort_review_count", "-_sort_rating", "goods_name"),
+    },
+    "reviews": {
+        "label": "리뷰 많은순",
+        "ordering": ("-_sort_review_count", "-_sort_popularity_score", "-_sort_rating", "goods_name"),
+    },
+    "price_low": {
+        "label": "가격 낮은순",
+        "ordering": ("price", "-_sort_review_count", "-_sort_popularity_score", "goods_name"),
+    },
+    "price_high": {
+        "label": "가격 높은순",
+        "ordering": ("-price", "-_sort_review_count", "-_sort_popularity_score", "goods_name"),
+    },
+}
 
 
 def _serialize_order_item(product, quantity=1):
@@ -175,6 +194,26 @@ def _build_catalog_filter_options(queryset, field_name):
             if item and item not in values:
                 values.append(item)
     return values
+
+
+def _with_catalog_sort_fields(queryset):
+    return queryset.annotate(
+        _sort_popularity_score=Coalesce(
+            "popularity_score",
+            Value(0),
+            output_field=DecimalField(max_digits=10, decimal_places=4),
+        ),
+        _sort_review_count=Coalesce(
+            "review_count",
+            Value(0),
+            output_field=IntegerField(),
+        ),
+        _sort_rating=Coalesce(
+            "rating",
+            Value(0),
+            output_field=DecimalField(max_digits=3, decimal_places=1),
+        ),
+    )
 
 
 def _catalog_querystring(current_params, **overrides):
@@ -720,6 +759,9 @@ def catalog(request):
     category = (request.GET.get("category") or "").strip()
     subcategory = (request.GET.get("subcategory") or "").strip()
     brand = (request.GET.get("brand") or "").strip()
+    sort_key = (request.GET.get("sort") or "tailtalk").strip()
+    if sort_key not in CATALOG_SORT_OPTIONS:
+        sort_key = "tailtalk"
 
     queryset = Product.objects.filter(soldout_yn=False)
     if pet:
@@ -731,7 +773,7 @@ def catalog(request):
     if brand:
         queryset = queryset.filter(brand_name=brand)
 
-    queryset = queryset.order_by("-popularity_score", "-review_count", "goods_name")
+    queryset = _with_catalog_sort_fields(queryset).order_by(*CATALOG_SORT_OPTIONS[sort_key]["ordering"])
     paginator = Paginator(queryset, DEFAULT_CATALOG_PAGE_SIZE)
     page_obj = paginator.get_page(request.GET.get("page") or 1)
 
@@ -740,6 +782,7 @@ def catalog(request):
         "category": category,
         "subcategory": subcategory,
         "brand": brand,
+        "sort": sort_key,
         "page": request.GET.get("page") or "",
     }
     catalog_menu_sections = build_catalog_menu_context()
@@ -793,6 +836,16 @@ def catalog(request):
         "catalog_current_category": category,
         "catalog_current_subcategory": subcategory,
         "catalog_current_brand": brand,
+        "catalog_current_sort": sort_key,
+        "catalog_sort_options": [
+            {
+                "key": key,
+                "label": option["label"],
+                "is_active": key == sort_key,
+                "query": _catalog_querystring(current_params, sort=key, page=None),
+            }
+            for key, option in CATALOG_SORT_OPTIONS.items()
+        ],
         "catalog_menu_sections": [
             {
                 **section,

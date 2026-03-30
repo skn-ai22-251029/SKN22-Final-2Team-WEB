@@ -32,6 +32,24 @@
   .catalog-thumb {
     aspect-ratio: 1 / 1;
   }
+
+  .catalog-sort-tooltip-wrap:hover .catalog-sort-tooltip,
+  .catalog-sort-tooltip-wrap:focus-within .catalog-sort-tooltip {
+    opacity: 1;
+    transform: translateY(0);
+    pointer-events: auto;
+  }
+
+  .catalog-sort-select {
+    appearance: none;
+    -webkit-appearance: none;
+    -moz-appearance: none;
+    background-image: linear-gradient(45deg, transparent 50%, #718096 50%), linear-gradient(135deg, #718096 50%, transparent 50%);
+    background-position: calc(100% - 18px) calc(50% - 1px), calc(100% - 13px) calc(50% - 1px);
+    background-size: 5px 5px, 5px 5px;
+    background-repeat: no-repeat;
+    padding-right: 38px;
+  }
   @media (max-width: 767px) {
     .catalog-header-stack {
       flex-direction: column;
@@ -123,17 +141,26 @@
               <p class="text-[14px] font-semibold text-[#90a4b8]">검색 결과</p>
               <p class="mt-2 text-[26px] font-bold text-[#2d3748]">{{ catalog_count }}개 상품</p>
             </div>
-            <div class="flex flex-wrap gap-2">
+            <div class="flex flex-wrap items-center justify-end gap-2">
               {% if catalog_current_pet %}
               <span class="inline-flex h-[32px] items-center justify-center rounded-full bg-[#edf2f7] px-3 text-[12px] font-semibold text-[#4a5568]">{{ catalog_current_pet }}</span>
               {% endif %}
               {% if catalog_current_category %}
+              {% if catalog_current_pet %}
+              <span class="text-[13px] font-semibold text-[#a0aec0]">&gt;</span>
+              {% endif %}
               <span class="inline-flex h-[32px] items-center justify-center rounded-full bg-[#edf2f7] px-3 text-[12px] font-semibold text-[#4a5568]">{{ catalog_current_category }}</span>
               {% endif %}
               {% if catalog_current_subcategory %}
+              {% if catalog_current_category %}
+              <span class="text-[13px] font-semibold text-[#a0aec0]">&gt;</span>
+              {% endif %}
               <span class="inline-flex min-h-[32px] items-center justify-center rounded-full bg-[#edf2f7] px-3 py-1 text-[12px] font-semibold text-[#4a5568]">{{ catalog_current_subcategory }}</span>
               {% endif %}
               {% if catalog_current_brand %}
+              {% if catalog_current_subcategory or catalog_current_category %}
+              <span class="text-[13px] font-semibold text-[#a0aec0]">&gt;</span>
+              {% endif %}
               <span class="inline-flex min-h-[32px] items-center justify-center rounded-full bg-[#edf2f7] px-3 py-1 text-[12px] font-semibold text-[#4a5568]">{{ catalog_current_brand }}</span>
               {% endif %}
             </div>
@@ -141,6 +168,29 @@
         </div>
 
         {% if catalog_items %}
+        <div class="mt-6 flex items-center justify-end">
+          <div class="relative">
+            <div class="flex items-center gap-2">
+              <select id="catalogSort"
+                      class="catalog-sort-select h-[36px] rounded-full border border-[#dbe7f5] bg-white pl-4 text-[12px] font-semibold text-[#4a5568] outline-none transition-colors focus:border-[#90cdf4]"
+                      onchange="if (this.value) { window.location.href = this.value; }">
+                {% for option in catalog_sort_options %}
+                <option value="/catalog/{% if option.query %}?{{ option.query }}{% endif %}" {% if option.is_active %}selected{% endif %}>{{ option.label }}</option>
+                {% endfor %}
+              </select>
+              <div class="catalog-sort-tooltip-wrap relative">
+                <button type="button"
+                        class="catalog-sort-trigger inline-flex h-[20px] w-[20px] items-center justify-center rounded-full border border-[#dbe7f5] bg-white text-[11px] font-bold text-[#718096]"
+                        aria-label="TailTalk 추천순 설명">
+                  i
+                </button>
+                <div class="catalog-sort-tooltip pointer-events-none absolute right-0 top-[28px] z-10 w-[240px] rounded-[16px] border border-[#dbe7f5] bg-white p-3 text-[12px] leading-[1.6] text-[#4a5568] opacity-0 shadow-[0_12px_24px_rgba(45,55,72,0.08)] transition-all duration-150 ease-out">
+                  TailTalk 추천순은 상품 점수와<br>리뷰 수를 함께 반영해 정렬합니다
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
         <div class="mt-6 grid gap-5 sm:grid-cols-2 xl:grid-cols-3">
           {% for item in catalog_items %}
           <article class="catalog-card overflow-hidden rounded-[24px] border border-[#e2e8f0] bg-white shadow-[0_8px_24px_rgba(45,55,72,0.04)]">
