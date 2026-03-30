@@ -241,7 +241,7 @@ jobs:
 
           DJANGO_SECRET_KEY=${{ secrets.DJANGO_SECRET_KEY }}
           DJANGO_DEBUG=False
-          DJANGO_ALLOWED_HOSTS=*.elasticbeanstalk.com
+          DJANGO_ALLOWED_HOSTS=${{ secrets.DJANGO_ALLOWED_HOSTS || '.elasticbeanstalk.com' }}
 
           APP_BASE_URL=${{ secrets.APP_BASE_URL }}
           FASTAPI_INTERNAL_CHAT_URL=${{ secrets.FASTAPI_INTERNAL_CHAT_URL }}
