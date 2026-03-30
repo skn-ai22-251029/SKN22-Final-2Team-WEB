@@ -21,6 +21,7 @@ from rest_framework_simplejwt.tokens import RefreshToken
 from social_django.models import UserSocialAuth
 from social_core.exceptions import AuthCanceled, AuthConnectionError, AuthException, AuthForbidden, AuthMissingParameter
 
+from pets.models import FuturePetProfile
 from products.models import Product
 
 from .models import SocialAccount, User, UserPreference, UserProfile, UserUsedProduct
@@ -53,6 +54,7 @@ def deactivate_user_and_purge_personal_data(user):
         user.wishlist.delete()
     if hasattr(user, "pets"):
         user.pets.all().delete()
+    FuturePetProfile.objects.filter(user=user).delete()
     if hasattr(user, "social_accounts"):
         user.social_accounts.all().delete()
     UserSocialAuth.objects.filter(user=user).delete()

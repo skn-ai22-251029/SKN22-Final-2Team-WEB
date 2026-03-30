@@ -28,6 +28,19 @@ class Pet(models.Model):
         db_table = "pet"
 
 
+class FuturePetProfile(models.Model):
+    user             = models.OneToOneField(User, on_delete=models.CASCADE, related_name="future_pet_profile")
+    preferred_species = models.CharField(max_length=20, blank=True, default="")
+    housing_type      = models.CharField(max_length=20, blank=True, default="")
+    experience_level  = models.CharField(max_length=20, blank=True, default="")
+    interests         = models.JSONField(default=list, blank=True)
+    created_at        = models.DateTimeField(auto_now_add=True)
+    updated_at        = models.DateTimeField(auto_now=True)
+
+    class Meta:
+        db_table = "future_pet_profile"
+
+
 class PetHealthConcern(models.Model):
     CONCERN_CHOICES = [
         ("skin", "피부"), ("joint", "관절"), ("digestion", "소화"), ("weight", "체중"),

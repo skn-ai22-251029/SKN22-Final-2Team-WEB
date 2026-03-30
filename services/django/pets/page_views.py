@@ -3,7 +3,8 @@ from dataclasses import dataclass
 from django.shortcuts import get_object_or_404, redirect, render
 from django.urls import reverse
 
-from .models import Pet, PetAllergy, PetFoodPreference, PetHealthConcern
+from .future_profile import get_future_pet_profile_for_request
+from .models import FuturePetProfile, Pet, PetAllergy, PetFoodPreference, PetHealthConcern
 
 SPECIES_OPTIONS = [
     ("dog", "강아지", "🐶"),
@@ -279,7 +280,7 @@ def pet_list(request):
     elif getattr(request.user, "is_authenticated", False):
         pets = list(Pet.objects.filter(user=request.user).prefetch_related("food_preferences"))
         actual_pet_count = len(pets)
-        future_pet = _future_pet_list_item(request.session.get("future_pet_profile"))
+        future_pet = _future_pet_list_item(get_future_pet_profile_for_request(request))
         for pet in pets:
             pet.food_preference_labels = _food_preference_labels(
                 list(pet.food_preferences.values_list("food_type", flat=True)),
@@ -309,12 +310,20 @@ def pet_add(request):
 
 def pet_add_future(request):
     if request.method == "POST":
-        request.session["future_pet_profile"] = {
+        future_profile_data = {
             "preferred_species": request.POST.get("preferred_species", "").strip(),
             "housing_type": request.POST.get("housing_type", "").strip(),
             "experience_level": request.POST.get("experience_level", "").strip(),
             "interests": request.POST.getlist("interests"),
         }
+        if getattr(request.user, "is_authenticated", False):
+            FuturePetProfile.objects.update_or_create(
+                user=request.user,
+                defaults=future_profile_data,
+            )
+            request.session.pop("future_pet_profile", None)
+        else:
+            request.session["future_pet_profile"] = future_profile_data
         return redirect(f"{reverse('chat')}?pet=future-profile")
 
     future_profile = {
@@ -322,7 +331,7 @@ def pet_add_future(request):
         "housing_type": "",
         "experience_level": "",
         "interests": [],
-    } | request.session.get("future_pet_profile", {})
+    } | (get_future_pet_profile_for_request(request) or {})
     return render(
         request,
         "pets/add_future.html",
@@ -337,6 +346,8 @@ def pet_add_future(request):
 
 def pet_delete_future(request):
     if request.method == "POST":
+        if getattr(request.user, "is_authenticated", False):
+            FuturePetProfile.objects.filter(user=request.user).delete()
         request.session.pop("future_pet_profile", None)
     return redirect("pet_list")
 

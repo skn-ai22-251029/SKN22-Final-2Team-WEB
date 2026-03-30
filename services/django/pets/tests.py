@@ -8,7 +8,7 @@ from rest_framework.test import APIClient
 
 from users.models import User, UserProfile
 
-from .models import Pet, PetAllergy, PetFoodPreference, PetHealthConcern
+from .models import FuturePetProfile, Pet, PetAllergy, PetFoodPreference, PetHealthConcern
 
 
 class PetApiTests(TestCase):
@@ -254,3 +254,55 @@ class PetPageTests(TestCase):
         self.assertContains(response, "선호 사료")
         self.assertContains(response, "건식")
         self.assertContains(response, "동결건조/에어드라이")
+
+    def test_pet_add_future_persists_profile_in_db_for_logged_in_user(self):
+        response = self.client.post(
+            reverse("pet_add_future"),
+            {
+                "preferred_species": "cat",
+                "housing_type": "apartment",
+                "experience_level": "experienced",
+                "interests": ["food", "health"],
+            },
+        )
+
+        self.assertEqual(response.status_code, 302)
+        self.assertEqual(response["Location"], f"{reverse('chat')}?pet=future-profile")
+        profile = FuturePetProfile.objects.get(user=self.user)
+        self.assertEqual(profile.preferred_species, "cat")
+        self.assertEqual(profile.housing_type, "apartment")
+        self.assertEqual(profile.experience_level, "experienced")
+        self.assertEqual(profile.interests, ["food", "health"])
+
+    def test_future_pet_profile_survives_logout_and_login(self):
+        FuturePetProfile.objects.create(
+            user=self.user,
+            preferred_species="dog",
+            housing_type="house",
+            experience_level="first",
+            interests=["adoption"],
+        )
+
+        self.client.logout()
+        self.client.login(email="pet-page@example.com", password="Password123!")
+
+        response = self.client.get(reverse("pet_list"))
+
+        self.assertEqual(response.status_code, 200)
+        self.assertContains(response, "예비 집사")
+        self.assertContains(response, "강아지 준비 중")
+
+    def test_pet_delete_future_removes_db_profile(self):
+        FuturePetProfile.objects.create(
+            user=self.user,
+            preferred_species="dog",
+            housing_type="studio",
+            experience_level="first",
+            interests=["adoption"],
+        )
+
+        response = self.client.post(reverse("pet_delete_future"))
+
+        self.assertEqual(response.status_code, 302)
+        self.assertEqual(response["Location"], reverse("pet_list"))
+        self.assertFalse(FuturePetProfile.objects.filter(user=self.user).exists())

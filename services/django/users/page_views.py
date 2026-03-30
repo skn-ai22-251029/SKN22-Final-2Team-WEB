@@ -93,7 +93,7 @@ def logout_view(request):
     request.session.pop(SOCIAL_AUTH_ACCESS_SESSION_KEY, None)
     request.session.pop(SOCIAL_AUTH_REFRESH_SESSION_KEY, None)
     logout(request)
-    return redirect("login")
+    return redirect("home")
 
 
 def profile_view(request):
@@ -206,7 +206,7 @@ def profile_withdraw_view(request):
 
     logout(request)
     messages.success(request, "회원 탈퇴가 완료되었습니다. 주문 기록을 제외한 사용자 정보가 정리되었습니다.")
-    return redirect("chat")
+    return redirect("home")
 
 
 def social_login_start_view(request, provider):
