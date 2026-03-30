@@ -231,22 +231,41 @@ jobs:
           PY
           cp -r deploy/eb/test-django/nginx .deploy-django/nginx
           cat <<'EOF' > .deploy-django/.env
-          DJANGO_SECRET_KEY=deploy-placeholder
+          POSTGRES_DB=${{ secrets.POSTGRES_DB }}
+          POSTGRES_USER=${{ secrets.POSTGRES_USER }}
+          POSTGRES_PASSWORD=${{ secrets.POSTGRES_PASSWORD }}
+          POSTGRES_HOST=${{ secrets.POSTGRES_HOST }}
+          POSTGRES_PORT=${{ secrets.POSTGRES_PORT || 5432 }}
+
+          DJANGO_SECRET_KEY=${{ secrets.DJANGO_SECRET_KEY }}
           DJANGO_DEBUG=False
-          DJANGO_ALLOWED_HOSTS=*
-          APP_BASE_URL=http://placeholder.local
-          FASTAPI_INTERNAL_CHAT_URL=http://placeholder.local/api/chat/
-          INTERNAL_SERVICE_TOKEN=deploy-placeholder
-          POSTGRES_DB=deploy_placeholder
-          POSTGRES_USER=deploy_placeholder
-          POSTGRES_PASSWORD=deploy_placeholder
-          POSTGRES_HOST=deploy-placeholder
-          POSTGRES_PORT=5432
-          CORS_ALLOWED_ORIGINS=
+          DJANGO_ALLOWED_HOSTS=*.elasticbeanstalk.com
+          DJANGO_SECURE_SSL_REDIRECT=True
+          DJANGO_SESSION_COOKIE_SECURE=True
+          DJANGO_CSRF_COOKIE_SECURE=True
+
+          APP_BASE_URL=http://test-tailtalk-django-env.ap-northeast-2.elasticbeanstalk.com
+          FASTAPI_INTERNAL_CHAT_URL=http://test-tailtalk-fastapi-env.ap-northeast-2.elasticbeanstalk.com/api/chat/
+          INTERNAL_SERVICE_TOKEN=${{ secrets.INTERNAL_SERVICE_TOKEN }}
+          CORS_ALLOWED_ORIGINS=*
+
+          AWS_S3_BUCKET_NAME=${{ secrets.AWS_S3_BUCKET_NAME }}
+          AWS_S3_REGION_NAME=ap-northeast-2
+          AWS_S3_CUSTOM_DOMAIN=${{ secrets.AWS_S3_CUSTOM_DOMAIN }}
+          AWS_S3_ENDPOINT_URL=${{ secrets.AWS_S3_ENDPOINT_URL }}
+          AWS_ACCESS_KEY_ID=${{ secrets.AWS_ACCESS_KEY_ID }}
+          AWS_SECRET_ACCESS_KEY=${{ secrets.AWS_SECRET_ACCESS_KEY }}
+
+          GOOGLE_CLIENT_ID=${{ secrets.GOOGLE_CLIENT_ID }}
+          GOOGLE_CLIENT_SECRET=${{ secrets.GOOGLE_CLIENT_SECRET }}
+          NAVER_CLIENT_ID=${{ secrets.NAVER_CLIENT_ID }}
+          NAVER_CLIENT_SECRET=${{ secrets.NAVER_CLIENT_SECRET }}
+          KAKAO_CLIENT_ID=${{ secrets.KAKAO_CLIENT_ID }}
+          KAKAO_CLIENT_SECRET=${{ secrets.KAKAO_CLIENT_SECRET }}
           EOF
           docker compose -f .deploy-django/docker-compose.yml --env-file .deploy-django/.env config -q
           cd .deploy-django
-          zip -r ../django-deploy.zip docker-compose.yml nginx
+          zip -r ../django-deploy.zip docker-compose.yml .env nginx
 
       - name: Deploy Django to Elastic Beanstalk
         uses: einaregilsson/beanstalk-deploy@v22
