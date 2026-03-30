@@ -1186,7 +1186,7 @@
             </svg>
           </button>
           <div id="catalogMenu"
-               class="absolute right-0 top-[52px] w-[1040px] origin-top-right rounded-[20px] border border-[#dbe7f5] bg-white p-[20px] transition-all duration-[180ms] ease-[cubic-bezier(0.22,1,0.36,1)] pointer-events-none translate-y-[-8px] scale-95 opacity-0">
+               class="fixed z-[90] origin-top-right overflow-y-auto rounded-[20px] border border-[#dbe7f5] bg-white p-[20px] transition-all duration-[180ms] ease-[cubic-bezier(0.22,1,0.36,1)] pointer-events-none translate-y-[-8px] scale-95 opacity-0">
             <div class="mb-[14px] flex items-center justify-between">
               <div>
                 <p class="text-[15px] font-bold text-[#2d3748]">상품 둘러보기</p>
@@ -1197,16 +1197,18 @@
                  {% if is_preview_member %}onclick="return false"{% endif %}>전체 보기</a>
             </div>
             <div id="catalogPetList" class="mb-[14px] flex items-center gap-[8px]"></div>
-            <div class="grid gap-[18px] md:grid-cols-[210px_220px_minmax(0,1fr)]">
+            <div class="grid gap-[18px] md:grid-cols-[210px_minmax(0,1fr)] xl:grid-cols-[210px_220px_minmax(0,1fr)]">
               <div id="catalogCategoryColumn" class="rounded-[18px] border border-[#edf2f7] bg-[#f8fbff] p-[10px]">
                 <div id="catalogCategoryList"></div>
               </div>
-              <div id="catalogGroupPanel" class="rounded-[18px] border border-[#edf2f7] bg-[#f8fbff] p-[10px]">
-                <div id="catalogGroupList"></div>
-              </div>
-              <div id="catalogSubcategoryPanel" class="rounded-[18px] border border-[#edf2f7] bg-[#f8fbff] p-[14px]">
-                <p id="catalogSubcategoryTitle" class="text-[14px] font-bold text-[#2d3748]"></p>
-                <div id="catalogSubcategoryList" class="mt-[10px] flex flex-wrap gap-[8px]"></div>
+              <div class="grid gap-[18px] xl:contents">
+                <div id="catalogGroupPanel" class="rounded-[18px] border border-[#edf2f7] bg-[#f8fbff] p-[10px]">
+                  <div id="catalogGroupList"></div>
+                </div>
+                <div id="catalogSubcategoryPanel" class="rounded-[18px] border border-[#edf2f7] bg-[#f8fbff] p-[14px]">
+                  <p id="catalogSubcategoryTitle" class="text-[14px] font-bold text-[#2d3748]"></p>
+                  <div id="catalogSubcategoryList" class="mt-[10px] flex flex-wrap gap-[8px]"></div>
+                </div>
               </div>
             </div>
           </div>
@@ -1341,6 +1343,10 @@
   var sessionThreads = sessionThreadsNode ? JSON.parse(sessionThreadsNode.textContent) : {};
   var catalogMenuSections = catalogMenuDataNode ? JSON.parse(catalogMenuDataNode.textContent) : [];
   var csrfToken = getCookie('csrftoken');
+
+  if (catalogMenu && catalogMenu.parentElement !== document.body) {
+    document.body.appendChild(catalogMenu);
+  }
 
   var isOpen = false;
   var pendingDeleteId = null;
@@ -1569,6 +1575,18 @@
     renderCatalogCategoryList();
     renderCatalogGroupList();
     renderCatalogSubcategories();
+  }
+
+  function positionCatalogMenu() {
+    if (!catalogMenu || !catalogMenuWrapper) return;
+    var rect = catalogMenuWrapper.getBoundingClientRect();
+    var menuWidth = Math.min(1040, Math.max(420, window.innerWidth - 48));
+    var left = Math.max(24, rect.right - menuWidth);
+    var top = rect.bottom + 12;
+    catalogMenu.style.width = menuWidth + 'px';
+    catalogMenu.style.left = left + 'px';
+    catalogMenu.style.top = top + 'px';
+    catalogMenu.style.maxHeight = Math.min(window.innerHeight * 0.72, 760) + 'px';
   }
 
   function closeCatalogMenu(resetState) {
@@ -1848,6 +1866,7 @@
       closeCatalogMenu(true);
     } else {
       initializeCatalogMenu();
+      positionCatalogMenu();
       catalogMenu.style.opacity = '1';
       catalogMenu.style.transform = 'translateY(0) scale(1)';
       catalogMenu.style.pointerEvents = 'auto';
@@ -1872,8 +1891,19 @@
     }
   };
 
+  window.addEventListener('resize', function () {
+    if (catalogMenu && catalogMenu.style.opacity === '1') {
+      positionCatalogMenu();
+    }
+  });
+
   document.addEventListener('mousedown', function (e) {
-    if (catalogMenuWrapper && !catalogMenuWrapper.contains(e.target) && catalogMenu) {
+    if (
+      catalogMenu &&
+      catalogMenuWrapper &&
+      !catalogMenuWrapper.contains(e.target) &&
+      !catalogMenu.contains(e.target)
+    ) {
       closeCatalogMenu(true);
     }
 

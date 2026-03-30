@@ -228,239 +228,142 @@ def _build_catalog_menu_context():
                 for subcategory in normalized_subcategories or ["(없음)"]:
                     grouped_raw[pet_type][category][subcategory] += 1
 
-    catalog_config = {
-        "강아지": [
-            {
-                "label": "사료",
-                "db_categories": ["사료"],
-                "groups": [
-                    {
-                        "label": "급여 연령",
-                        "items": ["전연령", "어덜트(1~7세)", "시니어(7세이상)"],
-                    },
-                    {
-                        "label": "종류",
-                        "items": ["건식사료", "화식", "소프트사료", "습식사료", "동결건조/에어드라이"],
-                    },
-                ],
-            },
-            {
-                "label": "간식",
-                "db_categories": ["간식"],
-                "groups": [
-                    {
-                        "label": "종류",
-                        "items": ["져키/트릿", "사사미", "원물/뼈간식", "캔/파우치", "수제간식", "동결/건조간식"],
-                    },
-                    {
-                        "label": "기능",
-                        "items": ["영양/기능", "덴탈껌"],
-                    },
-                ],
-            },
-            {
-                "label": "덴탈/구강",
-                "db_categories": ["덴탈관"],
-                "groups": [
-                    {
-                        "label": "구강 간식",
-                        "items": ["덴탈껌"],
-                    },
-                    {
-                        "label": "관리 용품",
-                        "items": ["칫솔", "치약"],
-                    },
-                    {
-                        "label": "관리 기능",
-                        "items": ["구강관리", "치아관리"],
-                    },
-                ],
-            },
-            {
-                "label": "배변/위생",
-                "db_categories": ["배변용품"],
-                "groups": [
-                    {
-                        "label": "배변 용품",
-                        "items": ["배변패드", "배변봉투/집게", "기저귀/팬티", "배변판"],
-                    },
-                    {
-                        "label": "위생 관리",
-                        "items": ["물티슈/클리너", "탈취/소독"],
-                    },
-                ],
-            },
-            {
-                "label": "용품",
-                "db_categories": ["용품"],
-                "groups": [
-                    {
-                        "label": "외출/산책",
-                        "items": ["목줄/하네스", "이동장/캐리어"],
-                    },
-                    {
-                        "label": "리빙",
-                        "items": ["하우스/방석", "급식/급수기"],
-                    },
-                    {
-                        "label": "미용/패션",
-                        "items": ["미용/목욕", "의류/악세사리"],
-                    },
-                    {
-                        "label": "놀이/건강",
-                        "items": ["장난감/훈련", "건강관리"],
-                    },
-                ],
-            },
-        ],
-        "고양이": [
-            {
-                "label": "사료",
-                "db_categories": ["사료"],
-                "groups": [
-                    {
-                        "label": "급여 연령",
-                        "items": ["키튼(1세미만)", "어덜트(1~7세)", "시니어(7세이상)", "전연령"],
-                    },
-                    {
-                        "label": "종류",
-                        "items": ["건식", "에어/동결건조"],
-                    },
-                ],
-            },
-            {
-                "label": "습식",
-                "db_categories": ["습식관"],
-                "groups": [
-                    {
-                        "label": "종류",
-                        "items": ["주식캔", "주식파우치"],
-                    },
-                    {
-                        "label": "급여 연령",
-                        "items": ["키튼(1세미만)", "어덜트(1~7세)", "시니어(7세이상)", "전연령"],
-                    },
-                ],
-            },
-            {
-                "label": "간식",
-                "db_categories": ["간식"],
-                "groups": [
-                    {
-                        "label": "종류",
-                        "items": ["간식캔", "간식파우치", "동결/건조간식", "스낵/캔디", "통살/소시지", "져키/스틱", "져키/트릿"],
-                    },
-                    {
-                        "label": "기능",
-                        "items": ["영양/기능"],
-                    },
-                ],
-            },
-            {
-                "label": "모래",
-                "db_categories": ["모래"],
-                "groups": [
-                    {
-                        "label": "모래 종류",
-                        "items": ["벤토나이트", "두부모래", "카사바/천연모래", "기타모래"],
-                    },
-                ],
-            },
-            {
-                "label": "덴탈/구강",
-                "db_categories": ["덴탈관"],
-                "groups": [
-                    {
-                        "label": "관리 기능",
-                        "items": ["치아관리", "구강관리"],
-                    },
-                    {
-                        "label": "관리 용품",
-                        "items": ["칫솔", "치약"],
-                    },
-                ],
-            },
-            {
-                "label": "배변/위생",
-                "db_categories": ["배변용품"],
-                "groups": [
-                    {
-                        "label": "배변 용품",
-                        "items": ["화장실/위생"],
-                    },
-                    {
-                        "label": "위생 관리",
-                        "items": ["물티슈/클리너", "탈취/소독"],
-                    },
-                ],
-            },
-            {
-                "label": "용품",
-                "db_categories": ["용품"],
-                "groups": [
-                    {
-                        "label": "놀이/리빙",
-                        "items": ["장난감/캣닢", "스크래쳐/캣타워", "하우스/방석"],
-                    },
-                    {
-                        "label": "외출/급식",
-                        "items": ["이동장/캐리어", "급식/급수기"],
-                    },
-                    {
-                        "label": "관리",
-                        "items": ["미용/목욕", "의류/악세사리", "건강관리"],
-                    },
-                ],
-            },
-        ],
+    category_order = {
+        "강아지": ["사료", "간식", "용품", "배변용품", "덴탈관"],
+        "고양이": ["사료", "간식", "용품", "모래", "습식관"],
     }
+    category_labels = {}
+    group_definitions = {
+        "강아지": {
+            "사료": [
+                ("급여 연령", ["퍼피(1세미만)", "어덜트(1~7세)", "시니어(7세이상)", "전연령"]),
+                ("종류", ["건식사료", "화식", "소프트사료", "습식사료", "동결건조/에어드라이"]),
+                ("기능", ["처방식", "눈/눈물", "체중조절", "피부/모질", "위장/소화", "관절", "중성화", "스트레스 완화", ("구강/치아 (덴탈케어)", "구강/치아(덴탈케어)"), "견종별"]),
+                ("주요 브랜드", ["아카나", "오리젠"]),
+                ("기타", [("맛보기 샘플", "맛보기샘플"), ("유통기한임박", "유통기한 임박")]),
+            ],
+            "간식": [
+                ("전체", ["덴탈껌", "원물/뼈간식", "캔/파우치", "져키/트릿", "비스킷/쿠키", "사사미", "통살/소시지", "동결/건조간식", "수제간식", "파우더", "음료/분유/우유", "영양/기능", ("유통기한 임박", "유통기한 임박")]),
+            ],
+            "용품": [
+                ("전체", ["구강관리", "건강관리", "미용/목욕", "급식/급수기", "장난감/훈련", "의류/악세사리", "하우스/방석", "이동장/캐리어", "목줄/하네스", "반려인용품", ("유통기한 임박", "유통기한 임박")]),
+            ],
+            "덴탈관": [
+                ("전체", ["수의사인증", "덴탈껌", "칫솔", "치약", "원물/뼈간식"]),
+            ],
+            "배변용품": [
+                ("전체", ["배변패드", "배변판", "기저귀/팬티", "탈취/소독", "배변봉투/집게", "배변유도제", "물티슈/클리너"]),
+            ],
+        },
+        "고양이": {
+            "사료": [
+                ("급여 연령", ["키튼(1세미만)", "어덜트(1~7세)", "시니어(7세이상)", "전연령"]),
+                ("종류", ["주식캔", "건식", "주식파우치", "에어/동결건조"]),
+                ("기능", ["처방식", "헤어볼", "피부/피모", "위장/소화", "요로기계", "체중조절", ("구강/치아 (덴탈케어)", "구강/치아(덴탈케어)"), "면역력", "묘종별"]),
+                ("기타", [("맛보기 샘플", "맛보기샘플"), ("유통기한 임박", "유통기한 임박")]),
+            ],
+            "습식관": [
+                ("전체", ["주식캔", "주식파우치"]),
+            ],
+            "간식": [
+                ("전체", ["간식캔", "간식파우치", "동결/건조간식", "스낵/캔디", "져키/스틱", "통살/소시지", "음료", "파우더/토퍼", "영양/기능", ("유통기한 임박", "유통기한 임박")]),
+            ],
+            "모래": [
+                ("전체", ["두부모래", "카사바/천연모래", "벤토나이트", ("기타 모래", "기타모래")]),
+            ],
+            "용품": [
+                ("전체", ["건강관리", "장난감/캣닢", "스크래쳐/캣타워", "치아관리", "화장실/위생", "미용/목욕", "급식/급수기", "의류/악세사리", "하우스/방석", "이동장/캐리어", "반려인용품", ("유통기한 임박", "유통기한 임박")]),
+            ],
+        },
+    }
+    strict_category_groups = {
+        "강아지": {"사료", "간식", "용품", "배변용품", "덴탈관"},
+        "고양이": {"사료", "습식관", "간식", "용품", "모래"},
+    }
+    strict_category_order_pets = {"강아지", "고양이"}
+
+    def build_category_href(pet_type, category):
+        if category:
+            return f"/products/?pet={pet_type}&category={category}"
+        return f"/products/?pet={pet_type}"
 
     sections = []
     for pet_type in pet_labels:
         categories = []
-        for config in catalog_config[pet_type]:
-            raw_counter = Counter()
-            for db_category in config["db_categories"]:
-                raw_counter.update(grouped_raw[pet_type].get(db_category, Counter()))
+        ordered_categories = []
+        seen_categories = set()
+        for category in category_order.get(pet_type, []):
+            if category in grouped_raw[pet_type]:
+                ordered_categories.append(category)
+                seen_categories.add(category)
+        if pet_type not in strict_category_order_pets:
+            for category, _counter in sorted(grouped_raw[pet_type].items(), key=lambda item: (-sum(item[1].values()), item[0])):
+                if category not in seen_categories:
+                    ordered_categories.append(category)
 
-            groups = []
-            for group_config in config["groups"]:
-                items = []
-                for subcategory in group_config["items"]:
-                    if raw_counter.get(subcategory, 0) <= 0:
-                        continue
-                    db_category = next(
-                        (
-                            category_name
-                            for category_name in config["db_categories"]
-                            if grouped_raw[pet_type].get(category_name, Counter()).get(subcategory, 0) > 0
-                        ),
-                        config["db_categories"][0],
-                    )
-                    items.append(
-                        {
-                            "label": subcategory,
-                            "href": f"/products/?pet={pet_type}&category={db_category}&subcategory={subcategory}",
-                        }
-                    )
-
-                if not items:
-                    continue
-
-                groups.append(
-                    {
-                        "label": group_config["label"],
-                        "items": items,
-                    }
-                )
-
-            if not groups:
+        for category in ordered_categories:
+            raw_counter = grouped_raw[pet_type].get(category, Counter())
+            if not raw_counter:
                 continue
+
+            group_config = group_definitions.get(pet_type, {}).get(category, [])
+            used_subcategories = set()
+            groups = []
+            for group_label, group_items in group_config:
+                items = []
+                for subcategory in group_items:
+                    display_label = subcategory
+                    raw_value = subcategory
+                    is_brand = False
+                    if isinstance(subcategory, (tuple, list)) and len(subcategory) >= 2:
+                        display_label = subcategory[0]
+                        raw_value = subcategory[1]
+                    if category == "사료" and group_label == "주요 브랜드":
+                        is_brand = True
+                        brand_products = Product.objects.filter(
+                            soldout_yn=False,
+                            pet_type__contains=[pet_type],
+                            brand_name=raw_value,
+                        )
+                        if not brand_products.exists():
+                            continue
+                    elif raw_counter.get(raw_value, 0) <= 0:
+                        continue
+                    if not is_brand:
+                        used_subcategories.add(raw_value)
+                    href = build_category_href(pet_type, category)
+                    if is_brand:
+                        href += f"&brand={raw_value}"
+                    elif category:
+                        href += f"&subcategory={raw_value}"
+                    else:
+                        href = f"/products/?pet={pet_type}&subcategory={raw_value}"
+                    items.append({"label": display_label, "href": href})
+                if items:
+                    groups.append({"label": group_label, "items": items})
+
+            remaining = []
+            if category not in strict_category_groups.get(pet_type, set()):
+                remaining = [
+                    subcategory
+                    for subcategory, _count in sorted(raw_counter.items(), key=lambda item: (-item[1], item[0]))
+                    if subcategory not in used_subcategories
+                ]
+            if remaining:
+                items = []
+                for subcategory in remaining:
+                    href = build_category_href(pet_type, category)
+                    if category:
+                        href += f"&subcategory={subcategory}"
+                    else:
+                        href = f"/products/?pet={pet_type}&subcategory={subcategory}"
+                    items.append({"label": subcategory, "href": href})
+                groups.append({"label": "기타", "items": items})
 
             categories.append(
                 {
-                    "label": config["label"],
-                    "href": f"/products/?pet={pet_type}&category={config['db_categories'][0]}",
+                    "label": category_labels.get(category, category),
+                    "href": build_category_href(pet_type, category),
                     "groups": groups,
                 }
             )
