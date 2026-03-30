@@ -242,14 +242,11 @@ jobs:
           DJANGO_SECRET_KEY=${{ secrets.DJANGO_SECRET_KEY }}
           DJANGO_DEBUG=False
           DJANGO_ALLOWED_HOSTS=*.elasticbeanstalk.com
-          DJANGO_SECURE_SSL_REDIRECT=True
-          DJANGO_SESSION_COOKIE_SECURE=True
-          DJANGO_CSRF_COOKIE_SECURE=True
 
-          APP_BASE_URL=http://test-tailtalk-django-env.ap-northeast-2.elasticbeanstalk.com
-          FASTAPI_INTERNAL_CHAT_URL=http://test-tailtalk-fastapi-env.ap-northeast-2.elasticbeanstalk.com/api/chat/
+          APP_BASE_URL=${{ secrets.APP_BASE_URL }}
+          FASTAPI_INTERNAL_CHAT_URL=${{ secrets.FASTAPI_INTERNAL_CHAT_URL }}
           INTERNAL_SERVICE_TOKEN=${{ secrets.INTERNAL_SERVICE_TOKEN }}
-          CORS_ALLOWED_ORIGINS=*
+          CORS_ALLOWED_ORIGINS=${{ secrets.CORS_ALLOWED_ORIGINS }}
 
           AWS_S3_BUCKET_NAME=${{ secrets.AWS_S3_BUCKET_NAME }}
           AWS_S3_REGION_NAME=ap-northeast-2
