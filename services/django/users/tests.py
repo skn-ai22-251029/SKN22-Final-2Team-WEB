@@ -8,6 +8,7 @@ from rest_framework.test import APIClient
 from social_django.models import UserSocialAuth
 
 from orders.models import Order
+from pets.models import FuturePetProfile
 from products.models import Product
 from users.models import SocialAccount, User, UserProfile
 from users.onboarding import ONBOARDING_FORCE_PROFILE_SESSION_KEY
@@ -176,6 +177,29 @@ class AuthApiTests(TestCase):
         self.user.refresh_from_db()
         self.assertFalse(self.user.is_active)
         self.assertEqual(Order.objects.filter(user=self.user).count(), 1)
+
+    def test_withdraw_deletes_future_pet_profile(self):
+        FuturePetProfile.objects.create(
+            user=self.user,
+            preferred_species="dog",
+            housing_type="apartment",
+            experience_level="first",
+            interests=["adoption"],
+        )
+
+        login_response = self.client.post(
+            "/api/auth/login/",
+            {"email": "auth@example.com", "password": "Password123!"},
+            format="json",
+        )
+        access = login_response.data["access"]
+        refresh = login_response.data["refresh"]
+
+        self.client.credentials(HTTP_AUTHORIZATION=f"Bearer {access}")
+        response = self.client.delete("/api/auth/withdraw/", {"refresh": refresh}, format="json")
+
+        self.assertEqual(response.status_code, status.HTTP_204_NO_CONTENT)
+        self.assertFalse(FuturePetProfile.objects.filter(user=self.user).exists())
 
 
 class ProfilePageViewTests(TestCase):

@@ -7,7 +7,7 @@ from django.test import TestCase
 from django.urls import reverse
 
 from chat.models import ChatMessage, ChatSession
-from pets.models import Pet, PetAllergy, PetFoodPreference, PetHealthConcern
+from pets.models import FuturePetProfile, Pet, PetAllergy, PetFoodPreference, PetHealthConcern
 from users.models import User, UserProfile
 from users.onboarding import ONBOARDING_FORCE_PROFILE_SESSION_KEY
 
@@ -62,6 +62,21 @@ class ChatPageTests(TestCase):
 
         self.assertEqual(response.status_code, 302)
         self.assertEqual(response["Location"], reverse("pet_add"))
+
+    def test_chat_page_allows_future_guardian_profile_without_registered_pet(self):
+        FuturePetProfile.objects.create(
+            user=self.user,
+            preferred_species="dog",
+            housing_type="apartment",
+            experience_level="first",
+            interests=["adoption", "starter_items"],
+        )
+
+        response = self.client.get(reverse("chat"))
+
+        self.assertEqual(response.status_code, 200)
+        self.assertContains(response, "예비 집사")
+        self.assertContains(response, "future-profile")
 
     def test_chat_page_redirects_to_profile_setup_when_profile_is_incomplete(self):
         incomplete_user = User.objects.create_user(

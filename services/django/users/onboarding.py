@@ -1,5 +1,6 @@
 from django.urls import reverse
 
+from pets.future_profile import get_future_pet_profile_for_request
 from .models import UserProfile
 
 ONBOARDING_FORCE_PROFILE_SESSION_KEY = "tailtalk_onboarding_force_profile"
@@ -25,7 +26,7 @@ def has_completed_pet_onboarding(request):
     if request.user.pets.exists():
         return True
 
-    return bool(request.session.get("future_pet_profile"))
+    return bool(get_future_pet_profile_for_request(request))
 
 
 def get_onboarding_redirect_url(request):

@@ -5,6 +5,7 @@ from django.shortcuts import redirect, render
 from django.views.decorators.csrf import ensure_csrf_cookie
 
 from orders.models import Cart
+from pets.future_profile import get_future_pet_profile_for_request
 from products.models import Product
 from users.onboarding import get_onboarding_redirect_url
 
@@ -518,7 +519,7 @@ def chat_view(request):
         "quick_order_payment_method": "등록된 결제수단이 없습니다",
     }
 
-    future_pet = _serialize_future_pet(request.session.get("future_pet_profile"))
+    future_pet = _serialize_future_pet(get_future_pet_profile_for_request(request))
     if future_pet:
         member_pets.append(future_pet)
         member_pets = _sort_member_pets(member_pets)
