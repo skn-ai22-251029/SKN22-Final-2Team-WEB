@@ -196,6 +196,11 @@ def _build_catalog_filter_options(queryset, field_name):
     return values
 
 
+def _catalog_brand_sort_key(value):
+    normalized = (value or "").strip()
+    return tuple(ord(char) for char in normalized)
+
+
 def _with_catalog_sort_fields(queryset):
     return queryset.annotate(
         _sort_popularity_score=Coalesce(
@@ -231,9 +236,9 @@ def _catalog_querystring(current_params, **overrides):
     return urlencode(params)
 
 
-def _href_query_matches(href, current_params):
+def _href_query_matches(href, current_params, keys=("pet", "category", "subcategory", "brand")):
     parsed = parse_qs(urlparse(href).query)
-    for key in ("pet", "category", "subcategory", "brand"):
+    for key in keys:
         current_value = (current_params.get(key) or "").strip()
         href_value = (parsed.get(key) or [""])[0].strip()
         if current_value != href_value:
@@ -763,7 +768,8 @@ def catalog(request):
     if sort_key not in CATALOG_SORT_OPTIONS:
         sort_key = "tailtalk"
 
-    queryset = Product.objects.filter(soldout_yn=False)
+    base_queryset = Product.objects.filter(soldout_yn=False)
+    queryset = base_queryset
     if pet:
         queryset = queryset.filter(pet_type__contains=[pet])
     if category:
@@ -772,6 +778,27 @@ def catalog(request):
         queryset = queryset.filter(subcategory__contains=[subcategory])
     if brand:
         queryset = queryset.filter(brand_name=brand)
+
+    brand_queryset = base_queryset
+    if pet:
+        brand_queryset = brand_queryset.filter(pet_type__contains=[pet])
+    if category:
+        brand_queryset = brand_queryset.filter(category__contains=[category])
+    if subcategory:
+        brand_queryset = brand_queryset.filter(subcategory__contains=[subcategory])
+
+    brand_values = sorted(
+        [
+        value
+        for value in brand_queryset.order_by("brand_name").values_list("brand_name", flat=True).distinct()
+        if value
+        ],
+        key=_catalog_brand_sort_key,
+    )
+    visible_brand_values = brand_values[:10]
+    if brand and brand in brand_values and brand not in visible_brand_values:
+        visible_brand_values.append(brand)
+    hidden_brand_values = [value for value in brand_values if value not in visible_brand_values]
 
     queryset = _with_catalog_sort_fields(queryset).order_by(*CATALOG_SORT_OPTIONS[sort_key]["ordering"])
     paginator = Paginator(queryset, DEFAULT_CATALOG_PAGE_SIZE)
@@ -866,16 +893,37 @@ def catalog(request):
                 "items": [
                     {
                         **entry,
-                        "is_active": _href_query_matches(entry["href"], current_params),
+                        "is_active": _href_query_matches(
+                            entry["href"],
+                            current_params,
+                            keys=("pet", "category", "subcategory"),
+                        ),
                     }
                     for entry in group["items"]
                 ],
             }
             for group in (selected_category["groups"] if selected_category else [])
         ],
+        "catalog_brand_options": [
+            {
+                "label": value,
+                "href": f"/catalog/{('?' + _catalog_querystring(current_params, brand=value, page=None)) if _catalog_querystring(current_params, brand=value, page=None) else ''}",
+                "is_active": value == brand,
+            }
+            for value in visible_brand_values
+        ],
+        "catalog_brand_hidden_options": [
+            {
+                "label": value,
+                "href": f"/catalog/{('?' + _catalog_querystring(current_params, brand=value, page=None)) if _catalog_querystring(current_params, brand=value, page=None) else ''}",
+                "is_active": value == brand,
+            }
+            for value in hidden_brand_values
+        ],
         "catalog_query_all": _catalog_querystring(current_params, page=None),
         "catalog_clear_category_query": _catalog_querystring(current_params, category=None, subcategory=None, brand=None, page=None),
         "catalog_clear_detail_query": _catalog_querystring(current_params, subcategory=None, brand=None, page=None),
+        "catalog_clear_brand_query": _catalog_querystring(current_params, brand=None, page=None),
     }
     return render(request, "orders/catalog.html", context)
 
