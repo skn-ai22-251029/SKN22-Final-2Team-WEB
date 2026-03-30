@@ -39,7 +39,4 @@ def get_onboarding_redirect_url(request):
     if not is_profile_complete(request.user):
         return f"{reverse('profile')}?setup=1"
 
-    if not has_completed_pet_onboarding(request):
-        return reverse("pet_add")
-
     return None

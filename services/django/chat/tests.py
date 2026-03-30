@@ -57,11 +57,10 @@ class ChatPageTests(TestCase):
         self.assertContains(response, "/products/?tab=wishlist")
         self.assertContains(response, "관심 상품")
 
-    def test_chat_page_redirects_to_pet_add_when_profile_complete_but_no_pet(self):
+    def test_chat_page_allows_chat_when_profile_complete_but_no_pet(self):
         response = self.client.get(reverse("chat"))
 
-        self.assertEqual(response.status_code, 302)
-        self.assertEqual(response["Location"], reverse("pet_add"))
+        self.assertEqual(response.status_code, 200)
 
     def test_chat_page_allows_future_guardian_profile_without_registered_pet(self):
         FuturePetProfile.objects.create(
