@@ -11,6 +11,7 @@ from rest_framework.permissions import IsAuthenticated
 from rest_framework.views import APIView
 from rest_framework_simplejwt.authentication import JWTAuthentication
 
+from .breeds import resolve_breed
 from .models import Pet, PetAllergy, PetFoodPreference, PetHealthConcern
 
 
@@ -165,7 +166,6 @@ def _apply_pet_payload(pet, request, *, partial):
         pet.gender = gender
 
     scalar_fields = {
-        "breed": lambda value: str(value).strip() or None,
         "age_years": lambda value: _parse_integer(value, "age_years"),
         "age_months": lambda value: _parse_integer(value, "age_months"),
         "weight_kg": lambda value: _parse_decimal(value, "weight_kg"),
@@ -178,6 +178,12 @@ def _apply_pet_payload(pet, request, *, partial):
     for field, parser in scalar_fields.items():
         if field in request.data:
             setattr(pet, field, parser(request.data.get(field)))
+
+    if "breed" in request.data:
+        resolved_breed = resolve_breed(pet.species, request.data.get("breed"))
+        if not resolved_breed:
+            raise ValueError("breed must be one of the registered breeds.")
+        pet.breed = resolved_breed
 
     valid_health_concerns = {choice for choice, _ in PetHealthConcern.CONCERN_CHOICES}
     valid_food_preferences = {choice for choice, _ in PetFoodPreference.FOOD_TYPE_CHOICES}

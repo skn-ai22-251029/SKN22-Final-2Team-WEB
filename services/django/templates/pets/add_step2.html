@@ -52,7 +52,7 @@
               <input id="breedInput" name="breed" value="{{ pet.breed|default:'' }}" autocomplete="off" placeholder="{% if species == 'cat' %}품종을 검색해주세요 (예: 벵갈, ㅂㄱ){% else %}품종을 검색해주세요 (예: 말티즈, ㅁㅌㅈ){% endif %}" class="h-[42px] w-full rounded-[10px] border border-[#e2e8f0] bg-white px-[14px] text-[14px] leading-none text-[#2d3748] outline-none transition-colors placeholder:text-[#a0aec0] focus:border-[#90cdf4]" />
               <div id="breedSuggestions" class="pointer-events-none absolute left-0 right-0 top-[calc(100%+8px)] z-10 hidden max-h-[220px] overflow-y-auto rounded-[12px] border border-[#dbe7f5] bg-white p-[6px] opacity-0 shadow-[0_12px_24px_rgba(45,55,72,0.10)] transition-all duration-150"></div>
             </div>
-            <p id="breedStatus" class="hidden text-right text-[12px]"></p>
+            <p id="breedStatus" class="{% if breed_error_message %}text-right text-[12px] text-[#e53e3e]{% else %}hidden text-right text-[12px]{% endif %}">{{ breed_error_message|default:'' }}</p>
           </div>
 
           <div class="space-y-[12px]">
@@ -141,10 +141,7 @@
     var highlightedBreedIndex = -1;
     var isNameComposing = false;
     var allowedNamePattern = /[^가-힣A-Za-z0-9\s]/g;
-    var breedData = {
-      dog: ['말티즈', '푸들', '포메라니안', '비숑 프리제', '시바견', '웰시 코기', '리트리버', '치와와', '불독', '요크셔테리어'],
-      cat: ['코리안 숏헤어', '브리티시 숏헤어', '러시안 블루', '스코티시 폴드', '페르시안', '샴', '먼치킨', '랙돌', '노르웨이 숲', '벵갈'],
-    };
+    var breedData = {{ breed_options_json|safe }};
     var CHOSEONG = ['ㄱ', 'ㄲ', 'ㄴ', 'ㄷ', 'ㄸ', 'ㄹ', 'ㅁ', 'ㅂ', 'ㅃ', 'ㅅ', 'ㅆ', 'ㅇ', 'ㅈ', 'ㅉ', 'ㅊ', 'ㅋ', 'ㅌ', 'ㅍ', 'ㅎ'];
 
     function paintToggle(button, active) {
