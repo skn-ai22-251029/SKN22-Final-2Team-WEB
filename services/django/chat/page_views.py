@@ -83,6 +83,7 @@ def _serialize_cart_product(item):
         "summary": "장바구니에 담긴 상품",
         "price": _format_price(price),
         "thumbnail_url": product.thumbnail_url,
+        "product_url": product.product_url,
         "brand_name": product.brand_name,
         "rating": str(product.rating or "0.0"),
         "reviews": f"리뷰 {product.review_count}",

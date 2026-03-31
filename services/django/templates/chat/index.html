@@ -1018,6 +1018,17 @@
                 {% for product in recommended_products %}
                 <div class="rounded-[20px] border border-[#dbe7f5] bg-white px-[14px] py-[13px] shadow-[0_8px_20px_rgba(45,55,72,0.05)]">
                   <div class="flex items-center gap-[10px]">
+                    {% if product.product_url %}
+                    <a href="{{ product.product_url }}" target="_blank" rel="noopener noreferrer"
+                       class="relative flex h-[68px] w-[68px] shrink-0 items-center justify-center overflow-hidden rounded-[14px] bg-gradient-to-br from-[#dbeafe] via-[#eff6ff] to-[#f8fafc] transition-transform hover:scale-[1.02]">
+                      {% if product.thumbnail_url %}
+                      <img src="{{ product.thumbnail_url }}" alt="" class="h-full w-full object-cover" onerror="this.style.display='none'; this.parentNode.querySelector('.fallback-emoji').style.display = 'flex';">
+                      <div class="fallback-emoji absolute inset-0 hidden items-center justify-center text-[26px]">{{ product.emoji }}</div>
+                      {% else %}
+                      <div class="flex h-full w-full items-center justify-center text-[26px]">{{ product.emoji }}</div>
+                      {% endif %}
+                    </a>
+                    {% else %}
                     <div class="relative flex h-[68px] w-[68px] shrink-0 items-center justify-center overflow-hidden rounded-[14px] bg-gradient-to-br from-[#dbeafe] via-[#eff6ff] to-[#f8fafc]">
                       {% if product.thumbnail_url %}
                       <img src="{{ product.thumbnail_url }}" alt="" class="h-full w-full object-cover" onerror="this.style.display='none'; this.parentNode.querySelector('.fallback-emoji').style.display = 'flex';">
@@ -1026,11 +1037,17 @@
                       <div class="flex h-full w-full items-center justify-center text-[26px]">{{ product.emoji }}</div>
                       {% endif %}
                     </div>
+                    {% endif %}
                     <div class="product-card-text-block min-w-0">
                       {% if product.brand_name %}
                       <div class="product-card-brand">{{ product.brand_name }}</div>
                       {% endif %}
+                      {% if product.product_url %}
+                      <a href="{{ product.product_url }}" target="_blank" rel="noopener noreferrer"
+                         class="product-card-name block transition-colors hover:text-[#2b6cb0]">{{ product.name }}</a>
+                      {% else %}
                       <div class="product-card-name">{{ product.name }}</div>
+                      {% endif %}
                       <div class="product-card-price">{{ product.price }}</div>
                       <div class="product-card-review-row with-actions">
                         <div class="product-card-review-meta">
@@ -1080,7 +1097,7 @@
                 <div id="cartPanelList" class="space-y-[12px]">
                 {% for product in cart_products %}
                 <div class="group relative rounded-[20px] border border-[#dbe7f5] bg-white px-[14px] py-[13px] shadow-[0_8px_20px_rgba(45,55,72,0.05)]"
-                     data-cart-item data-unit-price="{{ product.unit_price }}" data-product-name="{{ product.name }}" data-product-brand="{{ product.brand_name|default:'' }}" data-goods-id="{{ product.product_id|default:'' }}" data-product-rating="{{ product.rating }}" data-product-reviews="{{ product.reviews }}" data-product-thumbnail="{{ product.thumbnail_url|default:'' }}">
+                     data-cart-item data-unit-price="{{ product.unit_price }}" data-product-name="{{ product.name }}" data-product-brand="{{ product.brand_name|default:'' }}" data-goods-id="{{ product.product_id|default:'' }}" data-product-rating="{{ product.rating }}" data-product-reviews="{{ product.reviews }}" data-product-thumbnail="{{ product.thumbnail_url|default:'' }}" data-product-url="{{ product.product_url|default:'' }}">
                   <button type="button"
                           class="absolute right-[10px] top-[10px] flex h-[28px] w-[28px] items-center justify-center rounded-full border border-[#e2e8f0] bg-white text-[14px] text-[#a0aec0] opacity-0 transition-opacity duration-150 group-hover:opacity-100"
                           onclick="removeCartItem(this)"
@@ -1088,6 +1105,17 @@
                     <span class="relative top-[-1px]">×</span>
                   </button>
                   <div class="flex items-center gap-[10px]">
+                    {% if product.product_url %}
+                    <a href="{{ product.product_url }}" target="_blank" rel="noopener noreferrer"
+                       class="relative flex h-[68px] w-[68px] shrink-0 items-center justify-center overflow-hidden rounded-[14px] bg-gradient-to-br from-[#ede9fe] via-[#f5f3ff] to-[#faf5ff] transition-transform hover:scale-[1.02]">
+                      {% if product.thumbnail_url %}
+                      <img src="{{ product.thumbnail_url }}" alt="" class="h-full w-full object-cover" onerror="this.style.display='none'; this.parentNode.querySelector('.fallback-emoji').style.display = 'flex';">
+                      <div class="fallback-emoji absolute inset-0 hidden items-center justify-center text-[26px]">{{ product.emoji }}</div>
+                      {% else %}
+                      <div class="flex h-full w-full items-center justify-center text-[26px]">{{ product.emoji }}</div>
+                      {% endif %}
+                    </a>
+                    {% else %}
                     <div class="relative flex h-[68px] w-[68px] shrink-0 items-center justify-center overflow-hidden rounded-[14px] bg-gradient-to-br from-[#ede9fe] via-[#f5f3ff] to-[#faf5ff]">
                       {% if product.thumbnail_url %}
                       <img src="{{ product.thumbnail_url }}" alt="" class="h-full w-full object-cover" onerror="this.style.display='none'; this.parentNode.querySelector('.fallback-emoji').style.display = 'flex';">
@@ -1096,11 +1124,17 @@
                       <div class="flex h-full w-full items-center justify-center text-[26px]">{{ product.emoji }}</div>
                       {% endif %}
                     </div>
+                    {% endif %}
                     <div class="product-card-text-block min-w-0">
                       {% if product.brand_name %}
                       <div class="product-card-brand">{{ product.brand_name }}</div>
                       {% endif %}
+                      {% if product.product_url %}
+                      <a href="{{ product.product_url }}" target="_blank" rel="noopener noreferrer"
+                         class="product-card-name block transition-colors hover:text-[#2b6cb0]">{{ product.name }}</a>
+                      {% else %}
                       <div class="product-card-name">{{ product.name }}</div>
+                      {% endif %}
                       <div class="product-card-price">{{ product.price }}</div>
                       <div class="product-card-review-row with-actions">
                         <div class="product-card-review-meta">
@@ -1380,6 +1414,7 @@
   var activeCatalogPetIndex = 0;
   var activeCatalogCategoryIndex = 0;
   var activeCatalogGroupIndex = 0;
+  var recommendedPanelDefaultHtml = recommendedPanel ? recommendedPanel.innerHTML : '';
 
   function getCookie(name) {
     var cookieValue = null;
@@ -1423,6 +1458,28 @@
       nextHref += '?session=' + encodeURIComponent(activeSessionId);
     }
     allLink.setAttribute('href', nextHref);
+  }
+
+  function readSessionIdFromUrl() {
+    try {
+      return new URLSearchParams(window.location.search).get('session') || null;
+    } catch (error) {
+      return null;
+    }
+  }
+
+  function syncActiveSessionUrl() {
+    try {
+      var url = new URL(window.location.href);
+      if (activeSessionId) {
+        url.searchParams.set('session', activeSessionId);
+      } else {
+        url.searchParams.delete('session');
+      }
+      window.history.replaceState({}, '', url.toString());
+    } catch (error) {
+      // URL sync failure should not block chat interactions.
+    }
   }
 
   function renderCatalogPetList() {
@@ -1635,7 +1692,7 @@
 
   function ensureSessionState(sessionId) {
     if (!sessionThreads[sessionId]) {
-      sessionThreads[sessionId] = { messages: [], loaded: false, loadingPromise: null };
+      sessionThreads[sessionId] = { messages: [], loaded: false, loadingPromise: null, latestRecommendedProducts: [] };
     }
     if (!Array.isArray(sessionThreads[sessionId].messages)) {
       sessionThreads[sessionId].messages = [];
@@ -1646,7 +1703,64 @@
     if (typeof sessionThreads[sessionId].loadingPromise === 'undefined') {
       sessionThreads[sessionId].loadingPromise = null;
     }
+    if (!Array.isArray(sessionThreads[sessionId].latestRecommendedProducts)) {
+      sessionThreads[sessionId].latestRecommendedProducts = [];
+    }
     return sessionThreads[sessionId];
+  }
+
+  function normalizeRecommendedProducts(products) {
+    return (products || []).map(function (product) {
+      return {
+        goods_id: product.goods_id || product.product_id || '',
+        product_id: product.product_id || product.goods_id || '',
+        product_name: product.product_name || product.name || '추천 상품',
+        brand_name: product.brand_name || product.brand || '',
+        price: product.price || '',
+        discount_price: product.discount_price || '',
+        rating: product.rating,
+        reviews: product.reviews,
+        thumbnail_url: product.thumbnail_url || '',
+        product_url: product.product_url || '',
+        rank_order: product.rank_order,
+      };
+    });
+  }
+
+  function resolveSessionRecommendedProducts(session) {
+    if (!session || !Array.isArray(session.messages)) {
+      return [];
+    }
+
+    for (var index = session.messages.length - 1; index >= 0; index -= 1) {
+      var message = session.messages[index];
+      if (message && Array.isArray(message.recommendedProducts) && message.recommendedProducts.length) {
+        return normalizeRecommendedProducts(message.recommendedProducts);
+      }
+    }
+
+    return [];
+  }
+
+  function restoreDefaultRecommendedPanel() {
+    if (!recommendedPanel) return;
+    recommendedPanel.innerHTML = recommendedPanelDefaultHtml;
+    refreshRecommendedWishlistState({ silent: true });
+  }
+
+  function applySessionRecommendedProducts(session) {
+    var cards = session && Array.isArray(session.latestRecommendedProducts)
+      ? session.latestRecommendedProducts
+      : [];
+
+    if (cards.length) {
+      openProductPanel();
+      switchProductTab('recommended');
+      renderProductCards(cards);
+      return;
+    }
+
+    restoreDefaultRecommendedPanel();
   }
 
   function readJsonResponse(res) {
@@ -1786,6 +1900,7 @@
         }
         ensureSessionItem(data);
         activeSessionId = data.session_id;
+        syncActiveSessionUrl();
         return data;
       });
     });
@@ -1806,8 +1921,13 @@
           throw new Error((data && data.detail) || '대화 기록을 불러오지 못했습니다.');
         }
         session.messages = (data.messages || []).map(function (message) {
-          return { role: message.role, text: message.content };
+          return {
+            role: message.role,
+            text: message.content,
+            recommendedProducts: message.recommended_products || [],
+          };
         });
+        session.latestRecommendedProducts = resolveSessionRecommendedProducts(session);
         session.loaded = true;
         return session.messages;
       });
@@ -2186,15 +2306,16 @@
       appendMessage(message.role, message.text);
     });
 
+    syncActiveSessionUrl();
+    applySessionRecommendedProducts(session);
     scrollToBottom();
   }
 
   function activateSession(sessionId) {
     activeSessionId = sessionId;
+    syncActiveSessionUrl();
     syncCatalogMenuAllLink();
     updateSessionItemStyles();
-    openProductPanel();
-    switchProductTab('recommended');
     loadSessionMessages(sessionId).then(function () {
       if (activeSessionId === sessionId) {
         renderSessionThread(sessionId);
@@ -2231,17 +2352,27 @@
       var rating = card.rating || '4.7';
       var reviews = card.reviews || '리뷰 준비 중';
       var thumbnailUrl = escapeHtml(card.thumbnail_url || '');
+      var productUrl = escapeHtml(card.product_url || '');
       var priceHtml = '<div class="product-card-price">' + finalPrice + '</div>';
+      var thumbnailHtml = productUrl
+        ? '<a href="' + productUrl + '" target="_blank" rel="noopener noreferrer" class="relative flex h-[68px] w-[68px] shrink-0 items-center justify-center overflow-hidden rounded-[14px] bg-gradient-to-br from-[#dbeafe] via-[#eff6ff] to-[#f8fafc] transition-transform hover:scale-[1.02]">'
+          + '  <img src="' + thumbnailUrl + '" alt="" class="h-full w-full object-cover" onerror="this.style.display=\'none\'; this.parentNode.querySelector(&quot;.fallback-emoji&quot;).style.display = \'flex\';">'
+          + '  <div class="fallback-emoji absolute inset-0 hidden items-center justify-center text-[26px]">🛍️</div>'
+          + '</a>'
+        : '<div class="relative flex h-[68px] w-[68px] shrink-0 items-center justify-center overflow-hidden rounded-[14px] bg-gradient-to-br from-[#dbeafe] via-[#eff6ff] to-[#f8fafc]">'
+          + '  <img src="' + thumbnailUrl + '" alt="" class="h-full w-full object-cover" onerror="this.style.display=\'none\'; this.parentNode.querySelector(&quot;.fallback-emoji&quot;).style.display = \'flex\';">'
+          + '  <div class="fallback-emoji absolute inset-0 hidden items-center justify-center text-[26px]">🛍️</div>'
+          + '</div>';
+      var nameHtml = productUrl
+        ? '<a href="' + productUrl + '" target="_blank" rel="noopener noreferrer" class="product-card-name block transition-colors hover:text-[#2b6cb0]">' + (display.name || '추천 상품') + '</a>'
+        : '<div class="product-card-name">' + (display.name || '추천 상품') + '</div>';
       var el = document.createElement('div');
       el.className = 'rounded-[20px] border border-[#dbe7f5] bg-white px-[14px] py-[13px] shadow-[0_8px_20px_rgba(45,55,72,0.05)]';
       el.innerHTML = '<div class="flex items-center gap-[10px]">'
-        + '<div class="relative flex h-[68px] w-[68px] shrink-0 items-center justify-center overflow-hidden rounded-[14px] bg-gradient-to-br from-[#dbeafe] via-[#eff6ff] to-[#f8fafc]">'
-        + '  <img src="' + thumbnailUrl + '" alt="" class="h-full w-full object-cover" onerror="this.style.display=\'none\'; this.parentNode.querySelector(&quot;.fallback-emoji&quot;).style.display = \'flex\';">'
-        + '  <div class="fallback-emoji absolute inset-0 hidden items-center justify-center text-[26px]">🛍️</div>'
-        + '</div>'
+        + thumbnailHtml
         + '<div class="product-card-text-block min-w-0">'
         + (display.brand ? '<div class="product-card-brand">' + display.brand + '</div>' : '')
-        + '<div class="product-card-name">' + (display.name || '추천 상품') + '</div>'
+        + nameHtml
         + priceHtml
         + '<div class="product-card-review-row with-actions">'
         + '  <div class="product-card-review-meta">'
@@ -2280,7 +2411,6 @@
         + '</button>'
         + '  </div>'
         + '</div>'
-        + (card.product_url ? '<a href="' + card.product_url + '" target="_blank" class="mt-[7px] inline-flex text-[11px] font-bold text-[#3182ce]">상품 보러가기</a>' : '')
         + '</div>';
       recommendedPanel.appendChild(el);
     });
@@ -2371,6 +2501,8 @@
       }
       updateChatSectionState(false);
       activeSessionId = null;
+      syncActiveSessionUrl();
+      syncCatalogMenuAllLink();
       updateSessionItemStyles();
       if (messageInput) {
         messageInput.value = '';
@@ -2429,6 +2561,7 @@
     ensureSessionPromise.then(function (sessionData) {
       var sessionId = sessionData.session_id;
       activeSessionId = sessionId;
+      syncActiveSessionUrl();
       syncCatalogMenuAllLink();
       var sessionState = ensureSessionState(sessionId);
       promoteSessionItem(sessionId, sessionData.title || (msg.length > 18 ? msg.slice(0, 18) + '...' : msg));
@@ -2453,6 +2586,7 @@
       var pendingAssistantText = '답변을 준비하고 있어요...';
       var assistantEl = appendMessage('assistant', pendingAssistantText);
       var assistantText = '';
+      var assistantRecommendedProducts = [];
       openProductPanel();
       switchProductTab('recommended');
 
@@ -2510,11 +2644,17 @@
                   }
                   scrollToBottom();
                 } else if (evt.type === 'products' && evt.cards && evt.cards.length) {
+                  assistantRecommendedProducts = normalizeRecommendedProducts(evt.cards);
+                  sessionState.latestRecommendedProducts = assistantRecommendedProducts;
                   openProductPanel();
                   switchProductTab('recommended');
                   renderProductCards(evt.cards);
                 } else if (evt.type === 'done') {
-                  ensureSessionState(sessionId).messages.push({ role: 'assistant', text: assistantText });
+                  ensureSessionState(sessionId).messages.push({
+                    role: 'assistant',
+                    text: assistantText,
+                    recommendedProducts: assistantRecommendedProducts,
+                  });
                   setComposerBusy(false);
                 } else if (evt.type === 'error') {
                   assistantText = evt.message || '죄송합니다, 오류가 발생했습니다.';
@@ -2602,10 +2742,23 @@
   function buildCartItem(product) {
     var display = splitBrandAndName(product.brand || '', product.name || '상품');
     var thumbnailUrl = escapeHtml(product.thumbnailUrl || '');
+    var productUrl = escapeHtml(product.productUrl || '');
     var thumbnailHtml = product.thumbnailUrl
       ? '<img src="' + thumbnailUrl + '" alt="" class="h-full w-full object-cover" onerror="this.style.display=\'none\'; this.parentNode.querySelector(&quot;.fallback-emoji&quot;).style.display = \'flex\';">'
       : '';
     var fallbackClass = product.thumbnailUrl ? 'fallback-emoji absolute inset-0 hidden items-center justify-center text-[26px]' : 'flex h-full w-full items-center justify-center text-[26px]';
+    var thumbnailWrapperHtml = productUrl
+      ? '<a href="' + productUrl + '" target="_blank" rel="noopener noreferrer" class="relative flex h-[68px] w-[68px] shrink-0 items-center justify-center overflow-hidden rounded-[14px] bg-gradient-to-br from-[#ede9fe] via-[#f5f3ff] to-[#faf5ff] transition-transform hover:scale-[1.02]">'
+          + thumbnailHtml
+          + '    <div class="' + fallbackClass + '">' + product.emoji + '</div>'
+          + '  </a>'
+      : '<div class="relative flex h-[68px] w-[68px] shrink-0 items-center justify-center overflow-hidden rounded-[14px] bg-gradient-to-br from-[#ede9fe] via-[#f5f3ff] to-[#faf5ff]">'
+          + thumbnailHtml
+          + '    <div class="' + fallbackClass + '">' + product.emoji + '</div>'
+          + '  </div>';
+    var nameHtml = productUrl
+      ? '<a href="' + productUrl + '" target="_blank" rel="noopener noreferrer" class="product-card-name block transition-colors hover:text-[#2b6cb0]">' + escapeHtml(display.name || '상품') + '</a>'
+      : '<div class="product-card-name">' + escapeHtml(display.name || '상품') + '</div>';
     var item = document.createElement('div');
     item.className = 'group relative rounded-[20px] border border-[#dbe7f5] bg-white px-[14px] py-[13px] shadow-[0_8px_20px_rgba(45,55,72,0.05)]';
     item.setAttribute('data-cart-item', '');
@@ -2625,13 +2778,10 @@
       + '  <span class="relative top-[-1px]">×</span>'
       + '</button>'
       + '<div class="flex items-center gap-[10px]">'
-      + '  <div class="relative flex h-[68px] w-[68px] shrink-0 items-center justify-center overflow-hidden rounded-[14px] bg-gradient-to-br from-[#ede9fe] via-[#f5f3ff] to-[#faf5ff]">'
-      +        thumbnailHtml
-      + '    <div class="' + fallbackClass + '">' + product.emoji + '</div>'
-      + '  </div>'
+      + thumbnailWrapperHtml
       + '  <div class="product-card-text-block min-w-0">'
       + (display.brand ? '    <div class="product-card-brand">' + display.brand + '</div>' : '')
-      + '    <div class="product-card-name">' + (display.name || '상품') + '</div>'
+      + '    ' + nameHtml
       + '    <div class="product-card-price">' + product.price + '</div>'
       + '    <div class="product-card-review-row with-actions">'
       + '      <div class="product-card-review-meta">'
@@ -2676,6 +2826,7 @@
       emoji: item.emoji || '🛍️',
       brand: display.brand || '',
       thumbnailUrl: item.thumbnail_url || item.thumbnailUrl || '',
+      productUrl: item.product_url || item.productUrl || '',
       note: item.note || '가격 비교를 위해 보관한 상품',
       isWishlisted: !!item.is_wishlisted,
     };
@@ -2723,6 +2874,7 @@
         quantity: serialized.quantity,
         emoji: serialized.emoji,
         thumbnailUrl: serialized.thumbnailUrl,
+        productUrl: serialized.productUrl,
       }));
     });
     updateCartEmptyState();
@@ -2751,6 +2903,7 @@
       emoji: item.emoji || '🛍️',
       brand: item.brand || '',
       thumbnailUrl: item.thumbnail_url || item.thumbnailUrl || '',
+      productUrl: item.product_url || item.productUrl || '',
     };
   }
 
@@ -2765,6 +2918,7 @@
     var brand = escapeHtml(display.brand || '');
     var emoji = escapeHtml(product.emoji || '🛍️');
     var thumbnailUrl = escapeHtml(product.thumbnailUrl || '');
+    var productUrl = escapeHtml(product.productUrl || '');
     item.className = 'rounded-[20px] border border-[#dbe7f5] bg-white px-[14px] py-[13px] shadow-[0_8px_20px_rgba(45,55,72,0.05)]';
     item.setAttribute('data-wishlist-item', '');
     item.setAttribute('data-goods-id', product.goodsId || '');
@@ -2780,15 +2934,24 @@
       ? '<img src="' + thumbnailUrl + '" alt="" class="h-full w-full object-cover" onerror="this.style.display=\'none\'; this.parentNode.querySelector(&quot;.fallback-emoji&quot;).style.display = \'flex\';">'
       : '';
     var fallbackClass = product.thumbnailUrl ? 'fallback-emoji absolute inset-0 hidden items-center justify-center text-[26px]' : 'flex h-full w-full items-center justify-center text-[26px]';
+    var thumbnailWrapperHtml = productUrl
+      ? '<a href="' + productUrl + '" target="_blank" rel="noopener noreferrer" class="relative flex h-[68px] w-[68px] shrink-0 items-center justify-center overflow-hidden rounded-[14px] bg-gradient-to-br from-[#fef3f2] via-[#fff7f5] to-[#fffafa] transition-transform hover:scale-[1.02]">'
+          + thumbnailHtml
+          + '    <div class="' + fallbackClass + '">' + emoji + '</div>'
+          + '  </a>'
+      : '<div class="relative flex h-[68px] w-[68px] shrink-0 items-center justify-center overflow-hidden rounded-[14px] bg-gradient-to-br from-[#fef3f2] via-[#fff7f5] to-[#fffafa]">'
+          + thumbnailHtml
+          + '    <div class="' + fallbackClass + '">' + emoji + '</div>'
+          + '  </div>';
+    var nameHtml = productUrl
+      ? '<a href="' + productUrl + '" target="_blank" rel="noopener noreferrer" class="product-card-name block transition-colors hover:text-[#2b6cb0]">' + productName + '</a>'
+      : '<div class="product-card-name">' + productName + '</div>';
     item.innerHTML = ''
       + '<div class="flex items-center gap-[10px]">'
-      + '  <div class="relative flex h-[68px] w-[68px] shrink-0 items-center justify-center overflow-hidden rounded-[14px] bg-gradient-to-br from-[#fef3f2] via-[#fff7f5] to-[#fffafa]">'
-      +        thumbnailHtml
-      + '    <div class="' + fallbackClass + '">' + emoji + '</div>'
-      + '  </div>'
+      + thumbnailWrapperHtml
       + '  <div class="product-card-text-block min-w-0">'
       + (display.brand ? '    <div class="product-card-brand">' + brand + '</div>' : '')
-      + '    <div class="product-card-name">' + productName + '</div>'
+      + '    ' + nameHtml
       + '    <div class="product-card-price">' + priceLabel + '</div>'
       + '    <div class="product-card-review-row with-actions">'
       + '      <div class="product-card-review-meta">'
@@ -3730,6 +3893,12 @@
   closePetDropdown();
   updateChatSectionState(false);
   updateSessionItemStyles();
+
+  var initialSessionId = readSessionIdFromUrl();
+  if (initialSessionId) {
+    ensureSessionState(initialSessionId);
+    activateSession(initialSessionId);
+  }
 
   window.addEventListener('storage', function (event) {
     if (event.key === SHARED_CART_COUNT_STORAGE_KEY) {

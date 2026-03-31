@@ -524,6 +524,7 @@ def _serialize_panel_product(product, quantity=1, is_wishlisted=False, note="가
     return {
         "goods_id": product.goods_id,
         "thumbnail_url": product.thumbnail_url,
+        "product_url": product.product_url,
         "brand": product.brand_name,
         "name": _display_product_name(product.brand_name, product.goods_name),
         "summary": _product_summary(product),
