@@ -384,6 +384,41 @@
     text-decoration: line-through;
   }
 
+  @keyframes recommended-search-orbit {
+    0% {
+      transform: rotate(0deg);
+    }
+    100% {
+      transform: rotate(-360deg);
+    }
+  }
+
+  @keyframes recommended-search-orbit-lock {
+    0% {
+      transform: translate(-50%, -50%) translateY(9px) rotate(0deg);
+    }
+    100% {
+      transform: translate(-50%, -50%) translateY(9px) rotate(360deg);
+    }
+  }
+
+  .recommended-loading-orbit {
+    position: relative;
+    height: 30px;
+    width: 30px;
+    animation: recommended-search-orbit 1.85s linear infinite;
+    will-change: transform;
+  }
+
+  .recommended-loading-icon {
+    position: absolute;
+    left: 50%;
+    top: 50%;
+    animation: recommended-search-orbit-lock 1.85s linear infinite;
+    transform-origin: center;
+    will-change: transform;
+  }
+
   .product-card-review-row {
     margin-top: 2px;
     display: flex;
@@ -1417,6 +1452,7 @@
   var activeCatalogCategoryIndex = 0;
   var activeCatalogGroupIndex = 0;
   var recommendedPanelDefaultHtml = recommendedPanel ? recommendedPanel.innerHTML : '';
+  var recommendedLoadingTimer = null;
   var SESSION_RECOMMENDED_PRODUCTS_STORAGE_PREFIX = 'tailtalk_session_recommended_products:';
   var activeProfileSelectionPrompt = null;
   var skipProfileSelectionPromptOnce = false;
@@ -2084,8 +2120,59 @@
 
   function restoreDefaultRecommendedPanel() {
     if (!recommendedPanel) return;
+    if (recommendedLoadingTimer) {
+      window.clearInterval(recommendedLoadingTimer);
+      recommendedLoadingTimer = null;
+    }
     recommendedPanel.innerHTML = recommendedPanelDefaultHtml;
     refreshRecommendedWishlistState({ silent: true });
+  }
+
+  function renderRecommendedEmptyState() {
+    if (!recommendedPanel) return;
+    if (recommendedLoadingTimer) {
+      window.clearInterval(recommendedLoadingTimer);
+      recommendedLoadingTimer = null;
+    }
+
+    recommendedPanel.innerHTML = ''
+      + '<div class="rounded-[20px] border border-dashed border-[#dbe7f5] bg-[#fbfdff] px-[18px] py-[24px] text-center">'
+      + '  <div class="text-[28px] text-[#7aa6e9]">😶</div>'
+      + '  <div class="mt-[10px] text-[14px] font-bold text-[#2d3748]">이번 대화에는 추천할 상품이 없어요</div>'
+      + '</div>';
+  }
+
+  function renderRecommendedLoadingState() {
+    if (!recommendedPanel) return;
+    if (recommendedLoadingTimer) {
+      window.clearInterval(recommendedLoadingTimer);
+      recommendedLoadingTimer = null;
+    }
+
+    recommendedPanel.innerHTML = ''
+      + '<div class="flex min-h-full items-center justify-center px-[8px] py-[28px]">'
+      + '  <div class="flex flex-col items-center gap-[14px] text-center">'
+      + '    <div class="flex h-[54px] w-[54px] items-center justify-center rounded-full border border-[#dbe7f5] bg-white shadow-[0_8px_20px_rgba(45,55,72,0.05)]">'
+      + '      <div class="recommended-loading-orbit">'
+      + '        <svg class="recommended-loading-icon h-[24px] w-[24px] text-[#3182ce]" viewBox="0 0 24 24" fill="none" aria-hidden="true">'
+      + '          <circle cx="11" cy="11" r="6.5" stroke="currentColor" stroke-width="1.8"></circle>'
+      + '          <path d="M16.2 16.2L20 20" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"></path>'
+      + '        </svg>'
+      + '      </div>'
+      + '    </div>'
+      + '    <p class="text-[13px] font-semibold leading-[1.6] text-[#4a5568]">추천 상품을 찾는 중입니다<span data-recommended-loading-dots></span></p>'
+      + '  </div>'
+      + '</div>';
+
+    var dotsNode = recommendedPanel.querySelector('[data-recommended-loading-dots]');
+    if (!dotsNode) return;
+    var frames = ['', '.', '..', '...'];
+    var frameIndex = 0;
+    dotsNode.textContent = frames[frameIndex];
+    recommendedLoadingTimer = window.setInterval(function () {
+      frameIndex = (frameIndex + 1) % frames.length;
+      dotsNode.textContent = frames[frameIndex];
+    }, 420);
   }
 
   function applySessionRecommendedProducts(session) {
@@ -2696,6 +2783,10 @@
 
   function renderProductCards(cards) {
     if (!recommendedPanel) return;
+    if (recommendedLoadingTimer) {
+      window.clearInterval(recommendedLoadingTimer);
+      recommendedLoadingTimer = null;
+    }
     if (!cards || !cards.length) {
       return;
     }
@@ -2948,6 +3039,7 @@
       var assistantRecommendedProducts = [];
       openProductPanel();
       switchProductTab('recommended');
+      renderRecommendedLoadingState();
 
       fetch('/api/chat/sessions/' + sessionId + '/messages/', {
         method: 'POST',
@@ -3015,6 +3107,9 @@
                     text: assistantText,
                     recommendedProducts: assistantRecommendedProducts,
                   });
+                  if (!assistantRecommendedProducts.length) {
+                    renderRecommendedEmptyState();
+                  }
                   setComposerBusy(false);
                 } else if (evt.type === 'error') {
                   assistantText = evt.message || '죄송합니다, 오류가 발생했습니다.';
@@ -3022,6 +3117,7 @@
                     var errorNode = assistantEl.querySelector('.assistant-text');
                     if (errorNode) errorNode.textContent = assistantText;
                   }
+                  restoreDefaultRecommendedPanel();
                   setComposerBusy(false);
                 }
               } catch(e) {}
@@ -3035,6 +3131,7 @@
           var p = assistantEl.querySelector('.assistant-text');
           if (p) p.textContent = '서버 연결에 실패했습니다.';
         }
+        restoreDefaultRecommendedPanel();
         setComposerBusy(false);
       });
     }).catch(function (error) {
