@@ -68,8 +68,52 @@ def _food_preference_labels(food_values, species):
 
 
 def _breed_error_message(species):
-    species_label = "고양이" if species == "cat" else "강아지"
-    return f"{species_label} 품종은 목록에서 선택해 주세요."
+    return "검색 결과에 있는 품종을 선택해 주세요"
+
+
+def _weight_error_message():
+    return "몸무게를 입력해 주세요"
+
+
+def _normalize_gender(value):
+    normalized = (value or "").strip()
+    return normalized if normalized in {"male", "female"} else ""
+
+
+def _breed_options_json():
+    return json.dumps({
+        "dog": get_breed_options("dog"),
+        "cat": get_breed_options("cat"),
+    })
+
+
+def _render_step2_form(
+    request,
+    *,
+    pet,
+    species,
+    step3_data=None,
+    is_edit=False,
+    is_preview_edit=False,
+    breed_error_message="",
+    weight_error_message="",
+):
+    return render(
+        request,
+        "pets/add_step2.html",
+        {
+            "pet": pet,
+            "species": species,
+            "breed_options_json": _breed_options_json(),
+            "age_year_options": AGE_YEAR_OPTIONS,
+            "age_month_options": AGE_MONTH_OPTIONS,
+            "step3_data": step3_data or {},
+            "is_edit": is_edit,
+            "is_preview_edit": is_preview_edit,
+            "breed_error_message": breed_error_message,
+            "weight_error_message": weight_error_message,
+        },
+    )
 
 
 @dataclass
@@ -79,6 +123,7 @@ class PetPreview:
     species: str
     breed: str | None
     gender: str
+    age_unknown: bool
     age_years: int
     age_months: int
 
@@ -97,6 +142,7 @@ def _preview_pets():
             species="dog",
             breed="말티즈",
             gender="male",
+            age_unknown=False,
             age_years=2,
             age_months=3,
         ),
@@ -106,6 +152,7 @@ def _preview_pets():
             species="cat",
             breed="브리티시 숏헤어",
             gender="female",
+            age_unknown=False,
             age_years=1,
             age_months=8,
         ),
@@ -115,6 +162,7 @@ def _preview_pets():
             species="dog",
             breed="푸들",
             gender="female",
+            age_unknown=False,
             age_years=5,
             age_months=1,
         ),
@@ -124,6 +172,7 @@ def _preview_pets():
             species="cat",
             breed="코리안 숏헤어",
             gender="male",
+            age_unknown=False,
             age_years=3,
             age_months=4,
         ),
@@ -202,6 +251,7 @@ def _pet_step2_data(pet):
         "name": pet.name,
         "breed": pet.breed or "",
         "gender": pet.gender,
+        "age_unknown": pet.age_unknown,
         "age_years": pet.age_years,
         "age_months": pet.age_months,
         "weight_kg": "" if pet.weight_kg is None else str(pet.weight_kg),
@@ -368,9 +418,10 @@ def pet_add_details(request):
         "species": species,
         "name": request.GET.get("name", "").strip(),
         "breed": request.GET.get("breed", "").strip(),
-        "gender": request.GET.get("gender", "male"),
-        "age_years": int(request.GET.get("age_years", 0) or 0),
-        "age_months": int(request.GET.get("age_months", 0) or 0),
+        "gender": _normalize_gender(request.GET.get("gender", "")),
+        "age_unknown": request.GET.get("age_unknown") == "yes",
+        "age_years": 0 if request.GET.get("age_unknown") == "yes" else int(request.GET.get("age_years", 0) or 0),
+        "age_months": 0 if request.GET.get("age_unknown") == "yes" else int(request.GET.get("age_months", 0) or 0),
         "weight_kg": request.GET.get("weight_kg", "").strip(),
         "neutered": True if request.GET.get("neutered") == "yes" else False if request.GET.get("neutered") == "no" else None,
     }
@@ -382,21 +433,7 @@ def pet_add_details(request):
         "budget_range": request.GET.get("budget_range", "").strip(),
         "special_notes": request.GET.get("special_notes", "").strip(),
     }
-    return render(
-        request,
-        "pets/add_step2.html",
-        {
-            "pet": pet_seed,
-            "species": species,
-            "breed_options_json": json.dumps({
-                "dog": get_breed_options("dog"),
-                "cat": get_breed_options("cat"),
-            }),
-            "age_year_options": AGE_YEAR_OPTIONS,
-            "age_month_options": AGE_MONTH_OPTIONS,
-            "step3_data": step3_data,
-        },
-    )
+    return _render_step2_form(request, pet=pet_seed, species=species, step3_data=step3_data)
 
 
 def pet_add_health(request):
@@ -411,46 +448,44 @@ def pet_add_health(request):
         "species": species,
         "name": request.POST.get("name", "").strip(),
         "breed": request.POST.get("breed", "").strip(),
-        "gender": request.POST.get("gender", "male"),
-        "age_years": int(request.POST.get("age_years", 0) or 0),
-        "age_months": int(request.POST.get("age_months", 0) or 0),
+        "gender": _normalize_gender(request.POST.get("gender", "")),
+        "age_unknown": request.POST.get("age_unknown") == "yes",
+        "age_years": 0 if request.POST.get("age_unknown") == "yes" else int(request.POST.get("age_years", 0) or 0),
+        "age_months": 0 if request.POST.get("age_unknown") == "yes" else int(request.POST.get("age_months", 0) or 0),
         "weight_kg": request.POST.get("weight_kg", "").strip(),
         "neutered": request.POST.get("neutered", ""),
     }
+    step3_data = {
+        "vaccination_date": request.POST.get("vaccination_date", "").strip(),
+        "health_concerns": request.POST.getlist("health_concerns"),
+        "allergies": request.POST.get("allergies", "").strip(),
+        "food_preferences": request.POST.getlist("food_preferences"),
+        "budget_range": request.POST.get("budget_range", "").strip(),
+        "special_notes": request.POST.get("special_notes", "").strip(),
+    }
+    weight_error = ""
+    if not step2_data["weight_kg"]:
+        weight_error = _weight_error_message()
     resolved_breed = resolve_breed(species, step2_data["breed"])
-    if not resolved_breed:
+    if not resolved_breed or weight_error:
         pet_preview = {
             "species": species,
             "name": step2_data["name"],
             "breed": step2_data["breed"],
             "gender": step2_data["gender"],
+            "age_unknown": step2_data["age_unknown"],
             "age_years": step2_data["age_years"],
             "age_months": step2_data["age_months"],
             "weight_kg": step2_data["weight_kg"],
             "neutered": True if step2_data["neutered"] == "yes" else False if step2_data["neutered"] == "no" else None,
         }
-        return render(
+        return _render_step2_form(
             request,
-            "pets/add_step2.html",
-            {
-                "pet": pet_preview,
-                "species": species,
-                "breed_options_json": json.dumps({
-                    "dog": get_breed_options("dog"),
-                    "cat": get_breed_options("cat"),
-                }),
-                "age_year_options": AGE_YEAR_OPTIONS,
-                "age_month_options": AGE_MONTH_OPTIONS,
-                "step3_data": {
-                    "vaccination_date": request.POST.get("vaccination_date", "").strip(),
-                    "health_concerns": request.POST.getlist("health_concerns"),
-                    "allergies": request.POST.get("allergies", "").strip(),
-                    "food_preferences": request.POST.getlist("food_preferences"),
-                    "budget_range": request.POST.get("budget_range", "").strip(),
-                    "special_notes": request.POST.get("special_notes", "").strip(),
-                },
-                "breed_error_message": _breed_error_message(species),
-            },
+            pet=pet_preview,
+            species=species,
+            step3_data=step3_data,
+            breed_error_message="" if resolved_breed else _breed_error_message(species),
+            weight_error_message=weight_error,
         )
     step2_data["breed"] = resolved_breed
 
@@ -464,9 +499,10 @@ def pet_add_health(request):
             name=step2_data["name"],
             breed=step2_data["breed"] or None,
             gender=step2_data["gender"],
+            age_unknown=step2_data["age_unknown"],
             age_years=step2_data["age_years"],
             age_months=step2_data["age_months"],
-            weight_kg=step2_data["weight_kg"] or None,
+            weight_kg=step2_data["weight_kg"],
             neutered={"yes": True, "no": False}.get(step2_data["neutered"]),
             vaccination_date=request.POST.get("vaccination_date") or None,
             budget_range=request.POST.get("budget_range", ""),
@@ -490,14 +526,6 @@ def pet_add_health(request):
         "species": species,
         "name": step2_data["name"],
     }
-    step3_data = {
-        "vaccination_date": request.POST.get("vaccination_date", ""),
-        "health_concerns": request.POST.getlist("health_concerns"),
-        "allergies": request.POST.get("allergies", ""),
-        "food_preferences": request.POST.getlist("food_preferences"),
-        "budget_range": request.POST.get("budget_range", ""),
-        "special_notes": request.POST.get("special_notes", ""),
-    }
     return render(request, "pets/add_step3.html", _step3_context(pet_preview, species, step2_data, step3_data))
 
 
@@ -508,9 +536,10 @@ def pet_edit(request, pet_id):
             "species": pet.species,
             "name": request.POST.get("name", "").strip(),
             "breed": request.POST.get("breed", "").strip(),
-            "gender": request.POST.get("gender", "male"),
-            "age_years": int(request.POST.get("age_years", 0) or 0),
-            "age_months": int(request.POST.get("age_months", 0) or 0),
+            "gender": _normalize_gender(request.POST.get("gender", "")),
+            "age_unknown": request.POST.get("age_unknown") == "yes",
+            "age_years": 0 if request.POST.get("age_unknown") == "yes" else int(request.POST.get("age_years", 0) or 0),
+            "age_months": 0 if request.POST.get("age_unknown") == "yes" else int(request.POST.get("age_months", 0) or 0),
             "weight_kg": request.POST.get("weight_kg", "").strip(),
             "neutered": request.POST.get("neutered", ""),
         }
@@ -525,21 +554,7 @@ def pet_edit(request, pet_id):
             )
             | {"is_edit": True, "pet_id": pet.pet_id},
         )
-    return render(
-        request,
-        "pets/add_step2.html",
-        {
-            "pet": pet,
-            "species": pet.species,
-            "breed_options_json": json.dumps({
-                "dog": get_breed_options("dog"),
-                "cat": get_breed_options("cat"),
-            }),
-            "is_edit": True,
-            "age_year_options": AGE_YEAR_OPTIONS,
-            "age_month_options": AGE_MONTH_OPTIONS,
-        },
-    )
+    return _render_step2_form(request, pet=pet, species=pet.species, is_edit=True)
 
 
 def pet_edit_health(request, pet_id):
@@ -547,40 +562,35 @@ def pet_edit_health(request, pet_id):
     if request.method != "POST":
         return redirect("pet_edit", pet_id=pet.pet_id)
 
+    weight_value = request.POST.get("weight_kg", "").strip()
     resolved_breed = resolve_breed(pet.species, request.POST.get("breed", "").strip())
-    if not resolved_breed:
-        return render(
+    if not resolved_breed or not weight_value:
+        return _render_step2_form(
             request,
-            "pets/add_step2.html",
-            {
-                "pet": {
-                    "species": pet.species,
-                    "name": request.POST.get("name", "").strip(),
-                    "breed": request.POST.get("breed", "").strip(),
-                    "gender": request.POST.get("gender", "male"),
-                    "age_years": int(request.POST.get("age_years", 0) or 0),
-                    "age_months": int(request.POST.get("age_months", 0) or 0),
-                    "weight_kg": request.POST.get("weight_kg", "").strip(),
-                    "neutered": {"yes": True, "no": False}.get(request.POST.get("neutered", "")),
-                },
+            pet={
                 "species": pet.species,
-                "breed_options_json": json.dumps({
-                    "dog": get_breed_options("dog"),
-                    "cat": get_breed_options("cat"),
-                }),
-                "is_edit": True,
-                "age_year_options": AGE_YEAR_OPTIONS,
-                "age_month_options": AGE_MONTH_OPTIONS,
-                "breed_error_message": _breed_error_message(pet.species),
+                "name": request.POST.get("name", "").strip(),
+                "breed": request.POST.get("breed", "").strip(),
+                "gender": _normalize_gender(request.POST.get("gender", "")),
+                "age_unknown": request.POST.get("age_unknown") == "yes",
+                "age_years": 0 if request.POST.get("age_unknown") == "yes" else int(request.POST.get("age_years", 0) or 0),
+                "age_months": 0 if request.POST.get("age_unknown") == "yes" else int(request.POST.get("age_months", 0) or 0),
+                "weight_kg": weight_value,
+                "neutered": {"yes": True, "no": False}.get(request.POST.get("neutered", "")),
             },
+            species=pet.species,
+            is_edit=True,
+            breed_error_message="" if resolved_breed else _breed_error_message(pet.species),
+            weight_error_message="" if weight_value else _weight_error_message(),
         )
 
     pet.name = request.POST.get("name", "").strip()
     pet.breed = resolved_breed
-    pet.gender = request.POST.get("gender", "male")
-    pet.age_years = int(request.POST.get("age_years", 0) or 0)
-    pet.age_months = int(request.POST.get("age_months", 0) or 0)
-    pet.weight_kg = request.POST.get("weight_kg") or None
+    pet.gender = _normalize_gender(request.POST.get("gender", ""))
+    pet.age_unknown = request.POST.get("age_unknown") == "yes"
+    pet.age_years = 0 if pet.age_unknown else int(request.POST.get("age_years", 0) or 0)
+    pet.age_months = 0 if pet.age_unknown else int(request.POST.get("age_months", 0) or 0)
+    pet.weight_kg = weight_value
     pet.neutered = {"yes": True, "no": False}.get(request.POST.get("neutered"))
     pet.vaccination_date = request.POST.get("vaccination_date") or None
     pet.budget_range = request.POST.get("budget_range", "")
@@ -615,38 +625,33 @@ def preview_pet_edit(request, pet_id):
             "species": pet.species,
             "name": request.POST.get("name", "").strip(),
             "breed": request.POST.get("breed", "").strip(),
-            "gender": request.POST.get("gender", "male"),
-            "age_years": int(request.POST.get("age_years", 0) or 0),
-            "age_months": int(request.POST.get("age_months", 0) or 0),
+            "gender": _normalize_gender(request.POST.get("gender", "")),
+            "age_unknown": request.POST.get("age_unknown") == "yes",
+            "age_years": 0 if request.POST.get("age_unknown") == "yes" else int(request.POST.get("age_years", 0) or 0),
+            "age_months": 0 if request.POST.get("age_unknown") == "yes" else int(request.POST.get("age_months", 0) or 0),
             "weight_kg": request.POST.get("weight_kg", "").strip(),
             "neutered": request.POST.get("neutered", ""),
         }
         resolved_breed = resolve_breed(pet.species, step2_data["breed"])
-        if not resolved_breed:
-            return render(
+        if not resolved_breed or not step2_data["weight_kg"]:
+            return _render_step2_form(
                 request,
-                "pets/add_step2.html",
-                {
-                    "pet": {
-                        "species": pet.species,
-                        "name": step2_data["name"],
-                        "breed": step2_data["breed"],
-                        "gender": step2_data["gender"],
-                        "age_years": step2_data["age_years"],
-                        "age_months": step2_data["age_months"],
-                        "weight_kg": step2_data["weight_kg"],
-                        "neutered": True if step2_data["neutered"] == "yes" else False if step2_data["neutered"] == "no" else None,
-                    },
+                pet={
                     "species": pet.species,
-                    "breed_options_json": json.dumps({
-                        "dog": get_breed_options("dog"),
-                        "cat": get_breed_options("cat"),
-                    }),
-                    "is_edit": True,
-                    "age_year_options": AGE_YEAR_OPTIONS,
-                    "age_month_options": AGE_MONTH_OPTIONS,
-                    "breed_error_message": _breed_error_message(pet.species),
+                    "name": step2_data["name"],
+                    "breed": step2_data["breed"],
+                    "gender": step2_data["gender"],
+                    "age_unknown": step2_data["age_unknown"],
+                    "age_years": step2_data["age_years"],
+                    "age_months": step2_data["age_months"],
+                    "weight_kg": step2_data["weight_kg"],
+                    "neutered": True if step2_data["neutered"] == "yes" else False if step2_data["neutered"] == "no" else None,
                 },
+                species=pet.species,
+                is_edit=True,
+                is_preview_edit=True,
+                breed_error_message="" if resolved_breed else _breed_error_message(pet.species),
+                weight_error_message="" if step2_data["weight_kg"] else _weight_error_message(),
             )
         step2_data["breed"] = resolved_breed
         return render(
@@ -661,22 +666,7 @@ def preview_pet_edit(request, pet_id):
             | {"is_edit": True, "is_preview_edit": True, "pet_id": pet.pet_id},
         )
 
-    return render(
-        request,
-        "pets/add_step2.html",
-        {
-            "pet": pet,
-            "species": pet.species,
-            "breed_options_json": json.dumps({
-                "dog": get_breed_options("dog"),
-                "cat": get_breed_options("cat"),
-            }),
-            "is_edit": True,
-            "is_preview_edit": True,
-            "age_year_options": AGE_YEAR_OPTIONS,
-            "age_month_options": AGE_MONTH_OPTIONS,
-        },
-    )
+    return _render_step2_form(request, pet=pet, species=pet.species, is_edit=True, is_preview_edit=True)
 
 
 def preview_pet_edit_health(request, pet_id):
