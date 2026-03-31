@@ -1,6 +1,6 @@
 from urllib.parse import parse_qs, urlencode, urlparse
 
-from django.db.models import DecimalField, IntegerField, Q, Value
+from django.db.models import Case, DecimalField, IntegerField, Q, Value, When
 from django.db.models.functions import Coalesce
 from django.contrib.auth.decorators import login_required
 from django.core.paginator import Paginator
@@ -135,6 +135,10 @@ CATALOG_SORT_OPTIONS = {
         "label": "가격 높은순",
         "ordering": ("-price", "-_sort_review_count", "-_sort_popularity_score", "goods_name"),
     },
+    "rating_high": {
+        "label": "평점 높은순",
+        "ordering": ("-_sort_has_rating", "-_sort_rating", "-_sort_review_count", "-_sort_popularity_score", "goods_name"),
+    },
 }
 
 
@@ -206,6 +210,11 @@ def _catalog_brand_sort_key(value):
 
 def _with_catalog_sort_fields(queryset):
     return queryset.annotate(
+        _sort_has_rating=Case(
+            When(rating__isnull=False, then=Value(1)),
+            default=Value(0),
+            output_field=IntegerField(),
+        ),
         _sort_popularity_score=Coalesce(
             "popularity_score",
             Value(0),
@@ -763,6 +772,7 @@ def used_products(request):
 
 @login_required
 def catalog(request):
+    keyword = (request.GET.get("q") or "").strip()[:50]
     pet = (request.GET.get("pet") or "").strip()
     category = (request.GET.get("category") or "").strip()
     subcategory = (request.GET.get("subcategory") or "").strip()
@@ -773,6 +783,8 @@ def catalog(request):
 
     base_queryset = Product.objects.filter(soldout_yn=False)
     queryset = base_queryset
+    if keyword:
+        queryset = queryset.filter(Q(goods_name__icontains=keyword) | Q(brand_name__icontains=keyword))
     if pet:
         queryset = queryset.filter(pet_type__contains=[pet])
     if category:
@@ -783,6 +795,8 @@ def catalog(request):
         queryset = queryset.filter(brand_name=brand)
 
     brand_queryset = base_queryset
+    if keyword:
+        brand_queryset = brand_queryset.filter(Q(goods_name__icontains=keyword) | Q(brand_name__icontains=keyword))
     if pet:
         brand_queryset = brand_queryset.filter(pet_type__contains=[pet])
     if category:
@@ -816,6 +830,7 @@ def catalog(request):
     }
 
     current_params = {
+        "q": keyword,
         "pet": pet,
         "category": category,
         "subcategory": subcategory,
@@ -877,6 +892,7 @@ def catalog(request):
         "catalog_pagination_links": pagination_links,
         "catalog_prev_query": _catalog_querystring(current_params, page=page_obj.previous_page_number()) if page_obj.has_previous() else "",
         "catalog_next_query": _catalog_querystring(current_params, page=page_obj.next_page_number()) if page_obj.has_next() else "",
+        "catalog_current_keyword": keyword,
         "catalog_current_pet": pet,
         "catalog_current_category": category,
         "catalog_current_subcategory": subcategory,
