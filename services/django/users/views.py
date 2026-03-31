@@ -387,6 +387,7 @@ class AuthWithdrawView(APIView):
 
 
 class NicknameAvailabilityView(APIView):
+    authentication_classes = [JWTAuthentication, SessionAuthentication]
     permission_classes = [AllowAny]
 
     def get(self, request):
