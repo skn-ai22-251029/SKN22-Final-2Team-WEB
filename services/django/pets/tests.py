@@ -86,8 +86,24 @@ class PetApiTests(TestCase):
         pet = Pet.objects.get(user=self.user, name="Bori")
         self.assertEqual(pet.weight_kg, Decimal("4.20"))
         self.assertEqual(set(pet.health_concerns.values_list("concern", flat=True)), {"skin", "joint"})
-        self.assertEqual(set(pet.allergies.values_list("ingredient", flat=True)), {"chicken", "beef"})
+        self.assertEqual(set(pet.allergies.values_list("ingredient", flat=True)), {"닭고기", "소고기"})
         self.assertEqual(set(pet.food_preferences.values_list("food_type", flat=True)), {"dry", "wet_can"})
+
+    def test_post_pets_rejects_invalid_allergy(self):
+        response = self.client.post(
+            "/api/pets/",
+            {
+                "name": "Bori",
+                "species": "dog",
+                "gender": "male",
+                "weight_kg": "4.2",
+                "allergies": ["왈왈"],
+            },
+            format="json",
+        )
+
+        self.assertEqual(response.status_code, status.HTTP_400_BAD_REQUEST)
+        self.assertEqual(response.data["detail"], "allergies contains an invalid value.")
 
     def test_post_pets_rejects_invalid_vaccination_date_format(self):
         response = self.client.post(
@@ -95,7 +111,7 @@ class PetApiTests(TestCase):
             {
                 "name": "Bori",
                 "species": "dog",
-                "gender": "male",
+                "weight_kg": "4.2",
                 "vaccination_date": "2026/03/01",
             },
             format="json",
@@ -110,7 +126,7 @@ class PetApiTests(TestCase):
             {
                 "name": "Bori",
                 "species": "dog",
-                "gender": "male",
+                "weight_kg": "4.2",
                 "vaccination_date": "",
             },
             format="json",
@@ -126,7 +142,7 @@ class PetApiTests(TestCase):
             {
                 "name": "Bori",
                 "species": "dog",
-                "gender": "male",
+                "weight_kg": "4.2",
                 "vaccination_date": "1899-12-31",
             },
             format="json",
@@ -141,7 +157,7 @@ class PetApiTests(TestCase):
             {
                 "name": "Bori",
                 "species": "dog",
-                "gender": "male",
+                "weight_kg": "4.2",
                 "vaccination_date": (date.today() + timedelta(days=1)).isoformat(),
             },
             format="json",
@@ -157,12 +173,13 @@ class PetApiTests(TestCase):
                 name=f"Pet{index}",
                 species="dog",
                 gender="male",
+                weight_kg=Decimal("4.0"),
                 budget_range="under_5",
             )
 
         response = self.client.post(
             "/api/pets/",
-            {"name": "Overflow", "species": "dog", "gender": "male"},
+            {"name": "Overflow", "species": "dog", "weight_kg": "4.2"},
             format="json",
         )
 
@@ -175,7 +192,7 @@ class PetApiTests(TestCase):
             {
                 "name": "Bori",
                 "species": "dog",
-                "gender": "male",
+                "weight_kg": "4.2",
                 "breed": "왈왈",
             },
             format="json",
@@ -189,6 +206,39 @@ class PetApiTests(TestCase):
         self.assertEqual(resolve_breed("cat", "British Shorthair"), "브리티시 숏헤어")
         self.assertEqual(resolve_breed("cat", "British   Shorthair"), "브리티시 숏헤어")
         self.assertEqual(resolve_breed("cat", "브리티시숏헤어"), "브리티시 숏헤어")
+
+    def test_post_pets_requires_weight(self):
+        response = self.client.post(
+            "/api/pets/",
+            {
+                "name": "Bori",
+                "species": "dog",
+            },
+            format="json",
+        )
+
+        self.assertEqual(response.status_code, status.HTTP_400_BAD_REQUEST)
+        self.assertEqual(response.data["detail"], "Missing required fields: weight_kg")
+
+    def test_post_pets_allows_empty_gender(self):
+        response = self.client.post(
+            "/api/pets/",
+            {
+                "name": "Bori",
+                "species": "dog",
+                "gender": "",
+                "age_unknown": True,
+                "weight_kg": "4.2",
+            },
+            format="json",
+        )
+
+        self.assertEqual(response.status_code, status.HTTP_201_CREATED)
+        pet = Pet.objects.get(user=self.user, name="Bori")
+        self.assertEqual(pet.gender, "")
+        self.assertTrue(pet.age_unknown)
+        self.assertEqual(pet.age_years, 0)
+        self.assertEqual(pet.age_months, 0)
 
     def test_patch_pet_updates_fields_and_replaces_multi_value_fields(self):
         pet = Pet.objects.create(
@@ -219,7 +269,7 @@ class PetApiTests(TestCase):
         self.assertEqual(pet.name, "Nabi Updated")
         self.assertEqual(pet.budget_range, "10_20")
         self.assertEqual(set(pet.health_concerns.values_list("concern", flat=True)), {"joint", "digestion"})
-        self.assertEqual(list(pet.allergies.values_list("ingredient", flat=True)), ["salmon"])
+        self.assertEqual(list(pet.allergies.values_list("ingredient", flat=True)), ["연어"])
         self.assertEqual(list(pet.food_preferences.values_list("food_type", flat=True)), ["wet_pouch"])
 
     def test_delete_pet_removes_pet(self):
@@ -362,5 +412,100 @@ class PetPageTests(TestCase):
         )
 
         self.assertEqual(response.status_code, 200)
-        self.assertContains(response, "강아지 품종은 목록에서 선택해 주세요.")
+        self.assertContains(response, "검색 결과에 있는 품종을 선택해 주세요")
         self.assertContains(response, "왈왈")
+
+    def test_pet_add_health_rejects_invalid_allergy(self):
+        response = self.client.post(
+            reverse("pet_add_health"),
+            {
+                "species": "dog",
+                "name": "코코",
+                "breed": "말티즈",
+                "gender": "male",
+                "age_years": "2",
+                "age_months": "0",
+                "weight_kg": "4",
+                "neutered": "yes",
+                "allergies": ["왈왈"],
+            },
+        )
+
+        self.assertEqual(response.status_code, 200)
+        self.assertContains(response, "등록된 성분만 선택해 주세요")
+
+    def test_pet_add_health_persists_selected_allergies(self):
+        response = self.client.post(
+            reverse("pet_add_health"),
+            {
+                "species": "dog",
+                "name": "코코",
+                "breed": "말티즈",
+                "gender": "male",
+                "age_years": "2",
+                "age_months": "0",
+                "weight_kg": "4",
+                "neutered": "yes",
+                "allergies": ["닭고기", "연어"],
+                "final_step": "1",
+            },
+        )
+
+        self.assertEqual(response.status_code, 302)
+        pet = Pet.objects.get(user=self.user, name="코코")
+        self.assertEqual(set(pet.allergies.values_list("ingredient", flat=True)), {"닭고기", "연어"})
+
+    def test_pet_add_health_requires_weight(self):
+        response = self.client.post(
+            reverse("pet_add_health"),
+            {
+                "species": "dog",
+                "name": "코코",
+                "breed": "말티즈",
+                "gender": "",
+                "age_years": "2",
+                "age_months": "0",
+                "weight_kg": "",
+                "neutered": "yes",
+            },
+        )
+
+        self.assertEqual(response.status_code, 200)
+        self.assertContains(response, "몸무게를 입력해 주세요")
+
+    def test_pet_add_health_allows_age_unknown(self):
+        response = self.client.post(
+            reverse("pet_add_health"),
+            {
+                "species": "dog",
+                "name": "코코",
+                "breed": "말티즈",
+                "gender": "",
+                "age_unknown": "yes",
+                "age_years": "0",
+                "age_months": "0",
+                "weight_kg": "4",
+                "neutered": "yes",
+                "final_step": "1",
+            },
+        )
+
+        self.assertEqual(response.status_code, 302)
+        pet = Pet.objects.get(user=self.user, name="코코")
+        self.assertTrue(pet.age_unknown)
+        self.assertEqual(pet.age_years, 0)
+        self.assertEqual(pet.age_months, 0)
+
+    def test_pet_edit_renders_weight_without_trailing_decimal_zeros(self):
+        pet = Pet.objects.create(
+            user=self.user,
+            name="코코",
+            species="dog",
+            breed="말티즈",
+            weight_kg=Decimal("4.00"),
+        )
+
+        response = self.client.get(reverse("pet_edit", args=[pet.pet_id]))
+
+        self.assertEqual(response.status_code, 200)
+        self.assertContains(response, 'id="weightInput" name="weight_kg" value="4"')

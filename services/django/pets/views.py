@@ -11,6 +11,7 @@ from rest_framework.permissions import IsAuthenticated
 from rest_framework.views import APIView
 from rest_framework_simplejwt.authentication import JWTAuthentication
 
+from .allergies import parse_allergy_ingredients
 from .breeds import resolve_breed
 from .models import Pet, PetAllergy, PetFoodPreference, PetHealthConcern
 
@@ -22,6 +23,7 @@ def serialize_pet(pet):
         "species": pet.species,
         "breed": pet.breed,
         "gender": pet.gender,
+        "age_unknown": pet.age_unknown,
         "age_years": pet.age_years,
         "age_months": pet.age_months,
         "weight_kg": str(pet.weight_kg) if pet.weight_kg is not None else None,
@@ -53,6 +55,17 @@ def _parse_decimal(value, field_name):
         return Decimal(str(value))
     except (InvalidOperation, TypeError, ValueError) as exc:
         raise ValueError(f"{field_name} must be a decimal number.") from exc
+
+
+def _parse_optional_gender(value):
+    if value in (None, ""):
+        return ""
+
+    normalized = str(value).strip()
+    valid_genders = {choice for choice, _ in Pet.GENDER_CHOICES}
+    if normalized not in valid_genders:
+        raise ValueError("gender must be one of: male, female.")
+    return normalized
 
 
 def _parse_boolean(value):
@@ -105,14 +118,9 @@ def _parse_allergies(raw_values):
     if raw_values is None:
         return None
 
-    if len(raw_values) == 1 and isinstance(raw_values[0], str) and "," in raw_values[0]:
-        raw_values = raw_values[0].split(",")
-
-    cleaned = []
-    for value in raw_values:
-        ingredient = str(value).strip()
-        if ingredient and ingredient not in cleaned:
-            cleaned.append(ingredient)
+    cleaned, invalid = parse_allergy_ingredients(raw_values)
+    if invalid:
+        raise ValueError("allergies contains an invalid value.")
     return cleaned
 
 
@@ -139,7 +147,7 @@ def _replace_related_items(model, pet, field_name, attr_name, values):
 
 
 def _apply_pet_payload(pet, request, *, partial):
-    required_fields = ["name", "species", "gender"]
+    required_fields = ["name", "species", "weight_kg"]
     if not partial:
         missing = [field for field in required_fields if request.data.get(field) in (None, "")]
         if missing:
@@ -159,13 +167,10 @@ def _apply_pet_payload(pet, request, *, partial):
         pet.species = species
 
     if "gender" in request.data:
-        gender = request.data.get("gender")
-        valid_genders = {choice for choice, _ in Pet.GENDER_CHOICES}
-        if gender not in valid_genders:
-            raise ValueError("gender must be one of: male, female.")
-        pet.gender = gender
+        pet.gender = _parse_optional_gender(request.data.get("gender"))
 
     scalar_fields = {
+        "age_unknown": _parse_boolean,
         "age_years": lambda value: _parse_integer(value, "age_years"),
         "age_months": lambda value: _parse_integer(value, "age_months"),
         "weight_kg": lambda value: _parse_decimal(value, "weight_kg"),
@@ -178,6 +183,13 @@ def _apply_pet_payload(pet, request, *, partial):
     for field, parser in scalar_fields.items():
         if field in request.data:
             setattr(pet, field, parser(request.data.get(field)))
+
+    if pet.age_unknown:
+        pet.age_years = 0
+        pet.age_months = 0
+
+    if not partial and pet.weight_kg is None:
+        raise ValueError("weight_kg is required.")
 
     if "breed" in request.data:
         resolved_breed = resolve_breed(pet.species, request.data.get("breed"))

@@ -29,7 +29,7 @@
         {% csrf_token %}
         <input type="hidden" name="species" value="{{ species }}" />
         <input type="hidden" name="vaccination_date" value="{{ step3_data.vaccination_date|default:'' }}" />
-        <input type="hidden" name="allergies" value="{{ step3_data.allergies|default:'' }}" />
+        <input type="hidden" name="allergies" value="{{ step3_data.allergies|join:',' }}" />
         <input type="hidden" name="budget_range" value="{{ step3_data.budget_range|default:'' }}" />
         <input type="hidden" name="special_notes" value="{{ step3_data.special_notes|default:'' }}" />
         {% for concern in step3_data.health_concerns %}
@@ -56,38 +56,45 @@
           </div>
 
           <div class="space-y-[12px]">
-            <div class="text-[14px] font-bold leading-none text-[#4a5568]">성별 <span class="text-[#e53e3e]">(필수)</span></div>
-            <div class="mt-2 flex gap-[6px]">
-              <button type="button" id="genderMale" class="flex h-[42px] flex-1 items-center justify-center rounded-[10px] border text-[14px] leading-none transition-colors {% if pet.gender == 'female' %}border-[#e2e8f0] bg-white font-normal text-[#4a5568]{% else %}border-[#3182ce] bg-[#ebf8ff] font-bold text-[#3182ce]{% endif %}">수컷 (남아)</button>
-              <button type="button" id="genderFemale" class="flex h-[42px] flex-1 items-center justify-center rounded-[10px] border text-[14px] leading-none transition-colors {% if pet.gender == 'female' %}border-[#3182ce] bg-[#ebf8ff] font-bold text-[#3182ce]{% else %}border-[#e2e8f0] bg-white font-normal text-[#4a5568]{% endif %}">암컷 (여아)</button>
-              <input type="hidden" name="gender" id="genderInput" value="{{ pet.gender|default:'male' }}" />
-            </div>
-          </div>
-
-          <div class="space-y-[12px]">
             <div class="text-[14px] font-bold leading-none text-[#4a5568]">나이 <span class="text-[#e53e3e]">(필수)</span></div>
-            <div class="flex flex-wrap items-center gap-[10px]">
-              <select id="ageYearsInput" name="age_years" class="h-[42px] w-[96px] rounded-[10px] border border-[#e2e8f0] bg-white px-3 text-center text-[14px] leading-none text-[#2d3748] outline-none transition-colors focus:border-[#90cdf4] md:w-[104px]">
+            <div class="grid w-full grid-cols-[minmax(0,1fr)_auto_minmax(0,1fr)_auto] items-center gap-x-[10px]">
+              <select id="ageYearsInput" name="age_years" class="h-[42px] w-full min-w-0 rounded-[10px] border border-[#e2e8f0] bg-white px-3 text-center text-[14px] leading-none text-[#2d3748] outline-none transition-colors focus:border-[#90cdf4]">
                 {% for option in age_year_options %}
                 <option value="{{ option }}" {% if pet.age_years|default:0 == option %}selected{% endif %}>{{ option }}</option>
                 {% endfor %}
               </select>
               <span class="text-[14px] leading-none text-[#4a5568]">년</span>
-              <select id="ageMonthsInput" name="age_months" class="h-[42px] w-[96px] rounded-[10px] border border-[#e2e8f0] bg-white px-3 text-center text-[14px] leading-none text-[#2d3748] outline-none transition-colors focus:border-[#90cdf4] md:w-[104px]">
+              <select id="ageMonthsInput" name="age_months" class="h-[42px] w-full min-w-0 rounded-[10px] border border-[#e2e8f0] bg-white px-3 text-center text-[14px] leading-none text-[#2d3748] outline-none transition-colors focus:border-[#90cdf4]">
                 {% for option in age_month_options %}
                 <option value="{{ option }}" {% if pet.age_months|default:0 == option %}selected{% endif %}>{{ option }}</option>
                 {% endfor %}
               </select>
               <span class="text-[14px] leading-none text-[#4a5568]">개월</span>
             </div>
+            <div class="flex justify-end">
+              <label class="inline-flex h-[14px] items-center gap-[8px] text-[13px] leading-none text-[#718096]">
+                <input id="ageUnknownInput" type="checkbox" name="age_unknown" value="yes" {% if pet.age_unknown %}checked{% endif %} class="mt-0 h-[14px] w-[14px] rounded border border-[#cbd5e0] text-[#3182ce] align-middle focus:ring-[#90cdf4]" />
+                <span>모름</span>
+              </label>
+            </div>
             <p id="ageStatus" class="hidden text-right text-[12px]"></p>
           </div>
 
           <div class="space-y-[12px]">
-            <label class="block text-[14px] font-bold leading-none text-[#4a5568]">몸무게 <span class="text-[#a0aec0]">(선택)</span></label>
+            <label class="block text-[14px] font-bold leading-none text-[#4a5568]">몸무게 <span class="text-[#e53e3e]">(필수)</span></label>
             <div class="relative">
-              <input id="weightInput" name="weight_kg" value="{{ pet.weight_kg|default:'' }}" maxlength="3" placeholder="몸무게를 입력해주세요" class="h-[42px] w-full rounded-[10px] border border-[#e2e8f0] bg-white px-[14px] pr-10 text-[14px] leading-none text-[#2d3748] outline-none transition-colors placeholder:text-[#a0aec0] focus:border-[#90cdf4]" />
+              <input id="weightInput" name="weight_kg" value="{{ pet.weight_kg|default:'' }}" maxlength="3" inputmode="numeric" pattern="[0-9]*" placeholder="몸무게를 입력해주세요" class="h-[42px] w-full rounded-[10px] border border-[#e2e8f0] bg-white px-[14px] pr-10 text-[14px] leading-none text-[#2d3748] outline-none transition-colors placeholder:text-[#a0aec0] focus:border-[#90cdf4]" />
               <span class="absolute right-[12px] top-1/2 -translate-y-1/2 text-[14px] leading-none text-[#4a5568]">kg</span>
+            </div>
+            <p id="weightStatus" class="{% if weight_error_message %}text-right text-[12px] text-[#e53e3e]{% else %}hidden text-right text-[12px]{% endif %}">{{ weight_error_message|default:'' }}</p>
+          </div>
+
+          <div class="space-y-[12px]">
+            <div class="text-[14px] font-bold leading-none text-[#4a5568]">성별 <span class="text-[#a0aec0]">(선택)</span></div>
+            <div class="mt-2 flex gap-[6px]">
+              <button type="button" id="genderMale" class="flex h-[42px] flex-1 items-center justify-center rounded-[10px] border text-[14px] leading-none transition-colors {% if pet.gender == 'male' %}border-[#3182ce] bg-[#ebf8ff] font-bold text-[#3182ce]{% else %}border-[#e2e8f0] bg-white font-normal text-[#4a5568]{% endif %}">수컷 (남아)</button>
+              <button type="button" id="genderFemale" class="flex h-[42px] flex-1 items-center justify-center rounded-[10px] border text-[14px] leading-none transition-colors {% if pet.gender == 'female' %}border-[#3182ce] bg-[#ebf8ff] font-bold text-[#3182ce]{% else %}border-[#e2e8f0] bg-white font-normal text-[#4a5568]{% endif %}">암컷 (여아)</button>
+              <input type="hidden" name="gender" id="genderInput" value="{{ pet.gender|default:'' }}" />
             </div>
           </div>
 
@@ -131,11 +138,13 @@
     var nameStatus = document.getElementById('nameStatus');
     var ageYearsInput = document.getElementById('ageYearsInput');
     var ageMonthsInput = document.getElementById('ageMonthsInput');
+    var ageUnknownInput = document.getElementById('ageUnknownInput');
     var ageStatus = document.getElementById('ageStatus');
     var breedInput = document.getElementById('breedInput');
     var breedStatus = document.getElementById('breedStatus');
     var breedSuggestions = document.getElementById('breedSuggestions');
     var weightInput = document.getElementById('weightInput');
+    var weightStatus = document.getElementById('weightStatus');
     var nextButton = document.getElementById('nextButton');
     var currentBreedItems = [];
     var highlightedBreedIndex = -1;
@@ -152,11 +161,22 @@
     }
 
     function keepWeight(input) {
-      var digits = input.value.replace(/\D/g, '').slice(0, 3);
+      var rawValue = input.value;
+      var digits = rawValue.replace(/\D/g, '').slice(0, 3);
       digits = digits.replace(/^0+(?=\d)/, '');
       if (/^0+$/.test(digits)) {
         digits = '';
       }
+      if (!rawValue.trim()) {
+        input.dataset.lastValidWeight = '';
+        input.value = '';
+        return;
+      }
+      if (!digits) {
+        input.value = input.dataset.lastValidWeight || '';
+        return;
+      }
+      input.dataset.lastValidWeight = digits;
       input.value = digits;
     }
 
@@ -300,11 +320,21 @@
       if (!nextButton) return;
       var years = Number(ageYearsInput.value || '0');
       var months = Number(ageMonthsInput.value || '0');
-      var hasMinimumAge = years > 0 || months > 0;
-      var ready = nameInput.value.trim() && breedInput.value.trim() && hasMinimumAge;
+      var hasMinimumAge = ageUnknownInput.checked || years > 0 || months > 0;
+      var ready = nameInput.value.trim() && breedInput.value.trim() && weightInput.value.trim() && hasMinimumAge;
       nextButton.disabled = !ready;
       nextButton.style.backgroundColor = ready ? '#3182ce' : '#cbd5e0';
       nextButton.style.cursor = ready ? 'pointer' : 'default';
+    }
+
+    function syncAgeUnknown() {
+      var disabled = ageUnknownInput.checked;
+      ageYearsInput.disabled = disabled;
+      ageMonthsInput.disabled = disabled;
+      ageYearsInput.style.backgroundColor = disabled ? '#edf2f7' : 'white';
+      ageMonthsInput.style.backgroundColor = disabled ? '#edf2f7' : 'white';
+      ageYearsInput.style.color = disabled ? '#a0aec0' : '#2d3748';
+      ageMonthsInput.style.color = disabled ? '#a0aec0' : '#2d3748';
     }
 
     function syncGender(value) {
@@ -319,8 +349,12 @@
       paintToggle(neuteredNo, value === 'no');
     }
 
-    genderMale.addEventListener('click', function () { syncGender('male'); });
-    genderFemale.addEventListener('click', function () { syncGender('female'); });
+    genderMale.addEventListener('click', function () {
+      syncGender(genderInput.value === 'male' ? '' : 'male');
+    });
+    genderFemale.addEventListener('click', function () {
+      syncGender(genderInput.value === 'female' ? '' : 'female');
+    });
     neuteredYes.addEventListener('click', function () {
       syncNeutered(neuteredInput.value === 'yes' ? '' : 'yes');
     });
@@ -329,8 +363,47 @@
     });
     ageYearsInput.addEventListener('change', syncNextButton);
     ageMonthsInput.addEventListener('change', syncNextButton);
+    ageUnknownInput.addEventListener('change', function () {
+      clearError(ageStatus);
+      syncAgeUnknown();
+      syncNextButton();
+    });
+    weightInput.addEventListener('keydown', function (event) {
+      if (
+        event.ctrlKey ||
+        event.metaKey ||
+        event.altKey ||
+        ['Backspace', 'Delete', 'Tab', 'Enter', 'Escape', 'ArrowLeft', 'ArrowRight', 'ArrowUp', 'ArrowDown', 'Home', 'End'].indexOf(event.key) !== -1
+      ) {
+        return;
+      }
+      if (/^\d$/.test(event.key)) {
+        return;
+      }
+      event.preventDefault();
+    });
+    weightInput.addEventListener('beforeinput', function (event) {
+      if (!event.data) return;
+      if (event.inputType && event.inputType.indexOf('insert') !== 0) return;
+      if (/\D/.test(event.data)) {
+        event.preventDefault();
+      }
+    });
+    weightInput.addEventListener('paste', function (event) {
+      var pasted = (event.clipboardData || window.clipboardData).getData('text');
+      if (/\D/.test(pasted || '')) {
+        event.preventDefault();
+      }
+    });
     weightInput.addEventListener('input', function () {
       keepWeight(weightInput);
+      clearError(weightStatus);
+      syncNextButton();
+    });
+    weightInput.addEventListener('blur', function () {
+      keepWeight(weightInput);
+      clearError(weightStatus);
+      syncNextButton();
     });
     nameInput.addEventListener('input', function () {
       if (!isNameComposing) {
@@ -425,6 +498,7 @@
         clearError(nameStatus);
         clearError(breedStatus);
         clearError(ageStatus);
+        clearError(weightStatus);
 
         nameInput.value = cleanedName;
 
@@ -436,7 +510,12 @@
           valid = false;
         }
 
-        if (!(years > 0 || months > 0)) {
+        if (!ageUnknownInput.checked && !(years > 0 || months > 0)) {
+          valid = false;
+        }
+
+        if (!weightInput.value.trim()) {
+          showError(weightStatus, '몸무게를 입력해 주세요');
           valid = false;
         }
 
@@ -446,10 +525,12 @@
       });
     }
 
-    syncGender(genderInput.value || 'male');
+    syncGender(genderInput.value || '');
     syncNeutered(neuteredInput.value || '');
+    syncAgeUnknown();
     sanitizeNameInput();
     nameInput.value = nameInput.value.trim();
+    weightInput.dataset.lastValidWeight = weightInput.value.trim();
     syncNextButton();
   })();
 </script>
