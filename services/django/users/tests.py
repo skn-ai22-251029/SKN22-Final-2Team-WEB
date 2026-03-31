@@ -388,6 +388,16 @@ class UserProfileApiTests(TestCase):
         self.assertTrue(response.data["valid"])
         self.assertTrue(response.data["available"])
 
+    def test_nickname_availability_returns_available_for_current_nickname_with_session_login(self):
+        session_client = self.client_class()
+        session_client.force_login(self.user)
+
+        response = session_client.get("/api/users/nickname-availability/?nickname=ProfileUser")
+
+        self.assertEqual(response.status_code, status.HTTP_200_OK)
+        self.assertTrue(response.data["valid"])
+        self.assertTrue(response.data["available"])
+
     def test_nickname_availability_returns_unavailable_for_other_users_nickname(self):
         other_user = User.objects.create_user(email="other@example.com", password="Password123!")
         UserProfile.objects.create(user=other_user, nickname="TakenNick")
