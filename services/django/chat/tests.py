@@ -1,12 +1,14 @@
 import json
+import uuid
 from unittest.mock import patch
 
 import httpx
 from django.conf import settings
-from django.test import TestCase
+from django.test import RequestFactory, TestCase
 from django.urls import reverse
 from django.utils import timezone
 
+from chat.api_views import sessions_proxy_view
 from chat.models import ChatMessage, ChatMessageRecommendation, ChatSession
 from pets.models import FuturePetProfile, Pet, PetAllergy, PetFoodPreference, PetHealthConcern
 from products.models import Product
@@ -274,6 +276,7 @@ class ChatProxyTests(TestCase):
         existing_session = ChatSession.objects.create(
             user=self.user,
             target_pet=self.pet,
+            profile_context_type=ChatSession.PROFILE_CONTEXT_PET,
             title="기존 세션",
         )
         stored_message = ChatMessage.objects.create(
@@ -285,28 +288,46 @@ class ChatProxyTests(TestCase):
         list_response = self.client.get("/api/chat/sessions/")
         self.assertEqual(list_response.status_code, 200)
         self.assertEqual(list_response.json()["sessions"][0]["session_id"], str(existing_session.session_id))
+        self.assertEqual(list_response.json()["sessions"][0]["profile_context_type"], ChatSession.PROFILE_CONTEXT_PET)
         self.assertEqual(list_response.json()["groups"][0]["key"], "today")
 
         create_response = self.client.post(
             "/api/chat/sessions/",
-            data=json.dumps({"title": "신규 세션", "target_pet_id": str(self.pet.pet_id)}),
+            data=json.dumps(
+                {
+                    "title": "신규 세션",
+                    "target_pet_id": str(self.pet.pet_id),
+                    "profile_context_type": ChatSession.PROFILE_CONTEXT_PET,
+                }
+            ),
             content_type="application/json",
         )
         self.assertEqual(create_response.status_code, 201)
         self.assertEqual(create_response.json()["title"], "신규 세션")
+        self.assertEqual(create_response.json()["profile_context_type"], ChatSession.PROFILE_CONTEXT_PET)
         created_session = ChatSession.objects.get(session_id=create_response.json()["session_id"])
         self.assertEqual(created_session.user_id, self.user.id)
         self.assertEqual(created_session.target_pet_id, self.pet.pet_id)
+        self.assertEqual(created_session.profile_context_type, ChatSession.PROFILE_CONTEXT_PET)
 
         patch_response = self.client.patch(
             f"/api/chat/sessions/{existing_session.session_id}/",
-            data='{"title":"수정 제목"}',
+            data=json.dumps(
+                {
+                    "title": "수정 제목",
+                    "profile_context_type": ChatSession.PROFILE_CONTEXT_FUTURE,
+                    "target_pet_id": None,
+                }
+            ),
             content_type="application/json",
         )
         self.assertEqual(patch_response.status_code, 200)
         self.assertEqual(patch_response.json()["title"], "수정 제목")
+        self.assertEqual(patch_response.json()["profile_context_type"], ChatSession.PROFILE_CONTEXT_FUTURE)
         existing_session.refresh_from_db()
         self.assertEqual(existing_session.title, "수정 제목")
+        self.assertEqual(existing_session.profile_context_type, ChatSession.PROFILE_CONTEXT_FUTURE)
+        self.assertIsNone(existing_session.target_pet_id)
 
         messages_response = self.client.get(f"/api/chat/sessions/{existing_session.session_id}/messages/")
         self.assertEqual(messages_response.status_code, 200)
@@ -391,14 +412,44 @@ class ChatProxyTests(TestCase):
         self.assertEqual(response.status_code, 404)
         self.assertEqual(response.json()["detail"], "대화를 찾을 수 없습니다.")
 
-    def test_sessions_proxy_rejects_unknown_target_pet(self):
+    @patch("chat.api_views._get_owned_target_pet", return_value=None)
+    def test_sessions_proxy_rejects_unknown_target_pet(self, mocked_get_owned_target_pet):
+        missing_pet_id = str(uuid.uuid4())
+        request = RequestFactory().post(
+            "/api/chat/sessions/",
+            data=json.dumps(
+                {
+                    "title": "신규 세션",
+                    "target_pet_id": missing_pet_id,
+                    "profile_context_type": ChatSession.PROFILE_CONTEXT_PET,
+                }
+            ),
+            content_type="application/json",
+        )
+        request.user = self.user
+        response = sessions_proxy_view(request)
+        payload = json.loads(response.content.decode("utf-8"))
+
+        self.assertEqual(response.status_code, 404)
+        self.assertEqual(payload["detail"], "선택한 반려동물을 찾을 수 없습니다.")
+        mocked_get_owned_target_pet.assert_called_once()
+
+    def test_sessions_proxy_persists_none_profile_context_without_target_pet(self):
         self.client.force_login(self.user)
 
         response = self.client.post(
             "/api/chat/sessions/",
-            data='{"title":"신규 세션","target_pet_id":"44444444-4444-4444-4444-444444444444"}',
+            data=json.dumps(
+                {
+                    "title": "선택 안 함 세션",
+                    "profile_context_type": ChatSession.PROFILE_CONTEXT_NONE,
+                    "target_pet_id": str(self.pet.pet_id),
+                }
+            ),
             content_type="application/json",
         )
 
-        self.assertEqual(response.status_code, 404)
-        self.assertEqual(response.json()["detail"], "선택한 반려동물을 찾을 수 없습니다.")
+        self.assertEqual(response.status_code, 201)
+        created_session = ChatSession.objects.get(session_id=response.json()["session_id"])
+        self.assertEqual(created_session.profile_context_type, ChatSession.PROFILE_CONTEXT_NONE)
+        self.assertIsNone(created_session.target_pet_id)

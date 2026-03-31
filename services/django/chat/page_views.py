@@ -501,7 +501,14 @@ def chat_view(request):
     ]
     if is_authenticated:
         sessions = list(
-            request.user.chat_sessions.order_by("-updated_at", "-created_at").values("session_id", "title", "created_at", "updated_at")[:50]
+            request.user.chat_sessions.order_by("-updated_at", "-created_at").values(
+                "session_id",
+                "title",
+                "created_at",
+                "updated_at",
+                "target_pet_id",
+                "profile_context_type",
+            )[:50]
         )
         registered_pet_count = request.user.pets.count()
         pets = request.user.pets.prefetch_related("health_concerns", "allergies", "food_preferences").order_by("created_at")[:5]
