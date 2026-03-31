@@ -14,6 +14,17 @@ from products.models import Product
 from .models import ChatMessage, ChatMessageRecommendation, ChatSession
 
 
+def _normalize_profile_context_type(raw_value):
+    value = (raw_value or "").strip().lower()
+    if value in {
+        ChatSession.PROFILE_CONTEXT_PET,
+        ChatSession.PROFILE_CONTEXT_FUTURE,
+        ChatSession.PROFILE_CONTEXT_NONE,
+    }:
+        return value
+    return ChatSession.PROFILE_CONTEXT_NONE
+
+
 def _chat_base_url():
     return settings.FASTAPI_INTERNAL_CHAT_URL.rstrip("/")
 
@@ -58,6 +69,7 @@ def _serialize_session(session):
         "session_id": str(session.session_id),
         "title": session.title,
         "target_pet_id": str(session.target_pet_id) if session.target_pet_id else None,
+        "profile_context_type": _normalize_profile_context_type(session.profile_context_type),
         "display_date": updated_at.strftime("%y/%m/%d"),
         "created_at": timezone.localtime(session.created_at).isoformat(),
         "updated_at": updated_at.isoformat(),
@@ -339,8 +351,9 @@ def sessions_proxy_view(request):
 
     title = (payload.get("title") or "").strip() or "새 대화"
     target_pet_id = payload.get("target_pet_id")
+    profile_context_type = _normalize_profile_context_type(payload.get("profile_context_type"))
     target_pet = None
-    if target_pet_id:
+    if profile_context_type == ChatSession.PROFILE_CONTEXT_PET and target_pet_id:
         target_pet = _get_owned_target_pet(request.user, target_pet_id)
         if target_pet is None:
             return JsonResponse({"detail": "선택한 반려동물을 찾을 수 없습니다."}, status=404)
@@ -348,6 +361,7 @@ def sessions_proxy_view(request):
     session = ChatSession.objects.create(
         user=request.user,
         target_pet=target_pet,
+        profile_context_type=profile_context_type,
         title=title,
     )
     return JsonResponse(_serialize_session(session), status=201)
@@ -373,9 +387,33 @@ def session_detail_proxy_view(request, session_id):
         return JsonResponse({"detail": str(exc)}, status=400)
 
     next_title = (payload.get("title") or "").strip() or session.title or "새 대화"
+    next_profile_context_type = _normalize_profile_context_type(payload.get("profile_context_type") or session.profile_context_type)
+    next_target_pet = session.target_pet
+
+    if next_profile_context_type == ChatSession.PROFILE_CONTEXT_PET:
+        requested_target_pet_id = payload.get("target_pet_id") or session.target_pet_id
+        if requested_target_pet_id:
+            next_target_pet = _get_owned_target_pet(request.user, requested_target_pet_id)
+            if next_target_pet is None:
+                return JsonResponse({"detail": "선택한 반려동물을 찾을 수 없습니다."}, status=404)
+        else:
+            next_target_pet = None
+    else:
+        next_target_pet = None
+
+    updated_fields = []
     if session.title != next_title:
         session.title = next_title
-        session.save(update_fields=["title", "updated_at"])
+        updated_fields.append("title")
+    if session.profile_context_type != next_profile_context_type:
+        session.profile_context_type = next_profile_context_type
+        updated_fields.append("profile_context_type")
+    if session.target_pet_id != (next_target_pet.pet_id if next_target_pet else None):
+        session.target_pet = next_target_pet
+        updated_fields.append("target_pet")
+
+    if updated_fields:
+        session.save(update_fields=updated_fields + ["updated_at"])
     else:
         _touch_session(session)
     return JsonResponse(_serialize_session(session))

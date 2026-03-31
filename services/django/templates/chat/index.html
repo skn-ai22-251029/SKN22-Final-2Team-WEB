@@ -759,7 +759,9 @@
         <div class="absolute left-[16px] right-[15px] top-[272px] bottom-[86px] flex flex-col gap-[12px] overflow-x-hidden overflow-y-auto box-border" id="chatHistoryList">
           {% for session in sessions %}
           <div class="chat-history-item relative h-[40px] w-full shrink-0 cursor-pointer border-b border-[#e7edf5] transition-colors duration-150 box-border"
-               data-id="{{ session.session_id }}">
+               data-id="{{ session.session_id }}"
+               data-target-pet-id="{{ session.target_pet_id|default:'' }}"
+               data-profile-context-type="{{ session.profile_context_type|default:'none' }}">
             <span class="history-title absolute left-[6px] right-[72px] top-[12px] overflow-hidden text-ellipsis whitespace-nowrap text-[12px] font-semibold leading-none text-[#2d3748]">
               {{ session.title|default:"새 대화" }}
             </span>
@@ -1416,6 +1418,8 @@
   var activeCatalogGroupIndex = 0;
   var recommendedPanelDefaultHtml = recommendedPanel ? recommendedPanel.innerHTML : '';
   var SESSION_RECOMMENDED_PRODUCTS_STORAGE_PREFIX = 'tailtalk_session_recommended_products:';
+  var activeProfileSelectionPrompt = null;
+  var skipProfileSelectionPromptOnce = false;
 
   function getCookie(name) {
     var cookieValue = null;
@@ -1693,7 +1697,7 @@
 
   function ensureSessionState(sessionId) {
     if (!sessionThreads[sessionId]) {
-      sessionThreads[sessionId] = { messages: [], loaded: false, loadingPromise: null, latestRecommendedProducts: [] };
+      sessionThreads[sessionId] = { messages: [], loaded: false, loadingPromise: null, latestRecommendedProducts: [], profilePromptResolved: false, targetPetId: '', profileContextType: 'none' };
     }
     if (!Array.isArray(sessionThreads[sessionId].messages)) {
       sessionThreads[sessionId].messages = [];
@@ -1707,7 +1711,330 @@
     if (!Array.isArray(sessionThreads[sessionId].latestRecommendedProducts)) {
       sessionThreads[sessionId].latestRecommendedProducts = [];
     }
+    if (typeof sessionThreads[sessionId].targetPetId === 'undefined') {
+      sessionThreads[sessionId].targetPetId = '';
+    }
+    if (typeof sessionThreads[sessionId].profileContextType === 'undefined') {
+      sessionThreads[sessionId].profileContextType = 'none';
+    }
+    if (typeof sessionThreads[sessionId].profilePromptResolved === 'undefined') {
+      sessionThreads[sessionId].profilePromptResolved = !!(sessionThreads[sessionId].messages && sessionThreads[sessionId].messages.length);
+    }
     return sessionThreads[sessionId];
+  }
+
+  function clearProfileSelectionPrompt() {
+    if (activeProfileSelectionPrompt && activeProfileSelectionPrompt.parentNode) {
+      activeProfileSelectionPrompt.parentNode.removeChild(activeProfileSelectionPrompt);
+    }
+    activeProfileSelectionPrompt = null;
+  }
+
+  function resetPetSelection(options) {
+    var defaultPetButton = document.querySelector('[data-pet-id=""]');
+    if (defaultPetButton) {
+      selectPet(defaultPetButton, options);
+      return;
+    }
+    activePetProfile = null;
+    activePetHealthConcerns = [];
+    activePetAllergies = [];
+    activePetFoodPreferences = [];
+    activePetId = '';
+  }
+
+  function getCurrentProfileContextType() {
+    if (!activePetId) return 'none';
+    if (activePetId === 'future-profile') return 'future';
+    return 'pet';
+  }
+
+  function updateSessionProfileSelection(sessionId) {
+    if (!sessionId) return Promise.resolve();
+
+    var payload = {
+      profile_context_type: getCurrentProfileContextType(),
+      target_pet_id: getCurrentProfileContextType() === 'pet' ? activePetId : null,
+    };
+
+    return fetch('/api/chat/sessions/' + sessionId + '/', {
+      method: 'PATCH',
+      headers: {
+        'Content-Type': 'application/json',
+        'X-CSRFToken': csrfToken || '',
+      },
+      body: JSON.stringify(payload),
+    }).then(function (res) {
+      return readJsonResponse(res).then(function (data) {
+        if (!res.ok) {
+          throw new Error((data && data.detail) || '프로필 기준을 저장하지 못했습니다.');
+        }
+        ensureSessionItem(data);
+        var state = ensureSessionState(sessionId);
+        state.profileContextType = data.profile_context_type || 'none';
+        state.targetPetId = data.target_pet_id || '';
+      });
+    }).catch(function () {
+      showChatNotice('프로필 기준 저장에 실패했습니다. 잠시 후 다시 시도해 주세요.');
+    });
+  }
+
+  function applySessionProfileSelection(sessionId) {
+    var sessionState = ensureSessionState(sessionId);
+    var profileContextType = sessionState.profileContextType || 'none';
+    var targetPetId = sessionState.targetPetId || '';
+    var sessionItem = chatHistoryList
+      ? chatHistoryList.querySelector('[data-id="' + CSS.escape(sessionId) + '"]')
+      : null;
+
+    if (sessionItem) {
+      profileContextType = sessionItem.getAttribute('data-profile-context-type') || profileContextType;
+      targetPetId = sessionItem.getAttribute('data-target-pet-id') || targetPetId;
+      sessionState.profileContextType = profileContextType || 'none';
+      sessionState.targetPetId = targetPetId || '';
+    }
+
+    var selector = '[data-pet-id=""]';
+
+    if (profileContextType === 'future') {
+      selector = '[data-pet-id="future-profile"]';
+    } else if (profileContextType === 'pet' && targetPetId) {
+      selector = '[data-pet-id="' + CSS.escape(targetPetId) + '"]';
+    }
+
+    var targetButton = document.querySelector(selector);
+    if (targetButton) {
+      selectPet(targetButton, { syncSession: false });
+    } else {
+      resetPetSelection({ syncSession: false });
+    }
+  }
+
+  function getProfileSelectionSourceButtons() {
+    if (!petDropdownMenu) return [];
+    return Array.prototype.slice.call(petDropdownMenu.querySelectorAll('button[data-pet-name]'));
+  }
+
+  function getProfileSelectionOptions(config) {
+    var optionsConfig = config || {};
+    var includeDefaultOption = optionsConfig.includeDefaultOption !== false;
+    var buttons = getProfileSelectionSourceButtons();
+    if (!buttons.length) return [];
+
+    var defaultOption = null;
+    var futureOption = null;
+    var pets = [];
+
+    buttons.forEach(function (button) {
+      var option = {
+        id: button.getAttribute('data-pet-id') || '',
+        name: button.getAttribute('data-pet-name') || '',
+        summary: button.getAttribute('data-pet-summary') || '',
+        emoji: button.getAttribute('data-pet-emoji') || '○',
+        sourceButton: button,
+      };
+
+      if (!option.id) {
+        option.name = '선택 안 함';
+        option.summary = '프로필 선택 없이 일반 대화로 진행해요';
+        option.emoji = '○';
+        defaultOption = option;
+        return;
+      }
+
+      if (option.id === 'future-profile') {
+        futureOption = option;
+        return;
+      }
+
+      pets.push(option);
+    });
+
+    var ordered = pets.slice();
+    if (futureOption) ordered.push(futureOption);
+    if (defaultOption && includeDefaultOption) ordered.push(defaultOption);
+    return ordered;
+  }
+
+  function shouldPromptProfileSelection() {
+    if (skipProfileSelectionPromptOnce) {
+      skipProfileSelectionPromptOnce = false;
+      return false;
+    }
+
+    var options = getProfileSelectionOptions();
+    var hasSelectableProfile = options.some(function (option) {
+      return !!option.id;
+    });
+    if (!hasSelectableProfile) return false;
+
+    if (activeSessionId) {
+      var activeSessionState = ensureSessionState(activeSessionId);
+      if (activeSessionState.profilePromptResolved) return false;
+      if (Array.isArray(activeSessionState.messages) && activeSessionState.messages.length) return false;
+    }
+
+    return true;
+  }
+
+  function shouldShowSelectedProfilePrompt() {
+    return shouldPromptProfileSelection() && !!activePetId;
+  }
+
+  function shouldShowProfileChoicePrompt() {
+    return shouldPromptProfileSelection() && !activePetId;
+  }
+
+  function applyProfileSelectionOption(option) {
+    if (!option || !option.sourceButton) return;
+
+    selectPet(option.sourceButton);
+
+    if (activeSessionId) {
+      ensureSessionState(activeSessionId).profilePromptResolved = true;
+    }
+
+    skipProfileSelectionPromptOnce = true;
+    clearProfileSelectionPrompt();
+    if (messageInput) {
+      window.setTimeout(function () {
+        submitCurrentMessage();
+      }, 0);
+    }
+  }
+
+  function showProfileSelectionPrompt(config) {
+    if (!chatMessages || activeProfileSelectionPrompt) return;
+
+    var options = getProfileSelectionOptions(config);
+    if (!options.length) return;
+
+    ensureChatThreadVisible();
+
+    var wrapper = document.createElement('div');
+    wrapper.className = 'flex justify-start';
+    wrapper.setAttribute('data-profile-selection-prompt', 'true');
+
+    var bubble = document.createElement('div');
+    bubble.className = 'inline-flex w-fit max-w-[460px] flex-col self-start rounded-[24px] rounded-bl-[8px] border border-[#dbe7f5] bg-white px-[20px] py-[16px] text-[#2d3748] shadow-[0_10px_24px_rgba(45,55,72,0.06)]';
+
+    var title = document.createElement('p');
+    title.className = 'w-fit text-[15px] font-semibold leading-[1.75] text-[#2d3748]';
+    title.textContent = '어떤 프로필로 대화할까요?';
+    bubble.appendChild(title);
+
+    var description = document.createElement('p');
+    description.className = 'mt-[6px] w-fit max-w-[320px] break-keep text-[12px] leading-[1.7] text-[#718096]';
+    description.textContent = '프로필을 선택하면 더 정확하게 답변하고 추천할 수 있어요';
+    bubble.appendChild(description);
+
+    var optionList = document.createElement('div');
+    optionList.className = 'mt-[12px] flex flex-wrap gap-[8px]';
+
+    options.forEach(function (option) {
+      var button = document.createElement('button');
+      button.type = 'button';
+      button.className = 'inline-flex max-w-full items-center gap-[6px] rounded-full border border-[#dbe7f5] bg-[#f8fbff] px-[11px] py-[7px] text-left transition-colors duration-150 hover:border-[#bfdbfe] hover:bg-white';
+      button.addEventListener('click', function () {
+        applyProfileSelectionOption(option);
+      });
+
+      var name = document.createElement('p');
+      name.className = 'truncate text-[12px] font-semibold leading-none text-[#2d3748]';
+      name.textContent = option.name;
+
+      var emoji = document.createElement('span');
+      emoji.className = 'shrink-0 text-[13px] leading-none text-[#718096]';
+      emoji.textContent = option.emoji || '○';
+
+      button.appendChild(emoji);
+      button.appendChild(name);
+      optionList.appendChild(button);
+    });
+
+    bubble.appendChild(optionList);
+    wrapper.appendChild(bubble);
+    chatMessages.appendChild(wrapper);
+    activeProfileSelectionPrompt = wrapper;
+    scrollToBottom();
+  }
+
+  function showSelectedProfilePrompt() {
+    if (!chatMessages || activeProfileSelectionPrompt) return;
+
+    var activeButton = document.querySelector('[data-pet-id="' + CSS.escape(activePetId) + '"]');
+    if (!activeButton) return;
+
+    ensureChatThreadVisible();
+
+    var wrapper = document.createElement('div');
+    wrapper.className = 'flex justify-start';
+    wrapper.setAttribute('data-profile-selection-prompt', 'true');
+
+    var bubble = document.createElement('div');
+    bubble.className = 'inline-flex w-fit max-w-[460px] flex-col self-start rounded-[24px] rounded-bl-[8px] border border-[#dbe7f5] bg-white px-[20px] py-[16px] text-[#2d3748] shadow-[0_10px_24px_rgba(45,55,72,0.06)]';
+
+    var title = document.createElement('p');
+    title.className = 'w-fit text-[15px] font-semibold leading-[1.75] text-[#2d3748]';
+    title.textContent = (activeButton.getAttribute('data-pet-name') || '현재 프로필') + ' 프로필로 대화할까요?';
+    bubble.appendChild(title);
+
+    var optionList = document.createElement('div');
+    optionList.className = 'mt-[12px] flex flex-wrap gap-[8px]';
+
+    var continueButton = document.createElement('button');
+    continueButton.type = 'button';
+    continueButton.className = 'inline-flex max-w-full items-center gap-[6px] rounded-full border border-[#bfdbfe] bg-[#eff8ff] px-[11px] py-[7px] text-left transition-colors duration-150 hover:border-[#90cdf4] hover:bg-[#e3f2ff]';
+    continueButton.addEventListener('click', function () {
+      if (activeSessionId) {
+        ensureSessionState(activeSessionId).profilePromptResolved = true;
+      }
+      skipProfileSelectionPromptOnce = true;
+      clearProfileSelectionPrompt();
+      if (messageInput) {
+        window.setTimeout(function () {
+          submitCurrentMessage();
+        }, 0);
+      }
+    });
+
+    var continueEmoji = document.createElement('span');
+    continueEmoji.className = 'shrink-0 text-[13px] leading-none text-[#4a5568]';
+    continueEmoji.textContent = activeButton.getAttribute('data-pet-emoji') || '○';
+
+    var continueLabel = document.createElement('p');
+    continueLabel.className = 'truncate text-[12px] font-semibold leading-none text-[#2b6cb0]';
+    continueLabel.textContent = '이 프로필로 시작';
+
+    continueButton.appendChild(continueEmoji);
+    continueButton.appendChild(continueLabel);
+    optionList.appendChild(continueButton);
+
+    var changeButton = document.createElement('button');
+    changeButton.type = 'button';
+    changeButton.className = 'inline-flex max-w-full items-center gap-[6px] rounded-full border border-[#dbe7f5] bg-[#f8fbff] px-[11px] py-[7px] text-left transition-colors duration-150 hover:border-[#bfdbfe] hover:bg-white';
+    changeButton.addEventListener('click', function () {
+      clearProfileSelectionPrompt();
+      showProfileSelectionPrompt({ includeDefaultOption: true });
+    });
+
+    var changeEmoji = document.createElement('span');
+    changeEmoji.className = 'shrink-0 text-[13px] leading-none text-[#718096]';
+    changeEmoji.textContent = '↺';
+
+    var changeLabel = document.createElement('p');
+    changeLabel.className = 'truncate text-[12px] font-semibold leading-none text-[#2d3748]';
+    changeLabel.textContent = '변경';
+
+    changeButton.appendChild(changeEmoji);
+    changeButton.appendChild(changeLabel);
+    optionList.appendChild(changeButton);
+
+    bubble.appendChild(optionList);
+    wrapper.appendChild(bubble);
+    chatMessages.appendChild(wrapper);
+    activeProfileSelectionPrompt = wrapper;
+    scrollToBottom();
   }
 
   function normalizeRecommendedProducts(products) {
@@ -1825,6 +2152,8 @@
       existing = document.createElement('div');
       existing.className = normalizedClassName;
       existing.setAttribute('data-id', sessionId);
+      existing.setAttribute('data-target-pet-id', '');
+      existing.setAttribute('data-profile-context-type', 'none');
       existing.innerHTML = ''
         + '<span class="history-title absolute left-[6px] right-[72px] top-[12px] overflow-hidden text-ellipsis whitespace-nowrap text-[12px] font-semibold leading-none text-[#2d3748]"></span>'
         + '<div class="absolute right-0 top-[12px] h-[16px] w-[66px]">'
@@ -1864,7 +2193,12 @@
     if (titleNode) titleNode.textContent = session.title || '새 대화';
     if (dateNode) dateNode.textContent = session.display_date || '오늘';
 
-    ensureSessionState(sessionId);
+    existing.setAttribute('data-target-pet-id', session.target_pet_id || '');
+    existing.setAttribute('data-profile-context-type', session.profile_context_type || 'none');
+
+    var sessionState = ensureSessionState(sessionId);
+    sessionState.targetPetId = session.target_pet_id || '';
+    sessionState.profileContextType = session.profile_context_type || 'none';
     return existing;
   }
 
@@ -1902,6 +2236,7 @@
       body: JSON.stringify({
         title: derivedTitle,
         target_pet_id: validTargetPetId,
+        profile_context_type: getCurrentProfileContextType(),
       }),
     }).then(function (res) {
       return readJsonResponse(res).then(function (data) {
@@ -2094,8 +2429,11 @@
     }
   };
 
-  window.selectPet = function (el) {
+  window.selectPet = function (el, options) {
     if (!el || !petDropdownName || !petDropdownSummary || !petDropdownEmoji || !petDropdownButton) return;
+    clearProfileSelectionPrompt();
+    var config = options || {};
+    var shouldSyncSession = config.syncSession !== false;
 
     var nextId = el.getAttribute('data-pet-id') || '';
     var nextName = el.getAttribute('data-pet-name') || '';
@@ -2130,6 +2468,10 @@
     });
     el.classList.add('bg-[#eff8ff]');
     closePetDropdown();
+
+    if (shouldSyncSession && activeSessionId) {
+      updateSessionProfileSelection(activeSessionId);
+    }
   };
 
   function scrollToBottom() {
@@ -2303,6 +2645,7 @@
     var session = ensureSessionState(sessionId);
     if (chatSection) chatSection.classList.remove('is-resetting');
     chatMessages.innerHTML = '';
+    clearProfileSelectionPrompt();
     chatEmptyState.classList.remove('is-fading-in');
     chatEmptyState.classList.add('hidden');
     chatThread.classList.remove('hidden');
@@ -2324,6 +2667,8 @@
 
   function activateSession(sessionId) {
     activeSessionId = sessionId;
+    clearProfileSelectionPrompt();
+    applySessionProfileSelection(sessionId);
     syncActiveSessionUrl();
     syncCatalogMenuAllLink();
     updateSessionItemStyles();
@@ -2500,6 +2845,9 @@
   }
 
   function performResetState(showEmptyWithFade) {
+      clearProfileSelectionPrompt();
+      activeSessionId = null;
+      resetPetSelection({ syncSession: false });
       if (composerStage) composerStage.classList.add('no-transition');
       if (chatMessages) chatMessages.innerHTML = '';
       if (chatNoticeHost) chatNoticeHost.innerHTML = '';
@@ -2511,7 +2859,6 @@
         chatEmptyState.classList.remove('hidden');
       }
       updateChatSectionState(false);
-      activeSessionId = null;
       syncActiveSessionUrl();
       syncCatalogMenuAllLink();
       updateSessionItemStyles();
@@ -2550,7 +2897,7 @@
     }
   };
 
-  window.sendMessage = function () {
+  function submitCurrentMessage() {
     if (!messageInput) return;
     var msg = messageInput.value.trim();
     if (!msg || isSendingMessage) return;
@@ -2575,6 +2922,7 @@
       syncActiveSessionUrl();
       syncCatalogMenuAllLink();
       var sessionState = ensureSessionState(sessionId);
+      sessionState.profilePromptResolved = true;
       promoteSessionItem(sessionId, sessionData.title || (msg.length > 18 ? msg.slice(0, 18) + '...' : msg));
 
       if (sessionState.loaded && sessionState.messages.length) {
@@ -2693,6 +3041,21 @@
       showChatNotice(error.message || '세션 생성에 실패했습니다.');
       setComposerBusy(false);
     });
+  };
+
+  window.sendMessage = function () {
+    if (!messageInput) return;
+    var msg = messageInput.value.trim();
+    if (!msg || isSendingMessage) return;
+    if (shouldShowSelectedProfilePrompt()) {
+      showSelectedProfilePrompt();
+      return;
+    }
+    if (shouldShowProfileChoicePrompt()) {
+      showProfileSelectionPrompt();
+      return;
+    }
+    submitCurrentMessage();
   };
 
   window.switchProductTab = function (tab) {
@@ -3819,7 +4182,7 @@
   applyLayout();
   if (activePetId) {
     var initialPet = document.querySelector('[data-pet-id="' + CSS.escape(activePetId) + '"]');
-    if (initialPet) selectPet(initialPet);
+    if (initialPet) selectPet(initialPet, { syncSession: false });
   }
   closePetDropdown();
   updateChatSectionState(false);
@@ -3848,7 +4211,7 @@
   if (activePetId) {
     var initialPet = document.querySelector('[data-pet-id="' + activePetId + '"]');
     if (initialPet) {
-      selectPet(initialPet);
+      selectPet(initialPet, { syncSession: false });
     }
   }
 

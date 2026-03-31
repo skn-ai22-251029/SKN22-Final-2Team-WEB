@@ -6,9 +6,19 @@ from products.models import Product
 
 
 class ChatSession(models.Model):
+    PROFILE_CONTEXT_PET = "pet"
+    PROFILE_CONTEXT_FUTURE = "future"
+    PROFILE_CONTEXT_NONE = "none"
+    PROFILE_CONTEXT_CHOICES = [
+        (PROFILE_CONTEXT_PET, "반려동물"),
+        (PROFILE_CONTEXT_FUTURE, "예비집사"),
+        (PROFILE_CONTEXT_NONE, "선택 안 함"),
+    ]
+
     session_id = models.UUIDField(primary_key=True, default=uuid.uuid4, editable=False)
     user       = models.ForeignKey(User, on_delete=models.CASCADE, related_name="chat_sessions")
     target_pet = models.ForeignKey(Pet, on_delete=models.SET_NULL, null=True, blank=True)
+    profile_context_type = models.CharField(max_length=10, choices=PROFILE_CONTEXT_CHOICES, default=PROFILE_CONTEXT_NONE)
     title      = models.TextField()
     created_at = models.DateTimeField(auto_now_add=True)
     updated_at = models.DateTimeField(auto_now=True)
