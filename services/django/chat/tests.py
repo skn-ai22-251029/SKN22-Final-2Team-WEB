@@ -5,9 +5,11 @@ import httpx
 from django.conf import settings
 from django.test import TestCase
 from django.urls import reverse
+from django.utils import timezone
 
-from chat.models import ChatMessage, ChatSession
+from chat.models import ChatMessage, ChatMessageRecommendation, ChatSession
 from pets.models import FuturePetProfile, Pet, PetAllergy, PetFoodPreference, PetHealthConcern
+from products.models import Product
 from users.models import User, UserProfile
 from users.onboarding import ONBOARDING_FORCE_PROFILE_SESSION_KEY
 
@@ -179,6 +181,7 @@ class _FakeHttpxClient:
         return _FakeStreamResponse(
             [
                 b'data: {"type":"token","content":"hello"}\n\n',
+                'data: {"type":"products","cards":[{"goods_id":"TEST-PRODUCT-1","product_name":"추천 상품","brand_name":"브랜드","price":10000,"discount_price":9000,"rating":4.5,"reviews":12,"thumbnail_url":"https://example.com/thumb.jpg","product_url":"https://example.com/product"}]}\n\n',
                 b'data: {"type":"done"}\n\n',
             ]
         )
@@ -204,6 +207,24 @@ class ChatProxyTests(TestCase):
             species="cat",
             gender="female",
             budget_range="5_10",
+        )
+        self.product = Product.objects.create(
+            goods_id="TEST-PRODUCT-1",
+            goods_name="추천 상품",
+            brand_name="브랜드",
+            price=10000,
+            discount_price=9000,
+            rating=4.5,
+            review_count=12,
+            thumbnail_url="https://example.com/thumb.jpg",
+            product_url="https://example.com/product",
+            soldout_yn=False,
+            soldout_reliable=True,
+            pet_type=["고양이"],
+            category=["사료"],
+            subcategory=["전연령"],
+            health_concern_tags=[],
+            crawled_at=timezone.now(),
         )
         self.other_user = User.objects.create_user(
             email="other-chat-owner@example.com",
@@ -328,6 +349,15 @@ class ChatProxyTests(TestCase):
 
         messages = list(session.messages.order_by("created_at").values_list("role", "content"))
         self.assertEqual(messages, [("user", "hello"), ("assistant", "hello")])
+        assistant_message = session.messages.get(role="assistant")
+        recommendation = ChatMessageRecommendation.objects.get(message=assistant_message)
+        self.assertEqual(recommendation.product_id, self.product.goods_id)
+        self.assertEqual(recommendation.rank_order, 0)
+
+        list_response = self.client.get(f"/api/chat/sessions/{session.session_id}/messages/")
+        self.assertEqual(list_response.status_code, 200)
+        assistant_payload = list_response.json()["messages"][1]
+        self.assertEqual(assistant_payload["recommended_products"][0]["goods_id"], self.product.goods_id)
 
     @patch("chat.api_views.httpx.Client", _ExplodingHttpxClient)
     def test_session_messages_proxy_persists_error_message_when_fastapi_is_unreachable(self):

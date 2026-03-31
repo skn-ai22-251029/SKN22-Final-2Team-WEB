@@ -3,6 +3,7 @@ from django.utils import timezone
 from rest_framework import status
 from rest_framework.test import APIClient
 
+from chat.models import ChatMessage, ChatMessageRecommendation, ChatSession
 from products.models import Product
 from users.models import User, UserProfile
 
@@ -599,6 +600,7 @@ class OrderPageViewTests(TestCase):
     def setUp(self):
         self.user = User.objects.create_user(email="order-page@example.com", password="Password123!")
         self.client.force_login(self.user)
+        UserProfile.objects.create(user=self.user, nickname="주문 페이지")
 
     def test_order_list_supports_demo_mode(self):
         response = self.client.get("/orders/?demo=1")
@@ -607,3 +609,27 @@ class OrderPageViewTests(TestCase):
         self.assertContains(response, "시연용 예시 주문을 보고 있어요")
         self.assertContains(response, "TT-20260325-1024")
         self.assertContains(response, "배송 중")
+
+    def test_catalog_shows_recommended_products_for_session(self):
+        product = Product.objects.create(
+            goods_id="CATALOG-REC-1",
+            goods_name="카탈로그 추천 상품",
+            brand_name="추천 브랜드",
+            price=15000,
+            discount_price=12900,
+            thumbnail_url="https://example.com/catalog-rec.png",
+            product_url="https://example.com/catalog-rec",
+            pet_type=["강아지"],
+            category=["사료"],
+            subcategory=["전연령"],
+            crawled_at=timezone.now(),
+        )
+        session = ChatSession.objects.create(user=self.user, title="추천 세션")
+        message = ChatMessage.objects.create(session=session, role="assistant", content="추천 결과")
+        ChatMessageRecommendation.objects.create(message=message, product=product, rank_order=0)
+
+        response = self.client.get(f"/catalog/?session={session.session_id}")
+
+        self.assertEqual(response.status_code, 200)
+        self.assertContains(response, "현재 채팅 세션에서 추천된 상품")
+        self.assertContains(response, "카탈로그 추천 상품")
