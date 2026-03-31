@@ -6,6 +6,7 @@ from django.contrib.auth.decorators import login_required
 from django.core.paginator import Paginator
 from django.shortcuts import get_object_or_404, render
 
+from chat.models import ChatSession
 from products.catalog_menu import build_catalog_menu_context
 from products.models import Product
 from .models import Cart, Order, Wishlist
@@ -177,7 +178,7 @@ def _serialize_catalog_item(product, *, is_wishlisted=False, cart_quantity=0):
 
 def _catalog_query_params(request, overrides=None):
     params = {}
-    for key in ("pet", "category", "subcategory", "brand", "page"):
+    for key in ("q", "pet", "category", "subcategory", "brand", "sort", "session", "page"):
         value = (request.GET.get(key) or "").strip()
         if value:
             params[key] = value
@@ -261,6 +262,25 @@ def _href_query_matches(href, current_params, keys=("pet", "category", "subcateg
 def _query_value_from_href(href, key):
     parsed = parse_qs(urlparse(href).query)
     return (parsed.get(key) or [""])[0].strip()
+
+
+def _serialize_recommendation_item(recommendation, *, is_wishlisted=False, cart_quantity=0):
+    product = recommendation.product
+    return {
+        "product_id": product.goods_id,
+        "thumbnail_url": product.thumbnail_url,
+        "product_url": product.product_url,
+        "brand_name": product.brand_name,
+        "name": _display_product_name(product.brand_name, product.goods_name),
+        "summary": _product_summary(product),
+        "price_label": _format_price(product.price),
+        "rating": f"{product.rating:.1f}" if product.rating is not None else None,
+        "review_count": product.review_count or 0,
+        "rank_order": recommendation.rank_order,
+        "is_wishlisted": is_wishlisted,
+        "cart_quantity": cart_quantity,
+        "is_in_cart": cart_quantity > 0,
+    }
 
 
 def _serialize_order_group(order):
@@ -777,6 +797,7 @@ def catalog(request):
     category = (request.GET.get("category") or "").strip()
     subcategory = (request.GET.get("subcategory") or "").strip()
     brand = (request.GET.get("brand") or "").strip()
+    session_id = (request.GET.get("session") or "").strip()
     sort_key = (request.GET.get("sort") or "tailtalk").strip()
     if sort_key not in CATALOG_SORT_OPTIONS:
         sort_key = "tailtalk"
@@ -835,6 +856,7 @@ def catalog(request):
         "category": category,
         "subcategory": subcategory,
         "brand": brand,
+        "session": session_id,
         "sort": sort_key,
         "page": request.GET.get("page") or "",
     }
@@ -877,6 +899,33 @@ def catalog(request):
                     "query": _catalog_querystring(current_params, page=number),
                 }
             )
+
+    recommended_session = None
+    recommended_items = []
+    if session_id:
+        recommended_session = (
+            ChatSession.objects.filter(session_id=session_id, user=request.user)
+            .prefetch_related("messages__recommended_products__product")
+            .first()
+        )
+        if recommended_session:
+            latest_recommendation_message = next(
+                (
+                    message
+                    for message in recommended_session.messages.order_by("-created_at")
+                    if hasattr(message, "recommended_products") and message.recommended_products.exists()
+                ),
+                None,
+            )
+            if latest_recommendation_message is not None:
+                recommended_items = [
+                    _serialize_recommendation_item(
+                        recommendation,
+                        is_wishlisted=recommendation.product_id in wishlist_product_ids,
+                        cart_quantity=cart_quantities.get(recommendation.product_id, 0),
+                    )
+                    for recommendation in latest_recommendation_message.recommended_products.select_related("product").order_by("rank_order", "created_at")
+                ]
 
     context = {
         "catalog_items": [
@@ -958,6 +1007,9 @@ def catalog(request):
         "catalog_clear_category_query": _catalog_querystring(current_params, category=None, subcategory=None, brand=None, page=None),
         "catalog_clear_detail_query": _catalog_querystring(current_params, subcategory=None, brand=None, page=None),
         "catalog_clear_brand_query": _catalog_querystring(current_params, brand=None, page=None),
+        "catalog_current_session_id": session_id,
+        "catalog_recommended_session": recommended_session,
+        "catalog_recommended_items": recommended_items,
     }
     return render(request, "orders/catalog.html", context)
 

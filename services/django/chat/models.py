@@ -28,3 +28,15 @@ class ChatMessage(models.Model):
 
     class Meta:
         db_table = "chat_message"
+
+
+class ChatMessageRecommendation(models.Model):
+    id         = models.UUIDField(primary_key=True, default=uuid.uuid4, editable=False)
+    message    = models.ForeignKey(ChatMessage, on_delete=models.CASCADE, related_name="recommended_products")
+    product    = models.ForeignKey(Product, on_delete=models.CASCADE, related_name="chat_message_recommendations")
+    rank_order = models.PositiveIntegerField(default=0)
+    created_at = models.DateTimeField(auto_now_add=True)
+
+    class Meta:
+        db_table = "chat_message_recommendation"
+        unique_together = [("message", "product")]
