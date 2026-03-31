@@ -1415,6 +1415,7 @@
   var activeCatalogCategoryIndex = 0;
   var activeCatalogGroupIndex = 0;
   var recommendedPanelDefaultHtml = recommendedPanel ? recommendedPanel.innerHTML : '';
+  var SESSION_RECOMMENDED_PRODUCTS_STORAGE_PREFIX = 'tailtalk_session_recommended_products:';
 
   function getCookie(name) {
     var cookieValue = null;
@@ -1727,6 +1728,18 @@
     });
   }
 
+  function syncSessionRecommendedProductsStorage(sessionId, cards) {
+    if (!sessionId) return;
+    try {
+      window.localStorage.setItem(
+        SESSION_RECOMMENDED_PRODUCTS_STORAGE_PREFIX + sessionId,
+        JSON.stringify(normalizeRecommendedProducts(cards || []))
+      );
+    } catch (error) {
+      // Ignore storage sync failures.
+    }
+  }
+
   function resolveSessionRecommendedProducts(session) {
     if (!session || !Array.isArray(session.messages)) {
       return [];
@@ -1754,6 +1767,9 @@
       : [];
 
     if (cards.length) {
+      if (activeSessionId) {
+        syncSessionRecommendedProductsStorage(activeSessionId, cards);
+      }
       openProductPanel();
       switchProductTab('recommended');
       renderProductCards(cards);
@@ -1928,6 +1944,7 @@
           };
         });
         session.latestRecommendedProducts = resolveSessionRecommendedProducts(session);
+        syncSessionRecommendedProductsStorage(sessionId, session.latestRecommendedProducts);
         session.loaded = true;
         return session.messages;
       });
@@ -2646,6 +2663,7 @@
                 } else if (evt.type === 'products' && evt.cards && evt.cards.length) {
                   assistantRecommendedProducts = normalizeRecommendedProducts(evt.cards);
                   sessionState.latestRecommendedProducts = assistantRecommendedProducts;
+                  syncSessionRecommendedProductsStorage(sessionId, assistantRecommendedProducts);
                   openProductPanel();
                   switchProductTab('recommended');
                   renderProductCards(evt.cards);

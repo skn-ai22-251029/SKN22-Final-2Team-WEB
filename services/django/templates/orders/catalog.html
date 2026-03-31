@@ -395,6 +395,7 @@
 </div>
 
 <div id="catalogSessionDrawer"
+     data-current-session-id="{{ catalog_current_session_id|default:'' }}"
      class="catalog-session-drawer fixed right-0 top-1/2 z-[65] flex -translate-y-1/2 translate-x-[calc(100%-48px)] items-center opacity-100 visible">
   <button type="button"
           id="catalogSessionDrawerToggle"
@@ -406,10 +407,10 @@
     <div class="flex items-center justify-between border-b border-[#edf2f7] px-5 py-4">
       <div>
         <p class="text-[16px] font-bold text-[#2d3748]">추천 상품</p>
-        <p class="mt-1 text-[12px] text-[#90a4b8]">{% if catalog_recommended_session %}현재 채팅 세션에서 추천된 상품{% else %}추천 세션이 연결되지 않았어요{% endif %}</p>
+        <p id="catalogSessionDrawerSubtitle" class="mt-1 text-[12px] text-[#90a4b8]">{% if catalog_recommended_session %}현재 채팅 세션에서 추천된 상품{% else %}추천 세션이 연결되지 않았어요{% endif %}</p>
       </div>
     </div>
-    <div class="h-[calc(100%-69px)] overflow-y-auto px-4 py-4">
+    <div id="catalogSessionDrawerBody" class="h-[calc(100%-69px)] overflow-y-auto px-4 py-4">
       {% if catalog_recommended_items %}
       <div class="space-y-3">
         {% for item in catalog_recommended_items %}
@@ -481,6 +482,10 @@
   var catalogFeedbackToast = document.getElementById('catalogFeedbackToast');
   var catalogToastTimer = null;
   var catalogSessionDrawer = document.getElementById('catalogSessionDrawer');
+  var catalogSessionDrawerBody = document.getElementById('catalogSessionDrawerBody');
+  var catalogSessionDrawerSubtitle = document.getElementById('catalogSessionDrawerSubtitle');
+  var catalogCurrentSessionId = catalogSessionDrawer ? (catalogSessionDrawer.getAttribute('data-current-session-id') || '') : '';
+  var SESSION_RECOMMENDED_PRODUCTS_STORAGE_PREFIX = 'tailtalk_session_recommended_products:';
 
   function getCsrfToken() {
     var match = document.cookie.match(/(?:^|;\s*)csrftoken=([^;]+)/);
@@ -529,6 +534,90 @@
     }, 2400);
   }
 
+  function escapeHtml(value) {
+    return String(value || '')
+      .replace(/&/g, '&amp;')
+      .replace(/</g, '&lt;')
+      .replace(/>/g, '&gt;')
+      .replace(/"/g, '&quot;')
+      .replace(/'/g, '&#39;');
+  }
+
+  function readStoredSessionRecommendations(sessionId) {
+    if (!sessionId) return [];
+    try {
+      return JSON.parse(window.localStorage.getItem(SESSION_RECOMMENDED_PRODUCTS_STORAGE_PREFIX + sessionId) || '[]');
+    } catch (error) {
+      return [];
+    }
+  }
+
+  function drawerItemMarkup(item) {
+    var productId = escapeHtml(item.product_id || item.goods_id || '');
+    var productUrl = escapeHtml(item.product_url || '');
+    var brandName = escapeHtml(item.brand_name || item.brand || '');
+    var productName = escapeHtml(item.product_name || item.name || '추천 상품');
+    var summary = escapeHtml(item.summary || '');
+    var priceLabel = escapeHtml(item.price_label || item.price || '가격 정보 없음');
+    var rating = item.rating ? escapeHtml(item.rating) : '';
+    var reviewCount = escapeHtml(item.review_count || item.reviews || '0');
+    var thumbnailUrl = escapeHtml(item.thumbnail_url || '');
+    return ''
+      + '<article class="rounded-[20px] border border-[#e2e8f0] bg-[#fbfdff] p-4">'
+      + '  <div class="flex gap-3">'
+      + '    <a href="' + productUrl + '" target="_blank" rel="noreferrer" class="block h-[72px] w-[72px] shrink-0 overflow-hidden rounded-[16px] bg-[#f1f5f9]">'
+      + '      <img src="' + thumbnailUrl + '" alt="' + productName + '" class="h-full w-full object-cover">'
+      + '    </a>'
+      + '    <div class="min-w-0 flex-1">'
+      + (brandName ? '      <p class="truncate text-[11px] font-semibold text-[#90a4b8]">' + brandName + '</p>' : '')
+      + '      <a href="' + productUrl + '" target="_blank" rel="noreferrer" class="mt-1 block text-[14px] font-bold leading-[1.5] text-[#2d3748] hover:text-[#3182ce]">' + productName + '</a>'
+      + (summary ? '      <p class="mt-2 text-[12px] leading-[1.6] text-[#718096]">' + summary + '</p>' : '')
+      + '      <div class="mt-3 flex items-end justify-between gap-3">'
+      + '        <div>'
+      + '          <p class="text-[16px] font-bold text-[#2d3748]">' + priceLabel + '</p>'
+      + '          <p class="mt-1 flex items-center gap-1 text-[11px] text-[#a0aec0]">'
+      + (rating ? '            <span class="text-[#f6ad55]">★</span><span>' + rating + '</span><span>·</span>' : '')
+      + '            <span>리뷰 ' + reviewCount + '</span>'
+      + '          </p>'
+      + '        </div>'
+      + '        <div class="flex items-center gap-2">'
+      + '          <button type="button" class="wishlist-heart inline-flex h-[28px] w-[28px] shrink-0 items-center justify-center rounded-full border border-[#e2e8f0] bg-white leading-none transition-colors hover:text-[#e53e3e]" aria-label="관심 상품 상태 변경" data-product-id="' + productId + '" onclick="toggleCatalogWishlist(this)">'
+      + '            <svg width="15" height="15" viewBox="0 0 24 24" fill="none" aria-hidden="true"><path d="M12 20.4 4.9 13.8a4.8 4.8 0 0 1 6.8-6.8L12 7.3l.3-.3a4.8 4.8 0 0 1 6.8 6.8L12 20.4Z" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"/></svg>'
+      + '            <svg width="15" height="15" viewBox="0 0 24 24" fill="currentColor" aria-hidden="true"><path d="M12 20.4 4.9 13.8a4.8 4.8 0 0 1 6.8-6.8L12 7.3l.3-.3a4.8 4.8 0 0 1 6.8 6.8L12 20.4Z"/></svg>'
+      + '          </button>'
+      + '          <button type="button" class="inline-flex h-[28px] w-[28px] shrink-0 items-center justify-center rounded-full bg-[#2d3748] text-[16px] font-semibold leading-none text-white" data-product-id="' + productId + '" data-in-cart="0" aria-label="장바구니에 상품 추가" onclick="addCatalogToCart(this)">'
+      + '            <span class="relative top-[-1px]">+</span>'
+      + '          </button>'
+      + '        </div>'
+      + '      </div>'
+      + '    </div>'
+      + '  </div>'
+      + '</article>';
+  }
+
+  function drawerEmptyMarkup(hasSession) {
+    return ''
+      + '<div class="flex h-full min-h-[320px] flex-col items-center justify-center px-4 text-center">'
+      + '  <div class="text-[34px] text-[#90cdf4]">🧺</div>'
+      + '  <p class="mt-4 text-[18px] font-bold text-[#2d3748]">추천된 상품이 없어요</p>'
+      + '  <p class="mt-3 text-[13px] leading-[1.7] text-[#718096]">' + (hasSession ? '이 채팅 세션에서는 아직 추천 상품이 저장되지 않았습니다.' : '채팅에서 추천을 받으면<br>이곳에서 다시 모아볼 수 있어요') + '</p>'
+      + '  <a href="/chat/" class="mt-5 inline-flex h-[38px] items-center justify-center rounded-full bg-[#2d3748] px-4 text-[12px] font-semibold text-white">채팅에서 추천받기</a>'
+      + '</div>';
+  }
+
+  function renderCatalogSessionDrawerItems(items) {
+    if (!catalogSessionDrawerBody) return;
+    var normalizedItems = Array.isArray(items) ? items : [];
+    if (catalogSessionDrawerSubtitle) {
+      catalogSessionDrawerSubtitle.textContent = catalogCurrentSessionId ? '현재 채팅 세션에서 추천된 상품' : '추천 세션이 연결되지 않았어요';
+    }
+    if (!normalizedItems.length) {
+      catalogSessionDrawerBody.innerHTML = drawerEmptyMarkup(!!catalogCurrentSessionId);
+      return;
+    }
+    catalogSessionDrawerBody.innerHTML = '<div class="space-y-3">' + normalizedItems.map(drawerItemMarkup).join('') + '</div>';
+  }
+
   window.toggleCatalogSessionDrawer = function () {
     if (!catalogSessionDrawer) return;
     catalogSessionDrawer.classList.toggle('is-open');
@@ -543,6 +632,19 @@
     if (!catalogSessionDrawer || !catalogSessionDrawer.classList.contains('is-open')) return;
     if (catalogSessionDrawer.contains(event.target)) return;
     closeCatalogSessionDrawer();
+  });
+
+  if (catalogCurrentSessionId) {
+    var storedItems = readStoredSessionRecommendations(catalogCurrentSessionId);
+    if (storedItems.length) {
+      renderCatalogSessionDrawerItems(storedItems);
+    }
+  }
+
+  window.addEventListener('storage', function (event) {
+    if (!catalogCurrentSessionId) return;
+    if (event.key !== SESSION_RECOMMENDED_PRODUCTS_STORAGE_PREFIX + catalogCurrentSessionId) return;
+    renderCatalogSessionDrawerItems(readStoredSessionRecommendations(catalogCurrentSessionId));
   });
 
   window.toggleCatalogWishlist = function (button) {
