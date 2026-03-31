@@ -102,6 +102,25 @@
   details[open] .catalog-more-summary-label::after {
     content: "－";
   }
+
+  .catalog-session-drawer {
+    transition: transform 200ms ease, opacity 200ms ease, visibility 200ms ease;
+  }
+
+  .catalog-session-drawer.is-open {
+    opacity: 1;
+    visibility: visible;
+    transform: translateY(-50%) translateX(0);
+  }
+
+  .catalog-session-drawer-toggle {
+    transition: transform 180ms ease, box-shadow 180ms ease;
+    margin-right: -1px;
+  }
+
+  .catalog-session-drawer.is-open .catalog-session-drawer-toggle {
+    box-shadow: 0 12px 24px rgba(45, 55, 72, 0.12);
+  }
   @media (max-width: 767px) {
     .catalog-header-stack {
       flex-direction: column;
@@ -374,6 +393,86 @@
      class="catalog-feedback-toast pointer-events-none fixed left-1/2 top-[88px] z-[70] flex min-h-[44px] min-w-[232px] max-w-[360px] -translate-x-1/2 items-center justify-center rounded-full bg-[#1f2937] px-[18px] py-[11px] text-center text-[13px] font-semibold text-white shadow-[0_14px_28px_rgba(15,23,42,0.28)]">
   오류가 발생했습니다.
 </div>
+
+<div id="catalogSessionDrawer"
+     class="catalog-session-drawer fixed right-0 top-1/2 z-[65] flex -translate-y-1/2 translate-x-[calc(100%-48px)] items-center opacity-100 visible">
+  <button type="button"
+          id="catalogSessionDrawerToggle"
+          class="catalog-session-drawer-toggle inline-flex h-[120px] w-[48px] self-center items-center justify-center rounded-l-[20px] border border-r-0 border-[#dbe7f5] bg-white text-[12px] font-bold tracking-[0.08em] text-[#4a5568] shadow-[0_8px_20px_rgba(45,55,72,0.08)]"
+          onclick="toggleCatalogSessionDrawer()">
+    <span class="[writing-mode:vertical-rl]">추천 상품</span>
+  </button>
+  <aside class="h-[min(78vh,680px)] w-[360px] overflow-hidden rounded-l-[24px] border border-[#dbe7f5] bg-white shadow-[0_18px_40px_rgba(45,55,72,0.12)]">
+    <div class="flex items-center justify-between border-b border-[#edf2f7] px-5 py-4">
+      <div>
+        <p class="text-[16px] font-bold text-[#2d3748]">추천 상품</p>
+        <p class="mt-1 text-[12px] text-[#90a4b8]">{% if catalog_recommended_session %}현재 채팅 세션에서 추천된 상품{% else %}추천 세션이 연결되지 않았어요{% endif %}</p>
+      </div>
+    </div>
+    <div class="h-[calc(100%-69px)] overflow-y-auto px-4 py-4">
+      {% if catalog_recommended_items %}
+      <div class="space-y-3">
+        {% for item in catalog_recommended_items %}
+        <article class="rounded-[20px] border border-[#e2e8f0] bg-[#fbfdff] p-4">
+          <div class="flex gap-3">
+            <a href="{{ item.product_url }}" target="_blank" rel="noreferrer" class="block h-[72px] w-[72px] shrink-0 overflow-hidden rounded-[16px] bg-[#f1f5f9]">
+              <img src="{{ item.thumbnail_url }}" alt="{{ item.name }}" class="h-full w-full object-cover">
+            </a>
+            <div class="min-w-0 flex-1">
+              <p class="truncate text-[11px] font-semibold text-[#90a4b8]">{{ item.brand_name }}</p>
+              <a href="{{ item.product_url }}" target="_blank" rel="noreferrer" class="mt-1 block text-[14px] font-bold leading-[1.5] text-[#2d3748] hover:text-[#3182ce]">{{ item.name }}</a>
+              <p class="mt-2 text-[12px] leading-[1.6] text-[#718096]">{{ item.summary }}</p>
+              <div class="mt-3 flex items-end justify-between gap-3">
+                <div>
+                  <p class="text-[16px] font-bold text-[#2d3748]">{{ item.price_label }}</p>
+                  <p class="mt-1 flex items-center gap-1 text-[11px] text-[#a0aec0]">
+                    {% if item.rating %}
+                    <span class="text-[#f6ad55]">★</span>
+                    <span>{{ item.rating }}</span>
+                    <span>·</span>
+                    {% endif %}
+                    <span>리뷰 {{ item.review_count }}</span>
+                  </p>
+                </div>
+                <div class="flex items-center gap-2">
+                  <button type="button"
+                          class="wishlist-heart {% if item.is_wishlisted %}is-active {% endif %}inline-flex h-[28px] w-[28px] shrink-0 items-center justify-center rounded-full border border-[#e2e8f0] bg-white leading-none transition-colors hover:text-[#e53e3e]"
+                          aria-label="관심 상품 상태 변경"
+                          data-product-id="{{ item.product_id }}"
+                          onclick="toggleCatalogWishlist(this)">
+                    <svg width="15" height="15" viewBox="0 0 24 24" fill="none" aria-hidden="true">
+                      <path d="M12 20.4 4.9 13.8a4.8 4.8 0 0 1 6.8-6.8L12 7.3l.3-.3a4.8 4.8 0 0 1 6.8 6.8L12 20.4Z" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"/>
+                    </svg>
+                    <svg width="15" height="15" viewBox="0 0 24 24" fill="currentColor" aria-hidden="true">
+                      <path d="M12 20.4 4.9 13.8a4.8 4.8 0 0 1 6.8-6.8L12 7.3l.3-.3a4.8 4.8 0 0 1 6.8 6.8L12 20.4Z"/>
+                    </svg>
+                  </button>
+                  <button type="button"
+                          class="inline-flex h-[28px] w-[28px] shrink-0 items-center justify-center rounded-full bg-[#2d3748] text-[16px] font-semibold leading-none text-white"
+                          data-product-id="{{ item.product_id }}"
+                          data-in-cart="{% if item.is_in_cart %}1{% else %}0{% endif %}"
+                          aria-label="장바구니에 상품 추가"
+                          onclick="addCatalogToCart(this)">
+                    <span class="relative top-[-1px]">+</span>
+                  </button>
+                </div>
+              </div>
+            </div>
+          </div>
+        </article>
+        {% endfor %}
+      </div>
+      {% else %}
+      <div class="flex h-full min-h-[320px] flex-col items-center justify-center px-4 text-center">
+        <div class="text-[34px] text-[#90cdf4]">🧺</div>
+        <p class="mt-4 text-[18px] font-bold text-[#2d3748]">추천된 상품이 없어요</p>
+        <p class="mt-3 text-[13px] leading-[1.7] text-[#718096]">{% if catalog_current_session_id %}이 채팅 세션에서는 아직 추천 상품이 저장되지 않았습니다.{% else %}채팅에서 추천을 받으면<br>이곳에서 다시 모아볼 수 있어요{% endif %}</p>
+        <a href="/chat/" class="mt-5 inline-flex h-[38px] items-center justify-center rounded-full bg-[#2d3748] px-4 text-[12px] font-semibold text-white">채팅에서 추천받기</a>
+      </div>
+      {% endif %}
+    </div>
+  </aside>
+</div>
 {% endblock %}
 
 {% block scripts %}
@@ -381,6 +480,7 @@
 (function () {
   var catalogFeedbackToast = document.getElementById('catalogFeedbackToast');
   var catalogToastTimer = null;
+  var catalogSessionDrawer = document.getElementById('catalogSessionDrawer');
 
   function getCsrfToken() {
     var match = document.cookie.match(/(?:^|;\s*)csrftoken=([^;]+)/);
@@ -428,6 +528,22 @@
       catalogFeedbackToast.classList.remove('is-open');
     }, 2400);
   }
+
+  window.toggleCatalogSessionDrawer = function () {
+    if (!catalogSessionDrawer) return;
+    catalogSessionDrawer.classList.toggle('is-open');
+  };
+
+  window.closeCatalogSessionDrawer = function () {
+    if (!catalogSessionDrawer) return;
+    catalogSessionDrawer.classList.remove('is-open');
+  };
+
+  document.addEventListener('mousedown', function (event) {
+    if (!catalogSessionDrawer || !catalogSessionDrawer.classList.contains('is-open')) return;
+    if (catalogSessionDrawer.contains(event.target)) return;
+    closeCatalogSessionDrawer();
+  });
 
   window.toggleCatalogWishlist = function (button) {
     var productId = button && button.dataset ? button.dataset.productId : '';

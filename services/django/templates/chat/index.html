@@ -1191,7 +1191,7 @@
               <div>
                 <p class="text-[20px] font-bold text-[#2d3748]">상품 카테고리</p>
               </div>
-              <a href="{% if is_preview_member %}#{% else %}/catalog/{% endif %}"
+              <a id="catalogMenuAllLink" href="{% if is_preview_member %}#{% else %}/catalog/{% endif %}"
                  class="inline-flex h-[32px] items-center rounded-full bg-[#edf2f7] px-[12px] text-[12px] font-bold text-[#4a5568]"
                  {% if is_preview_member %}onclick="return false"{% endif %}>전체 보기</a>
             </div>
@@ -1404,10 +1404,25 @@
 
   function buildCatalogLink(href, label, extraClassName, disabled) {
     var className = extraClassName || '';
+    var nextHref = href || '/catalog/';
+    if (!disabled && activeSessionId && nextHref.indexOf('/catalog/') === 0) {
+      var joiner = nextHref.indexOf('?') >= 0 ? '&' : '?';
+      nextHref += joiner + 'session=' + encodeURIComponent(activeSessionId);
+    }
     if (disabled) {
       return '<span class="' + className + ' cursor-default opacity-60">' + escapeHtml(label) + '</span>';
     }
-    return '<a href="' + escapeHtml(href || '/catalog/') + '" class="' + className + '">' + escapeHtml(label) + '</a>';
+    return '<a href="' + escapeHtml(nextHref) + '" class="' + className + '">' + escapeHtml(label) + '</a>';
+  }
+
+  function syncCatalogMenuAllLink() {
+    var allLink = document.getElementById('catalogMenuAllLink');
+    if (!allLink) return;
+    var nextHref = '/catalog/';
+    if (activeSessionId) {
+      nextHref += '?session=' + encodeURIComponent(activeSessionId);
+    }
+    allLink.setAttribute('href', nextHref);
   }
 
   function renderCatalogPetList() {
@@ -1918,6 +1933,7 @@
   });
 
   initializeCatalogMenu();
+  syncCatalogMenuAllLink();
 
   function openPetDropdown() {
     if (!petDropdownMenu || !petDropdownButton || !petDropdownChevron) return;
@@ -2175,6 +2191,7 @@
 
   function activateSession(sessionId) {
     activeSessionId = sessionId;
+    syncCatalogMenuAllLink();
     updateSessionItemStyles();
     openProductPanel();
     switchProductTab('recommended');
@@ -2412,6 +2429,7 @@
     ensureSessionPromise.then(function (sessionData) {
       var sessionId = sessionData.session_id;
       activeSessionId = sessionId;
+      syncCatalogMenuAllLink();
       var sessionState = ensureSessionState(sessionId);
       promoteSessionItem(sessionId, sessionData.title || (msg.length > 18 ? msg.slice(0, 18) + '...' : msg));
 
