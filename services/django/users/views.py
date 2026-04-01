@@ -580,9 +580,8 @@ class UserPhoneVerificationRequestView(APIView):
             "detail": "인증번호를 전송했습니다.",
             "phone": phone,
             "expires_in_seconds": 300,
+            "verification_code": verification_code,
         }
-        if settings.DEBUG:
-            response_payload["verification_code"] = verification_code
         return Response(response_payload, status=status.HTTP_200_OK)
 
 

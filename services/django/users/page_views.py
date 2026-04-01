@@ -93,6 +93,10 @@ def signup_view(request):
     return render(request, "users/signup.html")
 
 
+def vendor_login_view(request):
+    return render(request, "users/vendor_login.html")
+
+
 def logout_view(request):
     request.session.pop(SOCIAL_AUTH_ACCESS_SESSION_KEY, None)
     request.session.pop(SOCIAL_AUTH_REFRESH_SESSION_KEY, None)
