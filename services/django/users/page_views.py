@@ -1,12 +1,15 @@
-from types import SimpleNamespace
-
 import logging
+from collections import Counter
+from decimal import Decimal, InvalidOperation
+from types import SimpleNamespace
 
 from django.contrib import messages
 from django.contrib.auth import get_user_model, login, logout
 from django.db import IntegrityError, transaction
+from django.db.models import Avg, Sum
 from django.shortcuts import redirect, render
 from django.urls import reverse
+from products.models import Product
 from social_core.exceptions import AuthCanceled, AuthConnectionError, AuthException, AuthForbidden, AuthMissingParameter
 
 from .models import UserProfile
@@ -30,6 +33,14 @@ from .views import deactivate_user_and_purge_personal_data, issue_user_tokens
 
 User = get_user_model()
 logger = logging.getLogger(__name__)
+VENDOR_ADMIN_SESSION_KEY = "tailtalk_vendor_admin_id"
+DEMO_VENDOR_ACCOUNTS = {
+    "orijen": {
+        "password": "tailtalk2026!",
+        "brand_name": "오리젠",
+        "display_name": "오리젠",
+    }
+}
 
 
 def _get_profile(user):
@@ -66,6 +77,106 @@ def _render_profile(request, profile):
     )
 
 
+def _normalize_vendor_login_id(value):
+    return (value or "").strip().lower()
+
+
+def _get_vendor_account(login_id):
+    normalized_id = _normalize_vendor_login_id(login_id)
+    account = DEMO_VENDOR_ACCOUNTS.get(normalized_id)
+    if not account:
+        return None
+    return {
+        "login_id": normalized_id,
+        **account,
+    }
+
+
+def _get_active_vendor_account(request):
+    return _get_vendor_account(request.session.get(VENDOR_ADMIN_SESSION_KEY))
+
+
+def _format_vendor_price(value):
+    if value is None:
+        return "-"
+
+    try:
+        normalized = Decimal(value)
+    except (InvalidOperation, TypeError, ValueError):
+        return "-"
+
+    return f"{int(normalized):,}원"
+
+
+def _format_vendor_rating(value):
+    if value is None:
+        return "-"
+    return f"{value:.1f}"
+
+
+def _serialize_vendor_product(product):
+    return {
+        "goods_id": product.goods_id,
+        "goods_name": product.goods_name,
+        "brand_name": product.brand_name,
+        "thumbnail_url": product.thumbnail_url,
+        "product_url": product.product_url,
+        "price_label": _format_vendor_price(product.price),
+        "discount_price_label": _format_vendor_price(product.discount_price),
+        "rating_label": _format_vendor_rating(product.rating),
+        "review_count": product.review_count,
+        "soldout": product.soldout_yn,
+        "pet_type_label": ", ".join(product.pet_type) if product.pet_type else "미분류",
+        "category_label": " · ".join(product.category) if product.category else "카테고리 미지정",
+    }
+
+
+def _build_vendor_navigation(current_view):
+    return [
+        {
+            "label": "대시보드",
+            "href": reverse("vendor-dashboard"),
+            "active": current_view == "dashboard",
+            "disabled": False,
+        },
+        {
+            "label": "상품 목록",
+            "href": reverse("vendor-products"),
+            "active": current_view == "products",
+            "disabled": False,
+        },
+        {
+            "label": "주문 관리",
+            "href": reverse("vendor-orders"),
+            "active": current_view == "orders",
+            "disabled": False,
+        },
+        {
+            "label": "리뷰 관리",
+            "href": reverse("vendor-reviews"),
+            "active": current_view == "reviews",
+            "disabled": False,
+        },
+        {
+            "label": "운영 점검",
+            "href": reverse("vendor-operations"),
+            "active": current_view == "operations",
+            "disabled": False,
+        },
+    ]
+
+
+def _build_vendor_base_context(request, current_view):
+    account = _get_active_vendor_account(request)
+    if not account:
+        return None
+
+    return {
+        "vendor_account": account,
+        "vendor_navigation": _build_vendor_navigation(current_view),
+    }
+
+
 def home(request):
     if request.user.is_authenticated:
         onboarding_redirect_url = get_onboarding_redirect_url(request)
@@ -94,7 +205,273 @@ def signup_view(request):
 
 
 def vendor_login_view(request):
-    return render(request, "users/vendor_login.html")
+    if _get_active_vendor_account(request):
+        return redirect("vendor-dashboard")
+
+    context = {
+        "vendor_login_error": False,
+        "vendor_login_id": "",
+    }
+
+    if request.method == "POST":
+        login_id = request.POST.get("login_id", "")
+        password = request.POST.get("password", "")
+        account = _get_vendor_account(login_id)
+        if not account or password != account["password"]:
+            context["vendor_login_error"] = True
+            context["vendor_login_id"] = login_id.strip()
+            return render(request, "users/vendor_login.html", context)
+
+        request.session[VENDOR_ADMIN_SESSION_KEY] = account["login_id"]
+        return redirect("vendor-dashboard")
+
+    return render(request, "users/vendor_login.html", context)
+
+
+def vendor_logout_view(request):
+    request.session.pop(VENDOR_ADMIN_SESSION_KEY, None)
+    return redirect("vendor-login")
+
+
+def vendor_dashboard_view(request):
+    base_context = _build_vendor_base_context(request, "dashboard")
+    if base_context is None:
+        return redirect("vendor-login")
+
+    vendor_products = Product.objects.filter(brand_name=base_context["vendor_account"]["brand_name"])
+    total_products = vendor_products.count()
+    soldout_products = vendor_products.filter(soldout_yn=True).count()
+    display_soldout_products = max(soldout_products, 4)
+    total_reviews = vendor_products.aggregate(total=Sum("review_count"))["total"] or 0
+    average_rating = vendor_products.exclude(rating__isnull=True).aggregate(avg=Avg("rating"))["avg"]
+
+    pet_type_counter = Counter()
+    for types in vendor_products.values_list("pet_type", flat=True):
+        for pet_type in types or []:
+            pet_type_counter[pet_type] += 1
+
+    category_counter = Counter()
+    for categories in vendor_products.values_list("category", flat=True):
+        if categories:
+            category_counter[categories[0]] += 1
+
+    top_products = [
+        _serialize_vendor_product(product)
+        for product in vendor_products.order_by("-review_count", "-rating", "goods_name")[:5]
+    ]
+
+    top_categories = [
+        {"label": label, "count": count}
+        for label, count in category_counter.most_common(4)
+    ]
+    pet_type_breakdown = [
+        {"label": label, "count": count}
+        for label, count in pet_type_counter.most_common(4)
+    ]
+    active_products = max(total_products - display_soldout_products, 0)
+    mock_daily_revenue = 2480000
+    mock_daily_orders = 38
+    mock_cancel_refund = 3
+    trend_points = [
+        {"label": "03/25", "value": 42},
+        {"label": "03/26", "value": 58},
+        {"label": "03/27", "value": 51},
+        {"label": "03/28", "value": 66},
+        {"label": "03/29", "value": 61},
+        {"label": "03/30", "value": 74},
+        {"label": "03/31", "value": 69},
+    ]
+    max_trend_value = max((point["value"] for point in trend_points), default=1)
+    for point in trend_points:
+        point["height_percent"] = max(18, int(point["value"] / max_trend_value * 100))
+
+    return render(
+        request,
+        "users/vendor_dashboard.html",
+        {
+            **base_context,
+            "vendor_metrics": [
+                {"label": "오늘 매출", "value": f"₩{mock_daily_revenue:,}", "description": "전일 대비 +12.4%"},
+                {"label": "주문 / 결제", "value": f"{mock_daily_orders}건", "description": "결제 완료 기준"},
+                {"label": "취소 / 환불", "value": f"{mock_cancel_refund}건", "description": ""},
+                {"label": "판매중 상품", "value": f"{active_products:,}개", "description": f"품절 {display_soldout_products:,}개"},
+            ],
+            "vendor_realtime_metrics": [
+                {"label": "평균 평점", "value": _format_vendor_rating(average_rating)},
+                {"label": "총 리뷰 수", "value": f"{total_reviews:,}개"},
+                {"label": "등록 상품", "value": f"{total_products:,}개"},
+            ],
+            "vendor_alerts": sorted(
+                [
+                    {
+                        "title": f"품절 상품 {display_soldout_products:,}개",
+                        "tone": "rose",
+                        "priority": 0,
+                        "count": display_soldout_products,
+                        "href": f"{reverse('vendor-operations')}?focus=inventory",
+                    },
+                    {
+                        "title": f"취소/환불 요청 {mock_cancel_refund}건",
+                        "tone": "rose",
+                        "priority": 0,
+                        "count": mock_cancel_refund,
+                        "href": f"{reverse('vendor-orders')}?focus=refund",
+                    },
+                    {
+                        "title": "가격/재고 점검 2건",
+                        "tone": "amber",
+                        "priority": 1,
+                        "count": 2,
+                        "href": f"{reverse('vendor-operations')}?focus=pricing",
+                    },
+                    {
+                        "title": "노출 점검 필요 3건",
+                        "tone": "amber",
+                        "priority": 1,
+                        "count": 3,
+                        "href": f"{reverse('vendor-operations')}?focus=exposure",
+                    },
+                    {
+                        "title": "리뷰 확인 필요 12건",
+                        "tone": "amber",
+                        "priority": 1,
+                        "count": 12,
+                        "href": f"{reverse('vendor-reviews')}?focus=pending",
+                    },
+                    {
+                        "title": f"주문 처리 {mock_daily_orders}건",
+                        "tone": "blue",
+                        "priority": 2,
+                        "count": mock_daily_orders,
+                        "href": f"{reverse('vendor-orders')}?focus=processing",
+                    },
+                    {
+                        "title": "신규 등록 검수 2건",
+                        "tone": "blue",
+                        "priority": 2,
+                        "count": 2,
+                        "href": f"{reverse('vendor-operations')}?focus=approval",
+                    },
+                    {
+                        "title": "상품 정보 수정 필요 1건",
+                        "tone": "blue",
+                        "priority": 2,
+                        "count": 1,
+                        "href": f"{reverse('vendor-operations')}?focus=content",
+                    },
+                ],
+                key=lambda item: (item["priority"], -item["count"], item["title"]),
+            ),
+            "vendor_order_trend": trend_points,
+            "vendor_top_products": top_products,
+            "vendor_top_categories": top_categories,
+            "vendor_pet_type_breakdown": pet_type_breakdown,
+        },
+    )
+
+
+def vendor_products_view(request):
+    base_context = _build_vendor_base_context(request, "products")
+    if base_context is None:
+        return redirect("vendor-login")
+
+    keyword = request.GET.get("q", "").strip()
+    soldout_filter = request.GET.get("stock", "all")
+    vendor_products = Product.objects.filter(brand_name=base_context["vendor_account"]["brand_name"])
+
+    if keyword:
+        vendor_products = vendor_products.filter(goods_name__icontains=keyword)
+
+    if soldout_filter == "active":
+        vendor_products = vendor_products.filter(soldout_yn=False)
+    elif soldout_filter == "soldout":
+        vendor_products = vendor_products.filter(soldout_yn=True)
+
+    serialized_products = [
+        _serialize_vendor_product(product)
+        for product in vendor_products.order_by("soldout_yn", "-review_count", "goods_name")[:60]
+    ]
+
+    return render(
+        request,
+        "users/vendor_products.html",
+        {
+            **base_context,
+            "vendor_product_items": serialized_products,
+            "vendor_product_count": vendor_products.count(),
+            "vendor_search_keyword": keyword,
+            "vendor_stock_filter": soldout_filter,
+        },
+    )
+
+
+def vendor_orders_view(request):
+    base_context = _build_vendor_base_context(request, "orders")
+    if base_context is None:
+        return redirect("vendor-login")
+
+    focus = request.GET.get("focus", "processing")
+    order_items = [
+        {"label": "주문 접수", "count": 22, "status": "결제 완료"},
+        {"label": "출고 준비", "count": 11, "status": "오늘 출고 예정"},
+        {"label": "취소/환불", "count": 3, "status": "우선 확인"},
+        {"label": "배송 지연", "count": 2, "status": "확인 필요"},
+    ]
+    return render(
+        request,
+        "users/vendor_orders.html",
+        {
+            **base_context,
+            "vendor_orders_focus": focus,
+            "vendor_order_items": order_items,
+        },
+    )
+
+
+def vendor_reviews_view(request):
+    base_context = _build_vendor_base_context(request, "reviews")
+    if base_context is None:
+        return redirect("vendor-login")
+
+    focus = request.GET.get("focus", "pending")
+    review_items = [
+        {"title": "배송이 빨라서 재구매 의향이 있어요", "score": "5.0", "status": "확인 필요"},
+        {"title": "기호성은 좋지만 가격이 조금 높아요", "score": "4.0", "status": "응답 검토"},
+        {"title": "품절이 잦아서 아쉬워요", "score": "3.0", "status": "운영 전달"},
+    ]
+    return render(
+        request,
+        "users/vendor_reviews.html",
+        {
+            **base_context,
+            "vendor_reviews_focus": focus,
+            "vendor_review_items": review_items,
+        },
+    )
+
+
+def vendor_operations_view(request):
+    base_context = _build_vendor_base_context(request, "operations")
+    if base_context is None:
+        return redirect("vendor-login")
+
+    focus = request.GET.get("focus", "inventory")
+    operation_items = [
+        {"title": "품절 상품 점검", "count": 4, "summary": "판매 불가 상품 확인"},
+        {"title": "가격/재고 점검", "count": 2, "summary": "이상치 상품 확인"},
+        {"title": "노출 점검", "count": 3, "summary": "대표 상품 노출 상태"},
+        {"title": "신규 등록 검수", "count": 2, "summary": "신규 상품 검토"},
+        {"title": "상품 정보 수정", "count": 1, "summary": "상세 정보 보완"},
+    ]
+    return render(
+        request,
+        "users/vendor_operations.html",
+        {
+            **base_context,
+            "vendor_operations_focus": focus,
+            "vendor_operation_items": operation_items,
+        },
+    )
 
 
 def logout_view(request):

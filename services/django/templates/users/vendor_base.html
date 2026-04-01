@@ -1,0 +1,64 @@
+{% extends "base.html" %}
+{% block title %}{% block vendor_title %}관리자 페이지{% endblock %} — TailTalk{% endblock %}
+
+{% block content %}
+<div class="min-h-screen bg-[radial-gradient(circle_at_top,#f8fbff_0%,#eef4fb_46%,#e6eef8_100%)]">
+  <div class="mx-auto flex min-h-screen w-full max-w-[1440px] gap-6 px-5 py-6 lg:px-8">
+    <aside class="hidden w-[264px] shrink-0 rounded-[28px] border border-white/60 bg-[linear-gradient(180deg,rgba(31,41,55,0.98)_0%,rgba(17,24,39,0.98)_100%)] px-6 py-7 text-white shadow-[0_24px_60px_rgba(15,23,42,0.18)] lg:flex lg:flex-col">
+      <a href="{% url 'vendor-dashboard' %}" class="block px-2 text-[28px] font-bold tracking-[-0.03em] text-white">
+        <span class="text-[#7dd3fc]">Tail</span><span>Talk</span>
+      </a>
+
+      <div class="mt-8 rounded-[22px] border border-white/10 bg-white/5 px-6 py-5">
+        <p class="text-[22px] font-bold text-white">{{ vendor_account.display_name }}</p>
+        <p class="mt-1 text-[13px] text-white/60">@{{ vendor_account.login_id }}</p>
+      </div>
+
+      <nav class="mt-8 space-y-2">
+        {% for item in vendor_navigation %}
+        {% if item.disabled %}
+        <div
+          class="flex h-[48px] items-center justify-between rounded-[14px] border border-white/8 bg-white/[0.03] px-6 text-[15px] font-semibold text-white/35"
+        >
+          <span>{{ item.label }}</span>
+          <span class="rounded-full border border-white/10 px-2 py-1 text-[11px] font-medium text-white/35">준비 중</span>
+        </div>
+        {% else %}
+        <a
+          href="{{ item.href }}"
+          class="flex h-[48px] items-center rounded-[14px] px-6 text-[15px] font-semibold transition {% if item.active %}bg-white text-[#1f2937] shadow-[0_10px_24px_rgba(255,255,255,0.10)]{% else %}text-white/70 hover:bg-white/6 hover:text-white{% endif %}"
+        >
+          {{ item.label }}
+        </a>
+        {% endif %}
+        {% endfor %}
+      </nav>
+
+      <div class="mt-auto space-y-3">
+        <a
+          href="{% url 'vendor-logout' %}"
+          class="flex h-[46px] items-center justify-center rounded-[14px] border border-white/10 px-6 text-[14px] font-semibold text-white/60 transition hover:bg-white/6 hover:text-white"
+        >
+          관리자 로그아웃
+        </a>
+      </div>
+    </aside>
+
+    <main class="min-w-0 flex-1">
+      <div class="flex items-center justify-between gap-4 lg:hidden">
+        <div>
+          <p class="text-[24px] font-bold text-[#1e293b]">{{ vendor_account.display_name }}</p>
+        </div>
+        <a
+          href="{% url 'vendor-logout' %}"
+          class="flex h-[42px] items-center justify-center rounded-[12px] border border-[#d8e2f0] bg-white px-4 text-[13px] font-semibold text-[#475569]"
+        >
+          로그아웃
+        </a>
+      </div>
+
+      {% block vendor_content %}{% endblock %}
+    </main>
+  </div>
+</div>
+{% endblock %}
