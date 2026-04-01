@@ -86,8 +86,24 @@ class PetApiTests(TestCase):
         pet = Pet.objects.get(user=self.user, name="Bori")
         self.assertEqual(pet.weight_kg, Decimal("4.20"))
         self.assertEqual(set(pet.health_concerns.values_list("concern", flat=True)), {"skin", "joint"})
-        self.assertEqual(set(pet.allergies.values_list("ingredient", flat=True)), {"chicken", "beef"})
+        self.assertEqual(set(pet.allergies.values_list("ingredient", flat=True)), {"닭고기", "소고기"})
         self.assertEqual(set(pet.food_preferences.values_list("food_type", flat=True)), {"dry", "wet_can"})
+
+    def test_post_pets_rejects_invalid_allergy(self):
+        response = self.client.post(
+            "/api/pets/",
+            {
+                "name": "Bori",
+                "species": "dog",
+                "gender": "male",
+                "weight_kg": "4.2",
+                "allergies": ["왈왈"],
+            },
+            format="json",
+        )
+
+        self.assertEqual(response.status_code, status.HTTP_400_BAD_REQUEST)
+        self.assertEqual(response.data["detail"], "allergies contains an invalid value.")
 
     def test_post_pets_rejects_invalid_vaccination_date_format(self):
         response = self.client.post(
@@ -253,7 +269,7 @@ class PetApiTests(TestCase):
         self.assertEqual(pet.name, "Nabi Updated")
         self.assertEqual(pet.budget_range, "10_20")
         self.assertEqual(set(pet.health_concerns.values_list("concern", flat=True)), {"joint", "digestion"})
-        self.assertEqual(list(pet.allergies.values_list("ingredient", flat=True)), ["salmon"])
+        self.assertEqual(list(pet.allergies.values_list("ingredient", flat=True)), ["연어"])
         self.assertEqual(list(pet.food_preferences.values_list("food_type", flat=True)), ["wet_pouch"])
 
     def test_delete_pet_removes_pet(self):
@@ -399,6 +415,46 @@ class PetPageTests(TestCase):
         self.assertContains(response, "검색 결과에 있는 품종을 선택해 주세요")
         self.assertContains(response, "왈왈")
 
+    def test_pet_add_health_rejects_invalid_allergy(self):
+        response = self.client.post(
+            reverse("pet_add_health"),
+            {
+                "species": "dog",
+                "name": "코코",
+                "breed": "말티즈",
+                "gender": "male",
+                "age_years": "2",
+                "age_months": "0",
+                "weight_kg": "4",
+                "neutered": "yes",
+                "allergies": ["왈왈"],
+            },
+        )
+
+        self.assertEqual(response.status_code, 200)
+        self.assertContains(response, "등록된 성분만 선택해 주세요")
+
+    def test_pet_add_health_persists_selected_allergies(self):
+        response = self.client.post(
+            reverse("pet_add_health"),
+            {
+                "species": "dog",
+                "name": "코코",
+                "breed": "말티즈",
+                "gender": "male",
+                "age_years": "2",
+                "age_months": "0",
+                "weight_kg": "4",
+                "neutered": "yes",
+                "allergies": ["닭고기", "연어"],
+                "final_step": "1",
+            },
+        )
+
+        self.assertEqual(response.status_code, 302)
+        pet = Pet.objects.get(user=self.user, name="코코")
+        self.assertEqual(set(pet.allergies.values_list("ingredient", flat=True)), {"닭고기", "연어"})
+
     def test_pet_add_health_requires_weight(self):
         response = self.client.post(
             reverse("pet_add_health"),
@@ -439,3 +495,17 @@ class PetPageTests(TestCase):
         self.assertTrue(pet.age_unknown)
         self.assertEqual(pet.age_years, 0)
         self.assertEqual(pet.age_months, 0)
+
+    def test_pet_edit_renders_weight_without_trailing_decimal_zeros(self):
+        pet = Pet.objects.create(
+            user=self.user,
+            name="코코",
+            species="dog",
+            breed="말티즈",
+            weight_kg=Decimal("4.00"),
+        )
+
+        response = self.client.get(reverse("pet_edit", args=[pet.pet_id]))
+
+        self.assertEqual(response.status_code, 200)
+        self.assertContains(response, 'id="weightInput" name="weight_kg" value="4"')

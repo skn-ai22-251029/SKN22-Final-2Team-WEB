@@ -11,6 +11,7 @@ from rest_framework.permissions import IsAuthenticated
 from rest_framework.views import APIView
 from rest_framework_simplejwt.authentication import JWTAuthentication
 
+from .allergies import parse_allergy_ingredients
 from .breeds import resolve_breed
 from .models import Pet, PetAllergy, PetFoodPreference, PetHealthConcern
 
@@ -117,14 +118,9 @@ def _parse_allergies(raw_values):
     if raw_values is None:
         return None
 
-    if len(raw_values) == 1 and isinstance(raw_values[0], str) and "," in raw_values[0]:
-        raw_values = raw_values[0].split(",")
-
-    cleaned = []
-    for value in raw_values:
-        ingredient = str(value).strip()
-        if ingredient and ingredient not in cleaned:
-            cleaned.append(ingredient)
+    cleaned, invalid = parse_allergy_ingredients(raw_values)
+    if invalid:
+        raise ValueError("allergies contains an invalid value.")
     return cleaned
 
 

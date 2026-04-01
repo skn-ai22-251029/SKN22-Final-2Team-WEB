@@ -29,7 +29,7 @@
         {% csrf_token %}
         <input type="hidden" name="species" value="{{ species }}" />
         <input type="hidden" name="vaccination_date" value="{{ step3_data.vaccination_date|default:'' }}" />
-        <input type="hidden" name="allergies" value="{{ step3_data.allergies|default:'' }}" />
+        <input type="hidden" name="allergies" value="{{ step3_data.allergies|join:',' }}" />
         <input type="hidden" name="budget_range" value="{{ step3_data.budget_range|default:'' }}" />
         <input type="hidden" name="special_notes" value="{{ step3_data.special_notes|default:'' }}" />
         {% for concern in step3_data.health_concerns %}
@@ -144,8 +144,8 @@
     var breedStatus = document.getElementById('breedStatus');
     var breedSuggestions = document.getElementById('breedSuggestions');
     var weightInput = document.getElementById('weightInput');
-    var nextButton = document.getElementById('nextButton');
     var weightStatus = document.getElementById('weightStatus');
+    var nextButton = document.getElementById('nextButton');
     var currentBreedItems = [];
     var highlightedBreedIndex = -1;
     var isNameComposing = false;
@@ -373,19 +373,7 @@
         event.ctrlKey ||
         event.metaKey ||
         event.altKey ||
-        [
-          'Backspace',
-          'Delete',
-          'Tab',
-          'Enter',
-          'Escape',
-          'ArrowLeft',
-          'ArrowRight',
-          'ArrowUp',
-          'ArrowDown',
-          'Home',
-          'End',
-        ].indexOf(event.key) !== -1
+        ['Backspace', 'Delete', 'Tab', 'Enter', 'Escape', 'ArrowLeft', 'ArrowRight', 'ArrowUp', 'ArrowDown', 'Home', 'End'].indexOf(event.key) !== -1
       ) {
         return;
       }
