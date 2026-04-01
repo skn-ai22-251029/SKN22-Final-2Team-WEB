@@ -169,12 +169,11 @@ jobs:
             --env-file .deploy-django/.env \
             up -d
           for _ in $(seq 1 20); do
-            if curl --fail --silent http://127.0.0.1/health/ > /dev/null; then
+            if curl --fail --silent http://127.0.0.1/static/css/main.css > /dev/null; then
               break
             fi
             sleep 3
           done
-          curl --fail --silent --show-error http://127.0.0.1/health/ > /dev/null
           curl --fail --silent --show-error http://127.0.0.1/static/css/main.css > /dev/null
           curl --fail --silent --show-error http://127.0.0.1/static/admin/css/base.css > /dev/null
           curl --silent --show-error --head http://127.0.0.1/static/css/main.css | grep -qi '^Content-Type: text/css'
