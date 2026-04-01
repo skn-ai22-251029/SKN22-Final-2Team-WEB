@@ -8,7 +8,7 @@ from rest_framework.test import APIClient
 from social_django.models import UserSocialAuth
 
 from orders.models import Order
-from pets.models import FuturePetProfile
+from pets.models import FuturePetProfile, Pet
 from products.models import Product
 from users.models import SocialAccount, User, UserProfile
 from users.onboarding import ONBOARDING_FORCE_PROFILE_SESSION_KEY
@@ -257,6 +257,80 @@ class ProfilePageViewTests(TestCase):
         self.assertEqual(response.status_code, status.HTTP_200_OK)
         self.assertContains(response, "연락처 인증을 완료해 주세요.")
 
+    def test_profile_post_redirects_to_chat_when_pet_profile_is_missing_for_regular_edit(self):
+        response = self.client.post(
+            "/profile/",
+            {
+                "nickname": "PageProfile2",
+            },
+        )
+
+        self.assertEqual(response.status_code, status.HTTP_302_FOUND)
+        self.assertEqual(response["Location"], reverse("chat"))
+
+    def test_profile_post_redirects_to_pet_add_when_pet_profile_is_missing_in_setup_mode(self):
+        session = self.client.session
+        session[ONBOARDING_FORCE_PROFILE_SESSION_KEY] = True
+        session.save()
+
+        response = self.client.post(
+            f"{reverse('profile')}?setup=1",
+            {
+                "nickname": "PageProfile2",
+            },
+        )
+
+        self.assertEqual(response.status_code, status.HTTP_302_FOUND)
+        self.assertEqual(response["Location"], reverse("pet_add"))
+
+    def test_profile_post_redirects_to_chat_when_future_pet_profile_exists_in_setup_mode(self):
+        FuturePetProfile.objects.create(
+            user=self.user,
+            preferred_species="dog",
+            housing_type="apartment",
+            experience_level="first",
+            interests=["adoption"],
+        )
+        session = self.client.session
+        session[ONBOARDING_FORCE_PROFILE_SESSION_KEY] = True
+        session.save()
+
+        response = self.client.post(
+            f"{reverse('profile')}?setup=1",
+            {
+                "nickname": "PageProfile2",
+            },
+        )
+
+        self.assertEqual(response.status_code, status.HTTP_302_FOUND)
+        self.assertEqual(response["Location"], reverse("chat"))
+
+    def test_profile_post_redirects_to_chat_when_pet_profile_exists_in_setup_mode(self):
+        Pet.objects.create(
+            user=self.user,
+            name="코코",
+            species="dog",
+            breed="말티즈",
+            gender="male",
+            age_years=3,
+            age_months=0,
+            weight_kg=3.2,
+            budget_range="10-20",
+        )
+        session = self.client.session
+        session[ONBOARDING_FORCE_PROFILE_SESSION_KEY] = True
+        session.save()
+
+        response = self.client.post(
+            f"{reverse('profile')}?setup=1",
+            {
+                "nickname": "PageProfile2",
+            },
+        )
+
+        self.assertEqual(response.status_code, status.HTTP_302_FOUND)
+        self.assertEqual(response["Location"], reverse("chat"))
+
 
 class UserProfileApiTests(TestCase):
     def setUp(self):
@@ -383,6 +457,16 @@ class UserProfileApiTests(TestCase):
 
     def test_nickname_availability_returns_available_for_current_nickname(self):
         response = self.client.get("/api/users/nickname-availability/?nickname=ProfileUser")
+
+        self.assertEqual(response.status_code, status.HTTP_200_OK)
+        self.assertTrue(response.data["valid"])
+        self.assertTrue(response.data["available"])
+
+    def test_nickname_availability_returns_available_for_current_nickname_with_session_login(self):
+        session_client = self.client_class()
+        session_client.force_login(self.user)
+
+        response = session_client.get("/api/users/nickname-availability/?nickname=ProfileUser")
 
         self.assertEqual(response.status_code, status.HTTP_200_OK)
         self.assertTrue(response.data["valid"])

@@ -384,6 +384,41 @@
     text-decoration: line-through;
   }
 
+  @keyframes recommended-search-orbit {
+    0% {
+      transform: rotate(0deg);
+    }
+    100% {
+      transform: rotate(-360deg);
+    }
+  }
+
+  @keyframes recommended-search-orbit-lock {
+    0% {
+      transform: translate(-50%, -50%) translateY(9px) rotate(0deg);
+    }
+    100% {
+      transform: translate(-50%, -50%) translateY(9px) rotate(360deg);
+    }
+  }
+
+  .recommended-loading-orbit {
+    position: relative;
+    height: 30px;
+    width: 30px;
+    animation: recommended-search-orbit 1.85s linear infinite;
+    will-change: transform;
+  }
+
+  .recommended-loading-icon {
+    position: absolute;
+    left: 50%;
+    top: 50%;
+    animation: recommended-search-orbit-lock 1.85s linear infinite;
+    transform-origin: center;
+    will-change: transform;
+  }
+
   .product-card-review-row {
     margin-top: 2px;
     display: flex;
@@ -759,7 +794,9 @@
         <div class="absolute left-[16px] right-[15px] top-[272px] bottom-[86px] flex flex-col gap-[12px] overflow-x-hidden overflow-y-auto box-border" id="chatHistoryList">
           {% for session in sessions %}
           <div class="chat-history-item relative h-[40px] w-full shrink-0 cursor-pointer border-b border-[#e7edf5] transition-colors duration-150 box-border"
-               data-id="{{ session.session_id }}">
+               data-id="{{ session.session_id }}"
+               data-target-pet-id="{{ session.target_pet_id|default:'' }}"
+               data-profile-context-type="{{ session.profile_context_type|default:'none' }}">
             <span class="history-title absolute left-[6px] right-[72px] top-[12px] overflow-hidden text-ellipsis whitespace-nowrap text-[12px] font-semibold leading-none text-[#2d3748]">
               {{ session.title|default:"새 대화" }}
             </span>
@@ -1018,6 +1055,17 @@
                 {% for product in recommended_products %}
                 <div class="rounded-[20px] border border-[#dbe7f5] bg-white px-[14px] py-[13px] shadow-[0_8px_20px_rgba(45,55,72,0.05)]">
                   <div class="flex items-center gap-[10px]">
+                    {% if product.product_url %}
+                    <a href="{{ product.product_url }}" target="_blank" rel="noopener noreferrer"
+                       class="relative flex h-[68px] w-[68px] shrink-0 items-center justify-center overflow-hidden rounded-[14px] bg-gradient-to-br from-[#dbeafe] via-[#eff6ff] to-[#f8fafc] transition-transform hover:scale-[1.02]">
+                      {% if product.thumbnail_url %}
+                      <img src="{{ product.thumbnail_url }}" alt="" class="h-full w-full object-cover" onerror="this.style.display='none'; this.parentNode.querySelector('.fallback-emoji').style.display = 'flex';">
+                      <div class="fallback-emoji absolute inset-0 hidden items-center justify-center text-[26px]">{{ product.emoji }}</div>
+                      {% else %}
+                      <div class="flex h-full w-full items-center justify-center text-[26px]">{{ product.emoji }}</div>
+                      {% endif %}
+                    </a>
+                    {% else %}
                     <div class="relative flex h-[68px] w-[68px] shrink-0 items-center justify-center overflow-hidden rounded-[14px] bg-gradient-to-br from-[#dbeafe] via-[#eff6ff] to-[#f8fafc]">
                       {% if product.thumbnail_url %}
                       <img src="{{ product.thumbnail_url }}" alt="" class="h-full w-full object-cover" onerror="this.style.display='none'; this.parentNode.querySelector('.fallback-emoji').style.display = 'flex';">
@@ -1026,11 +1074,17 @@
                       <div class="flex h-full w-full items-center justify-center text-[26px]">{{ product.emoji }}</div>
                       {% endif %}
                     </div>
+                    {% endif %}
                     <div class="product-card-text-block min-w-0">
                       {% if product.brand_name %}
                       <div class="product-card-brand">{{ product.brand_name }}</div>
                       {% endif %}
+                      {% if product.product_url %}
+                      <a href="{{ product.product_url }}" target="_blank" rel="noopener noreferrer"
+                         class="product-card-name block transition-colors hover:text-[#2b6cb0]">{{ product.name }}</a>
+                      {% else %}
                       <div class="product-card-name">{{ product.name }}</div>
+                      {% endif %}
                       <div class="product-card-price">{{ product.price }}</div>
                       <div class="product-card-review-row with-actions">
                         <div class="product-card-review-meta">
@@ -1080,7 +1134,7 @@
                 <div id="cartPanelList" class="space-y-[12px]">
                 {% for product in cart_products %}
                 <div class="group relative rounded-[20px] border border-[#dbe7f5] bg-white px-[14px] py-[13px] shadow-[0_8px_20px_rgba(45,55,72,0.05)]"
-                     data-cart-item data-unit-price="{{ product.unit_price }}" data-product-name="{{ product.name }}" data-product-brand="{{ product.brand_name|default:'' }}" data-goods-id="{{ product.product_id|default:'' }}" data-product-rating="{{ product.rating }}" data-product-reviews="{{ product.reviews }}" data-product-thumbnail="{{ product.thumbnail_url|default:'' }}">
+                     data-cart-item data-unit-price="{{ product.unit_price }}" data-product-name="{{ product.name }}" data-product-brand="{{ product.brand_name|default:'' }}" data-goods-id="{{ product.product_id|default:'' }}" data-product-rating="{{ product.rating }}" data-product-reviews="{{ product.reviews }}" data-product-thumbnail="{{ product.thumbnail_url|default:'' }}" data-product-url="{{ product.product_url|default:'' }}">
                   <button type="button"
                           class="absolute right-[10px] top-[10px] flex h-[28px] w-[28px] items-center justify-center rounded-full border border-[#e2e8f0] bg-white text-[14px] text-[#a0aec0] opacity-0 transition-opacity duration-150 group-hover:opacity-100"
                           onclick="removeCartItem(this)"
@@ -1088,6 +1142,17 @@
                     <span class="relative top-[-1px]">×</span>
                   </button>
                   <div class="flex items-center gap-[10px]">
+                    {% if product.product_url %}
+                    <a href="{{ product.product_url }}" target="_blank" rel="noopener noreferrer"
+                       class="relative flex h-[68px] w-[68px] shrink-0 items-center justify-center overflow-hidden rounded-[14px] bg-gradient-to-br from-[#ede9fe] via-[#f5f3ff] to-[#faf5ff] transition-transform hover:scale-[1.02]">
+                      {% if product.thumbnail_url %}
+                      <img src="{{ product.thumbnail_url }}" alt="" class="h-full w-full object-cover" onerror="this.style.display='none'; this.parentNode.querySelector('.fallback-emoji').style.display = 'flex';">
+                      <div class="fallback-emoji absolute inset-0 hidden items-center justify-center text-[26px]">{{ product.emoji }}</div>
+                      {% else %}
+                      <div class="flex h-full w-full items-center justify-center text-[26px]">{{ product.emoji }}</div>
+                      {% endif %}
+                    </a>
+                    {% else %}
                     <div class="relative flex h-[68px] w-[68px] shrink-0 items-center justify-center overflow-hidden rounded-[14px] bg-gradient-to-br from-[#ede9fe] via-[#f5f3ff] to-[#faf5ff]">
                       {% if product.thumbnail_url %}
                       <img src="{{ product.thumbnail_url }}" alt="" class="h-full w-full object-cover" onerror="this.style.display='none'; this.parentNode.querySelector('.fallback-emoji').style.display = 'flex';">
@@ -1096,11 +1161,17 @@
                       <div class="flex h-full w-full items-center justify-center text-[26px]">{{ product.emoji }}</div>
                       {% endif %}
                     </div>
+                    {% endif %}
                     <div class="product-card-text-block min-w-0">
                       {% if product.brand_name %}
                       <div class="product-card-brand">{{ product.brand_name }}</div>
                       {% endif %}
+                      {% if product.product_url %}
+                      <a href="{{ product.product_url }}" target="_blank" rel="noopener noreferrer"
+                         class="product-card-name block transition-colors hover:text-[#2b6cb0]">{{ product.name }}</a>
+                      {% else %}
                       <div class="product-card-name">{{ product.name }}</div>
+                      {% endif %}
                       <div class="product-card-price">{{ product.price }}</div>
                       <div class="product-card-review-row with-actions">
                         <div class="product-card-review-meta">
@@ -1173,6 +1244,7 @@
 
     <div class="absolute left-0 top-0 z-30 h-[72px] w-full pointer-events-none">
       <div class="absolute right-[32px] top-[16px] flex h-[40px] items-center gap-[17px] pointer-events-auto">
+        {% if is_member_view %}
         <div class="relative h-[40px] w-[40px]" id="catalogMenuWrapper">
           <button type="button"
                   class="flex h-[40px] w-[40px] items-center justify-center rounded-full border border-[#e2e8f0] bg-white shadow-[0_2px_8px_rgba(45,55,72,0.05)]"
@@ -1191,7 +1263,7 @@
               <div>
                 <p class="text-[20px] font-bold text-[#2d3748]">상품 카테고리</p>
               </div>
-              <a href="{% if is_preview_member %}#{% else %}/catalog/{% endif %}"
+              <a id="catalogMenuAllLink" href="{% if is_preview_member %}#{% else %}/catalog/{% endif %}"
                  class="inline-flex h-[32px] items-center rounded-full bg-[#edf2f7] px-[12px] text-[12px] font-bold text-[#4a5568]"
                  {% if is_preview_member %}onclick="return false"{% endif %}>전체 보기</a>
             </div>
@@ -1212,6 +1284,7 @@
             </div>
           </div>
         </div>
+        {% endif %}
 
         {% if is_member_view %}
         <a href="{% if is_preview_member %}#{% else %}/products/{% endif %}"
@@ -1354,8 +1427,6 @@
   var promoIndex = 0;
   var promoTimer = null;
   var activePetId = '{{ active_pet_id|escapejs }}';
-  var SHARED_CART_COUNT_STORAGE_KEY = 'tailtalk_shared_cart_count';
-  var SHARED_CART_ITEMS_STORAGE_KEY = 'tailtalk_shared_cart_items';
   var previewWishlistItems = [];
   var quickOrderSlideEnabled = false;
   var quickOrderSlideDragging = false;
@@ -1380,6 +1451,11 @@
   var activeCatalogPetIndex = 0;
   var activeCatalogCategoryIndex = 0;
   var activeCatalogGroupIndex = 0;
+  var recommendedPanelDefaultHtml = recommendedPanel ? recommendedPanel.innerHTML : '';
+  var recommendedLoadingTimer = null;
+  var SESSION_RECOMMENDED_PRODUCTS_STORAGE_PREFIX = 'tailtalk_session_recommended_products:';
+  var activeProfileSelectionPrompt = null;
+  var skipProfileSelectionPromptOnce = false;
 
   function getCookie(name) {
     var cookieValue = null;
@@ -1404,10 +1480,47 @@
 
   function buildCatalogLink(href, label, extraClassName, disabled) {
     var className = extraClassName || '';
+    var nextHref = href || '/catalog/';
+    if (!disabled && activeSessionId && nextHref.indexOf('/catalog/') === 0) {
+      var joiner = nextHref.indexOf('?') >= 0 ? '&' : '?';
+      nextHref += joiner + 'session=' + encodeURIComponent(activeSessionId);
+    }
     if (disabled) {
       return '<span class="' + className + ' cursor-default opacity-60">' + escapeHtml(label) + '</span>';
     }
-    return '<a href="' + escapeHtml(href || '/catalog/') + '" class="' + className + '">' + escapeHtml(label) + '</a>';
+    return '<a href="' + escapeHtml(nextHref) + '" class="' + className + '">' + escapeHtml(label) + '</a>';
+  }
+
+  function syncCatalogMenuAllLink() {
+    var allLink = document.getElementById('catalogMenuAllLink');
+    if (!allLink) return;
+    var nextHref = '/catalog/';
+    if (activeSessionId) {
+      nextHref += '?session=' + encodeURIComponent(activeSessionId);
+    }
+    allLink.setAttribute('href', nextHref);
+  }
+
+  function readSessionIdFromUrl() {
+    try {
+      return new URLSearchParams(window.location.search).get('session') || null;
+    } catch (error) {
+      return null;
+    }
+  }
+
+  function syncActiveSessionUrl() {
+    try {
+      var url = new URL(window.location.href);
+      if (activeSessionId) {
+        url.searchParams.set('session', activeSessionId);
+      } else {
+        url.searchParams.delete('session');
+      }
+      window.history.replaceState({}, '', url.toString());
+    } catch (error) {
+      // URL sync failure should not block chat interactions.
+    }
   }
 
   function renderCatalogPetList() {
@@ -1620,7 +1733,7 @@
 
   function ensureSessionState(sessionId) {
     if (!sessionThreads[sessionId]) {
-      sessionThreads[sessionId] = { messages: [], loaded: false, loadingPromise: null };
+      sessionThreads[sessionId] = { messages: [], loaded: false, loadingPromise: null, latestRecommendedProducts: [], profilePromptResolved: false, targetPetId: '', profileContextType: 'none' };
     }
     if (!Array.isArray(sessionThreads[sessionId].messages)) {
       sessionThreads[sessionId].messages = [];
@@ -1631,7 +1744,453 @@
     if (typeof sessionThreads[sessionId].loadingPromise === 'undefined') {
       sessionThreads[sessionId].loadingPromise = null;
     }
+    if (!Array.isArray(sessionThreads[sessionId].latestRecommendedProducts)) {
+      sessionThreads[sessionId].latestRecommendedProducts = [];
+    }
+    if (typeof sessionThreads[sessionId].targetPetId === 'undefined') {
+      sessionThreads[sessionId].targetPetId = '';
+    }
+    if (typeof sessionThreads[sessionId].profileContextType === 'undefined') {
+      sessionThreads[sessionId].profileContextType = 'none';
+    }
+    if (typeof sessionThreads[sessionId].profilePromptResolved === 'undefined') {
+      sessionThreads[sessionId].profilePromptResolved = !!(sessionThreads[sessionId].messages && sessionThreads[sessionId].messages.length);
+    }
     return sessionThreads[sessionId];
+  }
+
+  function clearProfileSelectionPrompt() {
+    if (activeProfileSelectionPrompt && activeProfileSelectionPrompt.parentNode) {
+      activeProfileSelectionPrompt.parentNode.removeChild(activeProfileSelectionPrompt);
+    }
+    activeProfileSelectionPrompt = null;
+  }
+
+  function resetPetSelection(options) {
+    var defaultPetButton = document.querySelector('[data-pet-id=""]');
+    if (defaultPetButton) {
+      selectPet(defaultPetButton, options);
+      return;
+    }
+    activePetProfile = null;
+    activePetHealthConcerns = [];
+    activePetAllergies = [];
+    activePetFoodPreferences = [];
+    activePetId = '';
+  }
+
+  function getCurrentProfileContextType() {
+    if (!activePetId) return 'none';
+    if (activePetId === 'future-profile') return 'future';
+    return 'pet';
+  }
+
+  function updateSessionProfileSelection(sessionId) {
+    if (!sessionId) return Promise.resolve();
+
+    var payload = {
+      profile_context_type: getCurrentProfileContextType(),
+      target_pet_id: getCurrentProfileContextType() === 'pet' ? activePetId : null,
+    };
+
+    return fetch('/api/chat/sessions/' + sessionId + '/', {
+      method: 'PATCH',
+      headers: {
+        'Content-Type': 'application/json',
+        'X-CSRFToken': csrfToken || '',
+      },
+      body: JSON.stringify(payload),
+    }).then(function (res) {
+      return readJsonResponse(res).then(function (data) {
+        if (!res.ok) {
+          throw new Error((data && data.detail) || '프로필 기준을 저장하지 못했습니다.');
+        }
+        ensureSessionItem(data);
+        var state = ensureSessionState(sessionId);
+        state.profileContextType = data.profile_context_type || 'none';
+        state.targetPetId = data.target_pet_id || '';
+      });
+    }).catch(function () {
+      showChatNotice('프로필 기준 저장에 실패했습니다. 잠시 후 다시 시도해 주세요.');
+    });
+  }
+
+  function applySessionProfileSelection(sessionId) {
+    var sessionState = ensureSessionState(sessionId);
+    var profileContextType = sessionState.profileContextType || 'none';
+    var targetPetId = sessionState.targetPetId || '';
+    var sessionItem = chatHistoryList
+      ? chatHistoryList.querySelector('[data-id="' + CSS.escape(sessionId) + '"]')
+      : null;
+
+    if (sessionItem) {
+      profileContextType = sessionItem.getAttribute('data-profile-context-type') || profileContextType;
+      targetPetId = sessionItem.getAttribute('data-target-pet-id') || targetPetId;
+      sessionState.profileContextType = profileContextType || 'none';
+      sessionState.targetPetId = targetPetId || '';
+    }
+
+    var selector = '[data-pet-id=""]';
+
+    if (profileContextType === 'future') {
+      selector = '[data-pet-id="future-profile"]';
+    } else if (profileContextType === 'pet' && targetPetId) {
+      selector = '[data-pet-id="' + CSS.escape(targetPetId) + '"]';
+    }
+
+    var targetButton = document.querySelector(selector);
+    if (targetButton) {
+      selectPet(targetButton, { syncSession: false });
+    } else {
+      resetPetSelection({ syncSession: false });
+    }
+  }
+
+  function getProfileSelectionSourceButtons() {
+    if (!petDropdownMenu) return [];
+    return Array.prototype.slice.call(petDropdownMenu.querySelectorAll('button[data-pet-name]'));
+  }
+
+  function getProfileSelectionOptions(config) {
+    var optionsConfig = config || {};
+    var includeDefaultOption = optionsConfig.includeDefaultOption !== false;
+    var buttons = getProfileSelectionSourceButtons();
+    if (!buttons.length) return [];
+
+    var defaultOption = null;
+    var futureOption = null;
+    var pets = [];
+
+    buttons.forEach(function (button) {
+      var option = {
+        id: button.getAttribute('data-pet-id') || '',
+        name: button.getAttribute('data-pet-name') || '',
+        summary: button.getAttribute('data-pet-summary') || '',
+        emoji: button.getAttribute('data-pet-emoji') || '○',
+        sourceButton: button,
+      };
+
+      if (!option.id) {
+        option.name = '선택 안 함';
+        option.summary = '프로필 선택 없이 일반 대화로 진행해요';
+        option.emoji = '○';
+        defaultOption = option;
+        return;
+      }
+
+      if (option.id === 'future-profile') {
+        futureOption = option;
+        return;
+      }
+
+      pets.push(option);
+    });
+
+    var ordered = pets.slice();
+    if (futureOption) ordered.push(futureOption);
+    if (defaultOption && includeDefaultOption) ordered.push(defaultOption);
+    return ordered;
+  }
+
+  function shouldPromptProfileSelection() {
+    if (skipProfileSelectionPromptOnce) {
+      skipProfileSelectionPromptOnce = false;
+      return false;
+    }
+
+    var options = getProfileSelectionOptions();
+    var hasSelectableProfile = options.some(function (option) {
+      return !!option.id;
+    });
+    if (!hasSelectableProfile) return false;
+
+    if (activeSessionId) {
+      var activeSessionState = ensureSessionState(activeSessionId);
+      if (activeSessionState.profilePromptResolved) return false;
+      if (Array.isArray(activeSessionState.messages) && activeSessionState.messages.length) return false;
+    }
+
+    return true;
+  }
+
+  function shouldShowSelectedProfilePrompt() {
+    return shouldPromptProfileSelection() && !!activePetId;
+  }
+
+  function shouldShowProfileChoicePrompt() {
+    return shouldPromptProfileSelection() && !activePetId;
+  }
+
+  function applyProfileSelectionOption(option) {
+    if (!option || !option.sourceButton) return;
+
+    selectPet(option.sourceButton);
+
+    if (activeSessionId) {
+      ensureSessionState(activeSessionId).profilePromptResolved = true;
+    }
+
+    skipProfileSelectionPromptOnce = true;
+    clearProfileSelectionPrompt();
+    if (messageInput) {
+      window.setTimeout(function () {
+        submitCurrentMessage();
+      }, 0);
+    }
+  }
+
+  function showProfileSelectionPrompt(config) {
+    if (!chatMessages || activeProfileSelectionPrompt) return;
+
+    var options = getProfileSelectionOptions(config);
+    if (!options.length) return;
+
+    ensureChatThreadVisible();
+
+    var wrapper = document.createElement('div');
+    wrapper.className = 'flex justify-start';
+    wrapper.setAttribute('data-profile-selection-prompt', 'true');
+
+    var bubble = document.createElement('div');
+    bubble.className = 'inline-flex w-fit max-w-[460px] flex-col self-start rounded-[24px] rounded-bl-[8px] border border-[#dbe7f5] bg-white px-[20px] py-[16px] text-[#2d3748] shadow-[0_10px_24px_rgba(45,55,72,0.06)]';
+
+    var title = document.createElement('p');
+    title.className = 'w-fit text-[15px] font-semibold leading-[1.75] text-[#2d3748]';
+    title.textContent = '어떤 프로필로 대화할까요?';
+    bubble.appendChild(title);
+
+    var description = document.createElement('p');
+    description.className = 'mt-[6px] w-fit max-w-[320px] break-keep text-[12px] leading-[1.7] text-[#718096]';
+    description.textContent = '프로필을 선택하면 더 정확하게 답변하고 추천할 수 있어요';
+    bubble.appendChild(description);
+
+    var optionList = document.createElement('div');
+    optionList.className = 'mt-[12px] flex flex-wrap gap-[8px]';
+
+    options.forEach(function (option) {
+      var button = document.createElement('button');
+      button.type = 'button';
+      button.className = 'inline-flex max-w-full items-center gap-[6px] rounded-full border border-[#dbe7f5] bg-[#f8fbff] px-[11px] py-[7px] text-left transition-colors duration-150 hover:border-[#bfdbfe] hover:bg-white';
+      button.addEventListener('click', function () {
+        applyProfileSelectionOption(option);
+      });
+
+      var name = document.createElement('p');
+      name.className = 'truncate text-[12px] font-semibold leading-none text-[#2d3748]';
+      name.textContent = option.name;
+
+      var emoji = document.createElement('span');
+      emoji.className = 'shrink-0 text-[13px] leading-none text-[#718096]';
+      emoji.textContent = option.emoji || '○';
+
+      button.appendChild(emoji);
+      button.appendChild(name);
+      optionList.appendChild(button);
+    });
+
+    bubble.appendChild(optionList);
+    wrapper.appendChild(bubble);
+    chatMessages.appendChild(wrapper);
+    activeProfileSelectionPrompt = wrapper;
+    scrollToBottom();
+  }
+
+  function showSelectedProfilePrompt() {
+    if (!chatMessages || activeProfileSelectionPrompt) return;
+
+    var activeButton = document.querySelector('[data-pet-id="' + CSS.escape(activePetId) + '"]');
+    if (!activeButton) return;
+
+    ensureChatThreadVisible();
+
+    var wrapper = document.createElement('div');
+    wrapper.className = 'flex justify-start';
+    wrapper.setAttribute('data-profile-selection-prompt', 'true');
+
+    var bubble = document.createElement('div');
+    bubble.className = 'inline-flex w-fit max-w-[460px] flex-col self-start rounded-[24px] rounded-bl-[8px] border border-[#dbe7f5] bg-white px-[20px] py-[16px] text-[#2d3748] shadow-[0_10px_24px_rgba(45,55,72,0.06)]';
+
+    var title = document.createElement('p');
+    title.className = 'w-fit text-[15px] font-semibold leading-[1.75] text-[#2d3748]';
+    title.textContent = (activeButton.getAttribute('data-pet-name') || '현재 프로필') + ' 프로필로 대화할까요?';
+    bubble.appendChild(title);
+
+    var optionList = document.createElement('div');
+    optionList.className = 'mt-[12px] flex flex-wrap gap-[8px]';
+
+    var continueButton = document.createElement('button');
+    continueButton.type = 'button';
+    continueButton.className = 'inline-flex max-w-full items-center gap-[6px] rounded-full border border-[#bfdbfe] bg-[#eff8ff] px-[11px] py-[7px] text-left transition-colors duration-150 hover:border-[#90cdf4] hover:bg-[#e3f2ff]';
+    continueButton.addEventListener('click', function () {
+      if (activeSessionId) {
+        ensureSessionState(activeSessionId).profilePromptResolved = true;
+      }
+      skipProfileSelectionPromptOnce = true;
+      clearProfileSelectionPrompt();
+      if (messageInput) {
+        window.setTimeout(function () {
+          submitCurrentMessage();
+        }, 0);
+      }
+    });
+
+    var continueEmoji = document.createElement('span');
+    continueEmoji.className = 'shrink-0 text-[13px] leading-none text-[#4a5568]';
+    continueEmoji.textContent = activeButton.getAttribute('data-pet-emoji') || '○';
+
+    var continueLabel = document.createElement('p');
+    continueLabel.className = 'truncate text-[12px] font-semibold leading-none text-[#2b6cb0]';
+    continueLabel.textContent = '이 프로필로 시작';
+
+    continueButton.appendChild(continueEmoji);
+    continueButton.appendChild(continueLabel);
+    optionList.appendChild(continueButton);
+
+    var changeButton = document.createElement('button');
+    changeButton.type = 'button';
+    changeButton.className = 'inline-flex max-w-full items-center gap-[6px] rounded-full border border-[#dbe7f5] bg-[#f8fbff] px-[11px] py-[7px] text-left transition-colors duration-150 hover:border-[#bfdbfe] hover:bg-white';
+    changeButton.addEventListener('click', function () {
+      clearProfileSelectionPrompt();
+      showProfileSelectionPrompt({ includeDefaultOption: true });
+    });
+
+    var changeEmoji = document.createElement('span');
+    changeEmoji.className = 'shrink-0 text-[13px] leading-none text-[#718096]';
+    changeEmoji.textContent = '↺';
+
+    var changeLabel = document.createElement('p');
+    changeLabel.className = 'truncate text-[12px] font-semibold leading-none text-[#2d3748]';
+    changeLabel.textContent = '변경';
+
+    changeButton.appendChild(changeEmoji);
+    changeButton.appendChild(changeLabel);
+    optionList.appendChild(changeButton);
+
+    bubble.appendChild(optionList);
+    wrapper.appendChild(bubble);
+    chatMessages.appendChild(wrapper);
+    activeProfileSelectionPrompt = wrapper;
+    scrollToBottom();
+  }
+
+  function normalizeRecommendedProducts(products) {
+    return (products || []).map(function (product) {
+      return {
+        goods_id: product.goods_id || product.product_id || '',
+        product_id: product.product_id || product.goods_id || '',
+        product_name: product.product_name || product.name || '추천 상품',
+        brand_name: product.brand_name || product.brand || '',
+        price: product.price || '',
+        discount_price: product.discount_price || '',
+        rating: product.rating,
+        reviews: product.reviews,
+        thumbnail_url: product.thumbnail_url || '',
+        product_url: product.product_url || '',
+        rank_order: product.rank_order,
+      };
+    });
+  }
+
+  function syncSessionRecommendedProductsStorage(sessionId, cards) {
+    if (!sessionId) return;
+    try {
+      window.localStorage.setItem(
+        SESSION_RECOMMENDED_PRODUCTS_STORAGE_PREFIX + sessionId,
+        JSON.stringify(normalizeRecommendedProducts(cards || []))
+      );
+    } catch (error) {
+      // Ignore storage sync failures.
+    }
+  }
+
+  function resolveSessionRecommendedProducts(session) {
+    if (!session || !Array.isArray(session.messages)) {
+      return [];
+    }
+
+    for (var index = session.messages.length - 1; index >= 0; index -= 1) {
+      var message = session.messages[index];
+      if (message && Array.isArray(message.recommendedProducts) && message.recommendedProducts.length) {
+        return normalizeRecommendedProducts(message.recommendedProducts);
+      }
+    }
+
+    return [];
+  }
+
+  function restoreDefaultRecommendedPanel() {
+    if (!recommendedPanel) return;
+    if (recommendedLoadingTimer) {
+      window.clearInterval(recommendedLoadingTimer);
+      recommendedLoadingTimer = null;
+    }
+    recommendedPanel.innerHTML = recommendedPanelDefaultHtml;
+    refreshRecommendedWishlistState({ silent: true });
+  }
+
+  function renderRecommendedEmptyState() {
+    if (!recommendedPanel) return;
+    if (recommendedLoadingTimer) {
+      window.clearInterval(recommendedLoadingTimer);
+      recommendedLoadingTimer = null;
+    }
+
+    recommendedPanel.innerHTML = ''
+      + '<div class="rounded-[20px] border border-dashed border-[#dbe7f5] bg-[#fbfdff] px-[18px] py-[24px] text-center">'
+      + '  <div class="text-[28px] text-[#7aa6e9]">😶</div>'
+      + '  <div class="mt-[10px] text-[14px] font-bold text-[#2d3748]">이번 대화에는 추천할 상품이 없어요</div>'
+      + '</div>';
+  }
+
+  function renderRecommendedLoadingState() {
+    if (!recommendedPanel) return;
+    if (recommendedLoadingTimer) {
+      window.clearInterval(recommendedLoadingTimer);
+      recommendedLoadingTimer = null;
+    }
+
+    recommendedPanel.innerHTML = ''
+      + '<div class="flex min-h-full items-center justify-center px-[8px] py-[28px]">'
+      + '  <div class="flex flex-col items-center gap-[14px] text-center">'
+      + '    <div class="flex h-[54px] w-[54px] items-center justify-center rounded-full border border-[#dbe7f5] bg-white shadow-[0_8px_20px_rgba(45,55,72,0.05)]">'
+      + '      <div class="recommended-loading-orbit">'
+      + '        <svg class="recommended-loading-icon h-[24px] w-[24px] text-[#3182ce]" viewBox="0 0 24 24" fill="none" aria-hidden="true">'
+      + '          <circle cx="11" cy="11" r="6.5" stroke="currentColor" stroke-width="1.8"></circle>'
+      + '          <path d="M16.2 16.2L20 20" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"></path>'
+      + '        </svg>'
+      + '      </div>'
+      + '    </div>'
+      + '    <p class="text-[13px] font-semibold leading-[1.6] text-[#4a5568]">추천 상품을 찾는 중입니다<span data-recommended-loading-dots></span></p>'
+      + '  </div>'
+      + '</div>';
+
+    var dotsNode = recommendedPanel.querySelector('[data-recommended-loading-dots]');
+    if (!dotsNode) return;
+    var frames = ['', '.', '..', '...'];
+    var frameIndex = 0;
+    dotsNode.textContent = frames[frameIndex];
+    recommendedLoadingTimer = window.setInterval(function () {
+      frameIndex = (frameIndex + 1) % frames.length;
+      dotsNode.textContent = frames[frameIndex];
+    }, 420);
+  }
+
+  function applySessionRecommendedProducts(session) {
+    var cards = session && Array.isArray(session.latestRecommendedProducts)
+      ? session.latestRecommendedProducts
+      : [];
+
+    if (cards.length) {
+      if (activeSessionId) {
+        syncSessionRecommendedProductsStorage(activeSessionId, cards);
+      }
+      openProductPanel();
+      switchProductTab('recommended');
+      renderProductCards(cards);
+      return;
+    }
+
+    restoreDefaultRecommendedPanel();
   }
 
   function readJsonResponse(res) {
@@ -1667,12 +2226,6 @@
     });
   }
 
-  function saveSharedCartCount(count) {
-    try {
-      window.localStorage.setItem(SHARED_CART_COUNT_STORAGE_KEY, String(count));
-    } catch (e) {}
-  }
-
   function ensureSessionItem(session) {
     if (!chatHistoryList || !session || !session.session_id) return null;
 
@@ -1686,6 +2239,8 @@
       existing = document.createElement('div');
       existing.className = normalizedClassName;
       existing.setAttribute('data-id', sessionId);
+      existing.setAttribute('data-target-pet-id', '');
+      existing.setAttribute('data-profile-context-type', 'none');
       existing.innerHTML = ''
         + '<span class="history-title absolute left-[6px] right-[72px] top-[12px] overflow-hidden text-ellipsis whitespace-nowrap text-[12px] font-semibold leading-none text-[#2d3748]"></span>'
         + '<div class="absolute right-0 top-[12px] h-[16px] w-[66px]">'
@@ -1725,7 +2280,12 @@
     if (titleNode) titleNode.textContent = session.title || '새 대화';
     if (dateNode) dateNode.textContent = session.display_date || '오늘';
 
-    ensureSessionState(sessionId);
+    existing.setAttribute('data-target-pet-id', session.target_pet_id || '');
+    existing.setAttribute('data-profile-context-type', session.profile_context_type || 'none');
+
+    var sessionState = ensureSessionState(sessionId);
+    sessionState.targetPetId = session.target_pet_id || '';
+    sessionState.profileContextType = session.profile_context_type || 'none';
     return existing;
   }
 
@@ -1763,6 +2323,7 @@
       body: JSON.stringify({
         title: derivedTitle,
         target_pet_id: validTargetPetId,
+        profile_context_type: getCurrentProfileContextType(),
       }),
     }).then(function (res) {
       return readJsonResponse(res).then(function (data) {
@@ -1771,6 +2332,7 @@
         }
         ensureSessionItem(data);
         activeSessionId = data.session_id;
+        syncActiveSessionUrl();
         return data;
       });
     });
@@ -1791,8 +2353,14 @@
           throw new Error((data && data.detail) || '대화 기록을 불러오지 못했습니다.');
         }
         session.messages = (data.messages || []).map(function (message) {
-          return { role: message.role, text: message.content };
+          return {
+            role: message.role,
+            text: message.content,
+            recommendedProducts: message.recommended_products || [],
+          };
         });
+        session.latestRecommendedProducts = resolveSessionRecommendedProducts(session);
+        syncSessionRecommendedProductsStorage(sessionId, session.latestRecommendedProducts);
         session.loaded = true;
         return session.messages;
       });
@@ -1918,6 +2486,7 @@
   });
 
   initializeCatalogMenu();
+  syncCatalogMenuAllLink();
 
   function openPetDropdown() {
     if (!petDropdownMenu || !petDropdownButton || !petDropdownChevron) return;
@@ -1947,8 +2516,11 @@
     }
   };
 
-  window.selectPet = function (el) {
+  window.selectPet = function (el, options) {
     if (!el || !petDropdownName || !petDropdownSummary || !petDropdownEmoji || !petDropdownButton) return;
+    clearProfileSelectionPrompt();
+    var config = options || {};
+    var shouldSyncSession = config.syncSession !== false;
 
     var nextId = el.getAttribute('data-pet-id') || '';
     var nextName = el.getAttribute('data-pet-name') || '';
@@ -1983,6 +2555,10 @@
     });
     el.classList.add('bg-[#eff8ff]');
     closePetDropdown();
+
+    if (shouldSyncSession && activeSessionId) {
+      updateSessionProfileSelection(activeSessionId);
+    }
   };
 
   function scrollToBottom() {
@@ -2156,6 +2732,7 @@
     var session = ensureSessionState(sessionId);
     if (chatSection) chatSection.classList.remove('is-resetting');
     chatMessages.innerHTML = '';
+    clearProfileSelectionPrompt();
     chatEmptyState.classList.remove('is-fading-in');
     chatEmptyState.classList.add('hidden');
     chatThread.classList.remove('hidden');
@@ -2170,14 +2747,18 @@
       appendMessage(message.role, message.text);
     });
 
+    syncActiveSessionUrl();
+    applySessionRecommendedProducts(session);
     scrollToBottom();
   }
 
   function activateSession(sessionId) {
     activeSessionId = sessionId;
+    clearProfileSelectionPrompt();
+    applySessionProfileSelection(sessionId);
+    syncActiveSessionUrl();
+    syncCatalogMenuAllLink();
     updateSessionItemStyles();
-    openProductPanel();
-    switchProductTab('recommended');
     loadSessionMessages(sessionId).then(function () {
       if (activeSessionId === sessionId) {
         renderSessionThread(sessionId);
@@ -2202,6 +2783,10 @@
 
   function renderProductCards(cards) {
     if (!recommendedPanel) return;
+    if (recommendedLoadingTimer) {
+      window.clearInterval(recommendedLoadingTimer);
+      recommendedLoadingTimer = null;
+    }
     if (!cards || !cards.length) {
       return;
     }
@@ -2214,17 +2799,27 @@
       var rating = card.rating || '4.7';
       var reviews = card.reviews || '리뷰 준비 중';
       var thumbnailUrl = escapeHtml(card.thumbnail_url || '');
+      var productUrl = escapeHtml(card.product_url || '');
       var priceHtml = '<div class="product-card-price">' + finalPrice + '</div>';
+      var thumbnailHtml = productUrl
+        ? '<a href="' + productUrl + '" target="_blank" rel="noopener noreferrer" class="relative flex h-[68px] w-[68px] shrink-0 items-center justify-center overflow-hidden rounded-[14px] bg-gradient-to-br from-[#dbeafe] via-[#eff6ff] to-[#f8fafc] transition-transform hover:scale-[1.02]">'
+          + '  <img src="' + thumbnailUrl + '" alt="" class="h-full w-full object-cover" onerror="this.style.display=\'none\'; this.parentNode.querySelector(&quot;.fallback-emoji&quot;).style.display = \'flex\';">'
+          + '  <div class="fallback-emoji absolute inset-0 hidden items-center justify-center text-[26px]">🛍️</div>'
+          + '</a>'
+        : '<div class="relative flex h-[68px] w-[68px] shrink-0 items-center justify-center overflow-hidden rounded-[14px] bg-gradient-to-br from-[#dbeafe] via-[#eff6ff] to-[#f8fafc]">'
+          + '  <img src="' + thumbnailUrl + '" alt="" class="h-full w-full object-cover" onerror="this.style.display=\'none\'; this.parentNode.querySelector(&quot;.fallback-emoji&quot;).style.display = \'flex\';">'
+          + '  <div class="fallback-emoji absolute inset-0 hidden items-center justify-center text-[26px]">🛍️</div>'
+          + '</div>';
+      var nameHtml = productUrl
+        ? '<a href="' + productUrl + '" target="_blank" rel="noopener noreferrer" class="product-card-name block transition-colors hover:text-[#2b6cb0]">' + (display.name || '추천 상품') + '</a>'
+        : '<div class="product-card-name">' + (display.name || '추천 상품') + '</div>';
       var el = document.createElement('div');
       el.className = 'rounded-[20px] border border-[#dbe7f5] bg-white px-[14px] py-[13px] shadow-[0_8px_20px_rgba(45,55,72,0.05)]';
       el.innerHTML = '<div class="flex items-center gap-[10px]">'
-        + '<div class="relative flex h-[68px] w-[68px] shrink-0 items-center justify-center overflow-hidden rounded-[14px] bg-gradient-to-br from-[#dbeafe] via-[#eff6ff] to-[#f8fafc]">'
-        + '  <img src="' + thumbnailUrl + '" alt="" class="h-full w-full object-cover" onerror="this.style.display=\'none\'; this.parentNode.querySelector(&quot;.fallback-emoji&quot;).style.display = \'flex\';">'
-        + '  <div class="fallback-emoji absolute inset-0 hidden items-center justify-center text-[26px]">🛍️</div>'
-        + '</div>'
+        + thumbnailHtml
         + '<div class="product-card-text-block min-w-0">'
         + (display.brand ? '<div class="product-card-brand">' + display.brand + '</div>' : '')
-        + '<div class="product-card-name">' + (display.name || '추천 상품') + '</div>'
+        + nameHtml
         + priceHtml
         + '<div class="product-card-review-row with-actions">'
         + '  <div class="product-card-review-meta">'
@@ -2263,7 +2858,6 @@
         + '</button>'
         + '  </div>'
         + '</div>'
-        + (card.product_url ? '<a href="' + card.product_url + '" target="_blank" class="mt-[7px] inline-flex text-[11px] font-bold text-[#3182ce]">상품 보러가기</a>' : '')
         + '</div>';
       recommendedPanel.appendChild(el);
     });
@@ -2342,6 +2936,9 @@
   }
 
   function performResetState(showEmptyWithFade) {
+      clearProfileSelectionPrompt();
+      activeSessionId = null;
+      resetPetSelection({ syncSession: false });
       if (composerStage) composerStage.classList.add('no-transition');
       if (chatMessages) chatMessages.innerHTML = '';
       if (chatNoticeHost) chatNoticeHost.innerHTML = '';
@@ -2353,7 +2950,8 @@
         chatEmptyState.classList.remove('hidden');
       }
       updateChatSectionState(false);
-      activeSessionId = null;
+      syncActiveSessionUrl();
+      syncCatalogMenuAllLink();
       updateSessionItemStyles();
       if (messageInput) {
         messageInput.value = '';
@@ -2390,7 +2988,7 @@
     }
   };
 
-  window.sendMessage = function () {
+  function submitCurrentMessage() {
     if (!messageInput) return;
     var msg = messageInput.value.trim();
     if (!msg || isSendingMessage) return;
@@ -2412,7 +3010,10 @@
     ensureSessionPromise.then(function (sessionData) {
       var sessionId = sessionData.session_id;
       activeSessionId = sessionId;
+      syncActiveSessionUrl();
+      syncCatalogMenuAllLink();
       var sessionState = ensureSessionState(sessionId);
+      sessionState.profilePromptResolved = true;
       promoteSessionItem(sessionId, sessionData.title || (msg.length > 18 ? msg.slice(0, 18) + '...' : msg));
 
       if (sessionState.loaded && sessionState.messages.length) {
@@ -2435,8 +3036,10 @@
       var pendingAssistantText = '답변을 준비하고 있어요...';
       var assistantEl = appendMessage('assistant', pendingAssistantText);
       var assistantText = '';
+      var assistantRecommendedProducts = [];
       openProductPanel();
       switchProductTab('recommended');
+      renderRecommendedLoadingState();
 
       fetch('/api/chat/sessions/' + sessionId + '/messages/', {
         method: 'POST',
@@ -2492,11 +3095,21 @@
                   }
                   scrollToBottom();
                 } else if (evt.type === 'products' && evt.cards && evt.cards.length) {
+                  assistantRecommendedProducts = normalizeRecommendedProducts(evt.cards);
+                  sessionState.latestRecommendedProducts = assistantRecommendedProducts;
+                  syncSessionRecommendedProductsStorage(sessionId, assistantRecommendedProducts);
                   openProductPanel();
                   switchProductTab('recommended');
                   renderProductCards(evt.cards);
                 } else if (evt.type === 'done') {
-                  ensureSessionState(sessionId).messages.push({ role: 'assistant', text: assistantText });
+                  ensureSessionState(sessionId).messages.push({
+                    role: 'assistant',
+                    text: assistantText,
+                    recommendedProducts: assistantRecommendedProducts,
+                  });
+                  if (!assistantRecommendedProducts.length) {
+                    renderRecommendedEmptyState();
+                  }
                   setComposerBusy(false);
                 } else if (evt.type === 'error') {
                   assistantText = evt.message || '죄송합니다, 오류가 발생했습니다.';
@@ -2504,6 +3117,7 @@
                     var errorNode = assistantEl.querySelector('.assistant-text');
                     if (errorNode) errorNode.textContent = assistantText;
                   }
+                  restoreDefaultRecommendedPanel();
                   setComposerBusy(false);
                 }
               } catch(e) {}
@@ -2517,12 +3131,28 @@
           var p = assistantEl.querySelector('.assistant-text');
           if (p) p.textContent = '서버 연결에 실패했습니다.';
         }
+        restoreDefaultRecommendedPanel();
         setComposerBusy(false);
       });
     }).catch(function (error) {
       showChatNotice(error.message || '세션 생성에 실패했습니다.');
       setComposerBusy(false);
     });
+  };
+
+  window.sendMessage = function () {
+    if (!messageInput) return;
+    var msg = messageInput.value.trim();
+    if (!msg || isSendingMessage) return;
+    if (shouldShowSelectedProfilePrompt()) {
+      showSelectedProfilePrompt();
+      return;
+    }
+    if (shouldShowProfileChoicePrompt()) {
+      showProfileSelectionPrompt();
+      return;
+    }
+    submitCurrentMessage();
   };
 
   window.switchProductTab = function (tab) {
@@ -2567,27 +3197,26 @@
     return digits || '0';
   }
 
-  function loadSharedCartItems() {
-    try {
-      return JSON.parse(window.localStorage.getItem(SHARED_CART_ITEMS_STORAGE_KEY) || '[]');
-    } catch (e) {
-      return [];
-    }
-  }
-
-  function saveSharedCartItems(items) {
-    try {
-      window.localStorage.setItem(SHARED_CART_ITEMS_STORAGE_KEY, JSON.stringify(items));
-    } catch (e) {}
-  }
-
   function buildCartItem(product) {
     var display = splitBrandAndName(product.brand || '', product.name || '상품');
     var thumbnailUrl = escapeHtml(product.thumbnailUrl || '');
+    var productUrl = escapeHtml(product.productUrl || '');
     var thumbnailHtml = product.thumbnailUrl
       ? '<img src="' + thumbnailUrl + '" alt="" class="h-full w-full object-cover" onerror="this.style.display=\'none\'; this.parentNode.querySelector(&quot;.fallback-emoji&quot;).style.display = \'flex\';">'
       : '';
     var fallbackClass = product.thumbnailUrl ? 'fallback-emoji absolute inset-0 hidden items-center justify-center text-[26px]' : 'flex h-full w-full items-center justify-center text-[26px]';
+    var thumbnailWrapperHtml = productUrl
+      ? '<a href="' + productUrl + '" target="_blank" rel="noopener noreferrer" class="relative flex h-[68px] w-[68px] shrink-0 items-center justify-center overflow-hidden rounded-[14px] bg-gradient-to-br from-[#ede9fe] via-[#f5f3ff] to-[#faf5ff] transition-transform hover:scale-[1.02]">'
+          + thumbnailHtml
+          + '    <div class="' + fallbackClass + '">' + product.emoji + '</div>'
+          + '  </a>'
+      : '<div class="relative flex h-[68px] w-[68px] shrink-0 items-center justify-center overflow-hidden rounded-[14px] bg-gradient-to-br from-[#ede9fe] via-[#f5f3ff] to-[#faf5ff]">'
+          + thumbnailHtml
+          + '    <div class="' + fallbackClass + '">' + product.emoji + '</div>'
+          + '  </div>';
+    var nameHtml = productUrl
+      ? '<a href="' + productUrl + '" target="_blank" rel="noopener noreferrer" class="product-card-name block transition-colors hover:text-[#2b6cb0]">' + escapeHtml(display.name || '상품') + '</a>'
+      : '<div class="product-card-name">' + escapeHtml(display.name || '상품') + '</div>';
     var item = document.createElement('div');
     item.className = 'group relative rounded-[20px] border border-[#dbe7f5] bg-white px-[14px] py-[13px] shadow-[0_8px_20px_rgba(45,55,72,0.05)]';
     item.setAttribute('data-cart-item', '');
@@ -2607,13 +3236,10 @@
       + '  <span class="relative top-[-1px]">×</span>'
       + '</button>'
       + '<div class="flex items-center gap-[10px]">'
-      + '  <div class="relative flex h-[68px] w-[68px] shrink-0 items-center justify-center overflow-hidden rounded-[14px] bg-gradient-to-br from-[#ede9fe] via-[#f5f3ff] to-[#faf5ff]">'
-      +        thumbnailHtml
-      + '    <div class="' + fallbackClass + '">' + product.emoji + '</div>'
-      + '  </div>'
+      + thumbnailWrapperHtml
       + '  <div class="product-card-text-block min-w-0">'
       + (display.brand ? '    <div class="product-card-brand">' + display.brand + '</div>' : '')
-      + '    <div class="product-card-name">' + (display.name || '상품') + '</div>'
+      + '    ' + nameHtml
       + '    <div class="product-card-price">' + product.price + '</div>'
       + '    <div class="product-card-review-row with-actions">'
       + '      <div class="product-card-review-meta">'
@@ -2658,32 +3284,10 @@
       emoji: item.emoji || '🛍️',
       brand: display.brand || '',
       thumbnailUrl: item.thumbnail_url || item.thumbnailUrl || '',
+      productUrl: item.product_url || item.productUrl || '',
       note: item.note || '가격 비교를 위해 보관한 상품',
       isWishlisted: !!item.is_wishlisted,
     };
-  }
-
-  function getCartState() {
-    var items = [];
-    document.querySelectorAll('[data-cart-item]').forEach(function (item) {
-      var quantityNode = item.querySelector('[data-cart-quantity]');
-      items.push({
-        goodsId: item.getAttribute('data-goods-id') || item.getAttribute('data-product-name') || '',
-        name: item.getAttribute('data-product-name') || '상품',
-        price: Number(item.getAttribute('data-unit-price') || '0'),
-        priceLabel: formatPrice(Number(item.getAttribute('data-unit-price') || '0')),
-        rating: item.getAttribute('data-product-rating') || '0.0',
-        reviewCount: normalizeReviewCount(item.getAttribute('data-product-reviews') || '0'),
-        reviews: '리뷰 ' + normalizeReviewCount(item.getAttribute('data-product-reviews') || '0'),
-        quantity: Number(quantityNode ? quantityNode.textContent || '0' : '0'),
-        emoji: item.getAttribute('data-product-emoji') || '🛍️',
-        brand: item.getAttribute('data-product-brand') || '',
-        thumbnailUrl: item.getAttribute('data-product-thumbnail') || '',
-        note: '가격 비교를 위해 보관한 상품',
-        isWishlisted: false,
-      });
-    });
-    return items;
   }
 
   function renderCartFromState(items) {
@@ -2705,6 +3309,7 @@
         quantity: serialized.quantity,
         emoji: serialized.emoji,
         thumbnailUrl: serialized.thumbnailUrl,
+        productUrl: serialized.productUrl,
       }));
     });
     updateCartEmptyState();
@@ -2733,6 +3338,7 @@
       emoji: item.emoji || '🛍️',
       brand: item.brand || '',
       thumbnailUrl: item.thumbnail_url || item.thumbnailUrl || '',
+      productUrl: item.product_url || item.productUrl || '',
     };
   }
 
@@ -2747,6 +3353,7 @@
     var brand = escapeHtml(display.brand || '');
     var emoji = escapeHtml(product.emoji || '🛍️');
     var thumbnailUrl = escapeHtml(product.thumbnailUrl || '');
+    var productUrl = escapeHtml(product.productUrl || '');
     item.className = 'rounded-[20px] border border-[#dbe7f5] bg-white px-[14px] py-[13px] shadow-[0_8px_20px_rgba(45,55,72,0.05)]';
     item.setAttribute('data-wishlist-item', '');
     item.setAttribute('data-goods-id', product.goodsId || '');
@@ -2762,15 +3369,24 @@
       ? '<img src="' + thumbnailUrl + '" alt="" class="h-full w-full object-cover" onerror="this.style.display=\'none\'; this.parentNode.querySelector(&quot;.fallback-emoji&quot;).style.display = \'flex\';">'
       : '';
     var fallbackClass = product.thumbnailUrl ? 'fallback-emoji absolute inset-0 hidden items-center justify-center text-[26px]' : 'flex h-full w-full items-center justify-center text-[26px]';
+    var thumbnailWrapperHtml = productUrl
+      ? '<a href="' + productUrl + '" target="_blank" rel="noopener noreferrer" class="relative flex h-[68px] w-[68px] shrink-0 items-center justify-center overflow-hidden rounded-[14px] bg-gradient-to-br from-[#fef3f2] via-[#fff7f5] to-[#fffafa] transition-transform hover:scale-[1.02]">'
+          + thumbnailHtml
+          + '    <div class="' + fallbackClass + '">' + emoji + '</div>'
+          + '  </a>'
+      : '<div class="relative flex h-[68px] w-[68px] shrink-0 items-center justify-center overflow-hidden rounded-[14px] bg-gradient-to-br from-[#fef3f2] via-[#fff7f5] to-[#fffafa]">'
+          + thumbnailHtml
+          + '    <div class="' + fallbackClass + '">' + emoji + '</div>'
+          + '  </div>';
+    var nameHtml = productUrl
+      ? '<a href="' + productUrl + '" target="_blank" rel="noopener noreferrer" class="product-card-name block transition-colors hover:text-[#2b6cb0]">' + productName + '</a>'
+      : '<div class="product-card-name">' + productName + '</div>';
     item.innerHTML = ''
       + '<div class="flex items-center gap-[10px]">'
-      + '  <div class="relative flex h-[68px] w-[68px] shrink-0 items-center justify-center overflow-hidden rounded-[14px] bg-gradient-to-br from-[#fef3f2] via-[#fff7f5] to-[#fffafa]">'
-      +        thumbnailHtml
-      + '    <div class="' + fallbackClass + '">' + emoji + '</div>'
-      + '  </div>'
+      + thumbnailWrapperHtml
       + '  <div class="product-card-text-block min-w-0">'
       + (display.brand ? '    <div class="product-card-brand">' + brand + '</div>' : '')
-      + '    <div class="product-card-name">' + productName + '</div>'
+      + '    ' + nameHtml
       + '    <div class="product-card-price">' + priceLabel + '</div>'
       + '    <div class="product-card-review-row with-actions">'
       + '      <div class="product-card-review-meta">'
@@ -2848,10 +3464,6 @@
     return requestJson('/api/orders/cart/')
       .then(function (data) {
         renderCartFromState(data.items || []);
-        if (config.syncShared) {
-          saveSharedCartItems((data.items || []).map(serializeCartItem));
-          saveSharedCartCount(Number(data.total_quantity || 0));
-        }
         updateCartTotal(true);
       })
       .catch(function (error) {
@@ -2894,42 +3506,9 @@
         headerBadgeNode.classList.remove('inline-flex');
       }
     }
-    if (!skipSharedSync) {
-      saveSharedCartCount(count);
-      saveSharedCartItems(getCartState());
-    }
     updateCartEmptyState();
     if (quickOrderModal && quickOrderModal.classList.contains('is-open')) {
       renderQuickOrderSummary();
-    }
-  }
-
-  function applySharedCartCount() {
-    var badgeNode = document.getElementById('cartCountBadge');
-    var headerBadgeNode = document.getElementById('headerCartCountBadge');
-    var count = 0;
-    try {
-      count = Number(window.localStorage.getItem(SHARED_CART_COUNT_STORAGE_KEY) || '0');
-    } catch (e) {
-      count = 0;
-    }
-
-    if (badgeNode) {
-      badgeNode.textContent = String(count);
-      badgeNode.classList.toggle('hidden', count === 0);
-      badgeNode.classList.toggle('inline-flex', count > 0);
-    }
-
-    if (headerBadgeNode) {
-      if (count > 0) {
-        headerBadgeNode.textContent = count > 9 ? '9+' : String(count);
-        headerBadgeNode.classList.remove('hidden');
-        headerBadgeNode.classList.add('inline-flex');
-      } else {
-        headerBadgeNode.textContent = '0';
-        headerBadgeNode.classList.add('hidden');
-        headerBadgeNode.classList.remove('inline-flex');
-      }
     }
   }
 
@@ -2965,7 +3544,7 @@
         quantity: next,
       }),
     }).then(function () {
-      return refreshCartPanelFromApi({ silent: true, syncShared: true });
+      return refreshCartPanelFromApi({ silent: true });
     }).catch(function (error) {
       showChatActionToast(error.message || '장바구니 수량을 변경하지 못했습니다.');
     });
@@ -2983,7 +3562,7 @@
       method: 'DELETE',
       body: JSON.stringify({ product_id: item.getAttribute('data-goods-id') }),
     }).then(function () {
-      return refreshCartPanelFromApi({ silent: true, syncShared: true });
+      return refreshCartPanelFromApi({ silent: true });
     }).catch(function (error) {
       showChatActionToast(error.message || '장바구니 상품을 삭제하지 못했습니다.');
     });
@@ -3031,7 +3610,7 @@
         quantity: 1,
       }),
     }).then(function () {
-      return refreshCartPanelFromApi({ silent: true, syncShared: true });
+      return refreshCartPanelFromApi({ silent: true });
     }).catch(function (error) {
       showChatActionToast(error.message || '장바구니에 상품을 담지 못했습니다.');
     });
@@ -3153,7 +3732,7 @@
       }),
     }).then(function () {
       switchProductTab('cart');
-      return refreshCartPanelFromApi({ silent: true, syncShared: true });
+      return refreshCartPanelFromApi({ silent: true });
     }).catch(function (error) {
       showChatActionToast(error.message || '장바구니에 상품을 담지 못했습니다.');
     });
@@ -3681,19 +4260,12 @@
 
   renderPromoSlide();
   {% if is_preview_member %}
-  var initialSharedCartItems = loadSharedCartItems();
-  if (initialSharedCartItems.length) {
-    renderCartFromState(initialSharedCartItems);
-  } else {
-    saveSharedCartItems(getCartState());
-  }
   updateCartTotal();
   renderWishlistFromState(previewWishlistItems);
   {% else %}
-  refreshCartPanelFromApi({ silent: true, syncShared: true });
+  refreshCartPanelFromApi({ silent: true });
   refreshRecommendedWishlistState({ silent: true });
   {% endif %}
-  applySharedCartCount();
   Object.keys(sessionThreads).forEach(ensureSessionState);
 
   if (promoCarouselGroup) {
@@ -3707,11 +4279,17 @@
   applyLayout();
   if (activePetId) {
     var initialPet = document.querySelector('[data-pet-id="' + CSS.escape(activePetId) + '"]');
-    if (initialPet) selectPet(initialPet);
+    if (initialPet) selectPet(initialPet, { syncSession: false });
   }
   closePetDropdown();
   updateChatSectionState(false);
   updateSessionItemStyles();
+
+  var initialSessionId = readSessionIdFromUrl();
+  if (initialSessionId) {
+    ensureSessionState(initialSessionId);
+    activateSession(initialSessionId);
+  }
 
   window.addEventListener('storage', function (event) {
     if (event.key === SHARED_CART_COUNT_STORAGE_KEY) {
@@ -3730,7 +4308,7 @@
   if (activePetId) {
     var initialPet = document.querySelector('[data-pet-id="' + activePetId + '"]');
     if (initialPet) {
-      selectPet(initialPet);
+      selectPet(initialPet, { syncSession: false });
     }
   }
 

@@ -103,6 +103,7 @@ def serialize_product_summary(product: Product) -> dict:
         "rating": float(product.rating) if product.rating is not None else None,
         "review_count": product.review_count,
         "thumbnail_url": product.thumbnail_url,
+        "product_url": product.product_url,
     }
 
 

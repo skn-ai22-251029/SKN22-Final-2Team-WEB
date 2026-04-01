@@ -308,6 +308,7 @@
                  data-rating="{{ item.rating|default:'-' }}"
                  data-review-count="{{ item.review_count }}"
                  data-thumbnail-url="{{ item.thumbnail_url|default:'' }}"
+                 data-product-url="{{ item.product_url|default:'' }}"
                  data-note="{{ item.note }}">
           <div class="absolute right-4 top-4 flex items-center gap-2">
             <button type="button"
@@ -327,22 +328,36 @@
                     onclick="removeCartItem(this)">X</button>
           </div>
           <div class="flex items-start gap-3">
-            <div class="flex h-[64px] w-[64px] shrink-0 items-center justify-center overflow-hidden rounded-[18px] bg-[#f8fbff] shadow-[0_4px_12px_rgba(49,130,206,0.08)]">
+            {% if item.product_url %}
+            <a href="{{ item.product_url }}" target="_blank" rel="noopener noreferrer" class="relative z-[1] flex h-[64px] w-[64px] shrink-0 cursor-pointer items-center justify-center overflow-hidden rounded-[18px] bg-[#f8fbff] shadow-[0_4px_12px_rgba(49,130,206,0.08)] transition-transform hover:scale-[1.02]" data-cart-thumbnail-link onclick="event.stopPropagation()">
+              {% if item.thumbnail_url %}
+              <img src="{{ item.thumbnail_url }}" alt="{{ item.name }}" class="h-full w-full object-cover" />
+              {% else %}
+              <span class="text-[20px] font-bold text-[#90a4b8]">?</span>
+              {% endif %}
+            </a>
+            {% else %}
+            <div class="flex h-[64px] w-[64px] shrink-0 items-center justify-center overflow-hidden rounded-[18px] bg-[#f8fbff] shadow-[0_4px_12px_rgba(49,130,206,0.08)]" data-cart-thumbnail-link>
               {% if item.thumbnail_url %}
               <img src="{{ item.thumbnail_url }}" alt="{{ item.name }}" class="h-full w-full object-cover" />
               {% else %}
               <span class="text-[20px] font-bold text-[#90a4b8]">?</span>
               {% endif %}
             </div>
+            {% endif %}
             <div class="min-w-0 flex-1 pr-14">
               <div class="flex items-center justify-between gap-3">
-                <p class="truncate text-[12px] font-semibold text-[#90a4b8]">{{ item.brand }}</p>
-                <span class="shrink-0 text-[12px] text-[#90a4b8]">개당 {{ item.price_label }}</span>
+                <p class="truncate text-[12px] font-semibold text-[#90a4b8]" data-cart-brand>{{ item.brand }}</p>
+                <span class="shrink-0 text-[12px] text-[#90a4b8]" data-cart-unit-price>개당 {{ item.price_label }}</span>
               </div>
-              <p class="mt-1 truncate text-[16px] font-bold text-[#2d3748]">{{ item.name }}</p>
-              <div class="mt-2 flex items-center gap-2 text-[11px]">
-                <span class="font-bold text-[#d69e2e]">★ {{ item.rating|default:"-" }}</span>
-                <span class="text-[#a0aec0]">리뷰 {{ item.review_count }}</span>
+              {% if item.product_url %}
+              <a href="{{ item.product_url }}" target="_blank" rel="noopener noreferrer" class="relative z-[1] mt-1 block cursor-pointer truncate text-[16px] font-bold text-[#2d3748] transition-colors hover:text-[#3182ce]" data-cart-name onclick="event.stopPropagation()">{{ item.name }}</a>
+              {% else %}
+              <p class="mt-1 truncate text-[16px] font-bold text-[#2d3748]" data-cart-name>{{ item.name }}</p>
+              {% endif %}
+              <div class="mt-2 flex items-center gap-2 text-[11px]" data-cart-review-row>
+                <span class="font-bold text-[#d69e2e]" data-cart-rating>★ {{ item.rating|default:"-" }}</span>
+                <span class="text-[#a0aec0]" data-cart-review-count>리뷰 {{ item.review_count }}</span>
               </div>
             </div>
           </div>
@@ -385,8 +400,18 @@
                  data-rating="{{ item.rating|default:'-' }}"
                  data-review-count="{{ item.review_count }}"
                  data-thumbnail-url="{{ item.thumbnail_url|default:'' }}"
+                 data-product-url="{{ item.product_url|default:'' }}"
                  data-note="{{ item.note }}">
           <div class="flex items-center gap-3">
+            {% if item.product_url %}
+            <a href="{{ item.product_url }}" target="_blank" rel="noopener noreferrer" class="flex h-[64px] w-[64px] shrink-0 items-center justify-center overflow-hidden rounded-[18px] bg-[#f8fbff] shadow-[0_4px_12px_rgba(49,130,206,0.08)] transition-transform hover:scale-[1.02]">
+              {% if item.thumbnail_url %}
+              <img src="{{ item.thumbnail_url }}" alt="{{ item.name }}" class="h-full w-full object-cover" />
+              {% else %}
+              <span class="text-[20px] font-bold text-[#90a4b8]">?</span>
+              {% endif %}
+            </a>
+            {% else %}
             <div class="flex h-[64px] w-[64px] shrink-0 items-center justify-center overflow-hidden rounded-[18px] bg-[#f8fbff] shadow-[0_4px_12px_rgba(49,130,206,0.08)]">
               {% if item.thumbnail_url %}
               <img src="{{ item.thumbnail_url }}" alt="{{ item.name }}" class="h-full w-full object-cover" />
@@ -394,9 +419,14 @@
               <span class="text-[20px] font-bold text-[#90a4b8]">?</span>
               {% endif %}
             </div>
+            {% endif %}
             <div class="min-w-0 flex-1">
               <p class="product-card-brand">{{ item.brand }}</p>
+              {% if item.product_url %}
+              <a href="{{ item.product_url }}" target="_blank" rel="noopener noreferrer" class="product-card-name mt-1 block transition-colors hover:text-[#3182ce]">{{ item.name }}</a>
+              {% else %}
               <p class="product-card-name mt-1">{{ item.name }}</p>
+              {% endif %}
               <p class="product-card-price">{{ item.price_label }}</p>
               <div class="product-card-review-row">
                 <div class="product-card-review-meta">
@@ -990,12 +1020,30 @@
         rating: item.getAttribute('data-rating') || '-',
         reviewCount: normalizeReviewCount(item.getAttribute('data-review-count') || '0'),
         thumbnailUrl: item.getAttribute('data-thumbnail-url') || '',
+        productUrl: item.getAttribute('data-product-url') || '',
         note: item.getAttribute('data-note') || '가격 비교를 위해 보관한 상품',
         quantity: Number(quantityNode ? quantityNode.textContent || '0' : '0'),
         isWishlisted: !!item.querySelector('.wishlist-heart.is-active'),
       });
     });
     return items;
+  }
+
+  function cartThumbnailMarkup(productUrl, thumbnailUrl, name) {
+    var thumbnail = thumbnailUrl
+      ? '<img src="' + escapeHtml(thumbnailUrl) + '" alt="' + escapeHtml(name) + '" class="h-full w-full object-cover" />'
+      : '<span class="text-[20px] font-bold text-[#90a4b8]">?</span>';
+    if (productUrl) {
+      return '<a href="' + escapeHtml(productUrl) + '" target="_blank" rel="noopener noreferrer" class="relative z-[1] flex h-[64px] w-[64px] shrink-0 cursor-pointer items-center justify-center overflow-hidden rounded-[18px] bg-[#f8fbff] shadow-[0_4px_12px_rgba(49,130,206,0.08)] transition-transform hover:scale-[1.02]" data-cart-thumbnail-link onclick="event.stopPropagation()">' + thumbnail + '</a>';
+    }
+    return '<div class="flex h-[64px] w-[64px] shrink-0 items-center justify-center overflow-hidden rounded-[18px] bg-[#f8fbff] shadow-[0_4px_12px_rgba(49,130,206,0.08)]" data-cart-thumbnail-link>' + thumbnail + '</div>';
+  }
+
+  function cartNameMarkup(productUrl, name) {
+    if (productUrl) {
+      return '<a href="' + escapeHtml(productUrl) + '" target="_blank" rel="noopener noreferrer" class="relative z-[1] mt-1 block cursor-pointer truncate text-[16px] font-bold text-[#2d3748] transition-colors hover:text-[#3182ce]" data-cart-name onclick="event.stopPropagation()">' + escapeHtml(name) + '</a>';
+    }
+    return '<p class="mt-1 truncate text-[16px] font-bold text-[#2d3748]" data-cart-name>' + escapeHtml(name) + '</p>';
   }
 
   function applyCartItemUpdate(item, cartItem) {
@@ -1008,6 +1056,7 @@
     item.setAttribute('data-rating', cartItem.rating || '-');
     item.setAttribute('data-review-count', normalizeReviewCount(cartItem.review_count || '0'));
     item.setAttribute('data-thumbnail-url', cartItem.thumbnail_url || '');
+    item.setAttribute('data-product-url', cartItem.product_url || '');
 
     var quantityNode = item.querySelector('[data-cart-quantity]');
     if (quantityNode) {
@@ -1019,30 +1068,39 @@
       lineTotalNode.textContent = cartItem.line_total_label || formatPrice(Number(cartItem.line_total || 0));
     }
 
-    var infoHeader = item.querySelector('.min-w-0.flex-1.pr-14 > .flex.items-center.justify-between.gap-3');
-    var brandNode = infoHeader ? infoHeader.querySelector('p') : null;
+    var brandNode = item.querySelector('[data-cart-brand]');
     if (brandNode) {
       brandNode.textContent = cartItem.brand || '';
     }
 
-    var unitPriceNode = infoHeader ? infoHeader.querySelector('span') : null;
+    var unitPriceNode = item.querySelector('[data-cart-unit-price]');
     if (unitPriceNode) {
       unitPriceNode.textContent = '개당 ' + (cartItem.price_label || formatPrice(Number(cartItem.price || 0)));
     }
 
-    var infoBody = item.querySelector('.min-w-0.flex-1.pr-14');
-    var nameNode = infoBody ? infoBody.querySelectorAll('p')[1] : null;
+    var nameNode = item.querySelector('[data-cart-name]');
     if (nameNode) {
-      nameNode.textContent = cartItem.name || '상품';
+      var nextNameMarkup = cartNameMarkup(cartItem.product_url || '', cartItem.name || '상품');
+      var nameTemplate = document.createElement('template');
+      nameTemplate.innerHTML = nextNameMarkup.trim();
+      nameNode.replaceWith(nameTemplate.content.firstElementChild);
     }
 
-    var reviewRow = infoBody ? infoBody.querySelectorAll('div')[1] : null;
-    var reviewNodes = reviewRow ? reviewRow.querySelectorAll('span') : [];
-    if (reviewNodes[0]) {
-      reviewNodes[0].textContent = '★ ' + (cartItem.rating || '-');
+    var thumbnailNode = item.querySelector('[data-cart-thumbnail-link]');
+    if (thumbnailNode) {
+      var nextThumbnailMarkup = cartThumbnailMarkup(cartItem.product_url || '', cartItem.thumbnail_url || '', cartItem.name || '상품');
+      var thumbnailTemplate = document.createElement('template');
+      thumbnailTemplate.innerHTML = nextThumbnailMarkup.trim();
+      thumbnailNode.replaceWith(thumbnailTemplate.content.firstElementChild);
     }
-    if (reviewNodes[1]) {
-      reviewNodes[1].textContent = '리뷰 ' + normalizeReviewCount(cartItem.review_count || '0');
+
+    var ratingNode = item.querySelector('[data-cart-rating]');
+    if (ratingNode) {
+      ratingNode.textContent = '★ ' + (cartItem.rating || '-');
+    }
+    var reviewCountNode = item.querySelector('[data-cart-review-count]');
+    if (reviewCountNode) {
+      reviewCountNode.textContent = '리뷰 ' + normalizeReviewCount(cartItem.review_count || '0');
     }
   }
 
@@ -1259,6 +1317,9 @@
     var thumbnail = data.thumbnailUrl
       ? '<img src="' + escapeHtml(data.thumbnailUrl) + '" alt="' + escapeHtml(data.name) + '" class="h-full w-full object-cover" />'
       : '<span class="text-[20px] font-bold text-[#90a4b8]">?</span>';
+    var productUrl = escapeHtml(data.productUrl || '');
+    var thumbnailHtml = cartThumbnailMarkup(data.productUrl || '', data.thumbnailUrl || '', data.name || '상품');
+    var nameHtml = cartNameMarkup(data.productUrl || '', data.name || '상품');
 
     return [
       '<article class="relative rounded-[20px] border border-[#dbe7f5] bg-white px-4 py-4 shadow-[0_6px_18px_rgba(45,55,72,0.04)]"',
@@ -1271,6 +1332,7 @@
       ' data-rating="' + escapeHtml(data.rating) + '"',
       ' data-review-count="' + escapeHtml(data.reviewCount) + '"',
       ' data-thumbnail-url="' + escapeHtml(data.thumbnailUrl) + '"',
+      ' data-product-url="' + productUrl + '"',
       ' data-note="' + escapeHtml(data.note) + '">',
       '<div class="absolute right-4 top-4 flex items-center gap-2">',
       '<button type="button" class="wishlist-heart ' + (data.isWishlisted ? 'is-active ' : '') + 'inline-flex h-[18px] w-[18px] items-center justify-center leading-none text-[#4a5568] transition-colors hover:text-[#e53e3e]" aria-label="관심 상품 상태 변경" onclick="toggleWishlistHeart(this)">',
@@ -1280,16 +1342,14 @@
       '<button type="button" class="inline-flex h-[18px] w-[18px] items-center justify-center leading-none text-[14px] font-bold uppercase text-[#a0aec0] transition-colors hover:text-[#e53e3e]" aria-label="상품 삭제" onclick="removeCartItem(this)">X</button>',
       '</div>',
       '<div class="flex items-start gap-3">',
-      '<div class="flex h-[64px] w-[64px] shrink-0 items-center justify-center overflow-hidden rounded-[18px] bg-[#f8fbff] shadow-[0_4px_12px_rgba(49,130,206,0.08)]">',
-      thumbnail,
-      '</div>',
+      thumbnailHtml,
       '<div class="min-w-0 flex-1 pr-14">',
       '<div class="flex items-center justify-between gap-3">',
-      '<p class="truncate text-[12px] font-semibold text-[#90a4b8]">' + escapeHtml(data.brand) + '</p>',
-      '<span class="shrink-0 text-[12px] text-[#90a4b8]">개당 ' + escapeHtml(data.priceLabel) + '</span>',
+      '<p class="truncate text-[12px] font-semibold text-[#90a4b8]" data-cart-brand>' + escapeHtml(data.brand) + '</p>',
+      '<span class="shrink-0 text-[12px] text-[#90a4b8]" data-cart-unit-price>개당 ' + escapeHtml(data.priceLabel) + '</span>',
       '</div>',
-      '<p class="mt-1 truncate text-[16px] font-bold text-[#2d3748]">' + escapeHtml(data.name) + '</p>',
-      '<div class="mt-2 flex items-center gap-2 text-[11px]"><span class="font-bold text-[#d69e2e]">★ ' + escapeHtml(data.rating) + '</span><span class="text-[#a0aec0]">리뷰 ' + escapeHtml(data.reviewCount) + '</span></div>',
+      nameHtml,
+      '<div class="mt-2 flex items-center gap-2 text-[11px]" data-cart-review-row><span class="font-bold text-[#d69e2e]" data-cart-rating>★ ' + escapeHtml(data.rating) + '</span><span class="text-[#a0aec0]" data-cart-review-count>리뷰 ' + escapeHtml(data.reviewCount) + '</span></div>',
       '</div>',
       '</div>',
       '<div class="mt-2.5 flex items-center justify-end gap-2.5 border-t border-[#edf2f7] pt-2.5">',
@@ -1308,6 +1368,13 @@
     var thumbnail = data.thumbnailUrl
       ? '<img src="' + escapeHtml(data.thumbnailUrl) + '" alt="' + escapeHtml(data.name) + '" class="h-full w-full object-cover" />'
       : '<span class="text-[20px] font-bold text-[#90a4b8]">?</span>';
+    var productUrl = escapeHtml(data.productUrl || '');
+    var thumbnailHtml = productUrl
+      ? '<a href="' + productUrl + '" target="_blank" rel="noopener noreferrer" class="flex h-[64px] w-[64px] shrink-0 items-center justify-center overflow-hidden rounded-[18px] bg-[#f8fbff] shadow-[0_4px_12px_rgba(49,130,206,0.08)] transition-transform hover:scale-[1.02]">' + thumbnail + '</a>'
+      : '<div class="flex h-[64px] w-[64px] shrink-0 items-center justify-center overflow-hidden rounded-[18px] bg-[#f8fbff] shadow-[0_4px_12px_rgba(49,130,206,0.08)]">' + thumbnail + '</div>';
+    var nameHtml = productUrl
+      ? '<a href="' + productUrl + '" target="_blank" rel="noopener noreferrer" class="product-card-name mt-1 block transition-colors hover:text-[#3182ce]">' + escapeHtml(data.name) + '</a>'
+      : '<p class="product-card-name mt-1">' + escapeHtml(data.name) + '</p>';
 
     return [
       '<article class="relative rounded-[20px] border border-[#dbe7f5] bg-white px-4 py-4 shadow-[0_6px_18px_rgba(45,55,72,0.04)]" data-wishlist-item',
@@ -1319,14 +1386,13 @@
       ' data-rating="' + escapeHtml(data.rating) + '"',
       ' data-review-count="' + escapeHtml(data.reviewCount) + '"',
       ' data-thumbnail-url="' + escapeHtml(data.thumbnailUrl) + '"',
+      ' data-product-url="' + productUrl + '"',
       ' data-note="' + escapeHtml(data.note) + '">',
       '<div class="flex items-center gap-3">',
-      '<div class="flex h-[64px] w-[64px] shrink-0 items-center justify-center overflow-hidden rounded-[18px] bg-[#f8fbff] shadow-[0_4px_12px_rgba(49,130,206,0.08)]">',
-      thumbnail,
-      '</div>',
+      thumbnailHtml,
       '<div class="min-w-0 flex-1">',
       '<p class="product-card-brand">' + escapeHtml(data.brand) + '</p>',
-      '<p class="product-card-name mt-1">' + escapeHtml(data.name) + '</p>',
+      nameHtml,
       '<p class="product-card-price">' + escapeHtml(data.priceLabel) + '</p>',
       '<div class="product-card-review-row">',
       '<div class="product-card-review-meta"><span class="font-bold text-[#d69e2e]">★ ' + escapeHtml(data.rating) + '</span><span class="product-card-review-count">리뷰 ' + escapeHtml(data.reviewCount) + '</span></div>',
@@ -1353,6 +1419,7 @@
       rating: item.getAttribute('data-rating') || '-',
       reviewCount: item.getAttribute('data-review-count') || '0',
       thumbnailUrl: item.getAttribute('data-thumbnail-url') || '',
+      productUrl: item.getAttribute('data-product-url') || '',
       note: item.getAttribute('data-note') || '가격 비교를 위해 보관한 상품',
     };
   }
@@ -1414,6 +1481,7 @@
         rating: item.rating || '-',
         reviewCount: normalizeReviewCount(item.review_count || item.reviewCount || '0'),
         thumbnailUrl: item.thumbnail_url || item.thumbnailUrl || '',
+        productUrl: item.product_url || item.productUrl || '',
         note: item.note || '가격 비교를 위해 보관한 상품',
       }));
     });
@@ -1446,6 +1514,7 @@
           rating: item.rating || '-',
           reviewCount: normalizeReviewCount(item.review_count || '0'),
           thumbnailUrl: item.thumbnail_url || '',
+          productUrl: item.product_url || '',
           note: item.note || '가격 비교를 위해 보관한 상품',
           quantity: Number(item.quantity || 1),
           isWishlisted: !!wishlistIds[item.product_id],
@@ -1673,6 +1742,7 @@
         rating: item.rating || '-',
         reviewCount: normalizeReviewCount(item.review_count || item.reviewCount || '0'),
         thumbnailUrl: item.thumbnail_url || item.thumbnailUrl || '',
+        productUrl: item.product_url || item.productUrl || '',
         note: item.note || '가격 비교를 위해 보관한 상품',
         quantity: Number(item.quantity || 1),
         isWishlisted: typeof item.is_wishlisted === 'boolean' ? item.is_wishlisted : !!item.isWishlisted,

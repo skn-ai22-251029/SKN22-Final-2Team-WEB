@@ -83,6 +83,7 @@ def _serialize_cart_product(item):
         "summary": "장바구니에 담긴 상품",
         "price": _format_price(price),
         "thumbnail_url": product.thumbnail_url,
+        "product_url": product.product_url,
         "brand_name": product.brand_name,
         "rating": str(product.rating or "0.0"),
         "reviews": f"리뷰 {product.review_count}",
@@ -352,78 +353,7 @@ def chat_view(request):
     chat_enabled = is_authenticated
     member_pets = []
     registered_pet_count = 0
-    recommended_products = [
-        {
-            "name": "닥터독 하이포알러지 연어 사료",
-            "summary": "민감한 아이를 위한 저알러지 레시피",
-            "price": "39,800원",
-            "emoji": "🐟",
-            "rating": "4.8",
-            "reviews": "리뷰 312",
-            "badge": "추천",
-            "accent": "bg-[#dbeafe] text-[#2563eb]",
-        },
-        {
-            "name": "벨버드 덴탈 케어 껌",
-            "summary": "치석 관리와 구취 케어에 적합",
-            "price": "12,900원",
-            "emoji": "🦴",
-            "rating": "4.7",
-            "reviews": "리뷰 188",
-            "badge": "인기",
-            "accent": "bg-[#dcfce7] text-[#16a34a]",
-        },
-        {
-            "name": "뉴트리플랜 피부/모질 영양제",
-            "summary": "오메가 밸런스 중심 영양 보충",
-            "price": "27,500원",
-            "emoji": "💊",
-            "rating": "4.6",
-            "reviews": "리뷰 96",
-            "badge": "영양",
-            "accent": "bg-[#fef3c7] text-[#d97706]",
-        },
-        {
-            "name": "웰츠 스킨 케어 오리 사료",
-            "summary": "피부 민감도를 고려한 저자극 레시피",
-            "price": "31,200원",
-            "emoji": "🦆",
-            "rating": "4.5",
-            "reviews": "리뷰 142",
-            "badge": "추천",
-            "accent": "bg-[#dbeafe] text-[#2563eb]",
-        },
-        {
-            "name": "더리얼 소고기 트릿",
-            "summary": "기호성이 좋은 훈련용 간식",
-            "price": "9,800원",
-            "emoji": "🥩",
-            "rating": "4.7",
-            "reviews": "리뷰 251",
-            "badge": "인기",
-            "accent": "bg-[#dcfce7] text-[#16a34a]",
-        },
-        {
-            "name": "리얼펫 프로바이오틱스",
-            "summary": "소화 밸런스를 위한 유산균 보충",
-            "price": "22,900원",
-            "emoji": "🧴",
-            "rating": "4.6",
-            "reviews": "리뷰 87",
-            "badge": "영양",
-            "accent": "bg-[#fef3c7] text-[#d97706]",
-        },
-        {
-            "name": "베러펫 눈물 케어 영양제",
-            "summary": "눈물 자국 관리 보조 영양제",
-            "price": "18,500원",
-            "emoji": "👀",
-            "rating": "4.4",
-            "reviews": "리뷰 64",
-            "badge": "추천",
-            "accent": "bg-[#dbeafe] text-[#2563eb]",
-        },
-    ]
+    recommended_products = []
     cart_products = [
         {
             "name": "하림 더리얼 퍼피 사료",
@@ -500,15 +430,18 @@ def chat_view(request):
     ]
     if is_authenticated:
         sessions = list(
-            request.user.chat_sessions.order_by("-updated_at", "-created_at").values("session_id", "title", "created_at", "updated_at")[:50]
+            request.user.chat_sessions.order_by("-updated_at", "-created_at").values(
+                "session_id",
+                "title",
+                "created_at",
+                "updated_at",
+                "target_pet_id",
+                "profile_context_type",
+            )[:50]
         )
         registered_pet_count = request.user.pets.count()
         pets = request.user.pets.prefetch_related("health_concerns", "allergies", "food_preferences").order_by("created_at")[:5]
         member_pets = [_serialize_pet(pet) for pet in pets]
-        recommended_source = list(_single_product_queryset()[:6])
-        if recommended_source:
-            recommended_products = [_serialize_recommended_product(product) for product in recommended_source]
-
         cart = Cart.objects.filter(user=request.user).prefetch_related("items__product").first()
         if cart:
             cart_products = [_serialize_cart_product(item) for item in cart.items.all().order_by("-added_at")]

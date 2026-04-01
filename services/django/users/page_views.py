@@ -11,7 +11,11 @@ from social_core.exceptions import AuthCanceled, AuthConnectionError, AuthExcept
 
 from .models import UserProfile
 from .nickname_utils import build_unique_nickname, get_nickname_validation_error
-from .onboarding import ONBOARDING_FORCE_PROFILE_SESSION_KEY, get_onboarding_redirect_url
+from .onboarding import (
+    ONBOARDING_FORCE_PROFILE_SESSION_KEY,
+    get_onboarding_redirect_url,
+    has_completed_pet_onboarding,
+)
 from .quick_purchase import build_payment_info, split_legacy_address
 from .social_auth import (
     SOCIAL_AUTH_ACCESS_SESSION_KEY,
@@ -188,6 +192,8 @@ def profile_view(request):
         messages.success(request, "프로필 정보가 저장되었습니다.")
         if setup_mode:
             request.session.pop(ONBOARDING_FORCE_PROFILE_SESSION_KEY, None)
+            if has_completed_pet_onboarding(request):
+                return redirect("chat")
             return redirect("pet_add")
         return redirect("chat")
 

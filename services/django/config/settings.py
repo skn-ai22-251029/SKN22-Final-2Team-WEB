@@ -116,6 +116,11 @@ SIMPLE_JWT = {
 SECURE_SSL_REDIRECT = config("DJANGO_SECURE_SSL_REDIRECT", default=False, cast=bool)
 SESSION_COOKIE_SECURE = config("DJANGO_SESSION_COOKIE_SECURE", default=False, cast=bool)
 CSRF_COOKIE_SECURE = config("DJANGO_CSRF_COOKIE_SECURE", default=False, cast=bool)
+USE_X_FORWARDED_HOST = True
+SECURE_PROXY_SSL_HEADER = ("HTTP_X_FORWARDED_PROTO", "https")
+CSRF_TRUSTED_ORIGINS = [
+    origin for origin in config("DJANGO_CSRF_TRUSTED_ORIGINS", default="").split(",") if origin
+]
 
 CORS_ALLOWED_ORIGINS = [origin for origin in config("CORS_ALLOWED_ORIGINS", default="").split(",") if origin]
 

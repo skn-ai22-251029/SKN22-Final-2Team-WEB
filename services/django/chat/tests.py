@@ -1,13 +1,17 @@
 import json
+import uuid
 from unittest.mock import patch
 
 import httpx
 from django.conf import settings
-from django.test import TestCase
+from django.test import RequestFactory, TestCase
 from django.urls import reverse
+from django.utils import timezone
 
-from chat.models import ChatMessage, ChatSession
+from chat.api_views import sessions_proxy_view
+from chat.models import ChatMessage, ChatMessageRecommendation, ChatSession
 from pets.models import FuturePetProfile, Pet, PetAllergy, PetFoodPreference, PetHealthConcern
+from products.models import Product
 from users.models import User, UserProfile
 from users.onboarding import ONBOARDING_FORCE_PROFILE_SESSION_KEY
 
@@ -179,6 +183,7 @@ class _FakeHttpxClient:
         return _FakeStreamResponse(
             [
                 b'data: {"type":"token","content":"hello"}\n\n',
+                'data: {"type":"products","cards":[{"goods_id":"TEST-PRODUCT-1","product_name":"추천 상품","brand_name":"브랜드","price":10000,"discount_price":9000,"rating":4.5,"reviews":12,"thumbnail_url":"https://example.com/thumb.jpg","product_url":"https://example.com/product"}]}\n\n',
                 b'data: {"type":"done"}\n\n',
             ]
         )
@@ -204,6 +209,24 @@ class ChatProxyTests(TestCase):
             species="cat",
             gender="female",
             budget_range="5_10",
+        )
+        self.product = Product.objects.create(
+            goods_id="TEST-PRODUCT-1",
+            goods_name="추천 상품",
+            brand_name="브랜드",
+            price=10000,
+            discount_price=9000,
+            rating=4.5,
+            review_count=12,
+            thumbnail_url="https://example.com/thumb.jpg",
+            product_url="https://example.com/product",
+            soldout_yn=False,
+            soldout_reliable=True,
+            pet_type=["고양이"],
+            category=["사료"],
+            subcategory=["전연령"],
+            health_concern_tags=[],
+            crawled_at=timezone.now(),
         )
         self.other_user = User.objects.create_user(
             email="other-chat-owner@example.com",
@@ -253,6 +276,7 @@ class ChatProxyTests(TestCase):
         existing_session = ChatSession.objects.create(
             user=self.user,
             target_pet=self.pet,
+            profile_context_type=ChatSession.PROFILE_CONTEXT_PET,
             title="기존 세션",
         )
         stored_message = ChatMessage.objects.create(
@@ -264,28 +288,46 @@ class ChatProxyTests(TestCase):
         list_response = self.client.get("/api/chat/sessions/")
         self.assertEqual(list_response.status_code, 200)
         self.assertEqual(list_response.json()["sessions"][0]["session_id"], str(existing_session.session_id))
+        self.assertEqual(list_response.json()["sessions"][0]["profile_context_type"], ChatSession.PROFILE_CONTEXT_PET)
         self.assertEqual(list_response.json()["groups"][0]["key"], "today")
 
         create_response = self.client.post(
             "/api/chat/sessions/",
-            data=json.dumps({"title": "신규 세션", "target_pet_id": str(self.pet.pet_id)}),
+            data=json.dumps(
+                {
+                    "title": "신규 세션",
+                    "target_pet_id": str(self.pet.pet_id),
+                    "profile_context_type": ChatSession.PROFILE_CONTEXT_PET,
+                }
+            ),
             content_type="application/json",
         )
         self.assertEqual(create_response.status_code, 201)
         self.assertEqual(create_response.json()["title"], "신규 세션")
+        self.assertEqual(create_response.json()["profile_context_type"], ChatSession.PROFILE_CONTEXT_PET)
         created_session = ChatSession.objects.get(session_id=create_response.json()["session_id"])
         self.assertEqual(created_session.user_id, self.user.id)
         self.assertEqual(created_session.target_pet_id, self.pet.pet_id)
+        self.assertEqual(created_session.profile_context_type, ChatSession.PROFILE_CONTEXT_PET)
 
         patch_response = self.client.patch(
             f"/api/chat/sessions/{existing_session.session_id}/",
-            data='{"title":"수정 제목"}',
+            data=json.dumps(
+                {
+                    "title": "수정 제목",
+                    "profile_context_type": ChatSession.PROFILE_CONTEXT_FUTURE,
+                    "target_pet_id": None,
+                }
+            ),
             content_type="application/json",
         )
         self.assertEqual(patch_response.status_code, 200)
         self.assertEqual(patch_response.json()["title"], "수정 제목")
+        self.assertEqual(patch_response.json()["profile_context_type"], ChatSession.PROFILE_CONTEXT_FUTURE)
         existing_session.refresh_from_db()
         self.assertEqual(existing_session.title, "수정 제목")
+        self.assertEqual(existing_session.profile_context_type, ChatSession.PROFILE_CONTEXT_FUTURE)
+        self.assertIsNone(existing_session.target_pet_id)
 
         messages_response = self.client.get(f"/api/chat/sessions/{existing_session.session_id}/messages/")
         self.assertEqual(messages_response.status_code, 200)
@@ -328,6 +370,15 @@ class ChatProxyTests(TestCase):
 
         messages = list(session.messages.order_by("created_at").values_list("role", "content"))
         self.assertEqual(messages, [("user", "hello"), ("assistant", "hello")])
+        assistant_message = session.messages.get(role="assistant")
+        recommendation = ChatMessageRecommendation.objects.get(message=assistant_message)
+        self.assertEqual(recommendation.product_id, self.product.goods_id)
+        self.assertEqual(recommendation.rank_order, 0)
+
+        list_response = self.client.get(f"/api/chat/sessions/{session.session_id}/messages/")
+        self.assertEqual(list_response.status_code, 200)
+        assistant_payload = list_response.json()["messages"][1]
+        self.assertEqual(assistant_payload["recommended_products"][0]["goods_id"], self.product.goods_id)
 
     @patch("chat.api_views.httpx.Client", _ExplodingHttpxClient)
     def test_session_messages_proxy_persists_error_message_when_fastapi_is_unreachable(self):
@@ -361,14 +412,44 @@ class ChatProxyTests(TestCase):
         self.assertEqual(response.status_code, 404)
         self.assertEqual(response.json()["detail"], "대화를 찾을 수 없습니다.")
 
-    def test_sessions_proxy_rejects_unknown_target_pet(self):
+    @patch("chat.api_views._get_owned_target_pet", return_value=None)
+    def test_sessions_proxy_rejects_unknown_target_pet(self, mocked_get_owned_target_pet):
+        missing_pet_id = str(uuid.uuid4())
+        request = RequestFactory().post(
+            "/api/chat/sessions/",
+            data=json.dumps(
+                {
+                    "title": "신규 세션",
+                    "target_pet_id": missing_pet_id,
+                    "profile_context_type": ChatSession.PROFILE_CONTEXT_PET,
+                }
+            ),
+            content_type="application/json",
+        )
+        request.user = self.user
+        response = sessions_proxy_view(request)
+        payload = json.loads(response.content.decode("utf-8"))
+
+        self.assertEqual(response.status_code, 404)
+        self.assertEqual(payload["detail"], "선택한 반려동물을 찾을 수 없습니다.")
+        mocked_get_owned_target_pet.assert_called_once()
+
+    def test_sessions_proxy_persists_none_profile_context_without_target_pet(self):
         self.client.force_login(self.user)
 
         response = self.client.post(
             "/api/chat/sessions/",
-            data='{"title":"신규 세션","target_pet_id":"44444444-4444-4444-4444-444444444444"}',
+            data=json.dumps(
+                {
+                    "title": "선택 안 함 세션",
+                    "profile_context_type": ChatSession.PROFILE_CONTEXT_NONE,
+                    "target_pet_id": str(self.pet.pet_id),
+                }
+            ),
             content_type="application/json",
         )
 
-        self.assertEqual(response.status_code, 404)
-        self.assertEqual(response.json()["detail"], "선택한 반려동물을 찾을 수 없습니다.")
+        self.assertEqual(response.status_code, 201)
+        created_session = ChatSession.objects.get(session_id=response.json()["session_id"])
+        self.assertEqual(created_session.profile_context_type, ChatSession.PROFILE_CONTEXT_NONE)
+        self.assertIsNone(created_session.target_pet_id)

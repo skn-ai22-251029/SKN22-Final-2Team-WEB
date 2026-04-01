@@ -9,8 +9,20 @@ from django.utils import timezone
 from django.views.decorators.http import require_http_methods
 
 from pets.models import Pet
+from products.models import Product
 
-from .models import ChatMessage, ChatSession
+from .models import ChatMessage, ChatMessageRecommendation, ChatSession
+
+
+def _normalize_profile_context_type(raw_value):
+    value = (raw_value or "").strip().lower()
+    if value in {
+        ChatSession.PROFILE_CONTEXT_PET,
+        ChatSession.PROFILE_CONTEXT_FUTURE,
+        ChatSession.PROFILE_CONTEXT_NONE,
+    }:
+        return value
+    return ChatSession.PROFILE_CONTEXT_NONE
 
 
 def _chat_base_url():
@@ -57,6 +69,7 @@ def _serialize_session(session):
         "session_id": str(session.session_id),
         "title": session.title,
         "target_pet_id": str(session.target_pet_id) if session.target_pet_id else None,
+        "profile_context_type": _normalize_profile_context_type(session.profile_context_type),
         "display_date": updated_at.strftime("%y/%m/%d"),
         "created_at": timezone.localtime(session.created_at).isoformat(),
         "updated_at": updated_at.isoformat(),
@@ -64,11 +77,29 @@ def _serialize_session(session):
 
 
 def _serialize_message(message):
+    recommended_products = []
+    if hasattr(message, "recommended_products"):
+        recommended_products = [
+            {
+                "goods_id": recommendation.product.goods_id,
+                "product_name": recommendation.product.goods_name,
+                "brand_name": recommendation.product.brand_name,
+                "price": recommendation.product.price,
+                "discount_price": recommendation.product.discount_price,
+                "rating": float(recommendation.product.rating) if recommendation.product.rating is not None else None,
+                "reviews": recommendation.product.review_count,
+                "thumbnail_url": recommendation.product.thumbnail_url,
+                "product_url": recommendation.product.product_url,
+                "rank_order": recommendation.rank_order,
+            }
+            for recommendation in message.recommended_products.all()
+        ]
     return {
         "message_id": str(message.message_id),
         "role": message.role,
         "content": message.content,
         "created_at": timezone.localtime(message.created_at).isoformat(),
+        "recommended_products": recommended_products,
     }
 
 
@@ -137,10 +168,38 @@ def _capture_sse_event(event_lines, capture):
     event_type = payload.get("type")
     if event_type == "token":
         capture["assistant_text"] += payload.get("content", "")
+    elif event_type == "products":
+        capture["product_cards"] = payload.get("cards") or []
     elif event_type == "error":
         capture["error_message"] = payload.get("message") or "죄송합니다, 오류가 발생했습니다."
     elif event_type == "done":
         capture["completed"] = True
+
+
+def _persist_recommended_products(message, product_cards):
+    if not product_cards:
+        return
+
+    goods_ids = [card.get("goods_id") for card in product_cards if card.get("goods_id")]
+    if not goods_ids:
+        return
+
+    product_map = Product.objects.in_bulk(goods_ids, field_name="goods_id")
+    recommendations = []
+    for index, card in enumerate(product_cards):
+        product = product_map.get(card.get("goods_id"))
+        if product is None:
+            continue
+        recommendations.append(
+            ChatMessageRecommendation(
+                message=message,
+                product=product,
+                rank_order=index,
+            )
+        )
+
+    if recommendations:
+        ChatMessageRecommendation.objects.bulk_create(recommendations, ignore_conflicts=True)
 
 
 def _stream_fastapi_response(url, payload, user_id, capture=None):
@@ -216,6 +275,7 @@ def _persist_streamed_response(session, url, payload, user_id):
         "assistant_text": "",
         "error_message": None,
         "completed": False,
+        "product_cards": [],
     }
 
     try:
@@ -229,7 +289,8 @@ def _persist_streamed_response(session, url, payload, user_id):
             content = capture["assistant_text"].strip()
 
         if content:
-            ChatMessage.objects.create(session=session, role="assistant", content=content)
+            assistant_message = ChatMessage.objects.create(session=session, role="assistant", content=content)
+            _persist_recommended_products(assistant_message, capture["product_cards"])
             _touch_session(session)
 
 
@@ -290,8 +351,9 @@ def sessions_proxy_view(request):
 
     title = (payload.get("title") or "").strip() or "새 대화"
     target_pet_id = payload.get("target_pet_id")
+    profile_context_type = _normalize_profile_context_type(payload.get("profile_context_type"))
     target_pet = None
-    if target_pet_id:
+    if profile_context_type == ChatSession.PROFILE_CONTEXT_PET and target_pet_id:
         target_pet = _get_owned_target_pet(request.user, target_pet_id)
         if target_pet is None:
             return JsonResponse({"detail": "선택한 반려동물을 찾을 수 없습니다."}, status=404)
@@ -299,6 +361,7 @@ def sessions_proxy_view(request):
     session = ChatSession.objects.create(
         user=request.user,
         target_pet=target_pet,
+        profile_context_type=profile_context_type,
         title=title,
     )
     return JsonResponse(_serialize_session(session), status=201)
@@ -324,9 +387,33 @@ def session_detail_proxy_view(request, session_id):
         return JsonResponse({"detail": str(exc)}, status=400)
 
     next_title = (payload.get("title") or "").strip() or session.title or "새 대화"
+    next_profile_context_type = _normalize_profile_context_type(payload.get("profile_context_type") or session.profile_context_type)
+    next_target_pet = session.target_pet
+
+    if next_profile_context_type == ChatSession.PROFILE_CONTEXT_PET:
+        requested_target_pet_id = payload.get("target_pet_id") or session.target_pet_id
+        if requested_target_pet_id:
+            next_target_pet = _get_owned_target_pet(request.user, requested_target_pet_id)
+            if next_target_pet is None:
+                return JsonResponse({"detail": "선택한 반려동물을 찾을 수 없습니다."}, status=404)
+        else:
+            next_target_pet = None
+    else:
+        next_target_pet = None
+
+    updated_fields = []
     if session.title != next_title:
         session.title = next_title
-        session.save(update_fields=["title", "updated_at"])
+        updated_fields.append("title")
+    if session.profile_context_type != next_profile_context_type:
+        session.profile_context_type = next_profile_context_type
+        updated_fields.append("profile_context_type")
+    if session.target_pet_id != (next_target_pet.pet_id if next_target_pet else None):
+        session.target_pet = next_target_pet
+        updated_fields.append("target_pet")
+
+    if updated_fields:
+        session.save(update_fields=updated_fields + ["updated_at"])
     else:
         _touch_session(session)
     return JsonResponse(_serialize_session(session))
@@ -345,7 +432,7 @@ def session_messages_proxy_view(request, session_id):
     if request.method == "GET":
         messages = [
             _serialize_message(message)
-            for message in session.messages.order_by("created_at")
+            for message in session.messages.prefetch_related("recommended_products__product").order_by("created_at")
         ]
         return JsonResponse(
             {
