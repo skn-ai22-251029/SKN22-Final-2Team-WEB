@@ -83,7 +83,7 @@
           <div class="space-y-[12px]">
             <label class="block text-[14px] font-bold leading-none text-[#4a5568]">몸무게 <span class="text-[#e53e3e]">(필수)</span></label>
             <div class="relative">
-              <input id="weightInput" name="weight_kg" value="{{ pet.weight_kg|default:'' }}" maxlength="3" inputmode="numeric" pattern="[0-9]*" placeholder="몸무게를 입력해주세요" class="h-[42px] w-full rounded-[10px] border border-[#e2e8f0] bg-white px-[14px] pr-10 text-[14px] leading-none text-[#2d3748] outline-none transition-colors placeholder:text-[#a0aec0] focus:border-[#90cdf4]" />
+              <input id="weightInput" name="weight_kg" value="{{ pet.weight_kg|default:'' }}" maxlength="5" inputmode="decimal" pattern="[0-9]+([.][0-9])?" placeholder="몸무게를 입력해주세요" class="h-[42px] w-full rounded-[10px] border border-[#e2e8f0] bg-white px-[14px] pr-10 text-[14px] leading-none text-[#2d3748] outline-none transition-colors placeholder:text-[#a0aec0] focus:border-[#90cdf4]" />
               <span class="absolute right-[12px] top-1/2 -translate-y-1/2 text-[14px] leading-none text-[#4a5568]">kg</span>
             </div>
             <p id="weightStatus" class="{% if weight_error_message %}text-right text-[12px] text-[#e53e3e]{% else %}hidden text-right text-[12px]{% endif %}">{{ weight_error_message|default:'' }}</p>
@@ -160,24 +160,44 @@
       button.style.fontWeight = active ? '700' : '400';
     }
 
+    function normalizeWeight(value) {
+      var cleaned = String(value || '').replace(/[^\d.]/g, '');
+      var hasDot = cleaned.indexOf('.') >= 0;
+      var parts = cleaned.split('.');
+      var integerPart = (parts.shift() || '').replace(/^0+(?=\d)/, '');
+      var decimalPart = parts.length ? parts.join('').replace(/\./g, '').slice(0, 1) : '';
+
+      if (!integerPart && decimalPart) {
+        integerPart = '0';
+      }
+
+      integerPart = integerPart.slice(0, 3);
+
+      if (!integerPart && !decimalPart) {
+        return '';
+      }
+
+      if (hasDot) {
+        return integerPart + '.' + decimalPart;
+      }
+
+      return integerPart;
+    }
+
     function keepWeight(input) {
       var rawValue = input.value;
-      var digits = rawValue.replace(/\D/g, '').slice(0, 3);
-      digits = digits.replace(/^0+(?=\d)/, '');
-      if (/^0+$/.test(digits)) {
-        digits = '';
-      }
+      var normalized = normalizeWeight(rawValue);
       if (!rawValue.trim()) {
         input.dataset.lastValidWeight = '';
         input.value = '';
         return;
       }
-      if (!digits) {
+      if (!normalized) {
         input.value = input.dataset.lastValidWeight || '';
         return;
       }
-      input.dataset.lastValidWeight = digits;
-      input.value = digits;
+      input.dataset.lastValidWeight = normalized;
+      input.value = normalized;
     }
 
     function normalizeNameSpacing(value) {
@@ -377,6 +397,12 @@
       ) {
         return;
       }
+      if (event.key === '.') {
+        if (!weightInput.value.trim() || weightInput.value.indexOf('.') >= 0) {
+          event.preventDefault();
+        }
+        return;
+      }
       if (/^\d$/.test(event.key)) {
         return;
       }
@@ -385,13 +411,13 @@
     weightInput.addEventListener('beforeinput', function (event) {
       if (!event.data) return;
       if (event.inputType && event.inputType.indexOf('insert') !== 0) return;
-      if (/\D/.test(event.data)) {
+      if (!/^[\d.]+$/.test(event.data)) {
         event.preventDefault();
       }
     });
     weightInput.addEventListener('paste', function (event) {
       var pasted = (event.clipboardData || window.clipboardData).getData('text');
-      if (/\D/.test(pasted || '')) {
+      if (!normalizeWeight(pasted || '')) {
         event.preventDefault();
       }
     });
