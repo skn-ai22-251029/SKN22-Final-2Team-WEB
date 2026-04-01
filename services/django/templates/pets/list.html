@@ -82,9 +82,9 @@
             {% if pet.species == "future" %}
             {{ pet.summary }}
             {% else %}
-            {{ pet.age_years }}년 {{ pet.age_months }}개월
-            · {{ pet.get_gender_display }}
-            {% if pet.breed %} · {{ pet.breed }}{% endif %}
+            {% if pet.breed %}{{ pet.breed }} · {% endif %}
+            {% if pet.age_unknown %}모름{% else %}{{ pet.age_years }}년 {{ pet.age_months }}개월{% endif %}
+            {% if pet.weight_kg %} · {{ pet.weight_kg|floatformat:-1 }}kg{% endif %}
             {% endif %}
           </div>
         </div>

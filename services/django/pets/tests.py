@@ -326,7 +326,7 @@ class PetPageTests(TestCase):
         UserProfile.objects.create(user=self.user, nickname="Pet Page")
         self.client.force_login(self.user)
 
-    def test_pet_list_renders_food_preference_labels(self):
+    def test_pet_list_hides_food_preference_labels(self):
         pet = Pet.objects.create(
             user=self.user,
             name="콩이",
@@ -340,9 +340,9 @@ class PetPageTests(TestCase):
         response = self.client.get(reverse("pet_list"))
 
         self.assertEqual(response.status_code, 200)
-        self.assertContains(response, "선호 사료")
-        self.assertContains(response, "건식")
-        self.assertContains(response, "동결건조/에어드라이")
+        self.assertNotContains(response, "선호 사료")
+        self.assertNotContains(response, "건식")
+        self.assertNotContains(response, "동결건조/에어드라이")
 
     def test_pet_add_future_persists_profile_in_db_for_logged_in_user(self):
         response = self.client.post(
