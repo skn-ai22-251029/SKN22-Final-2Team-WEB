@@ -1,6 +1,6 @@
 from unittest.mock import patch
 
-from django.test import TestCase, override_settings
+from django.test import RequestFactory, TestCase, override_settings
 from django.urls import reverse
 from django.utils import timezone
 from rest_framework import status
@@ -16,6 +16,7 @@ from users.social_auth import (
     SOCIAL_AUTH_ACCESS_SESSION_KEY,
     SOCIAL_AUTH_REFRESH_SESSION_KEY,
     SocialLoginResult,
+    build_callback_url,
 )
 from users.social_pipeline import associate_active_user_by_email
 
@@ -47,6 +48,9 @@ TEST_SOCIAL_PROVIDERS = {
 
 @override_settings(SOCIAL_AUTH_PROVIDERS=TEST_SOCIAL_PROVIDERS)
 class SocialLoginPageViewTests(TestCase):
+    def setUp(self):
+        self.factory = RequestFactory()
+
     @patch("users.page_views.build_authorization_url")
     def test_social_login_start_redirects_to_provider(self, build_authorization_url_mock):
         build_authorization_url_mock.return_value = "https://nid.naver.com/oauth2.0/authorize?state=test"
@@ -80,6 +84,40 @@ class SocialLoginPageViewTests(TestCase):
         self.assertIn(SOCIAL_AUTH_ACCESS_SESSION_KEY, session)
         self.assertIn(SOCIAL_AUTH_REFRESH_SESSION_KEY, session)
         self.assertTrue(session[ONBOARDING_FORCE_PROFILE_SESSION_KEY])
+
+    @override_settings(
+        APP_BASE_URL="https://tailtalk.store",
+        ALLOWED_HOSTS=[
+            "tailtalk.store",
+            "www.tailtalk.store",
+            "test-tailtalk-django-env.eba-idn3t8gh.ap-northeast-2.elasticbeanstalk.com",
+        ],
+    )
+    def test_build_callback_url_preserves_www_host_for_public_domain(self):
+        request = self.factory.get("/auth/google/start/")
+        request.META["HTTP_HOST"] = "www.tailtalk.store"
+        request.META["HTTP_X_FORWARDED_PROTO"] = "https"
+
+        callback_url = build_callback_url(request, "social-login-callback", "google")
+
+        self.assertEqual(callback_url, "https://www.tailtalk.store/auth/google/callback/")
+
+    @override_settings(
+        APP_BASE_URL="https://tailtalk.store",
+        ALLOWED_HOSTS=[
+            "tailtalk.store",
+            "www.tailtalk.store",
+            "test-tailtalk-django-env.eba-idn3t8gh.ap-northeast-2.elasticbeanstalk.com",
+        ],
+    )
+    def test_build_callback_url_falls_back_to_app_base_for_non_public_host(self):
+        request = self.factory.get("/auth/google/start/")
+        request.META["HTTP_HOST"] = "test-tailtalk-django-env.eba-idn3t8gh.ap-northeast-2.elasticbeanstalk.com"
+        request.META["HTTP_X_FORWARDED_PROTO"] = "https"
+
+        callback_url = build_callback_url(request, "social-login-callback", "google")
+
+        self.assertEqual(callback_url, "https://tailtalk.store/auth/google/callback/")
 
     def test_associate_active_user_by_email_ignores_inactive_user(self):
         withdrawn_user = User.objects.create_user(email="social@example.com")

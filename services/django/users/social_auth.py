@@ -1,4 +1,5 @@
 from dataclasses import dataclass
+from urllib.parse import urlparse
 
 from django.conf import settings
 from django.http import HttpResponseBase
@@ -45,9 +46,25 @@ def get_provider_name(backend_name: str) -> str:
 
 def build_callback_url(request, route_name: str, provider: str) -> str:
     path = reverse(route_name, kwargs={"provider": provider})
-    if settings.APP_BASE_URL:
-        return f"{settings.APP_BASE_URL.rstrip('/')}{path}"
-    return request.build_absolute_uri(path)
+    request_absolute_uri = request.build_absolute_uri(path)
+    if not settings.APP_BASE_URL:
+        return request_absolute_uri
+
+    current_host = request.get_host().split(":", 1)[0]
+    app_base_host = urlparse(settings.APP_BASE_URL).hostname or ""
+    same_site_hosts = {app_base_host}
+    if app_base_host.startswith("www."):
+        same_site_hosts.add(app_base_host.removeprefix("www."))
+    elif app_base_host:
+        same_site_hosts.add(f"www.{app_base_host}")
+
+    # Keep the callback on the host the user actually used when it is one of
+    # our public domains. This prevents OAuth state from being stored on one
+    # host (for example www) and validated on another (for example apex).
+    if current_host in same_site_hosts:
+        return request_absolute_uri
+
+    return f"{settings.APP_BASE_URL.rstrip('/')}{path}"
 
 
 def build_authorization_url(request, provider: str, redirect_uri: str, next_url: str | None = None) -> str:
