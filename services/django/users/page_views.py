@@ -1,7 +1,9 @@
 import logging
 from collections import Counter
+from datetime import date, timedelta
 from decimal import Decimal, InvalidOperation
 from types import SimpleNamespace
+from urllib.parse import urlencode
 
 from django.contrib import messages
 from django.contrib.auth import get_user_model, login, logout
@@ -40,6 +42,28 @@ DEMO_VENDOR_ACCOUNTS = {
         "brand_name": "오리젠",
         "display_name": "오리젠",
     }
+}
+VENDOR_PRODUCT_SORT_OPTIONS = {
+    "default": {
+        "label": "최신 등록순",
+        "description": "최근 수집된 상품부터 정렬합니다",
+    },
+    "reviews": {
+        "label": "리뷰 많은순",
+        "description": "리뷰 수가 많은 상품 순으로 정렬합니다",
+    },
+    "price_low": {
+        "label": "가격 낮은순",
+        "description": "판매가가 낮은 상품부터 정렬합니다",
+    },
+    "price_high": {
+        "label": "가격 높은순",
+        "description": "판매가가 높은 상품부터 정렬합니다",
+    },
+    "rating_high": {
+        "label": "평점 높은순",
+        "description": "평점이 높은 상품부터 정렬합니다",
+    },
 }
 
 
@@ -114,21 +138,130 @@ def _format_vendor_rating(value):
     return f"{value:.1f}"
 
 
-def _serialize_vendor_product(product):
+def _get_demo_soldout_goods_ids(vendor_products, minimum_count=4):
+    soldout_ids = list(vendor_products.filter(soldout_yn=True).values_list("goods_id", flat=True))
+    if len(soldout_ids) >= minimum_count:
+        return set(soldout_ids)
+
+    remaining_queryset = vendor_products.exclude(goods_id__in=soldout_ids).order_by("goods_name")
+    remaining_ids = list(remaining_queryset.values_list("goods_id", flat=True))
+    if not remaining_ids:
+        return set(soldout_ids)
+
+    fallback_count = max(minimum_count - len(soldout_ids), 0)
+    start_index = max((len(remaining_ids) // 2) - (fallback_count // 2), 0)
+    fallback_ids = remaining_ids[start_index : start_index + fallback_count]
+
+    if len(fallback_ids) < fallback_count:
+        fallback_ids.extend(remaining_ids[: fallback_count - len(fallback_ids)])
+
+    return set(soldout_ids + fallback_ids)
+
+
+def _get_demo_pending_goods_ids(vendor_products, excluded_goods_ids=None, minimum_count=3):
+    excluded_goods_ids = set(excluded_goods_ids or [])
+    candidate_ids = list(
+        vendor_products.exclude(goods_id__in=excluded_goods_ids).order_by("goods_name").values_list("goods_id", flat=True)
+    )
+    if not candidate_ids:
+        return set()
+
+    start_index = max((len(candidate_ids) // 3) - (minimum_count // 2), 0)
+    pending_ids = candidate_ids[start_index : start_index + minimum_count]
+    if len(pending_ids) < minimum_count:
+        pending_ids.extend(candidate_ids[: minimum_count - len(pending_ids)])
+    return set(pending_ids)
+
+
+def _serialize_vendor_product(product, demo_soldout_goods_ids=None, demo_pending_goods_ids=None):
+    is_demo_soldout = bool(demo_soldout_goods_ids and product.goods_id in demo_soldout_goods_ids)
+    is_demo_pending = bool(
+        not is_demo_soldout and demo_pending_goods_ids and product.goods_id in demo_pending_goods_ids
+    )
+    price_value = None
+    if product.discount_price is not None:
+        price_value = Decimal(product.discount_price)
+    elif product.price is not None:
+        price_value = Decimal(product.price)
+    discount_rate_label = None
+    if product.price and product.discount_price and product.price > 0 and product.discount_price < product.price:
+        discount_rate = int(round((1 - (Decimal(product.discount_price) / Decimal(product.price))) * 100))
+        discount_rate_label = f"{discount_rate}%"
     return {
         "goods_id": product.goods_id,
         "goods_name": product.goods_name,
         "brand_name": product.brand_name,
         "thumbnail_url": product.thumbnail_url,
         "product_url": product.product_url,
+        "crawled_at": product.crawled_at,
         "price_label": _format_vendor_price(product.price),
         "discount_price_label": _format_vendor_price(product.discount_price),
+        "discount_price_value": price_value,
+        "discount_rate_label": discount_rate_label,
         "rating_label": _format_vendor_rating(product.rating),
         "review_count": product.review_count,
-        "soldout": product.soldout_yn,
+        "soldout": product.soldout_yn or is_demo_soldout,
+        "pending": is_demo_pending,
+        "status_label": "품절" if (product.soldout_yn or is_demo_soldout) else ("준비중" if is_demo_pending else "판매중"),
         "pet_type_label": ", ".join(product.pet_type) if product.pet_type else "미분류",
         "category_label": " · ".join(product.category) if product.category else "카테고리 미지정",
     }
+
+
+def _apply_demo_registered_dates(products):
+    base_date = date(2026, 3, 31)
+    for index, product in enumerate(products):
+        product["registered_date_label"] = (base_date - timedelta(days=index % 6)).strftime("%Y.%m.%d")
+    return products
+
+
+def _sort_vendor_products(products, sort_key):
+    if sort_key == "reviews":
+        products.sort(
+            key=lambda product: (
+                -product["review_count"],
+                -(float(product["rating_label"]) if product["rating_label"] != "-" else 0.0),
+                product["goods_name"],
+            )
+        )
+        return
+
+    if sort_key == "price_low":
+        products.sort(
+            key=lambda product: (
+                product["discount_price_value"] if product["discount_price_value"] is not None else float("inf"),
+                -product["review_count"],
+                product["goods_name"],
+            )
+        )
+        return
+
+    if sort_key == "price_high":
+        products.sort(
+            key=lambda product: (
+                -(product["discount_price_value"] if product["discount_price_value"] is not None else -1),
+                -product["review_count"],
+                product["goods_name"],
+            )
+        )
+        return
+
+    if sort_key == "rating_high":
+        products.sort(
+            key=lambda product: (
+                -(float(product["rating_label"]) if product["rating_label"] != "-" else 0.0),
+                -product["review_count"],
+                product["goods_name"],
+            )
+        )
+        return
+
+    products.sort(
+        key=lambda product: (
+            -(product["crawled_at"].timestamp() if product["crawled_at"] else 0),
+            product["goods_name"],
+        )
+    )
 
 
 def _build_vendor_navigation(current_view):
@@ -239,9 +372,11 @@ def vendor_dashboard_view(request):
         return redirect("vendor-login")
 
     vendor_products = Product.objects.filter(brand_name=base_context["vendor_account"]["brand_name"])
+    demo_soldout_goods_ids = _get_demo_soldout_goods_ids(vendor_products)
+    demo_pending_goods_ids = _get_demo_pending_goods_ids(vendor_products, demo_soldout_goods_ids)
     total_products = vendor_products.count()
-    soldout_products = vendor_products.filter(soldout_yn=True).count()
-    display_soldout_products = max(soldout_products, 4)
+    display_soldout_products = len(demo_soldout_goods_ids)
+    display_pending_products = len(demo_pending_goods_ids)
     total_reviews = vendor_products.aggregate(total=Sum("review_count"))["total"] or 0
     average_rating = vendor_products.exclude(rating__isnull=True).aggregate(avg=Avg("rating"))["avg"]
 
@@ -256,7 +391,7 @@ def vendor_dashboard_view(request):
             category_counter[categories[0]] += 1
 
     top_products = [
-        _serialize_vendor_product(product)
+        _serialize_vendor_product(product, demo_soldout_goods_ids, demo_pending_goods_ids)
         for product in vendor_products.order_by("-review_count", "-rating", "goods_name")[:5]
     ]
 
@@ -268,7 +403,7 @@ def vendor_dashboard_view(request):
         {"label": label, "count": count}
         for label, count in pet_type_counter.most_common(4)
     ]
-    active_products = max(total_products - display_soldout_products, 0)
+    active_products = max(total_products - display_soldout_products - display_pending_products, 0)
     mock_daily_revenue = 2480000
     mock_daily_orders = 38
     mock_cancel_refund = 3
@@ -293,8 +428,15 @@ def vendor_dashboard_view(request):
             "vendor_metrics": [
                 {"label": "오늘 매출", "value": f"₩{mock_daily_revenue:,}", "description": "전일 대비 +12.4%"},
                 {"label": "주문 / 결제", "value": f"{mock_daily_orders}건", "description": "결제 완료 기준"},
+                {
+                    "label": "상품 상태",
+                    "status_items": [
+                        {"label": "판매중", "value": f"{active_products:,}개", "tone": "green"},
+                        {"label": "준비중", "value": f"{display_pending_products:,}개", "tone": "amber"},
+                        {"label": "품절", "value": f"{display_soldout_products:,}개", "tone": "rose"},
+                    ],
+                },
                 {"label": "취소 / 환불", "value": f"{mock_cancel_refund}건", "description": ""},
-                {"label": "판매중 상품", "value": f"{active_products:,}개", "description": f"품절 {display_soldout_products:,}개"},
             ],
             "vendor_realtime_metrics": [
                 {"label": "평균 평점", "value": _format_vendor_rating(average_rating)},
@@ -377,20 +519,44 @@ def vendor_products_view(request):
 
     keyword = request.GET.get("q", "").strip()
     soldout_filter = request.GET.get("stock", "all")
+    sort_key = request.GET.get("sort", "default")
+    if sort_key not in VENDOR_PRODUCT_SORT_OPTIONS:
+        sort_key = "default"
     vendor_products = Product.objects.filter(brand_name=base_context["vendor_account"]["brand_name"])
+    demo_soldout_goods_ids = _get_demo_soldout_goods_ids(vendor_products)
+    demo_pending_goods_ids = _get_demo_pending_goods_ids(vendor_products, demo_soldout_goods_ids)
 
     if keyword:
         vendor_products = vendor_products.filter(goods_name__icontains=keyword)
+    ordered_products = list(vendor_products.order_by("goods_name")[:60])
+    serialized_products = [
+        _serialize_vendor_product(product, demo_soldout_goods_ids, demo_pending_goods_ids) for product in ordered_products
+    ]
 
     if soldout_filter == "active":
-        vendor_products = vendor_products.filter(soldout_yn=False)
+        serialized_products = [product for product in serialized_products if not product["soldout"] and not product["pending"]]
     elif soldout_filter == "soldout":
-        vendor_products = vendor_products.filter(soldout_yn=True)
+        serialized_products = [product for product in serialized_products if product["soldout"]]
+    elif soldout_filter == "pending":
+        serialized_products = [product for product in serialized_products if product["pending"]]
 
-    serialized_products = [
-        _serialize_vendor_product(product)
-        for product in vendor_products.order_by("soldout_yn", "-review_count", "goods_name")[:60]
-    ]
+    _sort_vendor_products(serialized_products, sort_key)
+    _apply_demo_registered_dates(serialized_products)
+
+    sort_options = []
+    for key, option in VENDOR_PRODUCT_SORT_OPTIONS.items():
+        query = {"sort": key}
+        if keyword:
+            query["q"] = keyword
+        if soldout_filter != "all":
+            query["stock"] = soldout_filter
+        sort_options.append(
+            {
+                "label": option["label"],
+                "query": urlencode(query),
+                "is_active": key == sort_key,
+            }
+        )
 
     return render(
         request,
@@ -398,9 +564,12 @@ def vendor_products_view(request):
         {
             **base_context,
             "vendor_product_items": serialized_products,
-            "vendor_product_count": vendor_products.count(),
+            "vendor_product_count": len(serialized_products),
             "vendor_search_keyword": keyword,
             "vendor_stock_filter": soldout_filter,
+            "vendor_sort_key": sort_key,
+            "vendor_sort_options": sort_options,
+            "vendor_sort_description": VENDOR_PRODUCT_SORT_OPTIONS[sort_key]["description"],
         },
     )
 

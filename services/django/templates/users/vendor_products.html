@@ -1,17 +1,48 @@
 {% extends "users/vendor_base.html" %}
 {% block vendor_title %}관리자 상품 목록{% endblock %}
 
+{% block head %}
+{{ block.super }}
+<style>
+  .vendor-stock-select {
+    appearance: none;
+    -webkit-appearance: none;
+    -moz-appearance: none;
+    background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='12' height='12' viewBox='0 0 12 12' fill='none'%3E%3Cpath d='M3 4.5L6 7.5L9 4.5' stroke='%2364748b' stroke-width='1.4' stroke-linecap='round' stroke-linejoin='round'/%3E%3C/svg%3E");
+    background-position: right 14px center;
+    background-repeat: no-repeat;
+    background-size: 12px 12px;
+  }
+
+  .vendor-sort-select {
+    appearance: none;
+    -webkit-appearance: none;
+    -moz-appearance: none;
+    background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='12' height='12' viewBox='0 0 12 12' fill='none'%3E%3Cpath d='M3 4.5L6 7.5L9 4.5' stroke='%2364748b' stroke-width='1.4' stroke-linecap='round' stroke-linejoin='round'/%3E%3C/svg%3E");
+    background-position: right 14px center;
+    background-repeat: no-repeat;
+    background-size: 12px 12px;
+  }
+
+</style>
+{% endblock %}
+
 {% block vendor_content %}
 <section class="rounded-[30px] border border-white/70 bg-white/86 px-6 py-6 shadow-[0_18px_48px_rgba(148,163,184,0.14)] backdrop-blur md:px-8 md:py-8">
   <div class="flex flex-col gap-4 md:flex-row md:items-end md:justify-between">
     <div>
-      <p class="text-[13px] font-semibold tracking-[0.02em] text-[#64748b]">상품 목록</p>
-      <h1 class="mt-3 text-[30px] font-bold tracking-[-0.03em] text-[#1e293b]">관리자 상품 목록</h1>
-      <p class="mt-2 text-[15px] text-[#64748b]">{{ vendor_account.display_name }} 상품 {{ vendor_product_count }}개를 검색하고 상태별로 확인할 수 있습니다.</p>
+      <h1 class="text-[30px] font-bold tracking-[-0.03em] text-[#1e293b]">상품 목록</h1>
+      <p class="mt-2 text-[15px] text-[#64748b]">
+        {% if vendor_search_keyword %}
+        "{{ vendor_search_keyword }}" 검색 결과 {{ vendor_product_count }}개
+        {% else %}
+        전체 검색 결과 {{ vendor_product_count }}개
+        {% endif %}
+      </p>
     </div>
   </div>
 
-  <form method="get" class="mt-7 grid gap-3 rounded-[22px] border border-[#e5eef8] bg-[#f8fbff] p-4 md:grid-cols-[1fr,180px,120px]">
+  <form method="get" class="mt-7 grid gap-3 rounded-[22px] border border-[#e5eef8] bg-[#f8fbff] p-4 md:grid-cols-[1fr,180px,220px,120px]">
     <input
       type="text"
       name="q"
@@ -21,12 +52,24 @@
     />
     <select
       name="stock"
-      class="h-[46px] rounded-[12px] border border-[#dbe7f5] bg-white px-4 text-[14px] text-[#1e293b] outline-none transition focus:border-[#90cdf4]"
+      class="vendor-stock-select h-[46px] rounded-[12px] border border-[#dbe7f5] bg-white pl-4 pr-10 text-[14px] text-[#1e293b] outline-none transition focus:border-[#90cdf4]"
     >
       <option value="all" {% if vendor_stock_filter == "all" %}selected{% endif %}>전체 상태</option>
       <option value="active" {% if vendor_stock_filter == "active" %}selected{% endif %}>판매중</option>
+      <option value="pending" {% if vendor_stock_filter == "pending" %}selected{% endif %}>준비중</option>
       <option value="soldout" {% if vendor_stock_filter == "soldout" %}selected{% endif %}>품절</option>
     </select>
+    <div class="flex h-[46px] items-center gap-2">
+      <select
+        id="vendorProductSort"
+        name="sort"
+        class="vendor-sort-select h-[46px] w-full rounded-[12px] border border-[#dbe7f5] bg-white pl-4 pr-10 text-[14px] font-semibold text-[#475569] outline-none transition focus:border-[#90cdf4]"
+      >
+        {% for option in vendor_sort_options %}
+        <option value="{{ option.query }}" {% if option.is_active %}selected{% endif %}>{{ option.label }}</option>
+        {% endfor %}
+      </select>
+    </div>
     <button
       type="submit"
       class="flex h-[46px] items-center justify-center rounded-[12px] bg-[#1d4ed8] text-[14px] font-semibold text-white transition hover:bg-[#1e40af]"
@@ -40,25 +83,41 @@
   <div class="grid gap-4">
     {% for product in vendor_product_items %}
     <article class="grid gap-4 rounded-[22px] border border-[#e5eef8] bg-[linear-gradient(180deg,#ffffff_0%,#f8fbff_100%)] px-4 py-4 md:grid-cols-[88px,1fr,180px] md:items-center">
-      <img src="{{ product.thumbnail_url }}" alt="{{ product.goods_name }}" class="h-[88px] w-[88px] rounded-[18px] border border-[#e2e8f0] bg-white object-cover" />
+      <a href="{{ product.product_url }}" target="_blank" rel="noreferrer" class="block h-[88px] w-[88px]">
+        <img src="{{ product.thumbnail_url }}" alt="{{ product.goods_name }}" class="h-[88px] w-[88px] rounded-[18px] border border-[#e2e8f0] bg-white object-cover transition hover:border-[#bfdbfe]" />
+      </a>
       <div class="min-w-0">
         <a href="{{ product.product_url }}" target="_blank" rel="noreferrer" class="block truncate text-[17px] font-semibold text-[#1e293b] hover:text-[#1d4ed8]">
           {{ product.goods_name }}
         </a>
-        <p class="mt-1 text-[13px] text-[#64748b]">상품 ID {{ product.goods_id }}</p>
         <div class="mt-3 flex flex-wrap items-center gap-2 text-[13px] text-[#475569]">
+          {% if product.soldout %}
+          <span class="rounded-full bg-[#fee2e2] px-3 py-1 text-[12px] font-semibold text-[#b91c1c]">품절</span>
+          {% elif product.pending %}
+          <span class="rounded-full bg-[#fef3c7] px-3 py-1 text-[12px] font-semibold text-[#b45309]">준비중</span>
+          {% else %}
+          <span class="rounded-full bg-[#dcfce7] px-3 py-1 text-[12px] font-semibold text-[#15803d]">판매중</span>
+          {% endif %}
           <span class="rounded-full bg-[#eef4fb] px-3 py-1">{{ product.category_label }}</span>
           <span class="rounded-full bg-[#eef4fb] px-3 py-1">{{ product.pet_type_label }}</span>
         </div>
+        <div class="mt-3 flex flex-wrap items-center gap-3 text-[13px] text-[#64748b]">
+          <span class="inline-flex items-center gap-1 font-semibold text-[#475569]">
+            <span class="text-[#f59e0b]">★</span>
+            {{ product.rating_label }}
+          </span>
+          <span>리뷰 {{ product.review_count }}개</span>
+        </div>
+        <div class="mt-3 flex flex-wrap items-center gap-3 text-[12px] text-[#94a3b8]">
+          <span>상품 ID {{ product.goods_id }}</span>
+          <span>등록일 {{ product.registered_date_label }}</span>
+        </div>
       </div>
       <div class="flex flex-col items-start gap-2 md:items-end">
-        {% if product.soldout %}
-        <span class="rounded-full bg-[#fee2e2] px-3 py-1 text-[12px] font-semibold text-[#b91c1c]">품절</span>
-        {% else %}
-        <span class="rounded-full bg-[#dcfce7] px-3 py-1 text-[12px] font-semibold text-[#15803d]">판매중</span>
-        {% endif %}
-        <p class="text-[14px] font-semibold text-[#1e293b]">{{ product.discount_price_label }}</p>
-        <p class="text-[13px] text-[#64748b]">평점 {{ product.rating_label }} · 리뷰 {{ product.review_count }}개</p>
+        <p class="text-[12px] font-medium text-[#94a3b8]">
+          정가 {{ product.price_label }}{% if product.discount_rate_label %} · 할인율 {{ product.discount_rate_label }}{% endif %}
+        </p>
+        <p class="text-[18px] font-bold text-[#1e293b]">실판매가 {{ product.discount_price_label }}</p>
       </div>
     </article>
     {% empty %}
@@ -68,4 +127,14 @@
     {% endfor %}
   </div>
 </section>
+<script>
+  (function () {
+    var sortSelect = document.getElementById("vendorProductSort");
+    if (!sortSelect) return;
+    sortSelect.addEventListener("change", function () {
+      if (!sortSelect.value) return;
+      window.location.href = "?" + sortSelect.value;
+    });
+  })();
+</script>
 {% endblock %}
