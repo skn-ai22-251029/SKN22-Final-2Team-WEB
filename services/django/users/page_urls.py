@@ -8,6 +8,7 @@ urlpatterns = [
     path("vendor/logout/", page_views.vendor_logout_view, name="vendor-logout"),
     path("vendor/dashboard/", page_views.vendor_dashboard_view, name="vendor-dashboard"),
     path("vendor/products/", page_views.vendor_products_view, name="vendor-products"),
+    path("vendor/products/new/", page_views.vendor_product_create_view, name="vendor-product-create"),
     path("vendor/orders/", page_views.vendor_orders_view, name="vendor-orders"),
     path("vendor/reviews/", page_views.vendor_reviews_view, name="vendor-reviews"),
     path("vendor/operations/", page_views.vendor_operations_view, name="vendor-operations"),

@@ -421,6 +421,24 @@ class VendorAdminPageTests(TestCase):
         self.assertContains(response, "오리젠 오리지널 독")
         self.assertNotContains(response, "다른 브랜드 상품")
 
+    def test_vendor_product_create_requires_vendor_session(self):
+        response = self.client.get(reverse("vendor-product-create"))
+
+        self.assertEqual(response.status_code, status.HTTP_302_FOUND)
+        self.assertEqual(response["Location"], reverse("vendor-login"))
+
+    def test_vendor_product_create_renders_form_sections(self):
+        session = self.client.session
+        session["tailtalk_vendor_admin_id"] = "orijen"
+        session.save()
+
+        response = self.client.get(reverse("vendor-product-create"))
+
+        self.assertEqual(response.status_code, status.HTTP_200_OK)
+        self.assertContains(response, "상품 등록")
+        self.assertContains(response, "직접 입력")
+        self.assertContains(response, "파일 업로드")
+
     def test_vendor_orders_requires_vendor_session(self):
         response = self.client.get(reverse("vendor-orders"))
 

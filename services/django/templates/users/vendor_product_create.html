@@ -1,0 +1,465 @@
+{% extends "users/vendor_base.html" %}
+{% block vendor_title %}관리자 상품 등록{% endblock %}
+
+{% block vendor_content %}
+<section class="rounded-[30px] border border-white/70 bg-white/86 px-6 py-6 shadow-[0_18px_48px_rgba(148,163,184,0.14)] backdrop-blur md:px-8 md:py-8">
+  <div>
+    <h1 class="text-[30px] font-bold tracking-[-0.03em] text-[#1e293b]">상품 등록</h1>
+  </div>
+</section>
+
+<section class="mt-6 rounded-[30px] border border-white/70 bg-white/86 px-6 py-6 shadow-[0_18px_48px_rgba(148,163,184,0.14)] backdrop-blur md:px-8">
+  <div class="flex flex-wrap items-center gap-2 border-b border-[#e2e8f0] pb-4">
+    <button
+      type="button"
+      id="vendorDirectTab"
+      class="inline-flex h-[40px] items-center justify-center rounded-full bg-[#1d4ed8] px-4 text-[14px] font-semibold text-white"
+    >
+      직접 입력
+    </button>
+    <button
+      type="button"
+      id="vendorUploadTab"
+      class="inline-flex h-[40px] items-center justify-center rounded-full border border-[#dbe7f5] bg-white px-4 text-[14px] font-semibold text-[#64748b]"
+    >
+      파일 업로드
+    </button>
+  </div>
+
+  <article id="vendorDirectPanel" class="pt-6">
+    <form id="vendorProductCreateForm" class="grid gap-4 md:grid-cols-2" novalidate>
+      <label class="block">
+        <span class="mb-2 block text-[13px] font-semibold text-[#475569]">상품명 <span class="text-[#ef4444]">*</span></span>
+        <input type="text" name="goods_name" required class="h-[46px] w-full rounded-[12px] border border-[#dbe7f5] bg-white px-4 text-[14px] text-[#1e293b] outline-none transition focus:border-[#90cdf4]" placeholder="상품명을 입력해 주세요">
+      </label>
+      <div class="block">
+        <span class="mb-2 block text-[13px] font-semibold text-[#475569]">대표 이미지 <span class="text-[#ef4444]">*</span></span>
+        <label class="flex h-[46px] cursor-pointer items-center justify-between rounded-[12px] border border-[#dbe7f5] bg-white px-4 text-[14px] text-[#64748b] transition hover:border-[#90cdf4]">
+          <span id="vendorThumbnailPlaceholder" class="text-[#94a3b8]">파일 선택</span>
+          <span class="text-[12px] font-semibold text-[#94a3b8]">jpg/png</span>
+          <input id="vendorThumbnailInput" type="file" name="thumbnail" required accept=".jpg,.jpeg,.png,image/png,image/jpeg" class="hidden">
+        </label>
+      </div>
+      <label class="block">
+        <span class="mb-2 block text-[13px] font-semibold text-[#475569]">정가(원) <span class="text-[#ef4444]">*</span></span>
+        <input type="text" name="price" required inputmode="numeric" autocomplete="off" data-price-input class="h-[46px] w-full rounded-[12px] border border-[#dbe7f5] bg-white px-4 text-[14px] text-[#1e293b] outline-none transition focus:border-[#90cdf4]" placeholder="정가를 입력해 주세요">
+      </label>
+      <label class="block">
+        <span class="mb-2 block text-[13px] font-semibold text-[#475569]">실판매가(원) <span class="text-[#ef4444]">*</span></span>
+        <input type="text" name="discount_price" required inputmode="numeric" autocomplete="off" data-price-input class="h-[46px] w-full rounded-[12px] border border-[#dbe7f5] bg-white px-4 text-[14px] text-[#1e293b] outline-none transition focus:border-[#90cdf4]" placeholder="실판매가를 입력해 주세요">
+      </label>
+      <label class="block">
+        <span class="mb-2 block text-[13px] font-semibold text-[#475569]">1차 카테고리 <span class="text-[#ef4444]">*</span></span>
+        <div class="relative">
+          <select id="vendorPetTypeSelect" name="pet_type" required class="h-[46px] w-full appearance-none rounded-[12px] border border-[#dbe7f5] bg-white pl-4 pr-10 text-[14px] text-[#1e293b] outline-none transition focus:border-[#90cdf4]">
+            <option value="">1차 선택</option>
+            {% for item in pet_type_options %}
+            <option value="{{ item }}">{{ item }}</option>
+            {% endfor %}
+          </select>
+          <span class="pointer-events-none absolute inset-y-0 right-4 flex items-center text-[#94a3b8]">
+            <svg width="14" height="14" viewBox="0 0 20 20" fill="none" aria-hidden="true">
+              <path d="M5 7.5L10 12.5L15 7.5" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"/>
+            </svg>
+          </span>
+        </div>
+      </label>
+      <label class="block">
+        <span class="mb-2 block text-[13px] font-semibold text-[#475569]">2차 카테고리 <span class="text-[#ef4444]">*</span></span>
+        <div class="relative">
+          <select id="vendorCategorySelect" name="category" required disabled class="h-[46px] w-full appearance-none rounded-[12px] border border-[#dbe7f5] bg-[#f8fafc] pl-4 pr-10 text-[14px] text-[#1e293b] outline-none transition focus:border-[#90cdf4] disabled:cursor-not-allowed disabled:text-[#94a3b8]">
+            <option value="">2차 선택</option>
+          </select>
+          <span class="pointer-events-none absolute inset-y-0 right-4 flex items-center text-[#94a3b8]">
+            <svg width="14" height="14" viewBox="0 0 20 20" fill="none" aria-hidden="true">
+              <path d="M5 7.5L10 12.5L15 7.5" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"/>
+            </svg>
+          </span>
+        </div>
+      </label>
+      <label class="block">
+        <span class="mb-2 block text-[13px] font-semibold text-[#475569]">3차 카테고리</span>
+        <div class="relative">
+          <select id="vendorGroupSelect" name="subcategory_group" disabled class="h-[46px] w-full appearance-none rounded-[12px] border border-[#dbe7f5] bg-[#f8fafc] pl-4 pr-10 text-[14px] text-[#1e293b] outline-none transition focus:border-[#90cdf4] disabled:cursor-not-allowed disabled:text-[#94a3b8]">
+            <option value="">3차 선택</option>
+          </select>
+          <span class="pointer-events-none absolute inset-y-0 right-4 flex items-center text-[#94a3b8]">
+            <svg width="14" height="14" viewBox="0 0 20 20" fill="none" aria-hidden="true">
+              <path d="M5 7.5L10 12.5L15 7.5" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"/>
+            </svg>
+          </span>
+        </div>
+      </label>
+      <label class="block">
+        <span class="mb-2 block text-[13px] font-semibold text-[#475569]">4차 카테고리</span>
+        <div class="relative">
+          <select id="vendorSubcategorySelect" name="subcategory" disabled class="h-[46px] w-full appearance-none rounded-[12px] border border-[#dbe7f5] bg-[#f8fafc] pl-4 pr-10 text-[14px] text-[#1e293b] outline-none transition focus:border-[#90cdf4] disabled:cursor-not-allowed disabled:text-[#94a3b8]">
+            <option value="">4차 선택</option>
+          </select>
+          <span class="pointer-events-none absolute inset-y-0 right-4 flex items-center text-[#94a3b8]">
+            <svg width="14" height="14" viewBox="0 0 20 20" fill="none" aria-hidden="true">
+              <path d="M5 7.5L10 12.5L15 7.5" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"/>
+            </svg>
+          </span>
+        </div>
+      </label>
+      <div class="mt-2 flex items-center justify-end md:col-span-2">
+        <button
+          id="vendorProductSubmitButton"
+          type="button"
+          disabled
+          class="inline-flex h-[44px] items-center justify-center rounded-[12px] bg-[#cbd5e1] px-5 text-[14px] font-semibold text-white transition disabled:cursor-not-allowed"
+        >
+          등록 요청
+        </button>
+      </div>
+    </form>
+  </article>
+
+  <article id="vendorUploadPanel" class="hidden pt-6">
+    <div class="rounded-[24px] border border-[#e5eef8] bg-[#f8fbff] px-6 py-6">
+      <div>
+        <h2 class="text-[22px] font-bold tracking-[-0.02em] text-[#1e293b]">파일 업로드</h2>
+        <p class="mt-2 text-[14px] text-[#64748b]">대량 상품 등록은 추후 연결 예정입니다</p>
+      </div>
+
+      <div class="mt-6 rounded-[24px] border border-dashed border-[#bfdbfe] bg-[#f8fbff] px-6 py-8 text-center">
+        <p class="text-[15px] font-semibold text-[#1e293b]">등록 템플릿 업로드</p>
+        <p class="mt-2 text-[13px] text-[#64748b]">요구 컬럼에 맞는 파일을 업로드하면 자동으로 행별 검증을 진행합니다</p>
+        <button
+          type="button"
+          class="mt-5 inline-flex h-[42px] items-center justify-center rounded-[12px] border border-[#dbe7f5] bg-white px-5 text-[14px] font-semibold text-[#475569]"
+        >
+          파일 선택
+        </button>
+      </div>
+
+      <div class="mt-6 rounded-[20px] border border-[#e5eef8] bg-white px-5 py-5">
+        <p class="text-[14px] font-semibold text-[#1e293b]">권장 컬럼 예시</p>
+        <div class="mt-4 flex flex-wrap gap-2">
+          {% for column in vendor_upload_sample_columns %}
+          <span class="rounded-full bg-[#f8fbff] px-3 py-1 text-[12px] font-semibold text-[#64748b]">{{ column }}</span>
+          {% endfor %}
+        </div>
+      </div>
+    </div>
+  </article>
+</section>
+
+{{ pet_category_map|json_script:"vendorPetCategoryMap" }}
+{{ pet_category_group_map|json_script:"vendorPetCategoryGroupMap" }}
+{{ pet_category_group_item_map|json_script:"vendorPetCategoryGroupItemMap" }}
+
+<script>
+  (function () {
+    function formatPriceInputValue(value) {
+      var digits = (value || '').replace(/[^0-9]/g, '');
+      if (!digits) {
+        return '';
+      }
+      return Number(digits).toLocaleString('ko-KR');
+    }
+
+    var priceInputs = document.querySelectorAll('[data-price-input]');
+    priceInputs.forEach(function (input) {
+      input.addEventListener('input', function () {
+        input.value = formatPriceInputValue(input.value);
+      });
+    });
+
+    var thumbnailInput = document.getElementById('vendorThumbnailInput');
+    var thumbnailPlaceholder = document.getElementById('vendorThumbnailPlaceholder');
+    if (thumbnailInput && thumbnailPlaceholder) {
+      thumbnailInput.addEventListener('change', function () {
+        if (thumbnailInput.files && thumbnailInput.files[0]) {
+          thumbnailPlaceholder.textContent = thumbnailInput.files[0].name;
+          return;
+        }
+        thumbnailPlaceholder.textContent = '파일 선택';
+      });
+    }
+
+    var createForm = document.getElementById('vendorProductCreateForm');
+    var submitButton = document.getElementById('vendorProductSubmitButton');
+    var directTab = document.getElementById('vendorDirectTab');
+    var uploadTab = document.getElementById('vendorUploadTab');
+    var directPanel = document.getElementById('vendorDirectPanel');
+    var uploadPanel = document.getElementById('vendorUploadPanel');
+    var petTypeSelect = document.getElementById('vendorPetTypeSelect');
+    var categorySelect = document.getElementById('vendorCategorySelect');
+    var groupSelect = document.getElementById('vendorGroupSelect');
+    var subcategorySelect = document.getElementById('vendorSubcategorySelect');
+    var petCategoryMapElement = document.getElementById('vendorPetCategoryMap');
+    var petCategoryGroupMapElement = document.getElementById('vendorPetCategoryGroupMap');
+    var petCategoryGroupItemMapElement = document.getElementById('vendorPetCategoryGroupItemMap');
+    var petCategoryMap = {};
+    var petCategoryGroupMap = {};
+    var petCategoryGroupItemMap = {};
+
+    if (petCategoryMapElement) {
+      try {
+        petCategoryMap = JSON.parse(petCategoryMapElement.textContent || '{}');
+      } catch (error) {
+        petCategoryMap = {};
+      }
+    }
+
+    if (petCategoryGroupMapElement) {
+      try {
+        petCategoryGroupMap = JSON.parse(petCategoryGroupMapElement.textContent || '{}');
+      } catch (error) {
+        petCategoryGroupMap = {};
+      }
+    }
+
+    if (petCategoryGroupItemMapElement) {
+      try {
+        petCategoryGroupItemMap = JSON.parse(petCategoryGroupItemMapElement.textContent || '{}');
+      } catch (error) {
+        petCategoryGroupItemMap = {};
+      }
+    }
+
+    function updateSubmitButtonState() {
+      if (!createForm || !submitButton) {
+        return;
+      }
+
+      var isValid = createForm.checkValidity();
+      submitButton.disabled = !isValid;
+      if (isValid) {
+        submitButton.classList.remove('bg-[#cbd5e1]');
+        submitButton.classList.add('bg-[#1d4ed8]', 'hover:bg-[#1e40af]');
+      } else {
+        submitButton.classList.remove('bg-[#1d4ed8]', 'hover:bg-[#1e40af]');
+        submitButton.classList.add('bg-[#cbd5e1]');
+      }
+    }
+
+    function activateVendorTab(tabName) {
+      var isDirect = tabName === 'direct';
+      if (directPanel && uploadPanel) {
+        directPanel.classList.toggle('hidden', !isDirect);
+        uploadPanel.classList.toggle('hidden', isDirect);
+      }
+      if (directTab && uploadTab) {
+        directTab.className = isDirect
+          ? 'inline-flex h-[40px] items-center justify-center rounded-full bg-[#1d4ed8] px-4 text-[14px] font-semibold text-white'
+          : 'inline-flex h-[40px] items-center justify-center rounded-full border border-[#dbe7f5] bg-white px-4 text-[14px] font-semibold text-[#64748b]';
+        uploadTab.className = isDirect
+          ? 'inline-flex h-[40px] items-center justify-center rounded-full border border-[#dbe7f5] bg-white px-4 text-[14px] font-semibold text-[#64748b]'
+          : 'inline-flex h-[40px] items-center justify-center rounded-full bg-[#1d4ed8] px-4 text-[14px] font-semibold text-white';
+      }
+    }
+
+    function resetCategorySelect(message) {
+      if (!categorySelect) {
+        return;
+      }
+      categorySelect.required = false;
+      categorySelect.innerHTML = '';
+      var defaultOption = document.createElement('option');
+      defaultOption.value = '';
+      defaultOption.textContent = message;
+      categorySelect.appendChild(defaultOption);
+      categorySelect.disabled = true;
+      categorySelect.value = '';
+      categorySelect.classList.add('bg-[#f8fafc]');
+    }
+
+    function resetGroupSelect(message) {
+      if (!groupSelect) {
+        return;
+      }
+      groupSelect.required = false;
+      groupSelect.innerHTML = '';
+      var defaultOption = document.createElement('option');
+      defaultOption.value = '';
+      defaultOption.textContent = message;
+      groupSelect.appendChild(defaultOption);
+      groupSelect.disabled = true;
+      groupSelect.value = '';
+      groupSelect.classList.add('bg-[#f8fafc]');
+    }
+
+    function resetSubcategorySelect(message) {
+      if (!subcategorySelect) {
+        return;
+      }
+      subcategorySelect.required = false;
+      subcategorySelect.innerHTML = '';
+      var defaultOption = document.createElement('option');
+      defaultOption.value = '';
+      defaultOption.textContent = message;
+      subcategorySelect.appendChild(defaultOption);
+      subcategorySelect.disabled = true;
+      subcategorySelect.value = '';
+      subcategorySelect.classList.add('bg-[#f8fafc]');
+    }
+
+    function updateCategoryOptions() {
+      if (!petTypeSelect || !categorySelect) {
+        return;
+      }
+
+      var selectedPetType = petTypeSelect.value;
+      var categories = petCategoryMap[selectedPetType] || [];
+      if (!selectedPetType) {
+        resetCategorySelect('2차 선택');
+        resetGroupSelect('3차 선택');
+        resetSubcategorySelect('4차 선택');
+        updateSubmitButtonState();
+        return;
+      }
+
+      if (!categories.length) {
+        resetCategorySelect('선택 항목 없음');
+        resetGroupSelect('3차 선택');
+        resetSubcategorySelect('4차 선택');
+        updateSubmitButtonState();
+        return;
+      }
+
+      categorySelect.disabled = false;
+      categorySelect.required = true;
+      categorySelect.classList.remove('bg-[#f8fafc]');
+      categorySelect.innerHTML = '';
+
+      var placeholderOption = document.createElement('option');
+      placeholderOption.value = '';
+      placeholderOption.textContent = '2차 선택';
+      categorySelect.appendChild(placeholderOption);
+
+      categories.forEach(function (category) {
+        var option = document.createElement('option');
+        option.value = category;
+        option.textContent = category;
+        categorySelect.appendChild(option);
+      });
+
+      resetGroupSelect('3차 선택');
+      resetSubcategorySelect('4차 선택');
+      updateSubmitButtonState();
+    }
+
+    function updateGroupOptions() {
+      if (!petTypeSelect || !categorySelect || !groupSelect) {
+        return;
+      }
+
+      var selectedPetType = petTypeSelect.value;
+      var selectedCategory = categorySelect.value;
+      if (!selectedPetType || !selectedCategory) {
+        resetGroupSelect('3차 선택');
+        resetSubcategorySelect('4차 선택');
+        updateSubmitButtonState();
+        return;
+      }
+
+      var groups = (petCategoryGroupMap[selectedPetType] || {})[selectedCategory] || [];
+      if (!groups.length) {
+        resetGroupSelect('선택 항목 없음');
+        resetSubcategorySelect('4차 선택');
+        updateSubmitButtonState();
+        return;
+      }
+
+      groupSelect.disabled = false;
+      groupSelect.required = true;
+      groupSelect.classList.remove('bg-[#f8fafc]');
+      groupSelect.innerHTML = '';
+
+      var placeholderOption = document.createElement('option');
+      placeholderOption.value = '';
+      placeholderOption.textContent = '3차 선택';
+      groupSelect.appendChild(placeholderOption);
+
+      groups.forEach(function (group) {
+        var option = document.createElement('option');
+        option.value = group;
+        option.textContent = group;
+        groupSelect.appendChild(option);
+      });
+
+      resetSubcategorySelect('4차 선택');
+      updateSubmitButtonState();
+    }
+
+    function updateSubcategoryOptions() {
+      if (!petTypeSelect || !categorySelect || !groupSelect || !subcategorySelect) {
+        return;
+      }
+
+      var selectedPetType = petTypeSelect.value;
+      var selectedCategory = categorySelect.value;
+      var selectedGroup = groupSelect.value;
+      if (!selectedPetType || !selectedCategory || !selectedGroup) {
+        resetSubcategorySelect('4차 선택');
+        updateSubmitButtonState();
+        return;
+      }
+
+      var subcategories = (((petCategoryGroupItemMap[selectedPetType] || {})[selectedCategory]) || {})[selectedGroup] || [];
+      if (!subcategories.length) {
+        resetSubcategorySelect('선택 항목 없음');
+        updateSubmitButtonState();
+        return;
+      }
+
+      subcategorySelect.disabled = false;
+      subcategorySelect.required = true;
+      subcategorySelect.classList.remove('bg-[#f8fafc]');
+      subcategorySelect.innerHTML = '';
+
+      var placeholderOption = document.createElement('option');
+      placeholderOption.value = '';
+      placeholderOption.textContent = '4차 선택';
+      subcategorySelect.appendChild(placeholderOption);
+
+      subcategories.forEach(function (subcategory) {
+        var option = document.createElement('option');
+        option.value = subcategory;
+        option.textContent = subcategory;
+        subcategorySelect.appendChild(option);
+      });
+
+      updateSubmitButtonState();
+    }
+
+    if (petTypeSelect) {
+      petTypeSelect.addEventListener('change', updateCategoryOptions);
+    }
+
+    if (categorySelect) {
+      categorySelect.addEventListener('change', updateGroupOptions);
+    }
+
+    if (groupSelect) {
+      groupSelect.addEventListener('change', updateSubcategoryOptions);
+    }
+
+    if (createForm) {
+      createForm.addEventListener('input', updateSubmitButtonState);
+      createForm.addEventListener('change', updateSubmitButtonState);
+    }
+
+    if (directTab) {
+      directTab.addEventListener('click', function () {
+        activateVendorTab('direct');
+      });
+    }
+
+    if (uploadTab) {
+      uploadTab.addEventListener('click', function () {
+        activateVendorTab('upload');
+      });
+    }
+
+    resetCategorySelect('2차 선택');
+    resetGroupSelect('3차 선택');
+    resetSubcategorySelect('4차 선택');
+    activateVendorTab('direct');
+    updateSubmitButtonState();
+  })();
+</script>
+{% endblock %}

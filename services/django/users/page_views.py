@@ -11,6 +11,7 @@ from django.db import IntegrityError, transaction
 from django.db.models import Avg, Sum
 from django.shortcuts import redirect, render
 from django.urls import reverse
+from products.catalog_menu import build_catalog_menu_context
 from products.models import Product
 from social_core.exceptions import AuthCanceled, AuthConnectionError, AuthException, AuthForbidden, AuthMissingParameter
 
@@ -262,6 +263,45 @@ def _sort_vendor_products(products, sort_key):
             product["goods_name"],
         )
     )
+
+
+def _collect_vendor_product_form_options():
+    sections = build_catalog_menu_context()
+    pet_type_options = [section["label"] for section in sections]
+    pet_category_map = {}
+    pet_category_group_map = {}
+    pet_category_group_item_map = {}
+
+    for section in sections:
+        pet_label = section["label"]
+        pet_category_map[pet_label] = []
+        pet_category_group_map[pet_label] = {}
+        pet_category_group_item_map[pet_label] = {}
+
+        for category in section.get("categories", []):
+            category_label = category["label"]
+            pet_category_map[pet_label].append(category_label)
+            pet_category_group_map[pet_label][category_label] = []
+            pet_category_group_item_map[pet_label][category_label] = {}
+
+            for group in category.get("groups", []):
+                if category_label == "사료" and group["label"] == "주요 브랜드":
+                    continue
+                group_label = group["label"]
+                pet_category_group_map[pet_label][category_label].append(group_label)
+                pet_category_group_item_map[pet_label][category_label][group_label] = [
+                    item["label"] for item in group.get("items", [])
+                ]
+
+    return {
+        "pet_type_options": pet_type_options,
+        "pet_category_map": {
+            pet_type: values
+            for pet_type, values in pet_category_map.items()
+        },
+        "pet_category_group_map": pet_category_group_map,
+        "pet_category_group_item_map": pet_category_group_item_map,
+    }
 
 
 def _build_vendor_navigation(current_view):
@@ -570,6 +610,35 @@ def vendor_products_view(request):
             "vendor_sort_key": sort_key,
             "vendor_sort_options": sort_options,
             "vendor_sort_description": VENDOR_PRODUCT_SORT_OPTIONS[sort_key]["description"],
+        },
+    )
+
+
+def vendor_product_create_view(request):
+    base_context = _build_vendor_base_context(request, "products")
+    if base_context is None:
+        return redirect("vendor-login")
+
+    sample_columns = [
+        "goods_id",
+        "goods_name",
+        "price",
+        "discount_price",
+        "thumbnail_url",
+        "product_url",
+        "pet_type",
+        "category",
+        "subcategory",
+        "main_ingredients",
+    ]
+    form_options = _collect_vendor_product_form_options()
+    return render(
+        request,
+        "users/vendor_product_create.html",
+        {
+            **base_context,
+            "vendor_upload_sample_columns": sample_columns,
+            **form_options,
         },
     )
 

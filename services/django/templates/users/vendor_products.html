@@ -40,6 +40,13 @@
         {% endif %}
       </p>
     </div>
+    <a
+      href="{% url 'vendor-product-create' %}"
+      class="inline-flex h-[46px] shrink-0 items-center justify-center gap-2 rounded-[14px] border border-[#93c5fd] bg-[#dbeafe] px-5 text-[15px] font-semibold text-[#1d4ed8] transition hover:bg-[#bfdbfe]"
+    >
+      <span class="relative top-[-1px] text-[18px] leading-none">+</span>
+      상품 등록
+    </a>
   </div>
 
   <form method="get" class="mt-7 grid gap-3 rounded-[22px] border border-[#e5eef8] bg-[#f8fbff] p-4 md:grid-cols-[1fr,180px,220px,120px]">
@@ -118,6 +125,12 @@
           정가 {{ product.price_label }}{% if product.discount_rate_label %} · 할인율 {{ product.discount_rate_label }}{% endif %}
         </p>
         <p class="text-[18px] font-bold text-[#1e293b]">실판매가 {{ product.discount_price_label }}</p>
+        <button
+          type="button"
+          class="mt-2 inline-flex h-[34px] items-center justify-center rounded-[10px] border border-[#dbe7f5] bg-white px-4 text-[13px] font-semibold text-[#475569] transition hover:border-[#bfdbfe] hover:bg-[#f8fbff]"
+        >
+          수정
+        </button>
       </div>
     </article>
     {% empty %}
