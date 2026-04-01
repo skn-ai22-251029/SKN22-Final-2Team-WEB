@@ -85,3 +85,6 @@ output_gold/
 test/
 GEMINI.md
 01_midterm_script.md
+aws
+awscliv2.zip
+test_*
