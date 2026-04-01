@@ -402,8 +402,7 @@ class UserProfileApiTests(TestCase):
         self.assertEqual(quick_purchase["address_detail"], "101동 1203호")
         self.assertEqual(quick_purchase["payment_summary"], "현대카드 M / 1234 **** **** 5678")
 
-    @override_settings(DEBUG=True)
-    def test_phone_verification_request_returns_code_in_debug(self):
+    def test_phone_verification_request_returns_code(self):
         response = self.client.post(
             "/api/users/me/phone-verification/request/",
             {"phone": "01012341234"},
@@ -416,7 +415,6 @@ class UserProfileApiTests(TestCase):
         self.user.refresh_from_db()
         self.assertEqual(self.user.profile.phone_verification_target, "01012341234")
 
-    @override_settings(DEBUG=True)
     def test_phone_verification_confirm_marks_phone_verified(self):
         request_response = self.client.post(
             "/api/users/me/phone-verification/request/",
