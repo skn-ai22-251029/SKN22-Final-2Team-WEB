@@ -63,6 +63,15 @@ def _map_upstream_exception(exc):
     return "채팅 서버와 연결하지 못했습니다. 잠시 후 다시 시도해 주세요.", 502
 
 
+def _stream_timeout():
+    return httpx.Timeout(
+        connect=settings.FASTAPI_STREAM_CONNECT_TIMEOUT,
+        read=settings.FASTAPI_STREAM_READ_TIMEOUT,
+        write=settings.FASTAPI_STREAM_WRITE_TIMEOUT,
+        pool=settings.FASTAPI_STREAM_POOL_TIMEOUT,
+    )
+
+
 def _serialize_session(session):
     updated_at = timezone.localtime(session.updated_at)
     return {
@@ -206,7 +215,7 @@ def _stream_fastapi_response(url, payload, user_id, capture=None):
     headers = _internal_headers(user_id)
 
     try:
-        with httpx.Client(timeout=None) as client:
+        with httpx.Client(timeout=_stream_timeout()) as client:
             with client.stream("POST", url, headers=headers, json=payload) as response:
                 if response.status_code != 200:
                     detail = "채팅 요청 처리에 실패했습니다."

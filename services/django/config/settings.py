@@ -192,6 +192,10 @@ MEDIA_ROOT = BASE_DIR / "media"
 APP_BASE_URL = config("APP_BASE_URL", default="")
 FASTAPI_INTERNAL_CHAT_URL = config("FASTAPI_INTERNAL_CHAT_URL", default="http://fastapi:8001/api/chat/")
 INTERNAL_SERVICE_TOKEN = config("INTERNAL_SERVICE_TOKEN", default="dev-internal-token")
+FASTAPI_STREAM_CONNECT_TIMEOUT = config("FASTAPI_STREAM_CONNECT_TIMEOUT", default=5, cast=float)
+FASTAPI_STREAM_READ_TIMEOUT = config("FASTAPI_STREAM_READ_TIMEOUT", default=25, cast=float)
+FASTAPI_STREAM_WRITE_TIMEOUT = config("FASTAPI_STREAM_WRITE_TIMEOUT", default=10, cast=float)
+FASTAPI_STREAM_POOL_TIMEOUT = config("FASTAPI_STREAM_POOL_TIMEOUT", default=5, cast=float)
 
 AWS_S3_BUCKET_NAME = config("AWS_S3_BUCKET_NAME", default="")
 AWS_S3_REGION_NAME = config("AWS_S3_REGION_NAME", default="")
