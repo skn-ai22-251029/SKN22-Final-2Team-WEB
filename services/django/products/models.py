@@ -32,6 +32,10 @@ class Product(models.Model):
     ingredient_text_ocr    = models.TextField(null=True, blank=True)
     embedding              = VectorField(dimensions=1024, null=True, blank=True)
     embedding_text         = models.TextField(null=True, blank=True)
+    identity_text          = models.TextField(null=True, blank=True)
+    identity_embedding     = VectorField(dimensions=1024, null=True, blank=True)
+    guide_text             = models.TextField(null=True, blank=True)
+    guide_embedding        = VectorField(dimensions=1024, null=True, blank=True)
     search_vector          = SearchVectorField(null=True)
     crawled_at             = models.DateTimeField()
 
