@@ -87,14 +87,6 @@
             {% if pet.breed %} · {{ pet.breed }}{% endif %}
             {% endif %}
           </div>
-          {% if pet.species != "future" and pet.food_preference_labels %}
-          <div class="mt-2 flex flex-wrap gap-2">
-            <span class="inline-flex h-[24px] items-center rounded-full bg-[#edf2f7] px-3 text-[12px] font-bold text-[#4a5568]">선호 사료</span>
-            {% for label in pet.food_preference_labels %}
-            <span class="inline-flex h-[24px] items-center rounded-full border border-[#dbe7f5] bg-[#f7fbff] px-3 text-[12px] font-medium text-[#3182ce]">{{ label }}</span>
-            {% endfor %}
-          </div>
-          {% endif %}
         </div>
         <div class="flex items-center gap-3">
           {% if pet.species == "future" %}
