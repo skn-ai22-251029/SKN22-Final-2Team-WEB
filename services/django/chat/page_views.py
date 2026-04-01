@@ -462,6 +462,12 @@ def chat_view(request):
         member_pets.append(future_pet)
         member_pets = _sort_member_pets(member_pets)
 
+    should_offer_pet_registration_prompt = (
+        is_member_view
+        and not preview_member
+        and not member_pets
+    )
+
     if preview_member and not member_pets:
         member_pets = _preview_member_pets()
         registered_pet_count = len(member_pets)
@@ -483,6 +489,7 @@ def chat_view(request):
             "chat_enabled": chat_enabled,
             "member_pets": member_pets,
             "can_add_pet": is_member_view and registered_pet_count < 5,
+            "should_offer_pet_registration_prompt": should_offer_pet_registration_prompt,
             "active_pet_id": active_pet_id,
             "active_pet": active_pet,
             "recommended_products": recommended_products,

@@ -1456,6 +1456,7 @@
   var SESSION_RECOMMENDED_PRODUCTS_STORAGE_PREFIX = 'tailtalk_session_recommended_products:';
   var activeProfileSelectionPrompt = null;
   var skipProfileSelectionPromptOnce = false;
+  var shouldOfferPetRegistrationPrompt = {{ should_offer_pet_registration_prompt|yesno:"true,false" }};
 
   function getCookie(name) {
     var cookieValue = null;
@@ -1892,17 +1893,11 @@
     return ordered;
   }
 
-  function shouldPromptProfileSelection() {
+  function shouldPromptProfileSelectionBase() {
     if (skipProfileSelectionPromptOnce) {
       skipProfileSelectionPromptOnce = false;
       return false;
     }
-
-    var options = getProfileSelectionOptions();
-    var hasSelectableProfile = options.some(function (option) {
-      return !!option.id;
-    });
-    if (!hasSelectableProfile) return false;
 
     if (activeSessionId) {
       var activeSessionState = ensureSessionState(activeSessionId);
@@ -1913,12 +1908,24 @@
     return true;
   }
 
+  function hasSelectableProfileOptions() {
+    return getProfileSelectionOptions({ includeDefaultOption: false }).length > 0;
+  }
+
+  function shouldPromptProfileSelection() {
+    return shouldPromptProfileSelectionBase() && hasSelectableProfileOptions();
+  }
+
   function shouldShowSelectedProfilePrompt() {
     return shouldPromptProfileSelection() && !!activePetId;
   }
 
   function shouldShowProfileChoicePrompt() {
     return shouldPromptProfileSelection() && !activePetId;
+  }
+
+  function shouldShowPetRegistrationPrompt() {
+    return shouldPromptProfileSelectionBase() && !hasSelectableProfileOptions() && shouldOfferPetRegistrationPrompt;
   }
 
   function applyProfileSelectionOption(option) {
@@ -2065,6 +2072,85 @@
     changeButton.appendChild(changeEmoji);
     changeButton.appendChild(changeLabel);
     optionList.appendChild(changeButton);
+
+    bubble.appendChild(optionList);
+    wrapper.appendChild(bubble);
+    chatMessages.appendChild(wrapper);
+    activeProfileSelectionPrompt = wrapper;
+    scrollToBottom();
+  }
+
+  function showPetRegistrationPrompt() {
+    if (!chatMessages || activeProfileSelectionPrompt) return;
+
+    ensureChatThreadVisible();
+
+    var wrapper = document.createElement('div');
+    wrapper.className = 'flex justify-start';
+    wrapper.setAttribute('data-profile-selection-prompt', 'true');
+
+    var bubble = document.createElement('div');
+    bubble.className = 'inline-flex w-fit max-w-[460px] flex-col self-start rounded-[24px] rounded-bl-[8px] border border-[#dbe7f5] bg-white px-[20px] py-[16px] text-[#2d3748] shadow-[0_10px_24px_rgba(45,55,72,0.06)]';
+
+    var title = document.createElement('p');
+    title.className = 'w-fit text-[15px] font-semibold leading-[1.75] text-[#2d3748]';
+    title.textContent = '등록된 반려동물 정보가 없어요';
+    bubble.appendChild(title);
+
+    var description = document.createElement('p');
+    description.className = 'mt-[6px] w-fit max-w-[320px] break-keep text-[12px] leading-[1.7] text-[#718096]';
+    description.textContent = '등록하면 더 정확하게 답변하고 추천할 수 있어요';
+    bubble.appendChild(description);
+
+    var optionList = document.createElement('div');
+    optionList.className = 'mt-[12px] flex flex-wrap gap-[8px]';
+
+    var registerButton = document.createElement('button');
+    registerButton.type = 'button';
+    registerButton.className = 'inline-flex max-w-full items-center gap-[6px] rounded-full border border-[#bfdbfe] bg-[#eff8ff] px-[11px] py-[7px] text-left transition-colors duration-150 hover:border-[#90cdf4] hover:bg-[#e3f2ff]';
+    registerButton.addEventListener('click', function () {
+      window.location.href = '/pets/add/';
+    });
+
+    var registerEmoji = document.createElement('span');
+    registerEmoji.className = 'shrink-0 text-[13px] leading-none text-[#4a5568]';
+    registerEmoji.textContent = '＋';
+
+    var registerLabel = document.createElement('p');
+    registerLabel.className = 'truncate text-[12px] font-semibold leading-none text-[#2b6cb0]';
+    registerLabel.textContent = '등록하러 가기';
+
+    registerButton.appendChild(registerEmoji);
+    registerButton.appendChild(registerLabel);
+    optionList.appendChild(registerButton);
+
+    var laterButton = document.createElement('button');
+    laterButton.type = 'button';
+    laterButton.className = 'inline-flex max-w-full items-center gap-[6px] rounded-full border border-[#dbe7f5] bg-[#f8fbff] px-[11px] py-[7px] text-left transition-colors duration-150 hover:border-[#bfdbfe] hover:bg-white';
+    laterButton.addEventListener('click', function () {
+      if (activeSessionId) {
+        ensureSessionState(activeSessionId).profilePromptResolved = true;
+      }
+      skipProfileSelectionPromptOnce = true;
+      clearProfileSelectionPrompt();
+      if (messageInput) {
+        window.setTimeout(function () {
+          submitCurrentMessage();
+        }, 0);
+      }
+    });
+
+    var laterEmoji = document.createElement('span');
+    laterEmoji.className = 'shrink-0 text-[13px] leading-none text-[#718096]';
+    laterEmoji.textContent = '○';
+
+    var laterLabel = document.createElement('p');
+    laterLabel.className = 'truncate text-[12px] font-semibold leading-none text-[#2d3748]';
+    laterLabel.textContent = '나중에 하기';
+
+    laterButton.appendChild(laterEmoji);
+    laterButton.appendChild(laterLabel);
+    optionList.appendChild(laterButton);
 
     bubble.appendChild(optionList);
     wrapper.appendChild(bubble);
@@ -3150,6 +3236,10 @@
     }
     if (shouldShowProfileChoicePrompt()) {
       showProfileSelectionPrompt();
+      return;
+    }
+    if (shouldShowPetRegistrationPrompt()) {
+      showPetRegistrationPrompt();
       return;
     }
     submitCurrentMessage();
