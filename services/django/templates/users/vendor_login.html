@@ -17,15 +17,18 @@
           <p class="text-[22px] font-bold text-[#2d3748]">관리자 로그인</p>
         </div>
 
-        <form class="mt-8 space-y-4" id="vendorLoginForm" onsubmit="return false;">
+        <form class="mt-8 space-y-4" id="vendorLoginForm" method="post">
+          {% csrf_token %}
           <div>
             <label for="vendorBrandInput" class="mb-2 block text-[13px] font-semibold text-[#4a5568]">
               관리자 아이디
             </label>
             <input
+              name="login_id"
               id="vendorBrandInput"
               type="text"
               placeholder="아이디를 입력해 주세요"
+              value="{{ vendor_login_id|default:'' }}"
               class="h-[46px] w-full rounded-[12px] border border-[#dbe7f5] bg-[#f8fbff] px-4 text-[14px] text-[#2d3748] outline-none transition focus:border-[#90cdf4] focus:bg-white"
             />
           </div>
@@ -35,6 +38,7 @@
               비밀번호
             </label>
             <input
+              name="password"
               id="vendorPasswordInput"
               type="password"
               placeholder="비밀번호를 입력해 주세요"
@@ -43,13 +47,13 @@
           </div>
 
           <button
-            type="button"
+            type="submit"
             id="vendorLoginSubmit"
             class="mt-2 flex h-[48px] w-full items-center justify-center rounded-[12px] bg-[linear-gradient(135deg,#3b82f6_0%,#2563eb_100%)] text-[15px] font-bold text-white transition hover:opacity-95"
           >
             관리자 로그인
           </button>
-          <p class="hidden text-[12px] font-semibold text-[#e53e3e]" id="vendorLoginError">
+          <p class="{% if not vendor_login_error %}hidden {% endif %}text-[12px] font-semibold text-[#e53e3e]" id="vendorLoginError">
             아이디 또는 비밀번호를 확인해 주세요
           </p>
         </form>
@@ -57,61 +61,4 @@
     </div>
   </div>
 </div>
-{% endblock %}
-
-{% block scripts %}
-<script>
-  (function () {
-    var idInput = document.getElementById('vendorBrandInput');
-    var passwordInput = document.getElementById('vendorPasswordInput');
-    var submitButton = document.getElementById('vendorLoginSubmit');
-    var errorText = document.getElementById('vendorLoginError');
-
-    if (!idInput || !passwordInput || !submitButton || !errorText) {
-      return;
-    }
-
-    function hideError() {
-      errorText.classList.add('hidden');
-    }
-
-    function showError() {
-      errorText.classList.remove('hidden');
-    }
-
-    function handleSubmit() {
-      var userId = idInput.value.trim();
-      var password = passwordInput.value.trim();
-
-      if (!userId || !password) {
-        showError();
-        return;
-      }
-
-      if (userId !== 'orijen' || password !== 'tailtalk2026!') {
-        showError();
-        return;
-      }
-
-      hideError();
-      window.location.href = '/vendor/dashboard/';
-    }
-
-    submitButton.addEventListener('click', handleSubmit);
-    idInput.addEventListener('input', hideError);
-    passwordInput.addEventListener('input', hideError);
-    passwordInput.addEventListener('keydown', function (event) {
-      if (event.key === 'Enter') {
-        event.preventDefault();
-        handleSubmit();
-      }
-    });
-    idInput.addEventListener('keydown', function (event) {
-      if (event.key === 'Enter') {
-        event.preventDefault();
-        handleSubmit();
-      }
-    });
-  })();
-</script>
 {% endblock %}

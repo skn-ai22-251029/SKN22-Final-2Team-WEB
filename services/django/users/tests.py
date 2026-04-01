@@ -332,6 +332,153 @@ class ProfilePageViewTests(TestCase):
         self.assertEqual(response["Location"], reverse("chat"))
 
 
+class VendorAdminPageTests(TestCase):
+    def setUp(self):
+        self.client = self.client_class()
+        self.product = Product.objects.create(
+            goods_id="GI-VENDOR-1",
+            goods_name="오리젠 오리지널 독",
+            brand_name="오리젠",
+            price=54000,
+            discount_price=49900,
+            rating=4.8,
+            review_count=128,
+            thumbnail_url="https://example.com/orijen-thumb.png",
+            product_url="https://example.com/orijen-product",
+            soldout_yn=False,
+            pet_type=["강아지"],
+            category=["사료"],
+            crawled_at=timezone.now(),
+        )
+        Product.objects.create(
+            goods_id="GI-VENDOR-2",
+            goods_name="다른 브랜드 상품",
+            brand_name="로얄캐닌",
+            price=46000,
+            discount_price=42000,
+            rating=4.6,
+            review_count=98,
+            thumbnail_url="https://example.com/other-thumb.png",
+            product_url="https://example.com/other-product",
+            soldout_yn=False,
+            pet_type=["강아지"],
+            category=["사료"],
+            crawled_at=timezone.now(),
+        )
+
+    def test_vendor_login_page_renders(self):
+        response = self.client.get(reverse("vendor-login"))
+
+        self.assertEqual(response.status_code, status.HTTP_200_OK)
+        self.assertContains(response, "관리자 로그인")
+
+    def test_vendor_login_post_sets_session_and_redirects_to_dashboard(self):
+        response = self.client.post(
+            reverse("vendor-login"),
+            {"login_id": "orijen", "password": "tailtalk2026!"},
+        )
+
+        self.assertEqual(response.status_code, status.HTTP_302_FOUND)
+        self.assertEqual(response["Location"], reverse("vendor-dashboard"))
+        session = self.client.session
+        self.assertEqual(session.get("tailtalk_vendor_admin_id"), "orijen")
+
+    def test_vendor_login_post_shows_error_for_invalid_credentials(self):
+        response = self.client.post(
+            reverse("vendor-login"),
+            {"login_id": "orijen", "password": "wrong-password"},
+        )
+
+        self.assertEqual(response.status_code, status.HTTP_200_OK)
+        self.assertContains(response, "아이디 또는 비밀번호를 확인해 주세요")
+
+    def test_vendor_dashboard_requires_vendor_session(self):
+        response = self.client.get(reverse("vendor-dashboard"))
+
+        self.assertEqual(response.status_code, status.HTTP_302_FOUND)
+        self.assertEqual(response["Location"], reverse("vendor-login"))
+
+    def test_vendor_dashboard_renders_vendor_brand_metrics(self):
+        session = self.client.session
+        session["tailtalk_vendor_admin_id"] = "orijen"
+        session.save()
+
+        response = self.client.get(reverse("vendor-dashboard"))
+
+        self.assertEqual(response.status_code, status.HTTP_200_OK)
+        self.assertContains(response, "대시보드")
+        self.assertContains(response, "등록 상품")
+        self.assertContains(response, "오리젠 오리지널 독")
+
+    def test_vendor_products_filters_to_vendor_brand(self):
+        session = self.client.session
+        session["tailtalk_vendor_admin_id"] = "orijen"
+        session.save()
+
+        response = self.client.get(reverse("vendor-products"))
+
+        self.assertEqual(response.status_code, status.HTTP_200_OK)
+        self.assertContains(response, "오리젠 오리지널 독")
+        self.assertNotContains(response, "다른 브랜드 상품")
+
+    def test_vendor_product_create_requires_vendor_session(self):
+        response = self.client.get(reverse("vendor-product-create"))
+
+        self.assertEqual(response.status_code, status.HTTP_302_FOUND)
+        self.assertEqual(response["Location"], reverse("vendor-login"))
+
+    def test_vendor_product_create_renders_form_sections(self):
+        session = self.client.session
+        session["tailtalk_vendor_admin_id"] = "orijen"
+        session.save()
+
+        response = self.client.get(reverse("vendor-product-create"))
+
+        self.assertEqual(response.status_code, status.HTTP_200_OK)
+        self.assertContains(response, "상품 등록")
+        self.assertContains(response, "직접 입력")
+        self.assertContains(response, "파일 업로드")
+
+    def test_vendor_orders_requires_vendor_session(self):
+        response = self.client.get(reverse("vendor-orders"))
+
+        self.assertEqual(response.status_code, status.HTTP_302_FOUND)
+        self.assertEqual(response["Location"], reverse("vendor-login"))
+
+    def test_vendor_orders_renders_mock_items(self):
+        session = self.client.session
+        session["tailtalk_vendor_admin_id"] = "orijen"
+        session.save()
+
+        response = self.client.get(f"{reverse('vendor-orders')}?focus=refund")
+
+        self.assertEqual(response.status_code, status.HTTP_200_OK)
+        self.assertContains(response, "주문 관리")
+        self.assertContains(response, "취소/환불")
+
+    def test_vendor_reviews_renders_mock_items(self):
+        session = self.client.session
+        session["tailtalk_vendor_admin_id"] = "orijen"
+        session.save()
+
+        response = self.client.get(f"{reverse('vendor-reviews')}?focus=pending")
+
+        self.assertEqual(response.status_code, status.HTTP_200_OK)
+        self.assertContains(response, "리뷰 관리")
+        self.assertContains(response, "배송이 빨라서 재구매 의향이 있어요")
+
+    def test_vendor_operations_renders_mock_items(self):
+        session = self.client.session
+        session["tailtalk_vendor_admin_id"] = "orijen"
+        session.save()
+
+        response = self.client.get(f"{reverse('vendor-operations')}?focus=inventory")
+
+        self.assertEqual(response.status_code, status.HTTP_200_OK)
+        self.assertContains(response, "운영 점검")
+        self.assertContains(response, "품절 상품 점검")
+
+
 class UserProfileApiTests(TestCase):
     def setUp(self):
         self.client = APIClient()
