@@ -9,6 +9,9 @@
 .idea/
 .vscode/
 .DS_Store
+.github/
+deploy/
+docs/
 
 # Python
 .venv/

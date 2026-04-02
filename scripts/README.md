@@ -81,6 +81,68 @@ bash scripts/aws/start_test_rds_dbeaver_tunnel.sh
 
 ---
 
+## 수동 Elastic Beanstalk 배포
+
+GitHub Actions를 거치지 않고, 현재 로컬 프로젝트 폴더 내용으로 이미지를 build/push 한 뒤 Elastic Beanstalk에 직접 배포할 수 있습니다.
+
+### 사전 조건
+
+- Docker, AWS CLI, zip, python3, curl 설치
+- AWS CLI 인증 완료
+  - 예: `aws configure --profile tailtalk`
+- ECR push 권한 + Elastic Beanstalk 배포 권한 보유
+- 런타임 env 파일 준비
+  - Django: `cp deploy/env/test-django.env.example deploy/env/test-django.env`
+  - FastAPI: `cp deploy/env/test-fastapi.env.example deploy/env/test-fastapi.env`
+
+주의:
+- GitHub `repo secret` 값은 로컬에서 읽어올 수 없습니다.
+- 수동 배포에서는 로컬 AWS 인증과 로컬 env 파일이 필요합니다.
+- 실제 env 파일(`deploy/env/*.env`)은 `.gitignore` 대상이어야 하며 Git에 올리지 않습니다.
+
+### 사용 예시
+
+```bash
+# Django 수동 배포
+bash scripts/manual_eb_deploy.sh django \
+  --env-file deploy/env/test-django.env \
+  --profile tailtalk
+
+# FastAPI 수동 배포
+bash scripts/manual_eb_deploy.sh fastapi \
+  --env-file deploy/env/test-fastapi.env \
+  --profile tailtalk
+
+# 배포는 하지 않고 이미지 push + EB bundle 생성까지만
+bash scripts/manual_eb_deploy.sh django \
+  --env-file deploy/env/test-django.env \
+  --skip-deploy
+```
+
+### 동작 순서
+
+1. 로컬 소스 기준으로 Docker 이미지 build
+2. ECR 로그인 후 `latest`와 고유 태그 push
+3. 현재 배포 템플릿으로 EB bundle zip 생성
+4. Elastic Beanstalk S3 storage bucket 업로드
+5. Application version 생성 후 환경 업데이트
+6. 환경 상태 대기 후 health endpoint 확인
+
+### 기본 대상
+
+- Django
+  - ECR: `027099020675.dkr.ecr.ap-northeast-2.amazonaws.com/test-tailtalk-django`
+  - EB App: `test-tailtalk-django`
+  - EB Env: `test-tailtalk-django-env`
+- FastAPI
+  - ECR: `027099020675.dkr.ecr.ap-northeast-2.amazonaws.com/test-tailtalk-fastapi`
+  - EB App: `test-tailtalk-fastapi`
+  - EB Env: `test-tailtalk-fastapi-env`
+
+필요하면 `--image-repo`, `--application-name`, `--environment-name`, `--region`으로 override 할 수 있습니다.
+
+---
+
 ## 팀원 온보딩 (처음 셋업)
 
 ```bash
@@ -156,6 +218,7 @@ scripts/
 ├── dump_db.sh                      # DB 덤프 생성
 ├── aws/
 │   └── start_test_rds_dbeaver_tunnel.sh  # Test RDS용 SSH 터널
+├── manual_eb_deploy.sh           # 로컬 build/push + 수동 EB 배포
 ├── ingest_postgres.py              # 상품/리뷰/벡터 적재
 ├── config.py                       # ETL 공통 설정
 ├── domain/
