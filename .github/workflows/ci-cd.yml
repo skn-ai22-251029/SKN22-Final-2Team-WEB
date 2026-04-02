@@ -223,6 +223,8 @@ jobs:
           context: services/django
           platforms: linux/amd64
           push: true
+          cache-from: type=gha,scope=django-eb
+          cache-to: type=gha,mode=max,scope=django-eb
           tags: |
             ${{ env.DJANGO_IMAGE_REPO }}:latest
             ${{ env.DJANGO_IMAGE_REPO }}:${{ steps.django-meta.outputs.short_sha }}
