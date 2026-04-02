@@ -9,7 +9,7 @@ from django.contrib import messages
 from django.contrib.auth import get_user_model, login, logout
 from django.db import IntegrityError, transaction
 from django.db.models import Avg, Sum
-from django.shortcuts import redirect, render
+from django.shortcuts import get_object_or_404, redirect, render
 from django.urls import reverse
 from products.catalog_menu import build_catalog_menu_context
 from products.models import Product
@@ -216,6 +216,12 @@ def _apply_demo_registered_dates(products):
     return products
 
 
+def _get_vendor_product_registered_date_label(product):
+    if product.crawled_at:
+        return product.crawled_at.strftime("%Y.%m.%d")
+    return "-"
+
+
 def _sort_vendor_products(products, sort_key):
     if sort_key == "reviews":
         products.sort(
@@ -313,6 +319,12 @@ def _build_vendor_navigation(current_view):
             "disabled": False,
         },
         {
+            "label": "통계",
+            "href": reverse("vendor-analytics"),
+            "active": current_view == "analytics",
+            "disabled": False,
+        },
+        {
             "label": "상품 목록",
             "href": reverse("vendor-products"),
             "active": current_view == "products",
@@ -328,12 +340,6 @@ def _build_vendor_navigation(current_view):
             "label": "리뷰 관리",
             "href": reverse("vendor-reviews"),
             "active": current_view == "reviews",
-            "disabled": False,
-        },
-        {
-            "label": "운영 점검",
-            "href": reverse("vendor-operations"),
-            "active": current_view == "operations",
             "disabled": False,
         },
     ]
@@ -490,7 +496,7 @@ def vendor_dashboard_view(request):
                         "tone": "rose",
                         "priority": 0,
                         "count": display_soldout_products,
-                        "href": f"{reverse('vendor-operations')}?focus=inventory",
+                        "href": f"{reverse('vendor-products')}?stock=soldout",
                     },
                     {
                         "title": f"취소/환불 요청 {mock_cancel_refund}건",
@@ -504,14 +510,14 @@ def vendor_dashboard_view(request):
                         "tone": "amber",
                         "priority": 1,
                         "count": 2,
-                        "href": f"{reverse('vendor-operations')}?focus=pricing",
+                        "href": f"{reverse('vendor-products')}?sort=price_high",
                     },
                     {
                         "title": "노출 점검 필요 3건",
                         "tone": "amber",
                         "priority": 1,
                         "count": 3,
-                        "href": f"{reverse('vendor-operations')}?focus=exposure",
+                        "href": reverse("vendor-products"),
                     },
                     {
                         "title": "리뷰 확인 필요 12건",
@@ -532,14 +538,14 @@ def vendor_dashboard_view(request):
                         "tone": "blue",
                         "priority": 2,
                         "count": 2,
-                        "href": f"{reverse('vendor-operations')}?focus=approval",
+                        "href": f"{reverse('vendor-products')}?stock=pending",
                     },
                     {
                         "title": "상품 정보 수정 필요 1건",
                         "tone": "blue",
                         "priority": 2,
                         "count": 1,
-                        "href": f"{reverse('vendor-operations')}?focus=content",
+                        "href": reverse("vendor-products"),
                     },
                 ],
                 key=lambda item: (item["priority"], -item["count"], item["title"]),
@@ -614,6 +620,194 @@ def vendor_products_view(request):
     )
 
 
+def vendor_analytics_view(request):
+    base_context = _build_vendor_base_context(request, "analytics")
+    if base_context is None:
+        return redirect("vendor-login")
+
+    vendor_products = Product.objects.filter(brand_name=base_context["vendor_account"]["brand_name"])
+    demo_soldout_goods_ids = _get_demo_soldout_goods_ids(vendor_products)
+    demo_pending_goods_ids = _get_demo_pending_goods_ids(vendor_products, demo_soldout_goods_ids)
+    total_products = vendor_products.count()
+    soldout_count = len(demo_soldout_goods_ids)
+    pending_count = len(demo_pending_goods_ids)
+    active_count = max(total_products - soldout_count - pending_count, 0)
+    total_reviews = vendor_products.aggregate(total=Sum("review_count"))["total"] or 0
+    average_rating = vendor_products.exclude(rating__isnull=True).aggregate(avg=Avg("rating"))["avg"]
+    average_discount_price = vendor_products.aggregate(avg=Avg("discount_price"))["avg"]
+    average_popularity = vendor_products.exclude(popularity_score__isnull=True).aggregate(avg=Avg("popularity_score"))["avg"]
+    average_repeat_rate = vendor_products.exclude(repeat_rate__isnull=True).aggregate(avg=Avg("repeat_rate"))["avg"]
+    average_sentiment = vendor_products.exclude(sentiment_avg__isnull=True).aggregate(avg=Avg("sentiment_avg"))["avg"]
+    average_price_purchase = vendor_products.exclude(aspect_price_purchase__isnull=True).aggregate(avg=Avg("aspect_price_purchase"))["avg"]
+    average_palatability = vendor_products.exclude(aspect_palatability__isnull=True).aggregate(avg=Avg("aspect_palatability"))["avg"]
+    average_delivery = vendor_products.exclude(aspect_delivery_packaging__isnull=True).aggregate(avg=Avg("aspect_delivery_packaging"))["avg"]
+
+    category_counter = Counter()
+    pet_type_counter = Counter()
+    for product in vendor_products:
+        for pet_type in product.pet_type or []:
+            pet_type_counter[pet_type] += 1
+        if product.category:
+            category_counter[product.category[0]] += 1
+
+    impressions = max(total_reviews * 34 + total_products * 180, 1200)
+    clicks = max(int(impressions * 0.043), 1)
+    detail_views = max(int(clicks * 0.71), 1)
+    carts = max(int(detail_views * 0.24), 1)
+    orders = max(int(carts * 0.39), 1)
+    ctr = (clicks / impressions) * 100 if impressions else 0
+    detail_rate = (detail_views / clicks) * 100 if clicks else 0
+    cart_rate = (carts / detail_views) * 100 if detail_views else 0
+    order_rate = (orders / detail_views) * 100 if detail_views else 0
+    repeat_rate_percent = float((average_repeat_rate or 0) * 100)
+    sentiment_percent = float((average_sentiment or 0) * 100)
+    relevance_score = float(average_popularity or 0)
+    price_resistance = max(0.0, 100 - float((average_price_purchase or 0) * 100))
+    repurchase_potential = max(0.0, min((repeat_rate_percent * 0.55) + (relevance_score * 22), 100))
+
+    funnel_items = [
+        {"label": "노출", "value": f"{impressions:,}", "subtext": "추천 + 검색"},
+        {"label": "클릭", "value": f"{clicks:,}", "subtext": f"CTR {ctr:.1f}%"},
+        {"label": "상세 진입", "value": f"{detail_views:,}", "subtext": f"상세 전환 {detail_rate:.1f}%"},
+        {"label": "장바구니", "value": f"{carts:,}", "subtext": f"담기율 {cart_rate:.1f}%"},
+        {"label": "구매", "value": f"{orders:,}", "subtext": f"구매 전환 {order_rate:.1f}%"},
+    ]
+
+    explicit_metrics = [
+        {
+            "label": "평균 평점",
+            "value": _format_vendor_rating(average_rating),
+            "description": "리뷰가 직접 보여주는 만족도",
+        },
+        {
+            "label": "리뷰 수",
+            "value": f"{total_reviews:,}개",
+            "description": "구매 후 반응 모수",
+        },
+        {
+            "label": "가격 저항",
+            "value": f"{price_resistance:.1f}",
+            "description": "가격/구매 반응 역산 지표",
+        },
+        {
+            "label": "배송 만족",
+            "value": f"{float(average_delivery or 0):.2f}",
+            "description": "배송·포장 체감 품질",
+        },
+    ]
+
+    implicit_metrics = [
+        {
+            "label": "추천 CTR",
+            "value": f"{ctr:.1f}%",
+            "description": "노출 대비 클릭",
+        },
+        {
+            "label": "상세 전환율",
+            "value": f"{detail_rate:.1f}%",
+            "description": "클릭 대비 상세 진입",
+        },
+        {
+            "label": "반복 구매율",
+            "value": f"{repeat_rate_percent:.1f}%",
+            "description": "재구매 잠재력",
+        },
+        {
+            "label": "추천 적합도",
+            "value": f"{relevance_score:.2f}",
+            "description": "추천 슬롯 효율 지표",
+        },
+    ]
+
+    bottlenecks = [
+        {
+            "label": "가격 저항",
+            "value": f"{price_resistance:.1f}",
+            "status": "우선 보정 필요" if price_resistance >= 55 else "안정",
+            "tone": "rose" if price_resistance >= 55 else "green",
+        },
+        {
+            "label": "재구매 잠재력",
+            "value": f"{repurchase_potential:.1f}",
+            "status": "확장 가능" if repurchase_potential >= 45 else "보강 필요",
+            "tone": "blue" if repurchase_potential >= 45 else "amber",
+        },
+        {
+            "label": "리뷰 정서",
+            "value": f"{sentiment_percent:.1f}%",
+            "status": "양호" if sentiment_percent >= 55 else "개선 필요",
+            "tone": "green" if sentiment_percent >= 55 else "amber",
+        },
+    ]
+
+    recommended_actions = [
+        {
+            "title": "추천 가중치 상향",
+            "reason": "추천 적합도와 CTR이 안정적이라 상단 슬롯 확대 효과가 큼",
+            "impact": "30일 예상 매출 +₩1,420,000",
+        },
+        {
+            "title": "재구매 타겟 강화",
+            "reason": "재구매율과 기호성 지표가 높아 CRM 리마케팅 효율이 좋음",
+            "impact": "예상 재구매 주문 +26건",
+        },
+        {
+            "title": "가격 저항 보정",
+            "reason": "가격/구매 반응이 낮아 상세 전환 이후 이탈 구간이 큼",
+            "impact": "전환 이탈 -7.8%",
+        },
+    ]
+
+    performance_rows = []
+    ranked_products = vendor_products.order_by("-review_count", "-rating", "goods_name")[:6]
+    for index, product in enumerate(ranked_products, start=1):
+        item = _serialize_vendor_product(product, demo_soldout_goods_ids, demo_pending_goods_ids)
+        product_ctr = 3.8 + (index * 0.3)
+        product_conversion = 9.2 - (index * 0.6)
+        performance_rows.append(
+            {
+                "goods_id": item["goods_id"],
+                "goods_name": item["goods_name"],
+                "status_label": item["status_label"],
+                "revenue_label": f"₩{max(3800000 - (index * 240000), 780000):,}",
+                "ctr_label": f"{product_ctr:.1f}%",
+                "conversion_label": f"{max(product_conversion, 4.1):.1f}%",
+                "repeat_label": f"{max(repeat_rate_percent - (index * 1.3), 8.0):.1f}%",
+            }
+        )
+
+    category_breakdown = [
+        {"label": label, "count": count}
+        for label, count in category_counter.most_common(5)
+    ]
+
+    return render(
+        request,
+        "users/vendor_analytics.html",
+        {
+            **base_context,
+            "vendor_analytics_summary": [
+                {"label": "이번 달 매출", "value": "₩23,920,000", "description": "전월 대비 +8.6%"},
+                {"label": "구매 전환율", "value": f"{order_rate:.1f}%", "description": "상세 진입 대비"},
+                {"label": "반복 구매율", "value": f"{repeat_rate_percent:.1f}%", "description": "브랜드 평균"},
+                {"label": "평균 실판매가", "value": _format_vendor_price(average_discount_price), "description": "운영 상품 평균"},
+            ],
+            "vendor_funnel_items": funnel_items,
+            "vendor_explicit_metrics": explicit_metrics,
+            "vendor_implicit_metrics": implicit_metrics,
+            "vendor_bottlenecks": bottlenecks,
+            "vendor_recommended_actions": recommended_actions,
+            "vendor_performance_rows": performance_rows,
+            "vendor_category_breakdown": category_breakdown,
+            "vendor_inventory_summary": [
+                {"label": "판매중", "value": f"{active_count:,}개"},
+                {"label": "준비중", "value": f"{pending_count:,}개"},
+                {"label": "품절", "value": f"{soldout_count:,}개"},
+            ],
+        },
+    )
+
+
 def vendor_product_create_view(request):
     base_context = _build_vendor_base_context(request, "products")
     if base_context is None:
@@ -637,6 +831,69 @@ def vendor_product_create_view(request):
         "users/vendor_product_create.html",
         {
             **base_context,
+            "vendor_product_form_mode": "create",
+            "vendor_product_form_title": "상품 등록",
+            "vendor_upload_sample_columns": sample_columns,
+            **form_options,
+        },
+    )
+
+
+def vendor_product_edit_view(request, goods_id):
+    base_context = _build_vendor_base_context(request, "products")
+    if base_context is None:
+        return redirect("vendor-login")
+
+    sample_columns = [
+        "goods_id",
+        "goods_name",
+        "price",
+        "discount_price",
+        "thumbnail_url",
+        "product_url",
+        "pet_type",
+        "category",
+        "subcategory",
+        "main_ingredients",
+    ]
+    product = get_object_or_404(
+        Product,
+        goods_id=goods_id,
+        brand_name=base_context["vendor_account"]["brand_name"],
+    )
+    vendor_products = Product.objects.filter(brand_name=base_context["vendor_account"]["brand_name"])
+    demo_soldout_goods_ids = _get_demo_soldout_goods_ids(vendor_products)
+    demo_pending_goods_ids = _get_demo_pending_goods_ids(vendor_products, demo_soldout_goods_ids)
+    serialized_product = _serialize_vendor_product(product, demo_soldout_goods_ids, demo_pending_goods_ids)
+    form_options = _collect_vendor_product_form_options()
+    category_path = list(product.category or [])
+    group_value = category_path[1] if len(category_path) > 1 else ""
+    subcategory_value = category_path[2] if len(category_path) > 2 else ""
+
+    return render(
+        request,
+        "users/vendor_product_create.html",
+        {
+            **base_context,
+            "vendor_product_form_mode": "edit",
+            "vendor_product_form_title": "상품 수정",
+            "vendor_product_form_initial": {
+                "goods_name": product.goods_name,
+                "price": f"{product.price:,}" if product.price is not None else "",
+                "discount_price": f"{product.discount_price:,}" if product.discount_price is not None else "",
+                "pet_type": product.pet_type[0] if product.pet_type else "",
+                "category": category_path[0] if category_path else "",
+                "subcategory_group": group_value,
+                "subcategory": subcategory_value,
+            },
+            "vendor_product_meta": {
+                "goods_id": product.goods_id,
+                "registered_date_label": _get_vendor_product_registered_date_label(product),
+                "status_label": serialized_product["status_label"],
+                "status_tone": "rose"
+                if serialized_product["soldout"]
+                else ("amber" if serialized_product["pending"] else "green"),
+            },
             "vendor_upload_sample_columns": sample_columns,
             **form_options,
         },
@@ -684,30 +941,6 @@ def vendor_reviews_view(request):
             **base_context,
             "vendor_reviews_focus": focus,
             "vendor_review_items": review_items,
-        },
-    )
-
-
-def vendor_operations_view(request):
-    base_context = _build_vendor_base_context(request, "operations")
-    if base_context is None:
-        return redirect("vendor-login")
-
-    focus = request.GET.get("focus", "inventory")
-    operation_items = [
-        {"title": "품절 상품 점검", "count": 4, "summary": "판매 불가 상품 확인"},
-        {"title": "가격/재고 점검", "count": 2, "summary": "이상치 상품 확인"},
-        {"title": "노출 점검", "count": 3, "summary": "대표 상품 노출 상태"},
-        {"title": "신규 등록 검수", "count": 2, "summary": "신규 상품 검토"},
-        {"title": "상품 정보 수정", "count": 1, "summary": "상세 정보 보완"},
-    ]
-    return render(
-        request,
-        "users/vendor_operations.html",
-        {
-            **base_context,
-            "vendor_operations_focus": focus,
-            "vendor_operation_items": operation_items,
         },
     )
 
