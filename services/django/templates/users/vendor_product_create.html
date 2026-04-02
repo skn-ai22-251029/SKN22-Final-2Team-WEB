@@ -10,7 +10,7 @@
 
 <section class="rounded-[30px] border border-white/70 bg-white/86 px-6 py-6 shadow-[0_18px_48px_rgba(148,163,184,0.14)] backdrop-blur md:px-8 md:py-8">
   <div>
-    <h1 class="text-[30px] font-bold tracking-[-0.03em] text-[#1e293b]">상품 등록</h1>
+    <h1 class="text-[30px] font-bold tracking-[-0.03em] text-[#1e293b]">{{ vendor_product_form_title|default:"상품 등록" }}</h1>
   </div>
 </section>
 
@@ -44,10 +44,33 @@
 
   <article id="vendorDirectPanel" class="pt-6">
     <form id="vendorProductCreateForm" class="grid gap-4 md:grid-cols-2" novalidate>
-      <label class="block">
-        <span class="mb-2 block text-[13px] font-semibold text-[#475569]">상품명 <span class="text-[#ef4444]">*</span></span>
-        <input type="text" name="goods_name" required class="h-[46px] w-full rounded-[12px] border border-[#dbe7f5] bg-white px-4 text-[14px] text-[#1e293b] outline-none transition focus:border-[#90cdf4]" placeholder="상품명을 입력해 주세요">
-      </label>
+      <div class="grid gap-4 md:col-span-2 md:grid-cols-[minmax(0,1fr),260px] md:items-end">
+        <label class="block">
+          <span class="mb-2 block text-[13px] font-semibold text-[#475569]">상품명 <span class="text-[#ef4444]">*</span></span>
+          <input type="text" name="goods_name" required value="{{ vendor_product_form_initial.goods_name|default:'' }}" class="h-[46px] w-full rounded-[12px] border border-[#dbe7f5] bg-white px-4 text-[14px] text-[#1e293b] outline-none transition focus:border-[#90cdf4]" placeholder="상품명을 입력해 주세요">
+        </label>
+        {% if vendor_product_form_mode == "edit" and vendor_product_meta %}
+        <section class="rounded-[18px] border border-[#e2e8f0] bg-[#f8fbff] px-4 py-3">
+          <p class="text-[11px] font-semibold uppercase tracking-[0.08em] text-[#94a3b8]">상품 메타</p>
+          <div class="mt-2 space-y-2 text-[13px] text-[#64748b]">
+            <div class="flex items-center justify-between gap-3">
+              <span>상품 ID</span>
+              <span class="font-semibold text-[#334155]">{{ vendor_product_meta.goods_id }}</span>
+            </div>
+            <div class="flex items-center justify-between gap-3">
+              <span>등록일</span>
+              <span class="font-semibold text-[#334155]">{{ vendor_product_meta.registered_date_label }}</span>
+            </div>
+            <div class="flex items-center justify-between gap-3">
+              <span>상태</span>
+              <span class="rounded-full px-2.5 py-1 text-[11px] font-semibold {% if vendor_product_meta.status_tone == 'green' %}bg-[#dcfce7] text-[#15803d]{% elif vendor_product_meta.status_tone == 'amber' %}bg-[#fef3c7] text-[#b45309]{% else %}bg-[#fee2e2] text-[#b91c1c]{% endif %}">
+                {{ vendor_product_meta.status_label }}
+              </span>
+            </div>
+          </div>
+        </section>
+        {% endif %}
+      </div>
       <div class="md:col-span-2">
         <div class="grid gap-4 md:grid-cols-2">
           <div class="block">
@@ -55,7 +78,7 @@
             <label class="flex h-[46px] cursor-pointer items-center justify-between rounded-[12px] border border-[#dbe7f5] bg-white px-4 text-[14px] text-[#64748b] transition hover:border-[#90cdf4]">
               <span id="vendorThumbnailPlaceholder" class="text-[#94a3b8]">파일 선택</span>
               <span class="text-[12px] font-semibold text-[#94a3b8]">jpg/png · 600x600 이상</span>
-              <input id="vendorThumbnailInput" type="file" name="thumbnail" required accept=".jpg,.jpeg,.png,image/png,image/jpeg" class="hidden">
+              <input id="vendorThumbnailInput" type="file" name="thumbnail" {% if vendor_product_form_mode != "edit" %}required{% endif %} accept=".jpg,.jpeg,.png,image/png,image/jpeg" class="hidden">
             </label>
           </div>
           <div class="block">
@@ -63,26 +86,26 @@
             <label class="flex h-[46px] cursor-pointer items-center justify-between rounded-[12px] border border-[#dbe7f5] bg-white px-4 text-[14px] text-[#64748b] transition hover:border-[#90cdf4]">
               <span id="vendorDetailImagePlaceholder" class="text-[#94a3b8]">파일 선택</span>
               <span class="text-[12px] font-semibold text-[#94a3b8]">jpg/png · 가로 1000px 이상</span>
-              <input id="vendorDetailImageInput" type="file" name="detail_image" required accept=".jpg,.jpeg,.png,image/png,image/jpeg" class="hidden">
+              <input id="vendorDetailImageInput" type="file" name="detail_image" {% if vendor_product_form_mode != "edit" %}required{% endif %} accept=".jpg,.jpeg,.png,image/png,image/jpeg" class="hidden">
             </label>
           </div>
         </div>
       </div>
       <label class="block">
         <span class="mb-2 block text-[13px] font-semibold text-[#475569]">정가(원) <span class="text-[#ef4444]">*</span></span>
-        <input type="text" name="price" required inputmode="numeric" autocomplete="off" data-price-input class="h-[46px] w-full rounded-[12px] border border-[#dbe7f5] bg-white px-4 text-[14px] text-[#1e293b] outline-none transition focus:border-[#90cdf4]" placeholder="정가를 입력해 주세요">
+        <input type="text" name="price" required inputmode="numeric" autocomplete="off" data-price-input value="{{ vendor_product_form_initial.price|default:'' }}" class="h-[46px] w-full rounded-[12px] border border-[#dbe7f5] bg-white px-4 text-[14px] text-[#1e293b] outline-none transition focus:border-[#90cdf4]" placeholder="정가를 입력해 주세요">
       </label>
       <label class="block">
         <span class="mb-2 block text-[13px] font-semibold text-[#475569]">실판매가(원) <span class="text-[#ef4444]">*</span></span>
-        <input type="text" name="discount_price" required inputmode="numeric" autocomplete="off" data-price-input class="h-[46px] w-full rounded-[12px] border border-[#dbe7f5] bg-white px-4 text-[14px] text-[#1e293b] outline-none transition focus:border-[#90cdf4]" placeholder="실판매가를 입력해 주세요">
+        <input type="text" name="discount_price" required inputmode="numeric" autocomplete="off" data-price-input value="{{ vendor_product_form_initial.discount_price|default:'' }}" class="h-[46px] w-full rounded-[12px] border border-[#dbe7f5] bg-white px-4 text-[14px] text-[#1e293b] outline-none transition focus:border-[#90cdf4]" placeholder="실판매가를 입력해 주세요">
       </label>
       <label class="block">
         <span class="mb-2 block text-[13px] font-semibold text-[#475569]">1차 카테고리 <span class="text-[#ef4444]">*</span></span>
         <div class="relative">
-          <select id="vendorPetTypeSelect" name="pet_type" required class="vendor-category-select h-[46px] w-full appearance-none rounded-[12px] border border-[#dbe7f5] bg-white pl-4 pr-10 text-[14px] text-[#94a3b8] outline-none transition focus:border-[#90cdf4]">
+          <select id="vendorPetTypeSelect" name="pet_type" required data-initial-value="{{ vendor_product_form_initial.pet_type|default:'' }}" class="vendor-category-select h-[46px] w-full appearance-none rounded-[12px] border border-[#dbe7f5] bg-white pl-4 pr-10 text-[14px] text-[#94a3b8] outline-none transition focus:border-[#90cdf4]">
             <option value="">1차 선택</option>
             {% for item in pet_type_options %}
-            <option value="{{ item }}">{{ item }}</option>
+            <option value="{{ item }}" {% if vendor_product_form_initial.pet_type == item %}selected{% endif %}>{{ item }}</option>
             {% endfor %}
           </select>
           <span class="pointer-events-none absolute inset-y-0 right-4 flex items-center text-[#94a3b8]">
@@ -95,7 +118,7 @@
       <label class="block">
         <span class="mb-2 block text-[13px] font-semibold text-[#475569]">2차 카테고리 <span class="text-[#ef4444]">*</span></span>
         <div class="relative">
-          <select id="vendorCategorySelect" name="category" required disabled class="vendor-category-select h-[46px] w-full appearance-none rounded-[12px] border border-[#dbe7f5] bg-[#f8fafc] pl-4 pr-10 text-[14px] text-[#94a3b8] outline-none transition focus:border-[#90cdf4] disabled:cursor-not-allowed disabled:text-[#94a3b8]">
+          <select id="vendorCategorySelect" name="category" required disabled data-initial-value="{{ vendor_product_form_initial.category|default:'' }}" class="vendor-category-select h-[46px] w-full appearance-none rounded-[12px] border border-[#dbe7f5] bg-[#f8fafc] pl-4 pr-10 text-[14px] text-[#94a3b8] outline-none transition focus:border-[#90cdf4] disabled:cursor-not-allowed disabled:text-[#94a3b8]">
             <option value="">2차 선택</option>
           </select>
           <span class="pointer-events-none absolute inset-y-0 right-4 flex items-center text-[#94a3b8]">
@@ -108,7 +131,7 @@
       <label class="block">
         <span class="mb-2 block text-[13px] font-semibold text-[#475569]">3차 카테고리</span>
         <div class="relative">
-          <select id="vendorGroupSelect" name="subcategory_group" disabled class="vendor-category-select h-[46px] w-full appearance-none rounded-[12px] border border-[#dbe7f5] bg-[#f8fafc] pl-4 pr-10 text-[14px] text-[#94a3b8] outline-none transition focus:border-[#90cdf4] disabled:cursor-not-allowed disabled:text-[#94a3b8]">
+          <select id="vendorGroupSelect" name="subcategory_group" disabled data-initial-value="{{ vendor_product_form_initial.subcategory_group|default:'' }}" class="vendor-category-select h-[46px] w-full appearance-none rounded-[12px] border border-[#dbe7f5] bg-[#f8fafc] pl-4 pr-10 text-[14px] text-[#94a3b8] outline-none transition focus:border-[#90cdf4] disabled:cursor-not-allowed disabled:text-[#94a3b8]">
             <option value="">3차 선택</option>
           </select>
           <span class="pointer-events-none absolute inset-y-0 right-4 flex items-center text-[#94a3b8]">
@@ -121,7 +144,7 @@
       <label class="block">
         <span class="mb-2 block text-[13px] font-semibold text-[#475569]">4차 카테고리</span>
         <div class="relative">
-          <select id="vendorSubcategorySelect" name="subcategory" disabled class="vendor-category-select h-[46px] w-full appearance-none rounded-[12px] border border-[#dbe7f5] bg-[#f8fafc] pl-4 pr-10 text-[14px] text-[#94a3b8] outline-none transition focus:border-[#90cdf4] disabled:cursor-not-allowed disabled:text-[#94a3b8]">
+          <select id="vendorSubcategorySelect" name="subcategory" disabled data-initial-value="{{ vendor_product_form_initial.subcategory|default:'' }}" class="vendor-category-select h-[46px] w-full appearance-none rounded-[12px] border border-[#dbe7f5] bg-[#f8fafc] pl-4 pr-10 text-[14px] text-[#94a3b8] outline-none transition focus:border-[#90cdf4] disabled:cursor-not-allowed disabled:text-[#94a3b8]">
             <option value="">4차 선택</option>
           </select>
           <span class="pointer-events-none absolute inset-y-0 right-4 flex items-center text-[#94a3b8]">
@@ -138,7 +161,7 @@
           disabled
           class="inline-flex h-[44px] items-center justify-center rounded-[12px] bg-[#cbd5e1] px-5 text-[14px] font-semibold text-white transition disabled:cursor-not-allowed"
         >
-          등록 요청
+          {% if vendor_product_form_mode == "edit" %}수정 요청{% else %}등록 요청{% endif %}
         </button>
       </div>
     </form>
@@ -689,9 +712,16 @@
         categorySelect.appendChild(option);
       });
 
+      if (categorySelect.dataset.initialValue) {
+        categorySelect.value = categorySelect.dataset.initialValue;
+        categorySelect.dataset.initialValue = '';
+      }
       syncCategorySelectTone(categorySelect);
       resetGroupSelect('3차 선택');
       resetSubcategorySelect('4차 선택');
+      if (categorySelect.value) {
+        updateGroupOptions();
+      }
       updateSubmitButtonState();
     }
 
@@ -734,8 +764,15 @@
         groupSelect.appendChild(option);
       });
 
+      if (groupSelect.dataset.initialValue) {
+        groupSelect.value = groupSelect.dataset.initialValue;
+        groupSelect.dataset.initialValue = '';
+      }
       syncCategorySelectTone(groupSelect);
       resetSubcategorySelect('4차 선택');
+      if (groupSelect.value) {
+        updateSubcategoryOptions();
+      }
       updateSubmitButtonState();
     }
 
@@ -777,6 +814,10 @@
         subcategorySelect.appendChild(option);
       });
 
+      if (subcategorySelect.dataset.initialValue) {
+        subcategorySelect.value = subcategorySelect.dataset.initialValue;
+        subcategorySelect.dataset.initialValue = '';
+      }
       syncCategorySelectTone(subcategorySelect);
       updateSubmitButtonState();
     }
@@ -791,6 +832,10 @@
 
     if (groupSelect) {
       groupSelect.addEventListener('change', updateSubcategoryOptions);
+    }
+
+    if (petTypeSelect && petTypeSelect.value) {
+      updateCategoryOptions();
     }
 
     if (createForm) {

@@ -439,6 +439,18 @@ class VendorAdminPageTests(TestCase):
         self.assertContains(response, "직접 입력")
         self.assertContains(response, "파일 업로드")
 
+    def test_vendor_analytics_renders_metrics(self):
+        session = self.client.session
+        session["tailtalk_vendor_admin_id"] = "orijen"
+        session.save()
+
+        response = self.client.get(reverse("vendor-analytics"))
+
+        self.assertEqual(response.status_code, status.HTTP_200_OK)
+        self.assertContains(response, "통계")
+        self.assertContains(response, "퍼널")
+        self.assertContains(response, "우선 액션")
+
     def test_vendor_orders_requires_vendor_session(self):
         response = self.client.get(reverse("vendor-orders"))
 
@@ -466,18 +478,6 @@ class VendorAdminPageTests(TestCase):
         self.assertEqual(response.status_code, status.HTTP_200_OK)
         self.assertContains(response, "리뷰 관리")
         self.assertContains(response, "배송이 빨라서 재구매 의향이 있어요")
-
-    def test_vendor_operations_renders_mock_items(self):
-        session = self.client.session
-        session["tailtalk_vendor_admin_id"] = "orijen"
-        session.save()
-
-        response = self.client.get(f"{reverse('vendor-operations')}?focus=inventory")
-
-        self.assertEqual(response.status_code, status.HTTP_200_OK)
-        self.assertContains(response, "운영 점검")
-        self.assertContains(response, "품절 상품 점검")
-
 
 class UserProfileApiTests(TestCase):
     def setUp(self):

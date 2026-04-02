@@ -125,12 +125,12 @@
           정가 {{ product.price_label }}{% if product.discount_rate_label %} · 할인율 {{ product.discount_rate_label }}{% endif %}
         </p>
         <p class="text-[18px] font-bold text-[#1e293b]">실판매가 {{ product.discount_price_label }}</p>
-        <button
-          type="button"
+        <a
+          href="{% url 'vendor-product-edit' product.goods_id %}"
           class="mt-2 inline-flex h-[34px] items-center justify-center rounded-[10px] border border-[#dbe7f5] bg-white px-4 text-[13px] font-semibold text-[#475569] transition hover:border-[#bfdbfe] hover:bg-[#f8fbff]"
         >
           수정
-        </button>
+        </a>
       </div>
     </article>
     {% empty %}
