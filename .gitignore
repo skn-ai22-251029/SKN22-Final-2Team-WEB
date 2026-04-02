@@ -88,10 +88,3 @@ GEMINI.md
 aws
 awscliv2.zip
 test_*
-
-AGENTS.md
-
-# Manual deploy env files
-!deploy/env/
-deploy/env/*.env
-!deploy/env/*.env.example
