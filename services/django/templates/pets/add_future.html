@@ -1,14 +1,203 @@
 {% extends "base.html" %}
 {% block title %}예비 집사 등록 — TailTalk{% endblock %}
 
-{% block content %}
-<div class="min-h-screen bg-[#f7fafc]">
-  <div class="relative flex min-h-screen w-full items-center justify-center px-4 py-8">
-    <a href="/chat/" class="absolute left-4 top-4 text-[22px] font-bold leading-none text-[#2d3748] md:left-8 md:top-8 md:text-[26px]" aria-label="메인으로 이동">
-      <span class="text-[#3182ce]">Tail</span><span>Talk</span>
-    </a>
+{% block head %}
+<style>
+  #pageGate {
+    min-height: 100dvh;
+    background: #f8f9fb;
+  }
 
-    <div class="flex w-full max-w-[720px] flex-col rounded-[18px] border border-[#e2e8f0] bg-white px-5 pb-6 pt-0 shadow-[0_6px_20px_rgba(45,55,72,0.04)] md:px-[40px] md:pb-[32px]">
+  #pageGate > .app-shell {
+    position: relative;
+    width: min(100%, 960px);
+    min-height: 100dvh;
+    height: 100dvh;
+    margin: 0 auto;
+    overflow: hidden;
+    background: #f8f9fb;
+  }
+
+  #petsAddHeader {
+    position: absolute;
+    inset: 0 0 auto 0;
+    height: 72px;
+    border-bottom: 1px solid #e2e8f0;
+    background: #fff;
+    z-index: 40;
+  }
+
+  #petsAddHeaderInner {
+    display: grid;
+    grid-template-columns: 40px auto 40px;
+    align-items: center;
+    gap: 8px;
+    height: 100%;
+    padding: 0 12px;
+  }
+
+  #petsAddHeaderLogo {
+    justify-self: center;
+    font-size: 26px;
+    font-weight: 700;
+    line-height: 1;
+    color: #2d3748;
+    white-space: nowrap;
+  }
+
+  #headerSubnav {
+    position: absolute;
+    inset: 72px 0 auto 0;
+    z-index: 35;
+    border-bottom: 1px solid #e8eef6;
+    background: rgba(255, 255, 255, 0.98);
+    backdrop-filter: blur(12px);
+  }
+
+  #headerSubnavRail {
+    display: grid;
+    grid-template-columns: repeat(4, minmax(0, 1fr));
+    width: 100%;
+  }
+
+  .header-subnav-link {
+    position: relative;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    height: 44px;
+    color: #4a5568;
+    transition: background-color 160ms ease, color 160ms ease;
+  }
+
+  .header-subnav-link + .header-subnav-link::before {
+    content: '';
+    position: absolute;
+    left: 0;
+    top: 10px;
+    bottom: 10px;
+    width: 1px;
+    background: #e8eef6;
+  }
+
+  .header-subnav-link:hover {
+    background: #f8fbff;
+  }
+
+  #profileMenuWrapper {
+    position: relative;
+    height: 40px;
+    width: 40px;
+  }
+
+  #profileMenu {
+    position: absolute;
+    top: calc(100% + 10px);
+    right: 0;
+    width: 188px;
+    overflow: hidden;
+    border: 1px solid #e2e8f0;
+    border-radius: 18px;
+    background: #fff;
+    box-shadow: 0 18px 36px rgba(15, 23, 42, 0.12);
+    opacity: 0;
+    pointer-events: none;
+    transform: translateY(-6px);
+    transition: opacity 160ms ease, transform 160ms ease;
+    z-index: 50;
+  }
+
+  #profileMenu.is-open {
+    opacity: 1;
+    pointer-events: auto;
+    transform: translateY(0);
+  }
+
+  #petsAddViewport {
+    position: absolute;
+    inset: 116px 0 0 0;
+    overflow-y: auto;
+    padding: 18px 16px 28px;
+  }
+
+  @media (max-width: 767px) {
+    #pageGate > .app-shell {
+      width: 100vw;
+    }
+  }
+</style>
+{% endblock %}
+
+{% block content %}
+<div id="pageGate" class="min-h-screen bg-[#f8f9fb]">
+  <div class="app-shell">
+    <header id="petsAddHeader">
+      <div id="petsAddHeaderInner">
+        <div></div>
+        <a href="/chat/" id="petsAddHeaderLogo" aria-label="메인으로 돌아가기">
+          <span class="text-[#3182ce]">Tail</span><span>Talk</span>
+        </a>
+        <div class="justify-self-end min-w-0">
+          <div id="profileMenuWrapper">
+            <button type="button"
+                    class="flex h-[40px] w-[40px] items-center justify-center rounded-full border border-[#e2e8f0] bg-white shadow-[0_2px_8px_rgba(45,55,72,0.05)]"
+                    aria-label="프로필 메뉴 열기"
+                    onclick="toggleProfileMenu()">
+              <svg viewBox="0 0 24 24" class="h-[30px] w-[30px] text-[#4a5568]" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+                <circle cx="12" cy="8" r="3.2"></circle>
+                <path d="M5.5 19a6.5 6.5 0 0 1 13 0"></path>
+              </svg>
+            </button>
+            <div id="profileMenu">
+              <a href="/profile/"
+                 class="flex h-[44px] w-full items-center rounded-t-[16px] px-[16px] text-[14px] text-[#2d3748] hover:bg-[#edf2f7]">내 정보</a>
+              <div class="mx-[12px] h-px bg-[#edf2f7]"></div>
+              <a href="/pets/"
+                 class="flex h-[44px] w-full items-center px-[16px] text-[14px] text-[#2d3748] hover:bg-[#edf2f7]">반려동물 정보</a>
+              <div class="mx-[12px] h-px bg-[#edf2f7]"></div>
+              <a href="/logout/"
+                 class="flex h-[44px] w-full items-center rounded-b-[16px] px-[16px] text-[14px] text-[#ef4444] hover:bg-[#fef2f2]">로그아웃</a>
+            </div>
+          </div>
+        </div>
+      </div>
+    </header>
+
+    <div id="headerSubnav">
+      <div id="headerSubnavRail">
+        <a href="/catalog/" class="header-subnav-link" aria-label="상품 목록" title="상품 목록">
+          <svg viewBox="0 0 24 24" class="h-[17px] w-[17px]" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+            <rect x="4" y="4" width="6" height="6" rx="1.5"></rect>
+            <rect x="14" y="4" width="6" height="6" rx="1.5"></rect>
+            <rect x="4" y="14" width="6" height="6" rx="1.5"></rect>
+            <rect x="14" y="14" width="6" height="6" rx="1.5"></rect>
+          </svg>
+        </a>
+        <a href="/products/" class="header-subnav-link" aria-label="장바구니" title="장바구니">
+          <svg viewBox="0 0 24 24" class="h-[18px] w-[18px]" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+            <circle cx="9" cy="20" r="1.5"></circle>
+            <circle cx="18" cy="20" r="1.5"></circle>
+            <path d="M3 4h2l2.2 10.2a1 1 0 0 0 1 .8h8.9a1 1 0 0 0 1-.75L20 8H7"></path>
+          </svg>
+        </a>
+        <a href="/products/?tab=wishlist" class="header-subnav-link" aria-label="관심 상품" title="관심 상품">
+          <svg viewBox="0 0 24 24" class="h-[17px] w-[17px]" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+            <path d="M12 20.4 4.9 13.8a4.8 4.8 0 0 1 6.8-6.8L12 7.3l.3-.3a4.8 4.8 0 0 1 6.8 6.8L12 20.4Z"></path>
+          </svg>
+        </a>
+        <a href="/orders/" class="header-subnav-link" aria-label="주문 내역" title="주문 내역">
+          <svg viewBox="0 0 24 24" class="h-[17px] w-[17px]" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+            <path d="M7 4.5h10"></path>
+            <path d="M7 9.5h10"></path>
+            <path d="M7 14.5h6"></path>
+            <rect x="4" y="3" width="16" height="18" rx="2"></rect>
+          </svg>
+        </a>
+      </div>
+    </div>
+
+    <div id="petsAddViewport" class="flex items-start justify-center px-4 py-8 md:items-center">
+      <div class="flex w-full max-w-[720px] flex-col rounded-[18px] border border-[#e2e8f0] bg-white px-5 pb-6 pt-0 shadow-[0_6px_20px_rgba(45,55,72,0.04)] md:px-[40px] md:pb-[32px]">
       <div class="grid grid-cols-2 gap-[10px]">
         <span class="h-[6px] rounded-full bg-[#3182ce]"></span>
         <span class="h-[6px] rounded-full bg-[#3182ce]"></span>
@@ -93,6 +282,7 @@
           </button>
         </div>
       </form>
+      </div>
     </div>
   </div>
 </div>
@@ -101,6 +291,8 @@
 {% block scripts %}
 <script>
   (function () {
+    var profileMenu = document.getElementById('profileMenu');
+    var profileMenuWrapper = document.getElementById('profileMenuWrapper');
     var preferredSpeciesInput = document.getElementById('preferredSpeciesInput');
     var preferredSpeciesStatus = document.getElementById('preferredSpeciesStatus');
     var submitButton = document.getElementById('futureSubmitButton');
@@ -172,6 +364,17 @@
         }
       });
     }
+
+    window.toggleProfileMenu = function toggleProfileMenu() {
+      if (!profileMenu) return;
+      profileMenu.classList.toggle('is-open');
+    };
+
+    document.addEventListener('click', function (event) {
+      if (profileMenuWrapper && !profileMenuWrapper.contains(event.target) && profileMenu) {
+        profileMenu.classList.remove('is-open');
+      }
+    });
 
     syncSelectable(
       '.interest-option',

@@ -2,12 +2,157 @@
 {% load static %}
 {% block title %}내 정보 — TailTalk{% endblock %}
 
+{% block head %}
+<style>
+  #pageGate {
+    min-height: 100dvh;
+    background: #f8f9fb;
+  }
+
+  #pageGate > .app-shell {
+    position: relative;
+    width: min(100%, 960px);
+    min-height: 100dvh;
+    height: 100dvh;
+    margin: 0 auto;
+    overflow: hidden;
+    background: #f8f9fb;
+  }
+
+  #profileHeader {
+    position: absolute;
+    inset: 0 0 auto 0;
+    height: 72px;
+    border-bottom: 1px solid #e2e8f0;
+    background: #fff;
+    z-index: 40;
+  }
+
+  #profileHeaderInner {
+    display: grid;
+    grid-template-columns: 40px auto 40px;
+    align-items: center;
+    gap: 8px;
+    height: 100%;
+    padding: 0 12px;
+  }
+
+  #profileHeaderLogo {
+    justify-self: center;
+    font-size: 26px;
+    font-weight: 700;
+    line-height: 1;
+    color: #2d3748;
+    white-space: nowrap;
+  }
+
+  #headerSubnav {
+    position: absolute;
+    inset: 72px 0 auto 0;
+    z-index: 35;
+    border-bottom: 1px solid #e8eef6;
+    background: rgba(255, 255, 255, 0.98);
+    backdrop-filter: blur(12px);
+  }
+
+  #headerSubnavRail {
+    display: grid;
+    grid-template-columns: repeat(4, minmax(0, 1fr));
+    width: 100%;
+  }
+
+  .header-subnav-link {
+    position: relative;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    height: 44px;
+    color: #4a5568;
+    transition: background-color 160ms ease, color 160ms ease;
+  }
+
+  .header-subnav-link + .header-subnav-link::before {
+    content: '';
+    position: absolute;
+    left: 0;
+    top: 10px;
+    bottom: 10px;
+    width: 1px;
+    background: #e8eef6;
+  }
+
+  .header-subnav-link:hover {
+    background: #f8fbff;
+  }
+
+  #profileMenuWrapper {
+    position: relative;
+    height: 40px;
+    width: 40px;
+  }
+
+  #profileMenu {
+    position: absolute;
+    top: calc(100% + 10px);
+    right: 0;
+    width: 188px;
+    overflow: hidden;
+    border: 1px solid #e2e8f0;
+    border-radius: 18px;
+    background: #fff;
+    box-shadow: 0 18px 36px rgba(15, 23, 42, 0.12);
+    opacity: 0;
+    pointer-events: none;
+    transform: translateY(-6px);
+    transition: opacity 160ms ease, transform 160ms ease;
+    z-index: 50;
+  }
+
+  #profileMenu.is-open {
+    opacity: 1;
+    pointer-events: auto;
+    transform: translateY(0);
+  }
+
+  #profileViewport {
+    position: absolute;
+    inset: 116px 0 0 0;
+    overflow-y: auto;
+    padding: 18px 16px 28px;
+  }
+
+  #withdrawModal,
+  #paymentModal {
+    position: absolute;
+    inset: 0;
+  }
+
+  @media (max-width: 767px) {
+    #pageGate > .app-shell {
+      width: 100vw;
+    }
+  }
+
+  @media (min-width: 768px) {
+    #pageGate > .app-shell {
+      min-height: 100dvh;
+      height: auto;
+      overflow: visible;
+    }
+
+    #profileViewport {
+      position: relative;
+      inset: auto;
+      overflow: visible;
+      padding: 134px 16px 28px;
+    }
+  }
+</style>
+{% endblock %}
+
 {% block content %}
-<div class="min-h-screen bg-[#f7fafc]">
-<a href="/chat/" class="fixed left-8 top-8 z-[999] cursor-pointer text-[26px] font-bold leading-none text-[#2d3748]">
-  <span class="text-[#3182ce]">Tail</span><span>Talk</span>
-</a>
-<div class="relative w-full px-4 py-8">
+<div id="pageGate" class="min-h-screen bg-[#f7fafc]">
+<div class="app-shell">
 
   <!-- 탈퇴 모달 -->
   <div id="withdrawModal" class="absolute inset-0 z-[60] hidden items-center justify-center bg-black/10"
@@ -45,19 +190,19 @@
           <div>
             <div class="mb-2 text-[14px] font-bold text-[#4a5568]">카드명</div>
             <input id="paymentCardNameInput" type="text" placeholder="예: 현대카드 M"
-                   class="h-[40px] w-full rounded-[10px] border border-[#e2e8f0] px-3 text-[13px] text-[#4a5568] outline-none focus:border-[#3182ce]" />
+                   class="h-[40px] w-full rounded-[10px] border border-[#e2e8f0] bg-white px-3 text-[13px] text-[#4a5568] outline-none focus:border-[#3182ce]" />
             <p id="paymentCardNameStatus" class="mt-1 min-h-[16px] text-right text-[12px]"></p>
           </div>
           <div>
             <div class="mb-2 text-[14px] font-bold text-[#4a5568]">카드번호</div>
             <input id="paymentCardNumberInput" type="text" inputmode="numeric" maxlength="19" placeholder="1234 5678 9012 3456"
-                   class="h-[40px] w-full rounded-[10px] border border-[#e2e8f0] px-3 text-[13px] text-[#4a5568] outline-none focus:border-[#3182ce]" />
+                   class="h-[40px] w-full rounded-[10px] border border-[#e2e8f0] bg-white px-3 text-[13px] text-[#4a5568] outline-none focus:border-[#3182ce]" />
             <p id="paymentCardNumberStatus" class="mt-1 min-h-[16px] text-right text-[12px]"></p>
           </div>
           <div>
             <div class="mb-2 text-[14px] font-bold text-[#4a5568]">유효기간</div>
             <input id="paymentExpiryInput" type="text" inputmode="numeric" maxlength="5" placeholder="MM/YY"
-                   class="h-[40px] w-full rounded-[10px] border border-[#e2e8f0] px-3 text-[13px] text-[#4a5568] outline-none focus:border-[#3182ce]" />
+                   class="h-[40px] w-full rounded-[10px] border border-[#e2e8f0] bg-white px-3 text-[13px] text-[#4a5568] outline-none focus:border-[#3182ce]" />
             <p id="paymentExpiryStatus" class="mt-1 min-h-[16px] text-right text-[12px]"></p>
           </div>
         </div>
@@ -71,11 +216,73 @@
     </div>
   </div>
 
-  <div class="mx-auto mt-14 w-full max-w-[860px] rounded-[20px] border border-[#e2e8f0] bg-white">
-    <div class="px-8 pt-6 pb-4 text-[24px] font-bold text-[#2d3748]">내 정보</div>
-    <div class="h-px w-full bg-[#e2e8f0]"></div>
+  <header id="profileHeader">
+    <div id="profileHeaderInner">
+      <div></div>
+      <a href="/chat/" id="profileHeaderLogo" aria-label="메인으로 돌아가기">
+        <span class="text-[#3182ce]">Tail</span><span>Talk</span>
+      </a>
+      <div class="justify-self-end min-w-0">
+        <div id="profileMenuWrapper">
+          <button type="button"
+                  class="flex h-[40px] w-[40px] items-center justify-center rounded-full border border-[#e2e8f0] bg-white shadow-[0_2px_8px_rgba(45,55,72,0.05)]"
+                  aria-label="프로필 메뉴 열기"
+                  onclick="toggleProfileMenu()">
+            <svg viewBox="0 0 24 24" class="h-[30px] w-[30px] text-[#4a5568]" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+              <circle cx="12" cy="8" r="3.2"></circle>
+              <path d="M5.5 19a6.5 6.5 0 0 1 13 0"></path>
+            </svg>
+          </button>
+          <div id="profileMenu">
+            <a href="/profile/"
+               class="flex h-[44px] w-full items-center rounded-t-[16px] px-[16px] text-[14px] text-[#2d3748] hover:bg-[#edf2f7]">내 정보</a>
+            <div class="mx-[12px] h-px bg-[#edf2f7]"></div>
+            <a href="/pets/"
+               class="flex h-[44px] w-full items-center px-[16px] text-[14px] text-[#2d3748] hover:bg-[#edf2f7]">반려동물 정보</a>
+            <div class="mx-[12px] h-px bg-[#edf2f7]"></div>
+            <a href="/logout/"
+               class="flex h-[44px] w-full items-center rounded-b-[16px] px-[16px] text-[14px] text-[#ef4444] hover:bg-[#fef2f2]">로그아웃</a>
+          </div>
+        </div>
+      </div>
+    </div>
+  </header>
+  <div id="headerSubnav">
+    <div id="headerSubnavRail">
+      <a href="/catalog/" class="header-subnav-link" aria-label="상품 목록" title="상품 목록">
+        <svg viewBox="0 0 24 24" class="h-[17px] w-[17px]" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+          <rect x="4" y="4" width="6" height="6" rx="1.5"></rect>
+          <rect x="14" y="4" width="6" height="6" rx="1.5"></rect>
+          <rect x="4" y="14" width="6" height="6" rx="1.5"></rect>
+          <rect x="14" y="14" width="6" height="6" rx="1.5"></rect>
+        </svg>
+      </a>
+      <a href="/products/" class="header-subnav-link" aria-label="장바구니" title="장바구니">
+        <svg viewBox="0 0 24 24" class="h-[18px] w-[18px]" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+          <circle cx="9" cy="20" r="1.5"></circle>
+          <circle cx="18" cy="20" r="1.5"></circle>
+          <path d="M3 4h2l2.2 10.2a1 1 0 0 0 1 .8h8.9a1 1 0 0 0 1-.75L20 8H7"></path>
+        </svg>
+      </a>
+      <a href="/products/?tab=wishlist" class="header-subnav-link" aria-label="관심 상품" title="관심 상품">
+        <svg viewBox="0 0 24 24" class="h-[17px] w-[17px]" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+          <path d="M12 20.4 4.9 13.8a4.8 4.8 0 0 1 6.8-6.8L12 7.3l.3-.3a4.8 4.8 0 0 1 6.8 6.8L12 20.4Z"></path>
+        </svg>
+      </a>
+      <a href="/orders/" class="header-subnav-link" aria-label="주문 내역" title="주문 내역">
+        <svg viewBox="0 0 24 24" class="h-[17px] w-[17px]" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+          <path d="M7 4.5h10"></path>
+          <path d="M7 9.5h10"></path>
+          <path d="M7 14.5h6"></path>
+          <rect x="4" y="3" width="16" height="18" rx="2"></rect>
+        </svg>
+      </a>
+    </div>
+  </div>
 
-    <form method="post" class="px-8 py-5">
+  <div id="profileViewport">
+  <div class="w-full bg-transparent">
+    <form method="post" class="px-6 py-5">
       {% csrf_token %}
       {% if messages %}
       {% for msg in messages %}
@@ -96,7 +303,7 @@
                      id="nicknameInput"
                      placeholder="한글, 영문, 숫자만 2~12자"
                      maxlength="12"
-                     class="h-[36px] w-full rounded-[8px] border border-[#e2e8f0] px-3 text-[12px] text-[#718096] outline-none focus:border-[#3182ce] placeholder:text-[#718096]" />
+                     class="h-[36px] w-full rounded-[8px] border border-[#e2e8f0] bg-white px-3 text-[12px] text-[#4a5568] outline-none focus:border-[#3182ce] placeholder:text-[#a0aec0]" />
               <p id="nicknameStatus" class="absolute right-0 top-[42px] min-h-[18px] text-right text-[12px]"></p>
             </div>
             <button type="button" id="nicknameCheckButton"
@@ -108,7 +315,7 @@
           <div class="flex items-start gap-3">
             <div class="flex-1">
               <input name="phone" value="{{ profile.phone|default:'' }}" id="phoneInput" placeholder="- 없이 숫자만 입력해 주세요" maxlength="11" inputmode="numeric"
-                     class="h-[36px] w-full rounded-[8px] border border-[#e2e8f0] px-3 text-[12px] text-[#718096] outline-none focus:border-[#3182ce]" />
+                     class="h-[36px] w-full rounded-[8px] border border-[#e2e8f0] bg-white px-3 text-[12px] text-[#4a5568] outline-none focus:border-[#3182ce] placeholder:text-[#a0aec0]" />
               <input type="hidden" id="phoneVerifiedState" value="{% if profile_phone_verified %}true{% else %}false{% endif %}" />
               <p id="phoneInputStatus" class="mt-1 hidden text-right text-[12px]"></p>
             </div>
@@ -118,7 +325,7 @@
           <div id="phoneVerificationPanel" class="mt-2 hidden items-start gap-3">
             <div class="flex-1">
               <input id="phoneVerificationCodeInput" type="text" inputmode="numeric" maxlength="6" placeholder="인증번호 6자리"
-                     class="h-[36px] w-full rounded-[8px] border border-[#e2e8f0] px-3 text-[12px] text-[#718096] outline-none focus:border-[#3182ce]" />
+                     class="h-[36px] w-full rounded-[8px] border border-[#e2e8f0] bg-white px-3 text-[12px] text-[#4a5568] outline-none focus:border-[#3182ce] placeholder:text-[#a0aec0]" />
             </div>
             <button type="button" id="phoneVerifyConfirmButton"
                     class="h-[36px] w-[90px] rounded-[8px] border border-[#2d3748] text-[14px] font-bold text-[#2d3748]">인증 확인</button>
@@ -131,23 +338,23 @@
         <div class="mb-2 text-[14px] font-bold text-[#4a5568]">주소 <span class="text-[12px] font-medium text-[#a0aec0]">(선택)</span></div>
         <div class="flex gap-3">
           <input name="zipcode" id="zipcodeInput" value="{{ profile_zipcode }}" placeholder="우편번호" readonly
-                 class="h-[36px] w-[140px] cursor-not-allowed rounded-[8px] border border-[#e2e8f0] bg-[#f7fafc] px-3 text-[12px] text-[#718096] outline-none placeholder:text-[#718096]" />
+                 class="h-[36px] w-[140px] cursor-not-allowed rounded-[8px] border border-[#d7dee8] bg-[#eef2f7] px-3 text-[12px] text-[#4a5568] outline-none placeholder:text-[#718096]" />
           <button type="button" id="postcodeButton"
                   class="h-[36px] w-[110px] rounded-[8px] border border-[#3182ce] text-[14px] font-bold text-[#3182ce]">우편번호 찾기</button>
         </div>
         <input name="address_main" id="addressMainInput" placeholder="기본 주소" readonly
                value="{{ profile_address_main }}"
-               class="mt-2 h-[36px] w-full cursor-not-allowed rounded-[8px] border border-[#e2e8f0] bg-[#f7fafc] px-3 text-[12px] text-[#718096] outline-none placeholder:text-[#718096]" />
+               class="mt-2 h-[36px] w-full cursor-not-allowed rounded-[8px] border border-[#d7dee8] bg-[#eef2f7] px-3 text-[12px] text-[#4a5568] outline-none placeholder:text-[#718096]" />
         <input name="address_detail" id="addressDetailInput" placeholder="상세 주소"
                value="{{ profile_address_detail }}"
-               class="mt-2 h-[36px] w-full rounded-[8px] border border-[#e2e8f0] px-3 text-[12px] text-[#718096] outline-none focus:border-[#3182ce] placeholder:text-[#718096]" />
+               class="mt-2 h-[36px] w-full rounded-[8px] border border-[#e2e8f0] bg-white px-3 text-[12px] text-[#4a5568] outline-none focus:border-[#3182ce] placeholder:text-[#a0aec0]" />
         <p id="addressStatus" class="mt-1 min-h-[16px] text-right text-[12px]"></p>
       </div>
 
       <div class="mt-6 h-px w-full bg-[#e2e8f0]"></div>
 
       <div class="mt-4 text-[18px] font-bold text-[#2d3748]">2. 결제 수단</div>
-      <div class="mt-3 w-full rounded-[12px] border border-[#e2e8f0] bg-[#f7fafc] px-4 py-3.5 md:max-w-[calc(50%-0.5rem)]">
+      <div class="mt-3 w-full rounded-[12px] border border-[#e2e8f0] bg-white px-4 py-3.5 md:max-w-[calc(50%-0.5rem)]">
           <div class="flex items-center justify-between gap-4">
           <div class="min-w-0 flex-1">
             <div id="paymentMethodSummary" class="text-[13px] {% if profile_payment_method %}text-[#4a5568]{% else %}text-[#718096]{% endif %}">{{ profile_payment_method|default:"저장된 결제 수단이 없습니다" }}</div>
@@ -167,7 +374,7 @@
 
       <!-- 로그인 계정 -->
       <div class="mt-4 text-[18px] font-bold text-[#2d3748]">3. 로그인 계정</div>
-      <div class="mt-3 w-full max-w-[250px] rounded-[10px] border border-[#e2e8f0] bg-[#f7fafc] px-3 py-2.5">
+      <div class="mt-3 w-full max-w-[250px] rounded-[10px] border border-[#e2e8f0] bg-white px-3 py-2.5">
         {% if social_accounts.kakao %}
         <div class="flex items-center gap-3">
           <div class="flex h-7 w-7 items-center justify-center rounded-full bg-[#FEE500]">
@@ -211,7 +418,7 @@
       </div>
 
       <div class="mt-4">
-        <div class="flex w-full max-w-[195px] items-center gap-2 rounded-[10px] border border-[#e2e8f0] px-3 py-2">
+        <div class="flex w-full max-w-[195px] items-center gap-2 rounded-[10px] border border-[#e2e8f0] bg-white px-3 py-2">
           <span class="text-[13px] font-medium leading-none text-[#4a5568]">마케팅 푸시 동의</span>
           <div class="ml-auto flex h-[20px] items-center">
             <button type="button" id="marketingToggle"
@@ -225,9 +432,9 @@
       </div>
 
       <!-- 버튼 -->
-      <div class="mt-5 flex {% if setup_mode %}justify-center{% else %}flex-col gap-3 md:flex-row{% endif %}">
+      <div class="mt-5 flex {% if setup_mode %}justify-center{% else %}flex-row gap-3{% endif %}">
         {% if not setup_mode %}
-        <a href="/chat/" class="flex h-[44px] flex-1 items-center justify-center rounded-[10px] bg-[#edf2f7] text-[16px] font-bold text-[#4a5568]">취소</a>
+        <a href="/chat/" class="flex h-[44px] flex-1 items-center justify-center rounded-[10px] border border-[#e2e8f0] bg-white text-[16px] font-bold text-[#4a5568]">취소</a>
         {% endif %}
         <button type="submit"
                 class="flex h-[44px] {% if setup_mode %}w-full max-w-[320px]{% else %}flex-1{% endif %} items-center justify-center rounded-[10px] bg-[#3182ce] text-[16px] font-bold text-white hover:bg-[#2b6cb0]">
@@ -242,14 +449,28 @@
 
     </form>
   </div>
+  </div>
 
 </div>
 </div>
 {% endblock %}
 
 {% block scripts %}
-<script src="//t1.daumcdn.net/mapjsapi/bundle/postcode/prod/postcode.v2.js"></script>
 <script>
+  var profileMenu = document.getElementById('profileMenu');
+  var profileMenuWrapper = document.getElementById('profileMenuWrapper');
+
+  window.toggleProfileMenu = function () {
+    if (!profileMenu) return;
+    profileMenu.classList.toggle('is-open');
+  };
+
+  document.addEventListener('click', function (event) {
+    if (profileMenuWrapper && !profileMenuWrapper.contains(event.target) && profileMenu) {
+      profileMenu.classList.remove('is-open');
+    }
+  });
+
   window.closeWithdrawModal = function (e) {
     if (e && e.target !== document.getElementById('withdrawModal')) return;
     document.getElementById('withdrawModal').style.display = 'none';
@@ -402,6 +623,56 @@
     var confirmedNickname = initialNickname;
     var initialPhone = phoneInput ? phoneInput.value.replace(/\D/g, '').slice(0, 11) : '';
     var verifiedPhoneValue = phoneVerifiedStateInput && phoneVerifiedStateInput.value === 'true' ? initialPhone : '';
+    var profileDraftKey = 'tailtalk-profile-draft';
+
+    function saveProfileDraft() {
+      var draft = {
+        nickname: input ? input.value : '',
+        phone: phoneInput ? phoneInput.value : '',
+        zipcode: zipcodeInput ? zipcodeInput.value : '',
+        address_main: addressMainInput ? addressMainInput.value : '',
+        address_detail: addressDetailInput ? addressDetailInput.value : '',
+      };
+      sessionStorage.setItem(profileDraftKey, JSON.stringify(draft));
+    }
+
+    function restoreProfileDraft() {
+      var raw = sessionStorage.getItem(profileDraftKey);
+      if (!raw) return;
+      try {
+        var draft = JSON.parse(raw);
+        if (input && draft.nickname) input.value = draft.nickname;
+        if (phoneInput && draft.phone) phoneInput.value = draft.phone;
+        if (zipcodeInput && draft.zipcode) zipcodeInput.value = draft.zipcode;
+        if (addressMainInput && draft.address_main) addressMainInput.value = draft.address_main;
+        if (addressDetailInput && typeof draft.address_detail === 'string') addressDetailInput.value = draft.address_detail;
+      } catch (error) {}
+    }
+
+    restoreProfileDraft();
+
+    var params = new URLSearchParams(window.location.search);
+    if (zipcodeInput && params.has('zipcode')) {
+      zipcodeInput.value = params.get('zipcode') || '';
+    }
+    if (addressMainInput && params.has('address_main')) {
+      addressMainInput.value = params.get('address_main') || '';
+    }
+    if (params.has('zipcode') || params.has('address_main')) {
+      sessionStorage.removeItem(profileDraftKey);
+      if (addressStatus) {
+        addressStatus.textContent = '';
+      }
+      if (addressDetailInput) {
+        addressDetailInput.focus();
+      }
+      if (history.replaceState) {
+        params.delete('zipcode');
+        params.delete('address_main');
+        var nextUrl = window.location.pathname + (params.toString() ? '?' + params.toString() : '');
+        history.replaceState({}, '', nextUrl);
+      }
+    }
 
     function setStatus(text, color) {
       status.textContent = text;
@@ -437,7 +708,8 @@
       var phoneValue = phoneInput.value.replace(/\D/g, '').slice(0, 11);
       var isVerified = getPhoneVerifiedState() && !!phoneValue && phoneValue === verifiedPhoneValue;
       phoneInput.readOnly = isVerified;
-      phoneInput.classList.toggle('bg-[#f7fafc]', isVerified);
+      phoneInput.classList.toggle('bg-[#eef2f7]', isVerified);
+      phoneInput.classList.toggle('border-[#d7dee8]', isVerified);
       phoneInput.classList.toggle('cursor-not-allowed', isVerified);
     }
 
@@ -760,40 +1032,12 @@
       });
     }
 
-    if (
-      postcodeButton &&
-      zipcodeInput &&
-      addressMainInput &&
-      addressDetailInput &&
-      addressStatus &&
-      window.daum &&
-      window.daum.Postcode
-    ) {
+    if (postcodeButton) {
       postcodeButton.addEventListener('click', function () {
-        new window.daum.Postcode({
-          oncomplete: function (data) {
-            var extraAddress = '';
-
-            if (data.userSelectedType === 'R') {
-              if (data.bname && /[동|로|가]$/g.test(data.bname)) {
-                extraAddress += data.bname;
-              }
-              if (data.buildingName && data.apartment === 'Y') {
-                extraAddress += extraAddress ? ', ' + data.buildingName : data.buildingName;
-              }
-            }
-
-            zipcodeInput.value = data.zonecode || '';
-            addressMainInput.value = data.roadAddress || data.jibunAddress || '';
-
-            if (extraAddress) {
-              addressMainInput.value += ' (' + extraAddress + ')';
-            }
-
-            addressStatus.textContent = '';
-            addressDetailInput.focus();
-          }
-        }).open();
+        saveProfileDraft();
+        var nextParams = new URLSearchParams(window.location.search);
+        var returnUrl = '/profile/' + (nextParams.toString() ? '?' + nextParams.toString() : '');
+        window.location.href = '/profile/address-search/?return=' + encodeURIComponent(returnUrl);
       });
     }
 

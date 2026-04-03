@@ -3,6 +3,123 @@
 
 {% block head %}
 <style>
+  #pageGate {
+    min-height: 100dvh;
+    background: #f8f9fb;
+  }
+
+  #pageGate > .app-shell {
+    position: relative;
+    width: min(100%, 960px);
+    min-height: 100dvh;
+    height: 100dvh;
+    margin: 0 auto;
+    overflow: hidden;
+    background: #f8f9fb;
+  }
+
+  #petsHeader {
+    position: absolute;
+    inset: 0 0 auto 0;
+    height: 72px;
+    border-bottom: 1px solid #e2e8f0;
+    background: #fff;
+    z-index: 40;
+  }
+
+  #petsHeaderInner {
+    display: grid;
+    grid-template-columns: 40px auto 40px;
+    align-items: center;
+    gap: 8px;
+    height: 100%;
+    padding: 0 12px;
+  }
+
+  #petsHeaderLogo {
+    justify-self: center;
+    font-size: 26px;
+    font-weight: 700;
+    line-height: 1;
+    color: #2d3748;
+    white-space: nowrap;
+  }
+
+  #headerSubnav {
+    position: absolute;
+    inset: 72px 0 auto 0;
+    z-index: 35;
+    border-bottom: 1px solid #e8eef6;
+    background: rgba(255, 255, 255, 0.98);
+    backdrop-filter: blur(12px);
+  }
+
+  #headerSubnavRail {
+    display: grid;
+    grid-template-columns: repeat(4, minmax(0, 1fr));
+    width: 100%;
+  }
+
+  .header-subnav-link {
+    position: relative;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    height: 44px;
+    color: #4a5568;
+    transition: background-color 160ms ease, color 160ms ease;
+  }
+
+  .header-subnav-link + .header-subnav-link::before {
+    content: '';
+    position: absolute;
+    left: 0;
+    top: 10px;
+    bottom: 10px;
+    width: 1px;
+    background: #e8eef6;
+  }
+
+  .header-subnav-link:hover {
+    background: #f8fbff;
+  }
+
+  #profileMenuWrapper {
+    position: relative;
+    height: 40px;
+    width: 40px;
+  }
+
+  #profileMenu {
+    position: absolute;
+    top: calc(100% + 10px);
+    right: 0;
+    width: 188px;
+    overflow: hidden;
+    border: 1px solid #e2e8f0;
+    border-radius: 18px;
+    background: #fff;
+    box-shadow: 0 18px 36px rgba(15, 23, 42, 0.12);
+    opacity: 0;
+    pointer-events: none;
+    transform: translateY(-6px);
+    transition: opacity 160ms ease, transform 160ms ease;
+    z-index: 50;
+  }
+
+  #profileMenu.is-open {
+    opacity: 1;
+    pointer-events: auto;
+    transform: translateY(0);
+  }
+
+  #petsViewport {
+    position: absolute;
+    inset: 116px 0 0 0;
+    overflow-y: auto;
+    padding: 18px 16px 28px;
+  }
+
   #deletePetModal {
     opacity: 0;
     visibility: hidden;
@@ -13,16 +130,37 @@
     opacity: 1;
     visibility: visible;
   }
+
+  @media (max-width: 767px) {
+    #pageGate > .app-shell {
+      width: 100vw;
+    }
+  }
+
+  @media (min-width: 768px) {
+    #pageGate > .app-shell {
+      min-height: 100dvh;
+      height: auto;
+      overflow: visible;
+    }
+
+    #petsViewport {
+      position: relative;
+      inset: auto;
+      overflow: visible;
+      padding: 134px 16px 28px;
+    }
+  }
 </style>
 {% endblock %}
 
 {% block content %}
-<div class="min-h-screen bg-[#f7fafc]">
-<div class="relative flex h-screen w-full items-center justify-center px-4 py-8">
+<div id="pageGate" class="min-h-screen bg-[#f7fafc]">
+<div class="app-shell">
 
   <div id="deletePetModal" class="absolute inset-0 z-[60] flex items-center justify-center bg-black/10"
        onclick="closePetDeleteModal(event)">
-    <div class="relative h-[279px] w-[399px] rounded-[20px] border border-[#dbe7f5] bg-white shadow-[0_14px_36px_rgba(45,55,72,0.10)]"
+    <div class="relative h-[279px] w-[min(calc(100vw-32px),399px)] rounded-[20px] border border-[#dbe7f5] bg-white shadow-[0_14px_36px_rgba(45,55,72,0.10)]"
          onclick="event.stopPropagation()">
       <div class="absolute left-1/2 top-[27px] flex h-[81px] w-[81px] -translate-x-1/2 items-center justify-center rounded-full border-[4px] border-[#ef4444]">
         <span class="relative top-[-1px] text-[48px] font-bold leading-none text-[#ef4444]">!</span>
@@ -46,49 +184,107 @@
     </div>
   </div>
 
-  <a href="/chat/" class="absolute left-8 top-8 text-[26px] font-bold leading-none text-[#2d3748]" aria-label="메인으로 이동">
-    <span class="text-[#3182ce]">Tail</span><span>Talk</span>
-  </a>
-
-  <div class="w-full max-w-[860px] rounded-[20px] border border-[#dbe7f5] bg-white px-10 py-10 shadow-[0_6px_20px_rgba(45,55,72,0.04)]">
-    <div class="flex items-end justify-between gap-4">
-      <div>
-        <h1 class="text-[24px] font-bold text-[#2d3748]">반려동물 정보</h1>
-        <p class="mt-2 text-[14px] text-[#718096]">
-          등록된 반려동물 정보와 예비 집사 프로필을 함께 관리할 수 있습니다
-        </p>
+  <header id="petsHeader">
+    <div id="petsHeaderInner">
+      <div></div>
+      <a href="/chat/" id="petsHeaderLogo" aria-label="메인으로 돌아가기">
+        <span class="text-[#3182ce]">Tail</span><span>Talk</span>
+      </a>
+      <div class="justify-self-end min-w-0">
+        <div id="profileMenuWrapper">
+          <button type="button"
+                  class="flex h-[40px] w-[40px] items-center justify-center rounded-full border border-[#e2e8f0] bg-white shadow-[0_2px_8px_rgba(45,55,72,0.05)]"
+                  aria-label="프로필 메뉴 열기"
+                  onclick="toggleProfileMenu()">
+            <svg viewBox="0 0 24 24" class="h-[30px] w-[30px] text-[#4a5568]" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+              <circle cx="12" cy="8" r="3.2"></circle>
+              <path d="M5.5 19a6.5 6.5 0 0 1 13 0"></path>
+            </svg>
+          </button>
+          <div id="profileMenu">
+            <a href="/profile/"
+               class="flex h-[44px] w-full items-center rounded-t-[16px] px-[16px] text-[14px] text-[#2d3748] hover:bg-[#edf2f7]">내 정보</a>
+            <div class="mx-[12px] h-px bg-[#edf2f7]"></div>
+            <a href="/pets/"
+               class="flex h-[44px] w-full items-center px-[16px] text-[14px] text-[#2d3748] hover:bg-[#edf2f7]">반려동물 정보</a>
+            <div class="mx-[12px] h-px bg-[#edf2f7]"></div>
+            <a href="/logout/"
+               class="flex h-[44px] w-full items-center rounded-b-[16px] px-[16px] text-[14px] text-[#ef4444] hover:bg-[#fef2f2]">로그아웃</a>
+          </div>
+        </div>
       </div>
-      <div class="text-[14px] font-bold text-[#3182ce]">반려동물 등록 현황: {{ actual_pet_count }} / 5</div>
+    </div>
+  </header>
+  <div id="headerSubnav">
+    <div id="headerSubnavRail">
+      <a href="/catalog/" class="header-subnav-link" aria-label="상품 목록" title="상품 목록">
+        <svg viewBox="0 0 24 24" class="h-[17px] w-[17px]" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+          <rect x="4" y="4" width="6" height="6" rx="1.5"></rect>
+          <rect x="14" y="4" width="6" height="6" rx="1.5"></rect>
+          <rect x="4" y="14" width="6" height="6" rx="1.5"></rect>
+          <rect x="14" y="14" width="6" height="6" rx="1.5"></rect>
+        </svg>
+      </a>
+      <a href="/products/" class="header-subnav-link" aria-label="장바구니" title="장바구니">
+        <svg viewBox="0 0 24 24" class="h-[18px] w-[18px]" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+          <circle cx="9" cy="20" r="1.5"></circle>
+          <circle cx="18" cy="20" r="1.5"></circle>
+          <path d="M3 4h2l2.2 10.2a1 1 0 0 0 1 .8h8.9a1 1 0 0 0 1-.75L20 8H7"></path>
+        </svg>
+      </a>
+      <a href="/products/?tab=wishlist" class="header-subnav-link" aria-label="관심 상품" title="관심 상품">
+        <svg viewBox="0 0 24 24" class="h-[17px] w-[17px]" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+          <path d="M12 20.4 4.9 13.8a4.8 4.8 0 0 1 6.8-6.8L12 7.3l.3-.3a4.8 4.8 0 0 1 6.8 6.8L12 20.4Z"></path>
+        </svg>
+      </a>
+      <a href="/orders/" class="header-subnav-link" aria-label="주문 내역" title="주문 내역">
+        <svg viewBox="0 0 24 24" class="h-[17px] w-[17px]" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+          <path d="M7 4.5h10"></path>
+          <path d="M7 9.5h10"></path>
+          <path d="M7 14.5h6"></path>
+          <rect x="4" y="3" width="16" height="18" rx="2"></rect>
+        </svg>
+      </a>
+    </div>
+  </div>
+
+  <div id="petsViewport">
+  <div class="w-full border-t border-[#e8eef6] px-5 py-6 md:px-6">
+    <div class="flex flex-col items-start gap-2 md:flex-row md:items-end md:justify-between md:gap-4">
+      <div class="text-[18px] font-bold text-[#2d3748]">반려동물 정보</div>
+      <div class="text-[14px] font-bold leading-none text-[#3182ce] md:leading-normal">반려동물 등록 현황: {{ actual_pet_count }} / 5</div>
     </div>
 
     <div class="mt-5 h-px w-full bg-[#edf2f7]"></div>
 
     <div class="mt-8 {% if pets|length >= 3 %}max-h-[372px] overflow-y-auto pr-2{% else %}space-y-4{% endif %}">
       {% for pet in pets %}
-      <div class="pet-card flex items-center gap-5 rounded-[14px] border border-[#e2e8f0] bg-white px-4 py-4 shadow-[0_1px_2px_rgba(45,55,72,0.02)] {% if pets|length >= 3 and not forloop.first %}mt-4{% endif %}"
+      <div class="pet-card flex flex-col items-start gap-4 rounded-[14px] border border-[#e2e8f0] bg-white px-4 py-4 shadow-[0_1px_2px_rgba(45,55,72,0.02)] md:flex-row md:items-center md:gap-5 {% if pets|length >= 3 and not forloop.first %}mt-4{% endif %}"
            data-pet-id="{{ pet.pet_id }}">
-        <div class="flex h-[56px] w-[56px] items-center justify-center rounded-full bg-[#edf2f7] text-[24px]">
-          {% if pet.species == "future" %}🏠{% elif pet.species == "cat" %}🐱{% else %}🐶{% endif %}
-        </div>
-        <div class="min-w-0 flex-1">
-          <div class="text-[18px] font-bold text-[#2d3748]">
-            {% if pet.species == "future" %}
-            {{ pet.name }}
-            {% else %}
-            {{ pet.name }} ({{ pet.get_species_display }})
-            {% endif %}
+        <div class="flex w-full items-start gap-4 md:w-auto md:items-center md:gap-5">
+          <div class="flex h-[56px] w-[56px] shrink-0 items-center justify-center rounded-full bg-[#edf2f7] text-[24px]">
+            {% if pet.species == "future" %}🏠{% elif pet.species == "cat" %}🐱{% else %}🐶{% endif %}
           </div>
-          <div class="mt-1 text-[14px] text-[#718096]">
-            {% if pet.species == "future" %}
-            {{ pet.summary }}
-            {% else %}
-            {% if pet.breed %}{{ pet.breed }} · {% endif %}
-            {% if pet.age_unknown %}모름{% else %}{{ pet.age_years }}년 {{ pet.age_months }}개월{% endif %}
-            {% if pet.weight_kg %} · {{ pet.weight_kg|floatformat:-1 }}kg{% endif %}
-            {% endif %}
+          <div class="min-w-0 flex-1">
+            <div class="break-keep text-[17px] font-bold leading-[1.35] text-[#2d3748] md:text-[18px] md:leading-normal">
+              {% if pet.species == "future" %}
+              {{ pet.name }}
+              {% else %}
+              {{ pet.name }} ({{ pet.get_species_display }})
+              {% endif %}
+            </div>
+            <div class="mt-1.5 break-keep text-[13px] leading-[1.55] text-[#718096] md:mt-1 md:text-[14px] md:leading-normal">
+              {% if pet.species == "future" %}
+              {{ pet.summary }}
+              {% else %}
+              {% if pet.breed %}{{ pet.breed }} · {% endif %}
+              {% if pet.age_unknown %}모름{% else %}{{ pet.age_years }}년 {{ pet.age_months }}개월{% endif %}
+              {% if pet.weight_kg %} · {{ pet.weight_kg|floatformat:-1 }}kg{% endif %}
+              {% endif %}
+            </div>
           </div>
         </div>
-        <div class="flex items-center gap-3">
+        <div class="flex w-full items-center justify-end gap-2 border-t border-[#edf2f7] pt-3 md:ml-auto md:w-auto md:justify-end md:gap-3 md:border-t-0 md:pt-0">
           {% if pet.species == "future" %}
           <a href="/pets/add/future/"
              class="flex h-[36px] w-[58px] items-center justify-center rounded-[8px] bg-[#edf2f7] text-[14px] font-bold text-[#4a5568] transition-colors hover:bg-[#e2e8f0]">
@@ -141,6 +337,7 @@
     </a>
     {% endif %}
   </div>
+  </div>
 
 </div>
 </div>
@@ -149,10 +346,17 @@
 {% block scripts %}
 <script>
 (function () {
+  var profileMenu = document.getElementById('profileMenu');
+  var profileMenuWrapper = document.getElementById('profileMenuWrapper');
   var deletePetModal = document.getElementById('deletePetModal');
   var confirmPetDeleteBtn = document.getElementById('confirmPetDeleteBtn');
   var pendingPetDeleteId = null;
   var pendingPetIsPreview = false;
+
+  window.toggleProfileMenu = function () {
+    if (!profileMenu) return;
+    profileMenu.classList.toggle('is-open');
+  };
 
   window.openPetDeleteModal = function (petId, isPreview) {
     if (!deletePetModal) return;
@@ -184,6 +388,12 @@
       if (form) form.submit();
     });
   }
+
+  document.addEventListener('click', function (event) {
+    if (profileMenuWrapper && !profileMenuWrapper.contains(event.target) && profileMenu) {
+      profileMenu.classList.remove('is-open');
+    }
+  });
 })();
 </script>
 {% endblock %}
