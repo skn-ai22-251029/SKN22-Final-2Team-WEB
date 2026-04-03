@@ -1,14 +1,265 @@
 {% extends "base.html" %}
 {% block title %}{% if is_edit %}반려동물 수정{% else %}반려동물 등록{% endif %} — TailTalk{% endblock %}
 
-{% block content %}
-<div class="min-h-screen bg-[#f7fafc]">
-  <div class="relative flex min-h-screen w-full items-center justify-center px-4 py-8">
-    <a href="/chat/" class="absolute left-4 top-4 text-[22px] font-bold leading-none text-[#2d3748] md:left-8 md:top-8 md:text-[26px]" aria-label="메인으로 이동">
-      <span class="text-[#3182ce]">Tail</span><span>Talk</span>
-    </a>
+{% block head %}
+<style>
+  #pageGate {
+    min-height: 100dvh;
+    background: #f8f9fb;
+  }
 
-    <div class="w-full max-w-[720px] rounded-[20px] border border-[#e2e8f0] bg-white px-5 pb-6 {% if is_edit %}pt-8{% else %}pt-0{% endif %} shadow-[0_6px_20px_rgba(45,55,72,0.04)] md:px-[40px] md:pb-[32px]">
+  #pageGate > .app-shell {
+    position: relative;
+    width: min(100%, 960px);
+    min-height: 100dvh;
+    height: 100dvh;
+    margin: 0 auto;
+    overflow: hidden;
+    background: #f8f9fb;
+  }
+
+  #petsAddHeader {
+    position: absolute;
+    inset: 0 0 auto 0;
+    height: 72px;
+    border-bottom: 1px solid #e2e8f0;
+    background: #fff;
+    z-index: 40;
+  }
+
+  #petsAddHeaderInner {
+    display: grid;
+    grid-template-columns: 40px auto 40px;
+    align-items: center;
+    gap: 8px;
+    height: 100%;
+    padding: 0 12px;
+  }
+
+  #petsAddHeaderLogo {
+    justify-self: center;
+    font-size: 26px;
+    font-weight: 700;
+    line-height: 1;
+    color: #2d3748;
+    white-space: nowrap;
+  }
+
+  #headerSubnav {
+    position: absolute;
+    inset: 72px 0 auto 0;
+    z-index: 35;
+    border-bottom: 1px solid #e8eef6;
+    background: rgba(255, 255, 255, 0.98);
+    backdrop-filter: blur(12px);
+  }
+
+  #headerSubnavRail {
+    display: grid;
+    grid-template-columns: repeat(4, minmax(0, 1fr));
+    width: 100%;
+  }
+
+  .header-subnav-link {
+    position: relative;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    height: 44px;
+    color: #4a5568;
+    transition: background-color 160ms ease, color 160ms ease;
+  }
+
+  .header-subnav-link + .header-subnav-link::before {
+    content: '';
+    position: absolute;
+    left: 0;
+    top: 10px;
+    bottom: 10px;
+    width: 1px;
+    background: #e8eef6;
+  }
+
+  .header-subnav-link:hover {
+    background: #f8fbff;
+  }
+
+  #profileMenuWrapper {
+    position: relative;
+    height: 40px;
+    width: 40px;
+  }
+
+  #profileMenu {
+    position: absolute;
+    top: calc(100% + 10px);
+    right: 0;
+    width: 188px;
+    overflow: hidden;
+    border: 1px solid #e2e8f0;
+    border-radius: 18px;
+    background: #fff;
+    box-shadow: 0 18px 36px rgba(15, 23, 42, 0.12);
+    opacity: 0;
+    pointer-events: none;
+    transform: translateY(-6px);
+    transition: opacity 160ms ease, transform 160ms ease;
+    z-index: 50;
+  }
+
+  #profileMenu.is-open {
+    opacity: 1;
+    pointer-events: auto;
+    transform: translateY(0);
+  }
+
+  #petsAddViewport {
+    position: absolute;
+    inset: 116px 0 0 0;
+    overflow-y: auto;
+    padding: 18px 16px 28px;
+  }
+
+  #vaccinationDateSheet {
+    position: fixed;
+    inset: 0;
+    z-index: 80;
+    display: flex;
+    align-items: flex-end;
+    justify-content: center;
+    background: rgba(45, 55, 72, 0.28);
+    opacity: 0;
+    pointer-events: none;
+    transition: opacity 0.22s ease-out;
+  }
+
+  #vaccinationDateSheet.is-open {
+    opacity: 1;
+    pointer-events: auto;
+  }
+
+  #vaccinationDateSheetPanel {
+    width: min(calc(100vw - 16px), 430px);
+    border-radius: 24px 24px 0 0;
+    background: #ffffff;
+    box-shadow: 0 -18px 44px rgba(45, 55, 72, 0.16);
+    transform: translateY(104%);
+    transition: transform 0.24s ease-out;
+  }
+
+  #vaccinationDateSheet.is-open #vaccinationDateSheetPanel {
+    transform: translateY(0);
+  }
+
+  #budgetRangeSheet {
+    position: fixed;
+    inset: 0;
+    z-index: 80;
+    display: flex;
+    align-items: flex-end;
+    justify-content: center;
+    background: rgba(45, 55, 72, 0.28);
+    opacity: 0;
+    pointer-events: none;
+    transition: opacity 0.22s ease-out;
+  }
+
+  #budgetRangeSheet.is-open {
+    opacity: 1;
+    pointer-events: auto;
+  }
+
+  #budgetRangeSheetPanel {
+    width: min(calc(100vw - 16px), 430px);
+    border-radius: 24px 24px 0 0;
+    background: #ffffff;
+    box-shadow: 0 -18px 44px rgba(45, 55, 72, 0.16);
+    transform: translateY(104%);
+    transition: transform 0.24s ease-out;
+  }
+
+  #budgetRangeSheet.is-open #budgetRangeSheetPanel {
+    transform: translateY(0);
+  }
+
+  @media (max-width: 767px) {
+    #pageGate > .app-shell {
+      width: 100vw;
+    }
+  }
+</style>
+{% endblock %}
+
+{% block content %}
+<div id="pageGate" class="min-h-screen bg-[#f8f9fb]">
+  <div class="app-shell">
+    <header id="petsAddHeader">
+      <div id="petsAddHeaderInner">
+        <div></div>
+        <a href="/chat/" id="petsAddHeaderLogo" aria-label="메인으로 돌아가기">
+          <span class="text-[#3182ce]">Tail</span><span>Talk</span>
+        </a>
+        <div class="justify-self-end min-w-0">
+          <div id="profileMenuWrapper">
+            <button type="button"
+                    class="flex h-[40px] w-[40px] items-center justify-center rounded-full border border-[#e2e8f0] bg-white shadow-[0_2px_8px_rgba(45,55,72,0.05)]"
+                    aria-label="프로필 메뉴 열기"
+                    onclick="toggleProfileMenu()">
+              <svg viewBox="0 0 24 24" class="h-[30px] w-[30px] text-[#4a5568]" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+                <circle cx="12" cy="8" r="3.2"></circle>
+                <path d="M5.5 19a6.5 6.5 0 0 1 13 0"></path>
+              </svg>
+            </button>
+            <div id="profileMenu">
+              <a href="/profile/"
+                 class="flex h-[44px] w-full items-center rounded-t-[16px] px-[16px] text-[14px] text-[#2d3748] hover:bg-[#edf2f7]">내 정보</a>
+              <div class="mx-[12px] h-px bg-[#edf2f7]"></div>
+              <a href="/pets/"
+                 class="flex h-[44px] w-full items-center px-[16px] text-[14px] text-[#2d3748] hover:bg-[#edf2f7]">반려동물 정보</a>
+              <div class="mx-[12px] h-px bg-[#edf2f7]"></div>
+              <a href="/logout/"
+                 class="flex h-[44px] w-full items-center rounded-b-[16px] px-[16px] text-[14px] text-[#ef4444] hover:bg-[#fef2f2]">로그아웃</a>
+            </div>
+          </div>
+        </div>
+      </div>
+    </header>
+
+    <div id="headerSubnav">
+      <div id="headerSubnavRail">
+        <a href="/catalog/" class="header-subnav-link" aria-label="상품 목록" title="상품 목록">
+          <svg viewBox="0 0 24 24" class="h-[17px] w-[17px]" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+            <rect x="4" y="4" width="6" height="6" rx="1.5"></rect>
+            <rect x="14" y="4" width="6" height="6" rx="1.5"></rect>
+            <rect x="4" y="14" width="6" height="6" rx="1.5"></rect>
+            <rect x="14" y="14" width="6" height="6" rx="1.5"></rect>
+          </svg>
+        </a>
+        <a href="/products/" class="header-subnav-link" aria-label="장바구니" title="장바구니">
+          <svg viewBox="0 0 24 24" class="h-[18px] w-[18px]" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+            <circle cx="9" cy="20" r="1.5"></circle>
+            <circle cx="18" cy="20" r="1.5"></circle>
+            <path d="M3 4h2l2.2 10.2a1 1 0 0 0 1 .8h8.9a1 1 0 0 0 1-.75L20 8H7"></path>
+          </svg>
+        </a>
+        <a href="/products/?tab=wishlist" class="header-subnav-link" aria-label="관심 상품" title="관심 상품">
+          <svg viewBox="0 0 24 24" class="h-[17px] w-[17px]" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+            <path d="M12 20.4 4.9 13.8a4.8 4.8 0 0 1 6.8-6.8L12 7.3l.3-.3a4.8 4.8 0 0 1 6.8 6.8L12 20.4Z"></path>
+          </svg>
+        </a>
+        <a href="/orders/" class="header-subnav-link" aria-label="주문 내역" title="주문 내역">
+          <svg viewBox="0 0 24 24" class="h-[17px] w-[17px]" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+            <path d="M7 4.5h10"></path>
+            <path d="M7 9.5h10"></path>
+            <path d="M7 14.5h6"></path>
+            <rect x="4" y="3" width="16" height="18" rx="2"></rect>
+          </svg>
+        </a>
+      </div>
+    </div>
+
+    <div id="petsAddViewport" class="flex items-start justify-center px-4 py-8 md:items-center">
+      <div class="w-full max-w-[720px] rounded-[20px] border border-[#e2e8f0] bg-white px-5 pb-6 {% if is_edit %}pt-8{% else %}pt-0{% endif %} shadow-[0_6px_20px_rgba(45,55,72,0.04)] md:px-[40px] md:pb-[32px]">
       {% if not is_edit %}
       <div class="grid grid-cols-3 gap-[10px]">
         <span class="h-[6px] rounded-full bg-[#3182ce]"></span>
@@ -23,7 +274,9 @@
           {% if species == "cat" %}고양이 건강/식이 정보{% elif species == "future" %}예비 집사 건강/식이 정보{% else %}강아지 건강/식이 정보{% endif %}
         </span>
       </div>
-      <p class="mt-[14px] text-[15px] leading-snug text-[#718096] md:text-[16px] md:leading-none">건강과 식이 정보를 입력하면 맞춤 추천에 반영할 수 있어요</p>
+      <p class="mt-[14px] max-w-[260px] text-[15px] leading-[1.45] text-[#718096] break-keep md:max-w-none md:text-[16px] md:leading-none">
+        건강과 식이 정보를 입력하면 맞춤 추천에 반영할 수 있어요
+      </p>
 
       <form method="post" action="{% if is_preview_edit %}/pets/preview/{{ pet_id }}/edit/health/{% elif is_edit %}/pets/{{ pet_id }}/edit/health/{% else %}/pets/add/health/{% endif %}" class="mt-[18px]">
         {% csrf_token %}
@@ -63,9 +316,19 @@
               <label class="food-option flex min-h-[42px] flex-1 cursor-pointer items-center justify-center rounded-[8px] border px-2 py-2 text-[14px] {% if value in step3_data.food_preferences %}border-[#3182ce] bg-[#f7fbff] font-bold text-[#3182ce]{% else %}border-[#e2e8f0] bg-white text-[#4a5568]{% endif %}">
                 <input type="checkbox" class="hidden food-checkbox" name="food_preferences" value="{{ value }}" {% if value in step3_data.food_preferences %}checked{% endif %} />
                 {% if species == "dog" and value == "freeze_dried" %}
-                <span class="block text-center leading-[1.1] whitespace-normal">
-                  <span class="block">동결건조/</span>
+                <span class="block text-center text-[13px] leading-[1.15] whitespace-normal break-keep">
+                  <span class="block">동결건조</span>
                   <span class="block">에어드라이</span>
+                </span>
+                {% elif species == "cat" and value == "wet_pouch" %}
+                <span class="block text-center text-[13px] leading-[1.15] whitespace-normal break-keep">
+                  <span class="block">주식</span>
+                  <span class="block">파우치</span>
+                </span>
+                {% elif species == "cat" and value == "freeze_dried" %}
+                <span class="block text-center text-[13px] leading-[1.15] whitespace-normal break-keep">
+                  <span class="block">에어</span>
+                  <span class="block">동결건조</span>
                 </span>
                 {% else %}
                 {{ label }}
@@ -105,15 +368,6 @@
                 placeholder="YYYY-MM-DD"
                 class="h-[42px] w-full rounded-[8px] border border-[#e2e8f0] bg-white px-[14px] pr-[52px] text-[14px] text-[#2d3748] outline-none placeholder:text-[#a0aec0] focus:border-[#90cdf4]"
               />
-              <input
-                type="date"
-                id="vaccinationDatePicker"
-                value="{{ step3_data.vaccination_date }}"
-                min="2000-01-01"
-                tabindex="-1"
-                aria-hidden="true"
-                class="pointer-events-none absolute right-[10px] top-1/2 h-[1px] w-[1px] -translate-y-1/2 opacity-0"
-              />
               <button
                 type="button"
                 id="vaccinationDatePickerButton"
@@ -130,24 +384,81 @@
             <label class="mb-[8px] block text-[14px] font-bold text-[#4a5568]">
               월 예산대 <span class="text-[#a0aec0]">(선택)</span>
             </label>
-            <select name="budget_range" class="h-[42px] w-full rounded-[8px] border border-[#e2e8f0] bg-white px-[14px] text-[14px] text-[#2d3748] outline-none focus:border-[#90cdf4]">
-              <option value="">선택해주세요</option>
-              {% for value, label in budget_options %}
-              <option value="{{ value }}" {% if step3_data.budget_range == value %}selected{% endif %}>{{ label }}</option>
-              {% endfor %}
-            </select>
+            <input type="hidden" id="budgetRangeValue" name="budget_range" value="{{ step3_data.budget_range }}" />
+            <button
+              type="button"
+              id="budgetRangeButton"
+              class="flex h-[42px] w-full items-center rounded-[8px] border border-[#e2e8f0] bg-white px-[14px] text-left text-[14px] text-[#2d3748] outline-none transition-colors hover:border-[#cbd5e0]"
+            >
+              <span id="budgetRangeDisplay" class="{% if step3_data.budget_range %}text-[#2d3748]{% else %}text-[#a0aec0]{% endif %}">
+                {% if step3_data.budget_range %}
+                  {% for value, label in budget_options %}{% if step3_data.budget_range == value %}{{ label }}{% endif %}{% endfor %}
+                {% else %}
+                  선택해주세요
+                {% endif %}
+              </span>
+            </button>
           </div>
         </div>
 
-        <div class="mt-[28px] flex flex-col-reverse gap-[10px] md:flex-row md:items-end md:gap-[14px]">
+        <div class="mt-[28px] flex flex-row items-end gap-[10px] md:gap-[14px]">
           <a
             href="{% if is_preview_edit %}/pets/preview/{{ pet_id }}/edit/{% elif is_edit %}/pets/{{ pet_id }}/edit/{% else %}/pets/add/details/{% endif %}"
             id="step3BackLink"
-            class="flex h-[44px] w-full items-center justify-center rounded-[10px] bg-[#edf2f7] text-[16px] font-bold text-[#4a5568] md:w-[128px]"
+            class="flex h-[44px] min-w-[104px] shrink-0 items-center justify-center rounded-[10px] bg-[#edf2f7] px-[16px] text-[16px] font-bold text-[#4a5568] md:w-[128px]"
           >이전으로</a>
           <button type="submit" class="flex h-[44px] flex-1 items-center justify-center rounded-[10px] bg-[#3182ce] text-[16px] font-bold text-white">{% if is_edit %}수정 완료{% else %}등록 완료{% endif %}</button>
         </div>
       </form>
+      </div>
+    </div>
+  </div>
+</div>
+
+<div id="vaccinationDateSheet" aria-hidden="true">
+  <div id="vaccinationDateSheetPanel" role="dialog" aria-modal="true" aria-labelledby="vaccinationDateSheetTitle" class="px-5 pb-6 pt-3">
+    <div class="mx-auto h-[5px] w-[44px] rounded-full bg-[#d7dee8]"></div>
+    <div class="mt-4 flex items-center justify-between">
+      <div>
+        <h2 id="vaccinationDateSheetTitle" class="text-[17px] font-bold text-[#2d3748]">접종일 선택</h2>
+        <p class="mt-1 text-[13px] text-[#718096]">마지막 접종일을 선택해 주세요</p>
+      </div>
+    </div>
+
+    <div class="mt-5 grid grid-cols-3 gap-3">
+      <label class="block">
+        <span class="mb-2 block text-[13px] font-bold text-[#4a5568]">연도</span>
+        <select id="vaccinationYearSelect" class="h-[44px] w-full rounded-[10px] border border-[#e2e8f0] bg-white px-3 text-[14px] text-[#2d3748] outline-none focus:border-[#90cdf4]"></select>
+      </label>
+      <label class="block">
+        <span class="mb-2 block text-[13px] font-bold text-[#4a5568]">월</span>
+        <select id="vaccinationMonthSelect" class="h-[44px] w-full rounded-[10px] border border-[#e2e8f0] bg-white px-3 text-[14px] text-[#2d3748] outline-none focus:border-[#90cdf4]"></select>
+      </label>
+      <label class="block">
+        <span class="mb-2 block text-[13px] font-bold text-[#4a5568]">일</span>
+        <select id="vaccinationDaySelect" class="h-[44px] w-full rounded-[10px] border border-[#e2e8f0] bg-white px-3 text-[14px] text-[#2d3748] outline-none focus:border-[#90cdf4]"></select>
+      </label>
+    </div>
+
+    <div class="mt-6">
+      <button type="button" id="vaccinationDateApplyButton" class="flex h-[44px] w-full items-center justify-center rounded-[10px] bg-[#3182ce] text-[15px] font-bold text-white">적용</button>
+    </div>
+  </div>
+</div>
+
+<div id="budgetRangeSheet" aria-hidden="true">
+  <div id="budgetRangeSheetPanel" role="dialog" aria-modal="true" aria-labelledby="budgetRangeSheetTitle" class="px-5 pb-6 pt-3">
+    <div class="mx-auto h-[5px] w-[44px] rounded-full bg-[#d7dee8]"></div>
+    <div class="mt-4">
+      <h2 id="budgetRangeSheetTitle" class="text-[17px] font-bold text-[#2d3748]">월 예산대 선택</h2>
+      <p class="mt-1 text-[13px] text-[#718096]">반려동물에게 쓰는 월 예산대를 골라 주세요</p>
+    </div>
+
+    <div class="mt-5 space-y-2">
+      <button type="button" class="budget-option-button flex h-[46px] w-full items-center rounded-[12px] border border-[#e2e8f0] px-4 text-left text-[14px] font-medium text-[#2d3748]" data-value="" data-label="선택해주세요">선택 안 함</button>
+      {% for value, label in budget_options %}
+      <button type="button" class="budget-option-button flex h-[46px] w-full items-center rounded-[12px] border border-[#e2e8f0] px-4 text-left text-[14px] font-medium text-[#2d3748]" data-value="{{ value }}" data-label="{{ label }}">{{ label }}</button>
+      {% endfor %}
     </div>
   </div>
 </div>
@@ -156,6 +467,9 @@
 {% block scripts %}
 <script>
   (function () {
+    var profileMenu = document.getElementById('profileMenu');
+    var profileMenuWrapper = document.getElementById('profileMenuWrapper');
+
     function syncSelectable(className, inputClass, activeClass, inactiveClass) {
       var labels = Array.from(document.querySelectorAll(className));
       labels.forEach(function (label) {
@@ -177,9 +491,19 @@
 
     var backLink = document.getElementById('step3BackLink');
     var vaccinationDateInput = document.getElementById('vaccinationDateInput');
-    var vaccinationDatePicker = document.getElementById('vaccinationDatePicker');
     var vaccinationDatePickerButton = document.getElementById('vaccinationDatePickerButton');
     var vaccinationDateStatus = document.getElementById('vaccinationDateStatus');
+    var vaccinationDateSheet = document.getElementById('vaccinationDateSheet');
+    var vaccinationDateSheetPanel = document.getElementById('vaccinationDateSheetPanel');
+    var vaccinationYearSelect = document.getElementById('vaccinationYearSelect');
+    var vaccinationMonthSelect = document.getElementById('vaccinationMonthSelect');
+    var vaccinationDaySelect = document.getElementById('vaccinationDaySelect');
+    var vaccinationDateApplyButton = document.getElementById('vaccinationDateApplyButton');
+    var budgetRangeValue = document.getElementById('budgetRangeValue');
+    var budgetRangeButton = document.getElementById('budgetRangeButton');
+    var budgetRangeDisplay = document.getElementById('budgetRangeDisplay');
+    var budgetRangeSheet = document.getElementById('budgetRangeSheet');
+    var budgetOptionButtons = Array.from(document.querySelectorAll('.budget-option-button'));
 
     function clearStatus(node) {
       if (!node) return;
@@ -278,10 +602,106 @@
       return value >= min && value <= max;
     }
 
-    function syncVaccinationPickerBounds() {
-      if (!vaccinationDatePicker) return;
-      vaccinationDatePicker.min = '2000-01-01';
-      vaccinationDatePicker.max = getTodayParts().iso;
+    function getDaysInMonth(year, month) {
+      return new Date(year, month, 0).getDate();
+    }
+
+    function fillYearOptions(selectedYear) {
+      if (!vaccinationYearSelect) return;
+      var today = getTodayParts();
+      var options = ['<option value="">연도</option>'];
+      for (var year = today.year; year >= 2000; year -= 1) {
+        var selected = Number(selectedYear) === year ? ' selected' : '';
+        options.push('<option value="' + year + '"' + selected + '>' + year + '</option>');
+      }
+      vaccinationYearSelect.innerHTML = options.join('');
+    }
+
+    function fillMonthOptions(selectedMonth) {
+      if (!vaccinationMonthSelect) return;
+      var options = ['<option value="">월</option>'];
+      for (var month = 1; month <= 12; month += 1) {
+        var selected = Number(selectedMonth) === month ? ' selected' : '';
+        options.push('<option value="' + month + '"' + selected + '>' + month + '</option>');
+      }
+      vaccinationMonthSelect.innerHTML = options.join('');
+    }
+
+    function fillDayOptions(year, month, selectedDay) {
+      if (!vaccinationDaySelect) return;
+      var maxDay = year && month ? getDaysInMonth(year, month) : 31;
+      var options = ['<option value="">일</option>'];
+      for (var day = 1; day <= maxDay; day += 1) {
+        var selected = Number(selectedDay) === day ? ' selected' : '';
+        options.push('<option value="' + day + '"' + selected + '>' + day + '</option>');
+      }
+      vaccinationDaySelect.innerHTML = options.join('');
+    }
+
+    function syncSheetFromInput() {
+      var today = getTodayParts();
+      var year = today.year;
+      var month = today.month;
+      var day = today.day;
+
+      if (vaccinationDateInput && /^\d{4}-\d{2}-\d{2}$/.test(vaccinationDateInput.value)) {
+        var parts = vaccinationDateInput.value.split('-');
+        year = Number(parts[0]);
+        month = Number(parts[1]);
+        day = Number(parts[2]);
+      }
+
+      fillYearOptions(year);
+      fillMonthOptions(month);
+      fillDayOptions(year, month, day);
+    }
+
+    function closeVaccinationDateSheet() {
+      if (!vaccinationDateSheet) return;
+      vaccinationDateSheet.classList.remove('is-open');
+      vaccinationDateSheet.setAttribute('aria-hidden', 'true');
+    }
+
+    function openVaccinationDateSheet() {
+      if (!vaccinationDateSheet) return;
+      syncSheetFromInput();
+      vaccinationDateSheet.classList.add('is-open');
+      vaccinationDateSheet.setAttribute('aria-hidden', 'false');
+    }
+
+    function syncBudgetOptionState() {
+      if (!budgetOptionButtons.length || !budgetRangeValue) return;
+      budgetOptionButtons.forEach(function (button) {
+        var active = button.dataset.value === budgetRangeValue.value;
+        button.classList.toggle('border-[#3182ce]', active);
+        button.classList.toggle('bg-[#f7fbff]', active);
+        button.classList.toggle('font-bold', active);
+        button.classList.toggle('text-[#3182ce]', active);
+        button.classList.toggle('border-[#e2e8f0]', !active);
+        button.classList.toggle('text-[#2d3748]', !active);
+      });
+    }
+
+    function setBudgetRangeValue(value, label) {
+      if (!budgetRangeValue || !budgetRangeDisplay) return;
+      budgetRangeValue.value = value || '';
+      budgetRangeDisplay.textContent = label || '선택해주세요';
+      budgetRangeDisplay.classList.toggle('text-[#a0aec0]', !value);
+      budgetRangeDisplay.classList.toggle('text-[#2d3748]', !!value);
+      syncBudgetOptionState();
+    }
+
+    function closeBudgetRangeSheet() {
+      if (!budgetRangeSheet) return;
+      budgetRangeSheet.classList.remove('is-open');
+      budgetRangeSheet.setAttribute('aria-hidden', 'true');
+    }
+
+    function openBudgetRangeSheet() {
+      if (!budgetRangeSheet) return;
+      syncBudgetOptionState();
+      budgetRangeSheet.classList.add('is-open');
+      budgetRangeSheet.setAttribute('aria-hidden', 'false');
     }
 
     if (vaccinationDateInput) {
@@ -301,27 +721,96 @@
           return;
         }
         clearStatus(vaccinationDateStatus);
-        if (vaccinationDatePicker && vaccinationDateInput.value) {
-          vaccinationDatePicker.value = vaccinationDateInput.value;
-        }
       });
     }
 
-    if (vaccinationDatePickerButton && vaccinationDatePicker) {
+    if (vaccinationYearSelect && vaccinationMonthSelect) {
+      var handleSheetDateChange = function () {
+        var year = Number(vaccinationYearSelect.value) || getTodayParts().year;
+        var month = Number(vaccinationMonthSelect.value) || 1;
+        var currentDay = Number(vaccinationDaySelect.value) || 1;
+        var maxDay = getDaysInMonth(year, month);
+        if (currentDay > maxDay) {
+          currentDay = maxDay;
+        }
+        fillDayOptions(year, month, currentDay);
+      };
+
+      vaccinationYearSelect.addEventListener('change', handleSheetDateChange);
+      vaccinationMonthSelect.addEventListener('change', handleSheetDateChange);
+    }
+
+    if (vaccinationDatePickerButton) {
       vaccinationDatePickerButton.addEventListener('click', function () {
-        if (typeof vaccinationDatePicker.showPicker === 'function') {
-          vaccinationDatePicker.showPicker();
+        openVaccinationDateSheet();
+      });
+    }
+
+    if (vaccinationDateApplyButton) {
+      vaccinationDateApplyButton.addEventListener('click', function () {
+        if (!vaccinationDateInput || !vaccinationYearSelect || !vaccinationMonthSelect || !vaccinationDaySelect) return;
+        var year = vaccinationYearSelect.value;
+        var month = vaccinationMonthSelect.value;
+        var day = vaccinationDaySelect.value;
+        if (!year || !month || !day) {
+          showStatus(vaccinationDateStatus, '연도, 월, 일을 모두 선택해 주세요');
           return;
         }
-        vaccinationDatePicker.click();
-      });
-
-      vaccinationDatePicker.addEventListener('change', function () {
-        if (!vaccinationDateInput) return;
-        vaccinationDateInput.value = vaccinationDatePicker.value;
+        vaccinationDateInput.value =
+          String(year).padStart(4, '0') + '-' +
+          String(month).padStart(2, '0') + '-' +
+          String(day).padStart(2, '0');
         clearStatus(vaccinationDateStatus);
+        closeVaccinationDateSheet();
       });
     }
+
+    if (vaccinationDateSheet) {
+      vaccinationDateSheet.addEventListener('click', function (event) {
+        if (event.target === vaccinationDateSheet) {
+          closeVaccinationDateSheet();
+        }
+      });
+    }
+
+    if (budgetRangeButton) {
+      budgetRangeButton.addEventListener('click', function () {
+        openBudgetRangeSheet();
+      });
+    }
+
+    if (budgetRangeSheet) {
+      budgetRangeSheet.addEventListener('click', function (event) {
+        if (event.target === budgetRangeSheet) {
+          closeBudgetRangeSheet();
+        }
+      });
+    }
+
+    budgetOptionButtons.forEach(function (button) {
+      button.addEventListener('click', function () {
+        setBudgetRangeValue(button.dataset.value || '', button.dataset.label || '선택해주세요');
+        closeBudgetRangeSheet();
+      });
+    });
+
+    document.addEventListener('keydown', function (event) {
+      if (event.key === 'Escape') {
+        closeVaccinationDateSheet();
+        closeBudgetRangeSheet();
+      }
+    });
+
+    window.toggleProfileMenu = function toggleProfileMenu() {
+      if (!profileMenu) return;
+      profileMenu.classList.toggle('is-open');
+    };
+
+    document.addEventListener('click', function (event) {
+      if (profileMenuWrapper && !profileMenuWrapper.contains(event.target) && profileMenu) {
+        profileMenu.classList.remove('is-open');
+      }
+    });
 
     var form = document.querySelector('form');
     if (form) {
@@ -358,8 +847,7 @@
         params.set('neutered', '{{ step2_data.neutered|escapejs }}');
         params.set('vaccination_date', vaccinationDateInput ? vaccinationDateInput.value : '');
 
-        var budgetSelect = document.querySelector('select[name="budget_range"]');
-        params.set('budget_range', budgetSelect ? budgetSelect.value : '');
+        params.set('budget_range', budgetRangeValue ? budgetRangeValue.value : '');
 
         var specialNotesInput = document.querySelector('input[name="special_notes"], textarea[name="special_notes"]');
         params.set('special_notes', specialNotesInput ? specialNotesInput.value : '');
@@ -379,7 +867,7 @@
       });
     }
 
-    syncVaccinationPickerBounds();
+    syncBudgetOptionState();
   })();
 </script>
 {% endblock %}
