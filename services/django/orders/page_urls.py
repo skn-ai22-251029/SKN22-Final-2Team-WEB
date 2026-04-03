@@ -1,9 +1,10 @@
 from django.urls import path
-from . import page_views
+
+from .pages import catalog, order_complete, order_list, used_products
 
 urlpatterns = [
-    path("orders/", page_views.order_list, name="order_list"),
-    path("orders/complete/<uuid:order_id>/", page_views.order_complete, name="order_complete"),
-    path("products/", page_views.used_products, name="used_products"),
-    path("catalog/", page_views.catalog, name="catalog"),
+    path("orders/", order_list, name="order_list"),
+    path("orders/complete/<uuid:order_id>/", order_complete, name="order_complete"),
+    path("products/", used_products, name="used_products"),
+    path("catalog/", catalog, name="catalog"),
 ]

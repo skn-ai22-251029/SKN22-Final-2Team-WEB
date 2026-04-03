@@ -1,6 +1,6 @@
 from django.urls import path
 
-from . import api_views
+from .api import views as api_views
 
 urlpatterns = [
     path("", api_views.chat_proxy_view, name="chat-proxy"),

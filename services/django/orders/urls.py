@@ -1,5 +1,6 @@
 from django.urls import path
-from .views import CartView, OrderDetailView, OrderListView, QuickPurchaseView, WishlistView
+
+from .api import CartView, OrderDetailView, OrderListView, QuickPurchaseView, WishlistView
 
 urlpatterns = [
     path("", OrderListView.as_view(), name="order-list"),
