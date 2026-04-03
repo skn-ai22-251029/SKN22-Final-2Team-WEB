@@ -385,7 +385,10 @@ class ChatProxyTests(TestCase):
         self.assertEqual(recommendation.product_id, self.product.goods_id)
         self.assertEqual(recommendation.rank_order, 0)
 
-        list_response = self.client.get(f"/api/chat/sessions/{session.session_id}/messages/")
+        list_response = self.client.get(
+            f"/api/chat/sessions/{session.session_id}/messages/",
+            HTTP_AUTHORIZATION=f"Bearer {self.access_token}",
+        )
         self.assertEqual(list_response.status_code, 200)
         assistant_payload = list_response.json()["messages"][1]
         self.assertEqual(assistant_payload["recommended_products"][0]["goods_id"], self.product.goods_id)
