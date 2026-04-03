@@ -1,7 +1,7 @@
 # 반려동물 상품 추천 챗봇 시스템 요구사항 명세서
 
 > **프로젝트**: SKN22 Final Project · 2팀
-> **버전**: v1.1 (2026-03-18 최신화)
+> **버전**: v1.2 (2026-04-03 최신화)
 > **최초 작성일**: 2026-03-06
 >
 > 관련 문서: `planning/01_project_overview.md` · `planning/02_system_architecture.md` · `planning/04_data_model_detail.md` · `planning/05_user_flow.md` · `planning/06_dev_convention.md` · `data/01_crawling_spec.md`
@@ -20,11 +20,11 @@
 
 | 요구사항 ID | 요구사항명 | 기능 ID | 기능명 | 상세 설명 | 상태 |
 |---|---|---|---|---|---|
-| REQ-001 | 사용자 인증 | FR-AUTH-01 | 이메일 회원가입 | 이메일 + 비밀번호 계정 생성. 가입 완료 후 온보딩 플로우(`/pets/add/`)로 자동 이동. | ✅ |
-| REQ-001 | 사용자 인증 | FR-AUTH-02 | 소셜 로그인 | Google · Kakao · Naver OAuth 지원. OAuth 시작: `/auth/{provider}/start/`, 콜백: `/auth/{provider}/callback/`. 최초 로그인 시 `/profile/?setup=1`로 Redirect. 이메일·닉네임·프로필 사진 수집. 로그인 페이지에 각 서비스 공식 CI 로고 표시. | ✅ |
-| REQ-001 | 사용자 인증 | FR-AUTH-03 | 일반 로그인 | 이메일 + 비밀번호 로그인 (`/login/`). 소셜 로그인과 병행 제공. | ✅ |
-| REQ-001 | 사용자 인증 | FR-AUTH-04 | JWT 발급 및 세션 관리 | 로그인 완료 시 Access Token + Refresh Token 발급. Django Session(웹) + JWT(API) 이중 인증 구조. Refresh Token 만료 시 재로그인 유도. | ✅ |
-| REQ-001 | 사용자 인증 | FR-AUTH-05 | 로그아웃 / 토큰 폐기 | 로그아웃 시 서버 세션 + JWT Blacklist 등록으로 즉시 폐기. 사이드바 하단 위치. | ✅ |
+| REQ-001 | 사용자 인증 | FR-AUTH-01 | 소셜 로그인 기반 가입 | 이메일/비밀번호 자체 가입 대신 Google · Kakao · Naver OAuth 최초 로그인 시 계정 생성. 최초 로그인 시 `/profile/?setup=1` 또는 온보딩 플로우로 유도. | ✅ |
+| REQ-001 | 사용자 인증 | FR-AUTH-02 | 소셜 로그인 | Google · Kakao · Naver OAuth 지원. OAuth 시작: `/auth/{provider}/start/`, 콜백: `/auth/{provider}/callback/`. 이메일·닉네임·프로필 사진 수집. 로그인 페이지에 각 서비스 공식 CI 로고 표시. | ✅ |
+| REQ-001 | 사용자 인증 | FR-AUTH-03 | 일반 로그인 미제공 | 운영 사용자 대상 이메일 + 비밀번호 로그인은 제공하지 않는다. 로그인 진입점은 소셜 로그인만 유지한다. 기존 이메일 로그인/JWT 직접 발급 API는 후속 정리 대상이다. | 🔄 |
+| REQ-001 | 사용자 인증 | FR-AUTH-04 | 세션 관리 및 내부 서비스 인증 | 브라우저 인증은 Django Session을 기준으로 한다. 브라우저는 FastAPI를 직접 호출하지 않고 Django를 통해 접근한다. 운영 배포 시 FastAPI는 Django 뒤 private 서비스로 배치하고, 필요 시 Django -> FastAPI 내부 JWT 또는 서비스 토큰을 사용한다. | 🔄 |
+| REQ-001 | 사용자 인증 | FR-AUTH-05 | 로그아웃 / 세션 폐기 | 로그아웃 시 Django Session을 즉시 폐기한다. 내부 서비스용 토큰이 있는 경우 서버 간 범위에서만 만료 또는 폐기한다. 사이드바 하단 위치. | ✅ |
 | REQ-001 | 사용자 인증 | FR-AUTH-06 | 회원 탈퇴 | 실행 전 확인 모달 표시 및 사용자 데이터 완전 삭제 처리. | ⬜ |
 | REQ-002 | 사용자 프로필 | FR-USER-01 | 정보 등록 | 프로필 사진, 이름, 나이, 성별, 주소, 연락처, 프로모션 동의 여부 입력. 미입력 시 프로필 사진·닉네임은 OAuth 기본값 사용. `/profile/?setup=1` 경유 시 초기 설정 가이드 표시. | ✅ |
 | REQ-002 | 사용자 프로필 | FR-USER-02 | 정보 수정 | 프로필 페이지에서 등록 정보 수정 가능. | ✅ |
@@ -99,7 +99,7 @@
 | NFR-007 | 모니터링 | NF-MON-03 | LLM 품질 모니터링 | 사용자 질의응답 내역 리스트 조회. 응답 품질 좋아요/싫어요 집계. 어드민 페이지에서 확인 가능. |
 | NFR-007 | 모니터링 | NF-MON-04 | 서비스 로깅 | 챗봇 요청/응답, 추천 결과, API 에러 등 서비스 레벨 이벤트 로깅. **(TBD)** 도구 및 수집 범위 미확정. |
 | NFR-007 | 모니터링 | NF-MON-05 | 보안 감사 로그 | 회원 탈퇴, 데이터 초기화, 주요 설정 변경 등 민감 액션에 대한 이력 관리. **(TBD)** |
-| NFR-008 | 보안 | NF-SEC-01 | 인증 및 세션 관리 | **Django Session(웹) + JWT(API) 이중 인증**. HTTPS 통신 필수. Access/Refresh Token 발급 및 만료 처리. 로그아웃 시 세션 삭제 + JWT Blacklist 등록으로 즉시 폐기. |
+| NFR-008 | 보안 | NF-SEC-01 | 인증 및 세션 관리 | **Django Session(웹) 중심 인증**. 브라우저는 Django만 호출하고 FastAPI는 운영 배포 시 Django 뒤 private 서비스로 배치한다. private 전환 전에는 Django -> FastAPI 내부 토큰 검증을 추가한다. HTTPS 통신 필수. |
 | NFR-008 | 보안 | NF-SEC-02 | PII 마스킹 | 사용자 입력 및 LLM 응답 내 개인정보(이름·연락처·주소 등) 마스킹 처리. 로그에 PII 미포함. |
 | NFR-008 | 보안 | NF-SEC-03 | 환경변수 및 시크릿 관리 | API 키, DB 접속 정보 등 민감 정보는 `.env` 파일로 관리. Git 커밋 금지. GitHub Actions Secret으로 CI/CD에 주입. |
 | NFR-008 | 보안 | NF-SEC-04 | AWS 보안 | AWS IAM 최소 권한 원칙 적용. 보안 그룹 규칙 최소화. |
@@ -133,7 +133,7 @@
 | 기술 | 용도 | 상태 |
 |---|---|---|
 | Django | 메인 백엔드 (Auth, ORM, Admin) | 확정 |
-| Django Session + JWT | 웹 세션 + API 토큰 이중 인증 | 확정 |
+| Django Session + Internal Service Auth | 웹 세션 인증 + Django -> FastAPI 내부 호출 보호 | 확정 |
 | Nginx | 리버스 프록시 / 로드 밸런싱 | 확정 |
 
 ### Backend (FastAPI) - 김희준
@@ -204,3 +204,4 @@
 | 10 | 챗봇 메인 진입 화면 정책 | 로그인/온보딩 완료 후 최종 진입 화면, 비회원 메인 / 회원 메인 분리 기준. `#133` `[frontend] Django Template 기준 메인 / 챗봇 3패널 UI 정비` 이후 확정 |
 | 11 | 이미지 업로드 기능 | 챗봇 내 기능 정의 (체중 추정 외 활용 방안) 및 펫 프로필 이미지 연동 방안 조사 필요 |
 | 12 | 어드민 페이지 | 범위 및 접근 권한 관리 방식 TBD |
+| 13 | 기존 이메일 계정 정리 정책 | 기존 이메일/비밀번호 가입 사용자와 JWT 직접 발급 API를 언제, 어떤 방식으로 정리할지 결정 필요 |
