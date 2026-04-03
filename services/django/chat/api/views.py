@@ -1,4 +1,5 @@
 import json
+from uuid import uuid4
 
 from django.http import JsonResponse, StreamingHttpResponse
 from django.views.decorators.http import require_http_methods
@@ -28,6 +29,10 @@ def read_json_body(request):
         raise ValueError("유효한 JSON 요청이 필요합니다.")
 
 
+def build_request_id(request):
+    return request.headers.get("X-Request-Id") or str(uuid4())
+
+
 @require_http_methods(["POST"])
 def chat_proxy_view(
     request,
@@ -52,13 +57,15 @@ def chat_proxy_view(
     if not message:
         return build_proxy_error_response_fn("message is required.", status=400)
 
+    request_id = build_request_id(request)
     safe_payload = build_chat_payload_fn(payload, request.user.id, target_pet_id=payload.get("target_pet_id"))
 
     return StreamingHttpResponse(
-        stream_fastapi_response_fn(chat_base_url_fn() + "/", safe_payload, request.user.id),
+        stream_fastapi_response_fn(chat_base_url_fn() + "/", safe_payload, request.user.id, request_id=request_id),
         content_type="text/event-stream",
         headers={
             "Cache-Control": "no-cache",
+            "X-Request-Id": request_id,
             "X-Accel-Buffering": "no",
         },
     )
@@ -218,6 +225,7 @@ def session_messages_proxy_view(
     ChatMessage.objects.create(session=session, role="user", content=message)
     touch_session_fn(session)
 
+    request_id = build_request_id(request)
     safe_payload = build_chat_payload_fn(
         payload,
         request.user.id,
@@ -225,10 +233,17 @@ def session_messages_proxy_view(
         target_pet_id=session.target_pet_id,
     )
     return StreamingHttpResponse(
-        persist_streamed_response_fn(session, chat_base_url_fn() + "/", safe_payload, request.user.id),
+        persist_streamed_response_fn(
+            session,
+            chat_base_url_fn() + "/",
+            safe_payload,
+            request.user.id,
+            request_id=request_id,
+        ),
         content_type="text/event-stream",
         headers={
             "Cache-Control": "no-cache",
+            "X-Request-Id": request_id,
             "X-Accel-Buffering": "no",
         },
     )

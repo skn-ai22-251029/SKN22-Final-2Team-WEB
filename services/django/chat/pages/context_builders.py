@@ -6,6 +6,7 @@ from orders.models import Cart
 from pets.future_profile import get_future_pet_profile_for_request
 from products.catalog_menu import build_catalog_menu_context
 from products.models import Product
+from users.social_auth import SOCIAL_AUTH_ACCESS_SESSION_KEY
 
 
 def format_price(value):
@@ -467,6 +468,7 @@ def build_chat_page_context(request):
         "is_member_view": is_member_view,
         "is_preview_member": is_preview_member,
         "chat_enabled": chat_enabled,
+        "chat_api_access_token": request.session.get(SOCIAL_AUTH_ACCESS_SESSION_KEY, "") if is_authenticated else "",
         "member_pets": member_pets,
         "can_add_pet": is_member_view and registered_pet_count < 5,
         "should_offer_pet_registration_prompt": should_offer_pet_registration_prompt,

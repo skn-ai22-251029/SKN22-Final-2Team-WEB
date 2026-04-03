@@ -1,4 +1,5 @@
 import json
+from uuid import uuid4
 
 import httpx
 from django.conf import settings
@@ -10,11 +11,14 @@ def chat_base_url():
     return settings.FASTAPI_INTERNAL_CHAT_URL.rstrip("/")
 
 
-def internal_headers(user_id, include_content_type=True):
+def internal_headers(user_id, session_id=None, request_id=None, include_content_type=True):
     headers = {
-        "X-Internal-Service-Token": settings.INTERNAL_SERVICE_TOKEN,
         "X-User-Id": str(user_id),
+        "X-Request-Id": request_id or str(uuid4()),
+        "Accept": "text/event-stream",
     }
+    if session_id:
+        headers["X-Session-Id"] = str(session_id)
     if include_content_type:
         headers["Content-Type"] = "application/json"
     return headers
@@ -53,14 +57,27 @@ def capture_sse_event(event_lines, capture):
         capture["assistant_text"] += payload.get("content", "")
     elif event_type == "products":
         capture["product_cards"] = payload.get("cards") or []
+    elif event_type == "final":
+        final_message = (payload.get("message") or "").strip()
+        if final_message:
+            capture["final_message"] = final_message
+            capture["assistant_text"] = final_message
+        final_cards = payload.get("cards")
+        if final_cards is not None:
+            capture["product_cards"] = final_cards or []
+        capture["completed"] = True
     elif event_type == "error":
         capture["error_message"] = payload.get("message") or "죄송합니다, 오류가 발생했습니다."
     elif event_type == "done":
         capture["completed"] = True
 
 
-def stream_fastapi_response(url, payload, user_id, capture=None):
-    headers = internal_headers(user_id)
+def stream_fastapi_response(url, payload, user_id, capture=None, request_id=None):
+    headers = internal_headers(
+        user_id,
+        session_id=payload.get("thread_id"),
+        request_id=request_id,
+    )
 
     try:
         with httpx.Client(timeout=stream_timeout()) as client:
