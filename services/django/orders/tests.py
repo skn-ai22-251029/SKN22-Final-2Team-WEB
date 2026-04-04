@@ -522,7 +522,7 @@ class OrderReadApiTests(TestCase):
         self.assertEqual(len(order["items"]), 2)
         self.assertTrue(order["can_reorder"])
         self.assertEqual(order["status_meta"]["tone"], "info")
-        self.assertEqual(order["status_meta"]["cta_label"], "같은 구성 다시 담기")
+        self.assertEqual(order["status_meta"]["cta_label"], "다시 담기")
         self.assertEqual(response.data["filters"]["status"], "all")
         self.assertEqual(response.data["filters"]["ordering"], "latest")
         self.assertEqual(response.data["pagination"]["total_count"], 1)
