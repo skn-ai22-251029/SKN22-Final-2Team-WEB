@@ -3,6 +3,7 @@ from dataclasses import dataclass
 
 from django.shortcuts import get_object_or_404, redirect, render
 from django.urls import reverse
+from orders.models import Cart, Wishlist
 
 from ..allergies import allergy_options, parse_allergy_ingredients
 from ..breeds import get_breed_options, resolve_breed
@@ -54,6 +55,21 @@ BUDGET_OPTIONS = [
     ("10_20", "10만 원 ~ 20만 원 미만"),
     ("over_20", "20만 원 이상"),
 ]
+
+
+def _member_nav_indicator_state(user):
+    if not getattr(user, "is_authenticated", False):
+        return {
+            "member_nav_has_cart_items": False,
+            "member_nav_has_wishlist_items": False,
+        }
+
+    cart, _ = Cart.objects.get_or_create(user=user)
+    wishlist, _ = Wishlist.objects.get_or_create(user=user)
+    return {
+        "member_nav_has_cart_items": cart.items.exists(),
+        "member_nav_has_wishlist_items": wishlist.items.exists(),
+    }
 
 
 def _food_options_for_species(species):
@@ -335,12 +351,17 @@ def pet_list(request):
             "is_preview_list": is_preview_list,
             "actual_pet_count": actual_pet_count,
             "has_future_pet": bool(future_pet),
+            **_member_nav_indicator_state(request.user),
         },
     )
 
 
 def pet_add(request):
-    return render(request, "pets/add_step1.html", {"species_options": SPECIES_OPTIONS})
+    return render(
+        request,
+        "pets/add_step1.html",
+        {"species_options": SPECIES_OPTIONS, **_member_nav_indicator_state(request.user)},
+    )
 
 
 def pet_add_future(request):
@@ -375,6 +396,7 @@ def pet_add_future(request):
             "housing_options": FUTURE_HOUSING_OPTIONS,
             "experience_options": FUTURE_EXPERIENCE_OPTIONS,
             "interest_options": FUTURE_INTEREST_OPTIONS,
+            **_member_nav_indicator_state(request.user),
         },
     )
 
@@ -424,6 +446,7 @@ def pet_add_details(request):
             "age_year_options": AGE_YEAR_OPTIONS,
             "age_month_options": AGE_MONTH_OPTIONS,
             "step3_data": step3_data,
+            **_member_nav_indicator_state(request.user),
         },
     )
 
@@ -485,6 +508,7 @@ def pet_add_health(request):
                 },
                 "breed_error_message": "" if resolved_breed else _breed_error_message(species),
                 "weight_error_message": weight_error,
+                **_member_nav_indicator_state(request.user),
             },
         )
     step2_data["breed"] = resolved_breed
@@ -506,7 +530,8 @@ def pet_add_health(request):
             request,
             "pets/add_step3.html",
             _step3_context(pet_preview, species, step2_data, step3_data)
-            | {"allergy_error_message": "등록된 성분만 선택해 주세요"},
+            | {"allergy_error_message": "등록된 성분만 선택해 주세요"}
+            | _member_nav_indicator_state(request.user),
         )
 
     if request.POST.get("final_step") == "1":
@@ -554,7 +579,11 @@ def pet_add_health(request):
         "budget_range": request.POST.get("budget_range", ""),
         "special_notes": request.POST.get("special_notes", ""),
     }
-    return render(request, "pets/add_step3.html", _step3_context(pet_preview, species, step2_data, step3_data))
+    return render(
+        request,
+        "pets/add_step3.html",
+        _step3_context(pet_preview, species, step2_data, step3_data) | _member_nav_indicator_state(request.user),
+    )
 
 
 def pet_edit(request, pet_id):
@@ -580,7 +609,8 @@ def pet_edit(request, pet_id):
                 step2_data,
                 _pet_step3_data(pet),
             )
-            | {"is_edit": True, "pet_id": pet.pet_id},
+            | {"is_edit": True, "pet_id": pet.pet_id}
+            | _member_nav_indicator_state(request.user),
         )
     return render(
         request,
@@ -595,6 +625,7 @@ def pet_edit(request, pet_id):
             "is_edit": True,
             "age_year_options": AGE_YEAR_OPTIONS,
             "age_month_options": AGE_MONTH_OPTIONS,
+            **_member_nav_indicator_state(request.user),
         },
     )
 
@@ -633,6 +664,7 @@ def pet_edit_health(request, pet_id):
                 "age_month_options": AGE_MONTH_OPTIONS,
                 "breed_error_message": "" if resolved_breed else _breed_error_message(pet.species),
                 "weight_error_message": "" if weight_value else _weight_error_message(),
+                **_member_nav_indicator_state(request.user),
             },
         )
 
@@ -675,7 +707,8 @@ def pet_edit_health(request, pet_id):
                     "special_notes": request.POST.get("special_notes", "").strip(),
                 },
             )
-            | {"is_edit": True, "pet_id": pet.pet_id, "allergy_error_message": "등록된 성분만 선택해 주세요"},
+            | {"is_edit": True, "pet_id": pet.pet_id, "allergy_error_message": "등록된 성분만 선택해 주세요"}
+            | _member_nav_indicator_state(request.user),
         )
     pet.save()
 
@@ -742,6 +775,7 @@ def preview_pet_edit(request, pet_id):
                     "age_month_options": AGE_MONTH_OPTIONS,
                     "breed_error_message": "" if resolved_breed else _breed_error_message(pet.species),
                     "weight_error_message": "" if step2_data["weight_kg"] else _weight_error_message(),
+                    **_member_nav_indicator_state(request.user),
                 },
             )
         step2_data["breed"] = resolved_breed
@@ -754,7 +788,8 @@ def preview_pet_edit(request, pet_id):
                 step2_data,
                 _preview_step3_data(pet),
             )
-            | {"is_edit": True, "is_preview_edit": True, "pet_id": pet.pet_id},
+            | {"is_edit": True, "is_preview_edit": True, "pet_id": pet.pet_id}
+            | _member_nav_indicator_state(request.user),
         )
 
     return render(
@@ -782,6 +817,7 @@ def preview_pet_edit(request, pet_id):
             "is_preview_edit": True,
             "age_year_options": AGE_YEAR_OPTIONS,
             "age_month_options": AGE_MONTH_OPTIONS,
+            **_member_nav_indicator_state(request.user),
         },
     )
 
