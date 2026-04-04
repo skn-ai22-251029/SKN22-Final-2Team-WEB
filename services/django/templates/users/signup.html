@@ -5,23 +5,25 @@
 {% block content %}
 <div class="auth-legacy-shell min-h-screen bg-[#f7fafc]">
   <div class="relative h-screen w-full overflow-hidden bg-[#f7fafc] flex items-center justify-center auth-legacy-scale">
-    <div class="relative h-[244px] w-[400px] max-w-[calc(100vw-32px)] overflow-hidden rounded-[24px] border border-[#dbe7f5] bg-white shadow-[0_16px_40px_rgba(45,55,72,0.08)] auth-legacy-card" id="authLegacyCard" data-ready="true">
+    <div class="relative flex h-[244px] w-[400px] max-w-[calc(100vw-32px)] flex-col items-center overflow-hidden rounded-[24px] border border-[#dbe7f5] bg-white px-[32px] pt-[32px] shadow-[0_16px_40px_rgba(45,55,72,0.08)] auth-legacy-card" id="authLegacyCard" data-ready="true">
       <div class="absolute inset-0 bg-[linear-gradient(180deg,rgba(255,255,255,0.96)_0%,rgba(247,250,252,0.98)_100%)]"></div>
 
       <a
         href="/"
-        class="absolute left-[151px] top-[33px] h-[31px] w-[98px] text-center text-[26px] font-bold leading-none text-[#2d3748]"
+        class="relative z-[1] h-[31px] text-center text-[26px] font-bold leading-none text-[#2d3748]"
       >
         <span class="text-[#3182ce]">Tail</span><span>Talk</span>
       </a>
 
-      <div class="absolute left-[40px] top-[84px] h-px w-[60px] bg-[#dbe7f5]"></div>
-      <div class="auth-legacy-divider-label absolute left-[156px] top-[74px] h-[20px] w-[88px]">
-        <p class="auth-legacy-divider-text">간편 로그인</p>
+      <div class="relative z-[1] mt-[18px] flex w-full items-center gap-[16px]">
+        <div class="h-px flex-1 bg-[#dbe7f5]"></div>
+        <div class="auth-legacy-divider-label h-[20px] shrink-0">
+          <p class="auth-legacy-divider-text">간편 로그인</p>
+        </div>
+        <div class="h-px flex-1 bg-[#dbe7f5]"></div>
       </div>
-      <div class="absolute left-[300px] top-[84px] h-px w-[60px] bg-[#dbe7f5]"></div>
 
-      <div class="absolute left-[106px] top-[114px] flex h-[48px] w-[188px] items-center justify-between">
+      <div class="relative z-[1] mt-[20px] flex h-[48px] w-[188px] items-center justify-between">
         <a href="/auth/kakao/start/?remember=on" data-social-link aria-label="카카오 로그인" class="flex h-[40px] w-[40px] items-center justify-center overflow-hidden rounded-full bg-[#FEE500]">
           <svg viewBox="0 0 40 40" class="relative left-[0.5px] block h-[30px] w-[30px]" aria-hidden="true">
             <path fill="#191919" d="M20 8.2c-6.6 0-12 4.25-12 9.5 0 3.39 2.2 6.37 5.52 8.06l-1.4 5.1c-.07.28.23.5.48.36l5.98-3.95c.47.05.94.08 1.42.08 6.63 0 12-4.25 12-9.5s-5.37-9.55-12-9.55Z"/>
@@ -43,7 +45,7 @@
       </div>
       <button
         type="button"
-        class="auth-legacy-remember absolute left-[140px] top-[186px] h-[26px] w-[148px]"
+        class="auth-legacy-remember relative z-[1] mt-[24px] h-[26px] w-[148px] translate-x-[24px]"
         id="rememberToggle"
         aria-pressed="true"
       >
@@ -52,7 +54,7 @@
             <path d="M1 4L3.5 6.5L9 1"></path>
           </svg>
         </span>
-        <span class="auth-legacy-remember-text">로그인 상태 유지</span>
+        <span class="auth-legacy-remember-text">로그인 유지</span>
       </button>
     </div>
   </div>

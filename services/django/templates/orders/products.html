@@ -1,16 +1,145 @@
 {% extends "base.html" %}
-{% block title %}장바구니 — TailTalk{% endblock %}
+{% block title %}{% if active_tab == 'wishlist' %}관심 상품{% else %}장바구니{% endif %} — TailTalk{% endblock %}
 
 {% block head %}
 <style>
-  html {
-    scrollbar-gutter: stable;
+  #pageGate {
+    min-height: 100dvh;
+    background: #f8f9fb;
+  }
+
+  #pageGate > .app-shell {
+    position: relative;
+    width: min(100%, 960px);
+    min-height: 100dvh;
+    height: 100dvh;
+    margin: 0 auto;
+    overflow: hidden;
+    background: #f8f9fb;
+  }
+
+  #productsHeader {
+    position: absolute;
+    inset: 0 0 auto 0;
+    height: 72px;
+    border-bottom: 1px solid #e2e8f0;
+    background: #fff;
+    z-index: 40;
+  }
+
+  #productsHeaderInner {
+    display: grid;
+    grid-template-columns: 40px auto 40px;
+    align-items: center;
+    gap: 8px;
+    height: 100%;
+    padding: 0 12px;
+  }
+
+  #productsHeaderLogo {
+    justify-self: center;
+    font-size: 26px;
+    font-weight: 700;
+    line-height: 1;
+    color: #2d3748;
+    white-space: nowrap;
+  }
+
+  #headerSubnav {
+    position: absolute;
+    inset: 72px 0 auto 0;
+    z-index: 35;
+    border-bottom: 1px solid #e8eef6;
+    background: rgba(255, 255, 255, 0.98);
+    backdrop-filter: blur(12px);
+  }
+
+  #headerSubnavRail {
+    display: grid;
+    grid-template-columns: repeat(4, minmax(0, 1fr));
+    width: 100%;
+  }
+
+  .header-subnav-link {
+    position: relative;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    height: 44px;
+    color: #4a5568;
+    transition: background-color 160ms ease, color 160ms ease;
+  }
+
+  .header-subnav-link + .header-subnav-link::before {
+    content: '';
+    position: absolute;
+    left: 0;
+    top: 10px;
+    bottom: 10px;
+    width: 1px;
+    background: #e8eef6;
+  }
+
+  .header-subnav-link:hover {
+    background: #f8fbff;
+  }
+
+  .header-subnav-link.is-active {
+    color: #2d3748;
+    background: #f8f9fb;
+  }
+
+  .header-subnav-link.has-indicator::after {
+    content: '';
+    position: absolute;
+    top: 9px;
+    right: calc(50% - 12px);
+    width: 6px;
+    height: 6px;
+    border-radius: 9999px;
+    background: #f97316;
+  }
+
+  #profileMenuWrapper {
+    position: relative;
+    height: 40px;
+    width: 40px;
+  }
+
+  #profileMenu {
+    position: absolute;
+    top: calc(100% + 10px);
+    right: 0;
+    width: 188px;
+    overflow: hidden;
+    border: 1px solid #e2e8f0;
+    border-radius: 18px;
+    background: #fff;
+    box-shadow: 0 18px 36px rgba(15, 23, 42, 0.12);
+    opacity: 0;
+    pointer-events: none;
+    transform: translateY(-6px);
+    transition: opacity 160ms ease, transform 160ms ease;
+    z-index: 50;
+  }
+
+  #profileMenu.is-open {
+    opacity: 1;
+    pointer-events: auto;
+    transform: translateY(0);
+  }
+
+  #productsViewport {
+    position: absolute;
+    inset: 116px 0 0 0;
+    overflow-y: auto;
+    padding: 24px 16px 146px;
   }
 
   html,
   body,
   body.bg-white {
-    background: #f7fafc !important;
+    background: #f8f9fb !important;
   }
 
   .product-tab-panel {
@@ -51,12 +180,41 @@
   }
 
   .product-list-viewport {
-    scrollbar-gutter: stable;
+    background: transparent;
+  }
+
+  .cart-item-card {
+    border: 0 !important;
+    border-radius: 0 !important;
+    background: transparent !important;
+    box-shadow: none !important;
+    padding: 0 0 16px !important;
+  }
+
+  #cartListViewport > .cart-item-card:not(:last-child) {
+    border-bottom: 1px solid #cfd8e3 !important;
+    margin-bottom: 18px;
+    padding-bottom: 18px !important;
+  }
+
+  #wishlistListViewport {
+    display: grid;
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    align-items: start;
+    gap: 20px;
+  }
+
+  @media (min-width: 1024px) {
+    #wishlistListViewport {
+      grid-template-columns: repeat(3, minmax(0, 1fr));
+    }
   }
 
   .product-fixed-viewport {
     min-height: 0 !important;
-    overflow-y: auto;
+    overflow: visible !important;
+    height: auto !important;
+    max-height: none !important;
   }
 
   .product-empty-compact {
@@ -156,7 +314,15 @@
     color: #4a5568;
   }
 
+  .wishlist-heart:hover {
+    color: #2d3748;
+  }
+
   .wishlist-heart.is-active {
+    color: #e53e3e;
+  }
+
+  .wishlist-heart.is-active:hover {
     color: #e53e3e;
   }
 
@@ -168,14 +334,183 @@
     display: block;
   }
 
-  .product-card-brand {
+  .catalog-card {
+    display: flex;
+    position: relative;
+    flex-direction: column;
+    transition: transform 180ms ease, box-shadow 180ms ease, border-color 180ms ease;
+  }
+
+  .catalog-card:hover {
+    transform: translateY(-2px);
+    box-shadow: 0 14px 28px rgba(45, 55, 72, 0.08);
+    border-color: #cbd5e0;
+  }
+
+  @media (hover: none) and (pointer: coarse) {
+    .catalog-card:hover {
+      transform: none;
+      box-shadow: 0 8px 24px rgba(45, 55, 72, 0.04);
+      border-color: #e2e8f0;
+    }
+  }
+
+  .catalog-thumb {
+    aspect-ratio: 1 / 1;
+  }
+
+  .catalog-card-body {
+    display: flex;
+    min-height: 0;
+    flex: 1 1 auto;
+    flex-direction: column;
+  }
+
+  .catalog-card-title {
+    display: -webkit-box;
     overflow: hidden;
-    text-overflow: ellipsis;
-    white-space: nowrap;
+    -webkit-box-orient: vertical;
+    -webkit-line-clamp: 2;
+    min-height: calc(1em * 1.45 * 2);
+    font-size: 17px;
+    font-weight: 700;
+    line-height: 1.45;
+    color: #2d3748;
+  }
+
+  .catalog-card-meta {
+    margin-top: auto;
+    padding-top: 12px;
+    display: flex;
+    align-items: flex-end;
+    justify-content: space-between;
+    gap: 12px;
+  }
+
+  .catalog-card-price {
+    font-size: 20px;
+    font-weight: 700;
+    color: #2d3748;
+  }
+
+  .catalog-card-review {
+    margin-top: 4px;
+    display: flex;
+    align-items: center;
+    gap: 4px;
     font-size: 12px;
+    color: #a0aec0;
+  }
+
+  .catalog-card-action {
+    display: inline-flex;
+    height: 38px;
+    width: 38px;
+    flex-shrink: 0;
+    align-items: center;
+    justify-content: center;
+    border-radius: 9999px;
+    background: #2d3748;
+    font-size: 24px;
     font-weight: 600;
-    line-height: 1.25;
-    color: #90a4b8;
+    line-height: 1;
+    color: #fff;
+  }
+
+  .catalog-card-wishlist {
+    position: absolute;
+    right: 12px;
+    bottom: 12px;
+    z-index: 1;
+    display: inline-flex;
+    height: 28px;
+    width: 28px;
+    flex-shrink: 0;
+    align-items: center;
+    justify-content: center;
+    border-radius: 9999px;
+    border: 1px solid rgba(255, 255, 255, 0.8);
+    background: rgba(255, 255, 255, 0.95);
+    line-height: 1;
+    box-shadow: 0 8px 20px rgba(15, 23, 42, 0.12);
+    backdrop-filter: blur(4px);
+    transition: color 160ms ease;
+  }
+
+  .catalog-card-select {
+    position: absolute;
+    top: 14px;
+    left: 12px;
+    z-index: 3;
+    box-shadow: 0 8px 20px rgba(15, 23, 42, 0.12);
+  }
+
+  .catalog-card-select:checked {
+    box-shadow: 0 8px 20px rgba(15, 23, 42, 0.12);
+  }
+
+  .cart-item-select {
+    appearance: none;
+    -webkit-appearance: none;
+    position: relative;
+    display: inline-flex;
+    height: 18px;
+    width: 18px;
+    flex: 0 0 auto;
+    align-items: center;
+    justify-content: center;
+    border-radius: 9999px;
+    border: 1.5px solid #cbd5e0;
+    background: #fff;
+    transition: border-color 160ms ease, background-color 160ms ease, box-shadow 160ms ease;
+    cursor: pointer;
+  }
+
+  .cart-item-select:checked {
+    border-color: #2d3748;
+    background: #2d3748;
+    box-shadow: 0 0 0 3px rgba(45, 55, 72, 0.08);
+  }
+
+  .cart-item-select::after {
+    content: '';
+    width: 8px;
+    height: 5px;
+    border-left: 1.8px solid transparent;
+    border-bottom: 1.8px solid transparent;
+    transform: translateY(-1px) rotate(-45deg);
+  }
+
+  .cart-item-select:checked::after {
+    border-left-color: #fff;
+    border-bottom-color: #fff;
+  }
+
+  #cartSelectionBar {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 16px;
+    padding: 14px 8px;
+    border-bottom: 1px solid #e8eef6;
+    margin-bottom: 14px;
+  }
+
+  #cartSelectionDeleteButton {
+    color: #e53e3e;
+    font-size: 13px;
+    font-weight: 600;
+    transition: color 160ms ease, opacity 160ms ease;
+  }
+
+  #cartSelectionDeleteButton:hover {
+    color: #c53030;
+  }
+
+  #cartSelectionDeleteButton.is-disabled {
+    color: #cbd5e0;
+    opacity: 0.65;
+    pointer-events: none;
   }
 
   .product-card-name {
@@ -252,43 +587,267 @@
     background-repeat: no-repeat;
     background-size: 12px 12px;
   }
+
+  @media (max-width: 767px) {
+    #pageGate > .app-shell {
+      width: 100vw;
+    }
+
+    .cart-item-card {
+      padding: 14px 12px 12px !important;
+      border-radius: 0 !important;
+    }
+
+    .cart-item-actions {
+      top: 19px !important;
+      right: 12px !important;
+      gap: 6px !important;
+    }
+
+    .cart-item-main {
+      gap: 10px !important;
+      align-items: flex-start !important;
+    }
+
+    .cart-item-media {
+      height: 56px !important;
+      width: 56px !important;
+      border-radius: 14px !important;
+    }
+
+    .cart-item-copy {
+      padding-right: 28px !important;
+    }
+
+    .cart-item-head {
+      align-items: flex-start !important;
+      gap: 8px !important;
+    }
+
+    [data-cart-name],
+    .product-card-name {
+      display: -webkit-box !important;
+      -webkit-box-orient: vertical !important;
+      -webkit-line-clamp: 2 !important;
+      overflow: hidden !important;
+      white-space: normal !important;
+      font-size: 15px !important;
+      line-height: 1.35 !important;
+    }
+
+    .cart-item-meta {
+      margin-top: 6px !important;
+      gap: 6px !important;
+      font-size: 11px !important;
+      line-height: 1.3 !important;
+    }
+
+    .cart-item-footer {
+      margin-top: 10px !important;
+      padding-top: 10px !important;
+      gap: 8px !important;
+      flex-wrap: nowrap !important;
+    }
+
+    .cart-item-stepper {
+      min-width: 0 !important;
+      flex: 0 0 auto !important;
+    }
+
+    .cart-item-total {
+      min-width: 0 !important;
+      flex: 0 0 auto !important;
+      width: 76px !important;
+      height: 28px !important;
+      text-align: right !important;
+    }
+
+    .cart-item-total [data-cart-line-total],
+    .product-card-price {
+      font-size: 16px !important;
+      line-height: 28px !important;
+    }
+
+    .catalog-card-title {
+      font-size: 15px !important;
+      line-height: 1.35 !important;
+    }
+
+    .catalog-card-meta {
+      margin-top: 10px !important;
+      gap: 8px !important;
+    }
+
+    .catalog-card-price,
+    .catalog-card-review {
+      font-size: 16px !important;
+      line-height: 1.25 !important;
+    }
+
+    .catalog-card-review {
+      margin-top: 2px !important;
+      font-size: 11px !important;
+    }
+
+    .catalog-card-action {
+      height: 34px !important;
+      width: 34px !important;
+      font-size: 22px !important;
+    }
+
+    .catalog-card-wishlist {
+      right: 10px !important;
+      bottom: 10px !important;
+      height: 26px !important;
+      width: 26px !important;
+    }
+
+    .catalog-card-select {
+      top: 12px !important;
+      left: 10px !important;
+    }
+
+    #wishlistListViewport {
+      gap: 12px;
+    }
+
+    #cartSelectionBar {
+      padding: 12px 4px;
+      margin-bottom: 12px;
+    }
+  }
+
+  #cartBottomBar {
+    position: absolute;
+    inset: auto 0 0 0;
+    z-index: 36;
+    border-top: 1px solid #e2e8f0;
+    background: rgba(255, 255, 255, 0.98);
+    backdrop-filter: blur(16px);
+    box-shadow: 0 -10px 30px rgba(15, 23, 42, 0.08);
+  }
+
+  #cartBottomBarSummary {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 12px;
+    padding: 11px 16px 10px;
+    border-bottom: 1px solid #edf2f7;
+  }
+
+  #cartBottomBarCheckoutButton {
+    display: inline-flex;
+    width: 100%;
+    height: 52px;
+    align-items: center;
+    justify-content: center;
+    border-radius: 0;
+    background: #2d3748;
+    color: #fff;
+    font-size: 14px;
+    font-weight: 700;
+  }
+
+  #cartBottomBarCheckoutButton.is-disabled {
+    background: #a0aec0;
+    color: rgba(255, 255, 255, 0.96);
+    pointer-events: none;
+  }
 </style>
 {% endblock %}
 
 {% block content %}
-<div id="productsPageShell" class="min-h-screen bg-[#f7fafc]">
-  <div id="productsPageInner" class="mx-auto max-w-[1180px] px-4 py-8 md:px-6">
-    <div class="flex items-center justify-start">
-      <a href="/chat/" class="text-[26px] font-bold leading-none text-[#2d3748]" aria-label="메인으로 이동">
-        <span class="text-[#3182ce]">Tail</span><span>Talk</span>
-      </a>
-    </div>
-
-    <div class="product-tabs-row mt-8 flex items-center justify-start">
-      <div class="inline-flex rounded-full border border-[#dbe7f5] bg-white p-[4px] shadow-[0_6px_18px_rgba(45,55,72,0.04)]">
-        <button type="button" id="productsTabCart" class="inline-flex h-[38px] min-w-[124px] items-center justify-center rounded-full px-4 text-[13px] font-semibold transition-colors {% if active_tab == 'wishlist' %}text-[#718096] hover:text-[#2d3748]{% else %}bg-[#2d3748] text-white{% endif %}">
-          <span class="inline-flex h-[18px] items-center justify-center gap-3.5">
-            <span class="inline-flex h-[18px] items-center leading-none">장바구니</span>
-            <span id="productsTabCartCount" class="inline-flex h-[18px] min-w-[20px] items-center justify-center rounded-full px-1.5 text-[11px] font-bold leading-none {% if active_tab == 'wishlist' %}bg-[#edf2f7] text-[#4a5568]{% else %}bg-white/18 text-white{% endif %} {% if item_count == 0 %}hidden{% endif %}">
-              <span class="inline-flex h-[18px] items-center">{{ item_count }}</span>
-            </span>
-          </span>
-        </button>
-        <button type="button" id="productsTabWishlist" class="inline-flex h-[38px] min-w-[124px] items-center justify-center rounded-full px-4 text-[13px] font-semibold transition-colors {% if active_tab == 'wishlist' %}bg-[#2d3748] text-white{% else %}text-[#718096] hover:text-[#2d3748]{% endif %}">
-          <span class="inline-flex h-[18px] items-center justify-center gap-3.5">
-            <span class="inline-flex h-[18px] items-center leading-none">관심 상품</span>
-            <span id="productsTabWishlistCount" class="inline-flex h-[18px] min-w-[20px] items-center justify-center rounded-full px-1.5 text-[11px] font-bold leading-none {% if active_tab == 'wishlist' %}bg-white/18 text-white{% else %}bg-[#edf2f7] text-[#4a5568]{% endif %} {% if wishlist_count == 0 %}hidden{% endif %}">
-              <span class="inline-flex h-[18px] items-center">{{ wishlist_count }}</span>
-            </span>
-          </span>
-        </button>
+<div id="pageGate" class="min-h-screen bg-[#f7fafc]">
+  <div id="productsPageShell" class="app-shell" data-active-tab="{{ active_tab }}">
+    <header id="productsHeader">
+      <div id="productsHeaderInner">
+        <div></div>
+        <a href="/chat/" id="productsHeaderLogo" aria-label="메인으로 돌아가기">
+          <span class="text-[#3182ce]">Tail</span><span>Talk</span>
+        </a>
+        <div class="justify-self-end min-w-0">
+          <div id="profileMenuWrapper">
+            <button type="button"
+                    class="flex h-[40px] w-[40px] items-center justify-center rounded-full border border-[#e2e8f0] bg-white shadow-[0_2px_8px_rgba(45,55,72,0.05)]"
+                    aria-label="프로필 메뉴 열기"
+                    onclick="toggleProfileMenu()">
+              <svg viewBox="0 0 24 24" class="h-[30px] w-[30px] text-[#4a5568]" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+                <circle cx="12" cy="8" r="3.2"></circle>
+                <path d="M5.5 19a6.5 6.5 0 0 1 13 0"></path>
+              </svg>
+            </button>
+            <div id="profileMenu">
+              <a href="/profile/"
+                 class="flex h-[44px] w-full items-center rounded-t-[16px] px-[16px] text-[14px] text-[#2d3748] hover:bg-[#edf2f7]">내 정보</a>
+              <div class="mx-[12px] h-px bg-[#edf2f7]"></div>
+              <a href="/pets/"
+                 class="flex h-[44px] w-full items-center px-[16px] text-[14px] text-[#2d3748] hover:bg-[#edf2f7]">반려동물 정보</a>
+              <div class="mx-[12px] h-px bg-[#edf2f7]"></div>
+              <a href="/logout/"
+                 class="flex h-[44px] w-full items-center rounded-b-[16px] px-[16px] text-[14px] text-[#ef4444] hover:bg-[#fef2f2]">로그아웃</a>
+            </div>
+          </div>
+        </div>
+      </div>
+    </header>
+    <div id="headerSubnav">
+      <div id="headerSubnavRail">
+        <a href="/catalog/" class="header-subnav-link" aria-label="상품 목록" title="상품 목록">
+          <svg viewBox="0 0 24 24" class="h-[17px] w-[17px]" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+            <rect x="4" y="4" width="6" height="6" rx="1.5"></rect>
+            <rect x="14" y="4" width="6" height="6" rx="1.5"></rect>
+            <rect x="4" y="14" width="6" height="6" rx="1.5"></rect>
+            <rect x="14" y="14" width="6" height="6" rx="1.5"></rect>
+          </svg>
+        </a>
+        <a href="/products/" class="header-subnav-link {% if active_tab != 'wishlist' %}is-active{% endif %} {% if member_nav_has_cart_items %}has-indicator{% endif %}" aria-label="장바구니" title="장바구니">
+          <svg viewBox="0 0 24 24" class="h-[18px] w-[18px]" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+            <circle cx="9" cy="20" r="1.5"></circle>
+            <circle cx="18" cy="20" r="1.5"></circle>
+            <path d="M3 4h2l2.2 10.2a1 1 0 0 0 1 .8h8.9a1 1 0 0 0 1-.75L20 8H7"></path>
+          </svg>
+        </a>
+        <a href="/wishlist/" class="header-subnav-link {% if active_tab == 'wishlist' %}is-active{% endif %} {% if member_nav_has_wishlist_items %}has-indicator{% endif %}" aria-label="관심 상품" title="관심 상품">
+          <svg viewBox="0 0 24 24" class="h-[17px] w-[17px]" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+            <path d="M12 20.4 4.9 13.8a4.8 4.8 0 0 1 6.8-6.8L12 7.3l.3-.3a4.8 4.8 0 0 1 6.8 6.8L12 20.4Z"></path>
+          </svg>
+        </a>
+        <a href="/orders/" class="header-subnav-link" aria-label="주문 내역" title="주문 내역">
+          <svg viewBox="0 0 24 24" class="h-[17px] w-[17px]" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+            <path d="M7 4.5h10"></path>
+            <path d="M7 9.5h10"></path>
+            <path d="M7 14.5h6"></path>
+            <rect x="4" y="3" width="16" height="18" rx="2"></rect>
+          </svg>
+        </a>
       </div>
     </div>
-
-    <div id="productsLayoutGrid" class="mt-8 grid gap-6 lg:grid-cols-[minmax(0,1fr)_470px]">
-      <section id="productsMainSection" class="min-h-[720px]">
-        <div id="productsPanelCart" class="product-tab-panel {% if active_tab != 'wishlist' %}is-active{% endif %} min-h-[720px]">
-        <div id="cartEmptyState" class="product-empty-state-compact {% if item_count != 0 %}hidden{% endif %} max-w-[650px] rounded-[20px] border border-dashed border-[#dbe7f5] bg-white px-6 py-9 text-center shadow-[0_6px_18px_rgba(45,55,72,0.04)]">
+    <div id="productsViewport">
+    <div id="productsPageInner">
+    <div id="productsLayoutGrid" class="grid gap-6">
+      <section id="productsMainSection">
+        <div class="mb-0 pl-2">
+          <h1 id="productsPageTitle" class="text-[24px] font-bold leading-[1.25] text-[#2d3748]">{% if active_tab == 'wishlist' %}관심 상품{% else %}장바구니{% endif %}</h1>
+          <div class="mt-3 h-px w-full bg-[#e8eef6]"></div>
+        </div>
+        <div id="cartSelectionBar">
+          <label class="inline-flex items-center gap-2.5 text-[14px] font-semibold text-[#2d3748]">
+            <input type="checkbox"
+                   id="cartSelectAllCheckbox"
+                   class="cart-item-select"
+                   aria-label="장바구니 전체 선택">
+            <span>전체선택</span>
+          </label>
+          <button type="button"
+                  id="cartSelectionDeleteButton"
+                  class="is-disabled"
+                  onclick="removeSelectedCartItems()">
+            선택삭제
+          </button>
+        </div>
+        <div id="productsPanelCart" class="product-tab-panel {% if active_tab != 'wishlist' %}is-active{% endif %}">
+        <div id="cartEmptyState" class="product-empty-state-compact {% if item_count != 0 %}hidden{% endif %} rounded-[20px] border border-dashed border-[#dbe7f5] bg-white px-6 py-9 text-center shadow-[0_6px_18px_rgba(45,55,72,0.04)]">
           <div class="product-empty-icon text-[28px] text-[#7aa6e9]">🛒</div>
           <p class="product-empty-title mt-[10px] text-[18px] font-bold text-[#2d3748]">장바구니가 비어 있어요</p>
           <p class="product-empty-copy mt-[6px] text-[14px] leading-[1.6] text-[#718096]">추천 상품 카드에서 +를 눌러<br>장바구니에 상품을 담아보세요</p>
@@ -296,13 +855,12 @@
             채팅으로 돌아가기
           </a>
         </div>
-        <div id="cartListViewport" class="product-list-viewport product-fixed-viewport {% if item_count == 0 %}hidden{% endif %} min-h-[720px] max-w-[650px] space-y-3 lg:pr-2">
+        <div id="cartListViewport" class="product-list-viewport product-fixed-viewport {% if item_count == 0 %}hidden{% endif %}">
         {% for item in cart_items %}
-        <article class="relative rounded-[20px] border border-[#dbe7f5] bg-white px-4 py-4 shadow-[0_6px_18px_rgba(45,55,72,0.04)]"
+        <article class="cart-item-card relative rounded-[20px] border border-[#dbe7f5] bg-white px-4 py-4 shadow-[0_6px_18px_rgba(45,55,72,0.04)]"
                  data-cart-item
                  data-goods-id="{{ item.goods_id }}"
                  data-unit-price="{{ item.price }}"
-                 data-brand="{{ item.brand }}"
                  data-name="{{ item.name }}"
                  data-price-label="{{ item.price_label }}"
                  data-rating="{{ item.rating|default:'-' }}"
@@ -310,9 +868,118 @@
                  data-thumbnail-url="{{ item.thumbnail_url|default:'' }}"
                  data-product-url="{{ item.product_url|default:'' }}"
                  data-note="{{ item.note }}">
-          <div class="absolute right-4 top-4 flex items-center gap-2">
+          <div class="cart-item-actions absolute right-4 top-[22px] flex items-center gap-2">
             <button type="button"
-                    class="wishlist-heart {% if item.is_wishlisted %}is-active {% endif %}inline-flex h-[18px] w-[18px] items-center justify-center leading-none text-[#4a5568] transition-colors hover:text-[#e53e3e]"
+                    class="inline-flex h-[18px] w-[18px] items-center justify-center leading-none text-[14px] font-bold uppercase text-[#a0aec0] transition-colors hover:text-[#e53e3e]"
+                    aria-label="상품 삭제"
+                    onclick="removeCartItem(this)">X</button>
+          </div>
+          <div class="cart-item-main flex items-start gap-3">
+            {% if item.product_url %}
+            <a href="{{ item.product_url }}" target="_blank" rel="noopener noreferrer" class="cart-item-media relative z-[1] flex h-[64px] w-[64px] shrink-0 cursor-pointer items-center justify-center overflow-hidden rounded-[18px] bg-[#f8fbff] shadow-[0_4px_12px_rgba(49,130,206,0.08)] transition-transform hover:scale-[1.02]" data-cart-thumbnail-link onclick="event.stopPropagation()">
+              {% if item.thumbnail_url %}
+              <img src="{{ item.thumbnail_url }}" alt="{{ item.name }}" class="h-full w-full object-cover" />
+              {% else %}
+              <span class="text-[20px] font-bold text-[#90a4b8]">?</span>
+              {% endif %}
+            </a>
+            {% else %}
+            <div class="cart-item-media flex h-[64px] w-[64px] shrink-0 items-center justify-center overflow-hidden rounded-[18px] bg-[#f8fbff] shadow-[0_4px_12px_rgba(49,130,206,0.08)]" data-cart-thumbnail-link>
+              {% if item.thumbnail_url %}
+              <img src="{{ item.thumbnail_url }}" alt="{{ item.name }}" class="h-full w-full object-cover" />
+              {% else %}
+              <span class="text-[20px] font-bold text-[#90a4b8]">?</span>
+              {% endif %}
+            </div>
+            {% endif %}
+            <div class="cart-item-copy min-w-0 flex-1 pr-14">
+              {% if item.product_url %}
+              <a href="{{ item.product_url }}" target="_blank" rel="noopener noreferrer" class="relative z-[1] mt-1 block cursor-pointer truncate text-[16px] font-bold text-[#2d3748] transition-colors hover:text-[#3182ce]" data-cart-name onclick="event.stopPropagation()">{{ item.name }}</a>
+              {% else %}
+              <p class="mt-1 truncate text-[16px] font-bold text-[#2d3748]" data-cart-name>{{ item.name }}</p>
+              {% endif %}
+              <div class="cart-item-meta mt-2 flex items-center gap-2 text-[11px]" data-cart-review-row>
+                <span class="font-bold text-[#d69e2e]" data-cart-rating>★ {{ item.rating|default:"-" }}</span>
+                <span class="text-[#a0aec0]" data-cart-review-count>({{ item.review_count }})</span>
+              </div>
+            </div>
+          </div>
+          <div class="cart-item-footer mt-2.5 flex items-center justify-between gap-2.5 border-t border-[#edf2f7] pt-2.5">
+            <div class="flex items-center gap-2.5">
+              <input type="checkbox"
+                     class="cart-item-select"
+                     data-cart-select-checkbox
+                     aria-label="구매할 상품 선택"
+                     checked>
+              <button type="button"
+                      class="wishlist-heart {% if item.is_wishlisted %}is-active {% endif %}inline-flex h-[30px] w-[30px] items-center justify-center rounded-full border border-[#dbe7f5] bg-white leading-none text-[#4a5568] transition-colors"
+                      aria-label="관심 상품 상태 변경"
+                      onclick="toggleWishlistHeart(this)">
+                <svg width="16" height="16" viewBox="0 0 24 24" fill="none" aria-hidden="true">
+                  <path d="M12 20.4 4.9 13.8a4.8 4.8 0 0 1 6.8-6.8L12 7.3l.3-.3a4.8 4.8 0 0 1 6.8 6.8L12 20.4Z" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"/>
+                </svg>
+                <svg width="16" height="16" viewBox="0 0 24 24" fill="currentColor" aria-hidden="true">
+                  <path d="M12 20.4 4.9 13.8a4.8 4.8 0 0 1 6.8-6.8L12 7.3l.3-.3a4.8 4.8 0 0 1 6.8 6.8L12 20.4Z"/>
+                </svg>
+              </button>
+            </div>
+            <div class="ml-auto flex items-center gap-2.5">
+            <div class="cart-item-stepper inline-flex items-center rounded-full border border-[#dbe7f5] bg-[#f8fbff] px-[3px] py-[2px] text-[12px] font-semibold text-[#2d3748]">
+              <button type="button"
+                      class="flex h-[22px] w-[22px] items-center justify-center rounded-full bg-white text-[13px]"
+                      onclick="adjustCartQuantity(this, -1)">−</button>
+              <span class="inline-flex min-w-[28px] items-center justify-center px-1" data-cart-quantity>{{ item.quantity }}</span>
+              <button type="button"
+                      class="flex h-[22px] w-[22px] items-center justify-center rounded-full bg-white text-[13px]"
+                      onclick="adjustCartQuantity(this, 1)">+</button>
+            </div>
+            <div class="cart-item-total flex min-w-[96px] items-center justify-end text-right">
+              <p class="leading-none text-[17px] font-bold text-[#2d3748]" data-cart-line-total>{{ item.line_total_label }}</p>
+            </div>
+            </div>
+          </div>
+        </article>
+        {% endfor %}
+        </div>
+        </div>
+
+        <div id="productsPanelWishlist" class="product-tab-panel {% if active_tab == 'wishlist' %}is-active{% endif %}">
+        <div id="wishlistEmptyState" class="product-empty-state-compact hidden rounded-[20px] border border-dashed border-[#dbe7f5] bg-white px-6 py-9 text-center shadow-[0_6px_18px_rgba(45,55,72,0.04)]">
+          <div class="product-empty-icon text-[28px] text-[#e97b7b]">♡</div>
+          <p class="product-empty-title mt-[10px] text-[18px] font-bold text-[#2d3748]">관심 상품이 아직 없어요</p>
+          <p class="product-empty-copy mt-[6px] text-[14px] leading-[1.6] text-[#718096]">추천 상품 카드에서 하트를 눌러<br>나중에 볼 상품을 모아보세요</p>
+          <a href="/chat/" class="product-empty-cta mt-6 inline-flex h-[42px] items-center justify-center rounded-full bg-[#2d3748] px-5 text-[13px] font-semibold text-white">
+            채팅으로 돌아가기
+          </a>
+        </div>
+        <div id="wishlistListViewport" class="product-list-viewport product-fixed-viewport">
+        {% for item in wishlist_items %}
+        <article class="wishlist-item-card catalog-card overflow-hidden rounded-[24px] border border-[#e2e8f0] bg-white shadow-[0_8px_24px_rgba(45,55,72,0.04)]"
+                 data-wishlist-item
+                 data-goods-id="{{ item.goods_id }}"
+                 data-name="{{ item.name }}"
+                 data-price-label="{{ item.price_label }}"
+                 data-rating="{{ item.rating|default:'-' }}"
+                 data-review-count="{{ item.review_count }}"
+                 data-thumbnail-url="{{ item.thumbnail_url|default:'' }}"
+                 data-product-url="{{ item.product_url|default:'' }}"
+                 data-note="{{ item.note }}">
+          {% if item.product_url %}
+          <div class="wishlist-item-media catalog-thumb relative overflow-hidden bg-[#f8fbff]">
+          <input type="checkbox"
+                 class="cart-item-select catalog-card-select"
+                 data-wishlist-select-checkbox
+                 aria-label="관심 상품 선택"
+                 >
+            <a href="{{ item.product_url }}" target="_blank" rel="noopener noreferrer" class="absolute inset-0 block">
+              {% if item.thumbnail_url %}
+              <img src="{{ item.thumbnail_url }}" alt="{{ item.name }}" class="h-full w-full object-cover">
+              {% else %}
+              <span class="flex h-full w-full items-center justify-center text-[32px] font-bold text-[#90a4b8]">?</span>
+              {% endif %}
+            </a>
+            <button type="button"
+                    class="catalog-card-wishlist wishlist-heart is-active"
                     aria-label="관심 상품 상태 변경"
                     onclick="toggleWishlistHeart(this)">
               <svg width="15" height="15" viewBox="0 0 24 24" fill="none" aria-hidden="true">
@@ -322,134 +989,53 @@
                 <path d="M12 20.4 4.9 13.8a4.8 4.8 0 0 1 6.8-6.8L12 7.3l.3-.3a4.8 4.8 0 0 1 6.8 6.8L12 20.4Z"/>
               </svg>
             </button>
+          </div>
+          {% else %}
+          <div class="wishlist-item-media catalog-thumb relative overflow-hidden bg-[#f8fbff]">
+            <input type="checkbox"
+                   class="cart-item-select catalog-card-select"
+                   data-wishlist-select-checkbox
+                   aria-label="관심 상품 선택"
+                   >
+            {% if item.thumbnail_url %}
+            <img src="{{ item.thumbnail_url }}" alt="{{ item.name }}" class="h-full w-full object-cover">
+            {% else %}
+            <span class="flex h-full w-full items-center justify-center text-[32px] font-bold text-[#90a4b8]">?</span>
+            {% endif %}
             <button type="button"
-                    class="inline-flex h-[18px] w-[18px] items-center justify-center leading-none text-[14px] font-bold uppercase text-[#a0aec0] transition-colors hover:text-[#e53e3e]"
-                    aria-label="상품 삭제"
-                    onclick="removeCartItem(this)">X</button>
+                    class="catalog-card-wishlist wishlist-heart is-active"
+                    aria-label="관심 상품 상태 변경"
+                    onclick="toggleWishlistHeart(this)">
+              <svg width="15" height="15" viewBox="0 0 24 24" fill="none" aria-hidden="true">
+                <path d="M12 20.4 4.9 13.8a4.8 4.8 0 0 1 6.8-6.8L12 7.3l.3-.3a4.8 4.8 0 0 1 6.8 6.8L12 20.4Z" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"/>
+              </svg>
+              <svg width="15" height="15" viewBox="0 0 24 24" fill="currentColor" aria-hidden="true">
+                <path d="M12 20.4 4.9 13.8a4.8 4.8 0 0 1 6.8-6.8L12 7.3l.3-.3a4.8 4.8 0 0 1 6.8 6.8L12 20.4Z"/>
+              </svg>
+            </button>
           </div>
-          <div class="flex items-start gap-3">
+          {% endif %}
+          <div class="catalog-card-body p-4">
             {% if item.product_url %}
-            <a href="{{ item.product_url }}" target="_blank" rel="noopener noreferrer" class="relative z-[1] flex h-[64px] w-[64px] shrink-0 cursor-pointer items-center justify-center overflow-hidden rounded-[18px] bg-[#f8fbff] shadow-[0_4px_12px_rgba(49,130,206,0.08)] transition-transform hover:scale-[1.02]" data-cart-thumbnail-link onclick="event.stopPropagation()">
-              {% if item.thumbnail_url %}
-              <img src="{{ item.thumbnail_url }}" alt="{{ item.name }}" class="h-full w-full object-cover" />
-              {% else %}
-              <span class="text-[20px] font-bold text-[#90a4b8]">?</span>
-              {% endif %}
-            </a>
+            <a href="{{ item.product_url }}" target="_blank" rel="noopener noreferrer" class="catalog-card-title hover:text-[#3182ce]">{{ item.name }}</a>
             {% else %}
-            <div class="flex h-[64px] w-[64px] shrink-0 items-center justify-center overflow-hidden rounded-[18px] bg-[#f8fbff] shadow-[0_4px_12px_rgba(49,130,206,0.08)]" data-cart-thumbnail-link>
-              {% if item.thumbnail_url %}
-              <img src="{{ item.thumbnail_url }}" alt="{{ item.name }}" class="h-full w-full object-cover" />
-              {% else %}
-              <span class="text-[20px] font-bold text-[#90a4b8]">?</span>
-              {% endif %}
-            </div>
+            <p class="catalog-card-title">{{ item.name }}</p>
             {% endif %}
-            <div class="min-w-0 flex-1 pr-14">
-              <div class="flex items-center justify-between gap-3">
-                <p class="truncate text-[12px] font-semibold text-[#90a4b8]" data-cart-brand>{{ item.brand }}</p>
-                <span class="shrink-0 text-[12px] text-[#90a4b8]" data-cart-unit-price>개당 {{ item.price_label }}</span>
+            <div class="catalog-card-meta">
+              <div>
+                <p class="catalog-card-price">₩ {{ item.price_label|cut:"원" }}</p>
+                <p class="catalog-card-review">
+                  <span class="text-[#f6ad55]">★</span>
+                  <span>{{ item.rating|default:"-" }}</span>
+                  <span>({{ item.review_count }})</span>
+                </p>
               </div>
-              {% if item.product_url %}
-              <a href="{{ item.product_url }}" target="_blank" rel="noopener noreferrer" class="relative z-[1] mt-1 block cursor-pointer truncate text-[16px] font-bold text-[#2d3748] transition-colors hover:text-[#3182ce]" data-cart-name onclick="event.stopPropagation()">{{ item.name }}</a>
-              {% else %}
-              <p class="mt-1 truncate text-[16px] font-bold text-[#2d3748]" data-cart-name>{{ item.name }}</p>
-              {% endif %}
-              <div class="mt-2 flex items-center gap-2 text-[11px]" data-cart-review-row>
-                <span class="font-bold text-[#d69e2e]" data-cart-rating>★ {{ item.rating|default:"-" }}</span>
-                <span class="text-[#a0aec0]" data-cart-review-count>리뷰 {{ item.review_count }}</span>
-              </div>
-            </div>
-          </div>
-          <div class="mt-2.5 flex items-center justify-end gap-2.5 border-t border-[#edf2f7] pt-2.5">
-            <div class="inline-flex items-center rounded-full border border-[#dbe7f5] bg-[#f8fbff] px-[3px] py-[2px] text-[12px] font-semibold text-[#2d3748]">
               <button type="button"
-                      class="flex h-[22px] w-[22px] items-center justify-center rounded-full bg-white text-[13px]"
-                      onclick="adjustCartQuantity(this, -1)">−</button>
-              <span class="inline-flex min-w-[28px] items-center justify-center px-1" data-cart-quantity>{{ item.quantity }}</span>
-              <button type="button"
-                      class="flex h-[22px] w-[22px] items-center justify-center rounded-full bg-white text-[13px]"
-                      onclick="adjustCartQuantity(this, 1)">+</button>
-            </div>
-            <div class="min-w-[96px] text-right">
-              <p class="text-[17px] font-bold text-[#2d3748]" data-cart-line-total>{{ item.line_total_label }}</p>
-            </div>
-          </div>
-        </article>
-        {% endfor %}
-        </div>
-        </div>
-
-        <div id="productsPanelWishlist" class="product-tab-panel {% if active_tab == 'wishlist' %}is-active{% endif %} min-h-[720px]">
-        <div id="wishlistEmptyState" class="product-empty-state-compact hidden max-w-[650px] rounded-[20px] border border-dashed border-[#dbe7f5] bg-white px-6 py-9 text-center shadow-[0_6px_18px_rgba(45,55,72,0.04)]">
-          <div class="product-empty-icon text-[28px] text-[#e97b7b]">♡</div>
-          <p class="product-empty-title mt-[10px] text-[18px] font-bold text-[#2d3748]">관심 상품이 아직 없어요</p>
-          <p class="product-empty-copy mt-[6px] text-[14px] leading-[1.6] text-[#718096]">추천 상품 카드에서 하트를 눌러<br>나중에 볼 상품을 모아보세요</p>
-          <a href="/chat/" class="product-empty-cta mt-6 inline-flex h-[42px] items-center justify-center rounded-full bg-[#2d3748] px-5 text-[13px] font-semibold text-white">
-            채팅으로 돌아가기
-          </a>
-        </div>
-        <div id="wishlistListViewport" class="product-list-viewport product-fixed-viewport min-h-[720px] max-w-[650px] space-y-3 lg:pr-2">
-        {% for item in wishlist_items %}
-        <article class="relative rounded-[20px] border border-[#dbe7f5] bg-white px-4 py-4 shadow-[0_6px_18px_rgba(45,55,72,0.04)]"
-                 data-wishlist-item
-                 data-goods-id="{{ item.goods_id }}"
-                 data-brand="{{ item.brand }}"
-                 data-name="{{ item.name }}"
-                 data-price-label="{{ item.price_label }}"
-                 data-rating="{{ item.rating|default:'-' }}"
-                 data-review-count="{{ item.review_count }}"
-                 data-thumbnail-url="{{ item.thumbnail_url|default:'' }}"
-                 data-product-url="{{ item.product_url|default:'' }}"
-                 data-note="{{ item.note }}">
-          <div class="flex items-center gap-3">
-            {% if item.product_url %}
-            <a href="{{ item.product_url }}" target="_blank" rel="noopener noreferrer" class="flex h-[64px] w-[64px] shrink-0 items-center justify-center overflow-hidden rounded-[18px] bg-[#f8fbff] shadow-[0_4px_12px_rgba(49,130,206,0.08)] transition-transform hover:scale-[1.02]">
-              {% if item.thumbnail_url %}
-              <img src="{{ item.thumbnail_url }}" alt="{{ item.name }}" class="h-full w-full object-cover" />
-              {% else %}
-              <span class="text-[20px] font-bold text-[#90a4b8]">?</span>
-              {% endif %}
-            </a>
-            {% else %}
-            <div class="flex h-[64px] w-[64px] shrink-0 items-center justify-center overflow-hidden rounded-[18px] bg-[#f8fbff] shadow-[0_4px_12px_rgba(49,130,206,0.08)]">
-              {% if item.thumbnail_url %}
-              <img src="{{ item.thumbnail_url }}" alt="{{ item.name }}" class="h-full w-full object-cover" />
-              {% else %}
-              <span class="text-[20px] font-bold text-[#90a4b8]">?</span>
-              {% endif %}
-            </div>
-            {% endif %}
-            <div class="min-w-0 flex-1">
-              <p class="product-card-brand">{{ item.brand }}</p>
-              {% if item.product_url %}
-              <a href="{{ item.product_url }}" target="_blank" rel="noopener noreferrer" class="product-card-name mt-1 block transition-colors hover:text-[#3182ce]">{{ item.name }}</a>
-              {% else %}
-              <p class="product-card-name mt-1">{{ item.name }}</p>
-              {% endif %}
-              <p class="product-card-price">{{ item.price_label }}</p>
-              <div class="product-card-review-row">
-                <div class="product-card-review-meta">
-                  <span class="font-bold text-[#d69e2e]">★ {{ item.rating|default:"-" }}</span>
-                  <span class="product-card-review-count">리뷰 {{ item.review_count }}</span>
-                </div>
-                <div class="product-card-actions">
-                  <button type="button"
-                          class="wishlist-heart is-active inline-flex h-[28px] w-[28px] items-center justify-center rounded-full border border-[#e2e8f0] bg-white leading-none text-[#4a5568] transition-colors hover:text-[#e53e3e]"
-                          aria-label="관심 상품 상태 변경"
-                          onclick="toggleWishlistHeart(this)">
-                    <svg width="15" height="15" viewBox="0 0 24 24" fill="none" aria-hidden="true">
-                      <path d="M12 20.4 4.9 13.8a4.8 4.8 0 0 1 6.8-6.8L12 7.3l.3-.3a4.8 4.8 0 0 1 6.8 6.8L12 20.4Z" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"/>
-                    </svg>
-                    <svg width="15" height="15" viewBox="0 0 24 24" fill="currentColor" aria-hidden="true">
-                      <path d="M12 20.4 4.9 13.8a4.8 4.8 0 0 1 6.8-6.8L12 7.3l.3-.3a4.8 4.8 0 0 1 6.8 6.8L12 20.4Z"/>
-                    </svg>
-                  </button>
-                  <button type="button" class="inline-flex h-[28px] items-center justify-center rounded-full bg-[#2d3748] px-3 text-[12px] font-semibold text-white" onclick="addWishlistToCart(this)">
-                    담기
-                  </button>
-                </div>
-              </div>
+                      class="catalog-card-action"
+                      aria-label="장바구니에 상품 추가"
+                      onclick="addWishlistToCart(this)">
+                <span class="relative top-[-2px]">+</span>
+              </button>
             </div>
           </div>
         </article>
@@ -458,159 +1044,22 @@
         </div>
       </section>
 
-      <aside id="cartPromoPanel" class="{% if item_count == 0 %}flex{% else %}hidden{% endif %} self-start flex-col rounded-[24px] border border-[#dbe7f5] bg-white p-4 shadow-[0_10px_28px_rgba(45,55,72,0.05)]{% if item_count == 0 %} product-promo-compact{% endif %}">
-        <div class="product-promo-list space-y-3">
-          <a href="/chat/" class="product-promo-hero group relative block overflow-hidden rounded-[20px] px-5 py-4 text-white shadow-[0_10px_24px_rgba(45,55,72,0.10)]" style="background: linear-gradient(135deg, #2563eb 0%, #3b82f6 100%);">
-            <div class="pr-[82px]">
-              <p class="text-[11px] font-bold uppercase tracking-[0.08em] text-white/70">추천</p>
-              <p class="product-promo-hero-title mt-2 text-[17px] font-bold leading-[1.3]">상담 후 바로 담는 맞춤 추천</p>
-              <p class="product-promo-hero-copy mt-2 text-[12px] leading-[1.5] text-white/80">채팅에서 추천받고 바로 담아보세요.</p>
-            </div>
-            <div class="absolute right-5 top-4 text-[34px] leading-none">🛍️</div>
-          </a>
+    </div>
+    </div>
+    </div>
+  </div>
 
-          <div class="product-promo-grid grid gap-3">
-            <div class="product-promo-card rounded-[18px] border border-[#dbe7f5] bg-[#f8fbff] px-5 py-4">
-              <div class="flex items-start justify-between gap-4">
-                <div class="pr-[10px]">
-                  <p class="text-[11px] font-bold uppercase tracking-[0.08em] text-[#7aa6e9]">혜택</p>
-                  <p class="product-promo-card-title mt-2 text-[16px] font-bold text-[#2d3748]">사료/간식 인기 상품 모아보기</p>
-                  <p class="product-promo-card-copy mt-2 text-[12px] leading-[1.6] text-[#718096]">많이 담긴 카테고리부터 둘러보세요.</p>
-                </div>
-                <div class="text-[28px] leading-none">🥣</div>
-              </div>
-            </div>
-
-            <div class="product-promo-card rounded-[18px] border border-[#dbe7f5] bg-[#fff7ed] px-5 py-4">
-              <div class="flex items-start justify-between gap-4">
-                <div class="pr-[10px]">
-                  <p class="text-[11px] font-bold uppercase tracking-[0.08em] text-[#f59e0b]">인기</p>
-                  <p class="product-promo-card-title mt-2 text-[16px] font-bold text-[#2d3748]">관심 상품에서 다시 담아보세요</p>
-                  <p class="product-promo-card-copy mt-2 text-[12px] leading-[1.6] text-[#718096]">모아둔 상품을 다시 꺼내 담아보세요.</p>
-                </div>
-                <div class="text-[28px] leading-none">💛</div>
-              </div>
-            </div>
-          </div>
-        </div>
-      </aside>
-
-      <aside id="orderSummaryPanel"
-             data-recipient-name="{{ recipient_name }}"
-             data-recipient-phone="{{ recipient_phone }}"
-             data-postal-code="{{ delivery_postal_code|default:'' }}"
-             data-delivery-address-main="{{ delivery_base_address }}"
-             data-delivery-address-detail="{{ delivery_detail_address }}"
-             data-delivery-address="{{ delivery_base_address }} | {{ delivery_detail_address }}"
-             data-payment-method="{{ payment_method }}"
-             class="{% if item_count == 0 %}hidden{% else %}flex{% endif %} min-h-[720px] flex-col rounded-[24px] border border-[#dbe7f5] bg-white p-6 shadow-[0_10px_28px_rgba(45,55,72,0.05)] lg:sticky lg:top-8">
-        <h2 class="text-[22px] font-bold text-[#2d3748]">주문 정보</h2>
-
-        <div id="checkoutStatusNotice" class="mt-4 hidden rounded-[18px] border border-[#fed7d7] bg-[#fff5f5] px-4 py-4">
-          <p id="checkoutStatusTitle" class="text-[13px] font-semibold text-[#c53030]">주문 전에 확인이 필요해요</p>
-          <p id="checkoutStatusBody" class="mt-1 text-[13px] leading-[1.6] text-[#9b2c2c]">배송지와 결제 수단을 먼저 확인해 주세요.</p>
-          <a href="/profile/" class="mt-3 inline-flex h-[34px] items-center justify-center rounded-full bg-white px-4 text-[12px] font-semibold text-[#c53030]">
-            프로필 보완하기
-          </a>
-        </div>
-
-        <div class="mt-5 grid gap-3 md:grid-cols-2">
-          <div class="rounded-[18px] border border-[#e2e8f0] bg-white px-4 py-4">
-            <div class="flex items-start justify-between gap-4">
-              <div class="min-w-0 flex-1">
-                <p class="text-[13px] font-semibold text-[#2563eb]">배송 정보</p>
-                <p id="checkoutRecipientName" class="mt-2 text-[13px] font-semibold text-[#4a5568]">{{ recipient_name }}</p>
-                <p id="checkoutDeliveryBaseAddress" class="mt-1 text-[13px] leading-[1.6] text-[#718096]">{{ delivery_base_address }}</p>
-                <p id="checkoutDeliveryDetailAddress" class="mt-1 text-[13px] leading-[1.6] text-[#718096]">{{ delivery_detail_address }}</p>
-                <p id="checkoutRecipientPhone" class="mt-1 text-[13px] text-[#718096]">{{ recipient_phone }}</p>
-              </div>
-              <a href="/profile/" class="mt-0.5 shrink-0 text-[12px] font-semibold text-[#3182ce]">수정</a>
-            </div>
-          </div>
-          <div class="rounded-[18px] border border-[#e2e8f0] bg-white px-4 py-4">
-            <div class="flex items-start justify-between gap-4">
-              <div class="min-w-0 flex-1">
-                <p class="text-[13px] font-semibold text-[#2563eb]">결제 수단</p>
-                <p id="checkoutPaymentMethod" class="mt-2 text-[13px] leading-[1.6] text-[#718096]">{{ payment_method }}</p>
-              </div>
-              <a href="/profile/" class="mt-0.5 shrink-0 text-[12px] font-semibold text-[#3182ce]">수정</a>
-            </div>
-          </div>
-        </div>
-
-        <div class="mt-4 rounded-[18px] border border-[#e2e8f0] bg-white px-4 py-4">
-          <div class="flex items-start justify-between gap-4">
-            <div class="min-w-0 flex-1">
-              <p class="text-[13px] font-semibold text-[#2563eb]">배송 메시지</p>
-              <div class="mt-3 rounded-[16px] border border-[#dbe7f5] bg-[#f8fbff] px-4">
-                <select id="deliveryMessageSelect"
-                        class="h-[44px] w-full bg-transparent pr-8 text-[13px] font-medium text-[#4a5568] outline-none">
-                  <option value="직접 입력">직접 입력</option>
-                  <option value="문 앞에 놓아주세요">문 앞에 놓아주세요</option>
-                  <option value="배송 전에 미리 연락해 주세요">배송 전에 미리 연락해 주세요</option>
-                  <option value="부재 시 경비실에 맡겨 주세요">부재 시 경비실에 맡겨 주세요</option>
-                  <option value="부재 시 전화 또는 문자 남겨 주세요">부재 시 전화 또는 문자 남겨 주세요</option>
-                  <option value="배송 시 벨은 누르지 말아 주세요">배송 시 벨은 누르지 말아 주세요</option>
-                  <option value="도착 후 문 앞 사진을 남겨 주세요">도착 후 문 앞 사진을 남겨 주세요</option>
-                </select>
-              </div>
-              <div id="deliveryMessageCustomField" class="mt-2 rounded-[14px] border border-[#dbe7f5] bg-[#f8fbff] px-4">
-                <input id="deliveryMessageInput"
-                       type="text"
-                       maxlength="100"
-                       value="{{ delivery_message }}"
-                       placeholder="직접 입력"
-                       class="h-[40px] w-full bg-transparent text-[13px] font-medium text-[#4a5568] outline-none placeholder:text-[#a0aec0]" />
-              </div>
-            </div>
-          </div>
-        </div>
-
-        <div class="mt-4 rounded-[18px] border border-[#e2e8f0] bg-white px-4 py-4">
-          <div class="flex items-start justify-between gap-4">
-            <p class="text-[13px] font-semibold text-[#2563eb]">할인 혜택</p>
-            <button type="button" id="openDiscountModalBtn" class="mt-0.5 shrink-0 text-[12px] font-semibold text-[#3182ce]">적용</button>
-          </div>
-          <div class="mt-3 grid gap-3 md:grid-cols-[minmax(0,1fr)_minmax(0,1fr)]">
-            <div class="min-w-0">
-              <p class="text-[12px] font-semibold text-[#2d3748]">쿠폰</p>
-              <p id="couponSummaryText" class="mt-1 truncate text-[13px] text-[#4a5568]">{{ coupon_summary }}</p>
-            </div>
-            <div class="min-w-0 md:pl-4">
-              <p class="text-[12px] font-semibold text-[#2d3748]">마일리지</p>
-              <p id="mileageSummaryText" class="mt-1 truncate text-[13px] text-[#4a5568]">{{ mileage_summary }}</p>
-            </div>
-          </div>
-        </div>
-
-        <div class="mt-5 rounded-[18px] bg-[#f8fbff] px-4 py-4">
-          <p class="text-[13px] font-semibold text-[#2563eb]">결제 금액</p>
-          <div class="mt-4 space-y-3 text-[13px] text-[#4a5568]">
-            <div class="flex items-center justify-between">
-              <span>상품 금액</span>
-              <span class="font-semibold text-[#2d3748]" id="productTotalAmount">{{ product_total }}</span>
-            </div>
-            <div class="flex items-center justify-between">
-              <span>할인 적용</span>
-              <span class="font-semibold text-[#2563eb]" id="discountTotalAmount">- {{ discount_total }}</span>
-            </div>
-            <div class="flex items-center justify-between">
-              <span>배송비</span>
-              <span class="font-semibold text-[#2d3748]" id="shippingFeeAmount">{{ shipping_fee }}</span>
-            </div>
-          </div>
-          <div id="finalTotalDivider" class="mt-4 border-t border-[#dbe7f5] pt-4">
-            <div class="flex items-center justify-between">
-              <span class="text-[14px] font-semibold text-[#4a5568]">최종 결제 금액</span>
-              <span class="text-[24px] font-bold text-[#2563eb]" id="finalTotalAmount">{{ final_total }}</span>
-            </div>
-          </div>
-        </div>
-
-        <button type="button" id="submitOrderBtn" class="mt-auto inline-flex h-[52px] w-full items-center justify-center rounded-[16px] bg-[#2d3748] text-[15px] font-bold text-white shadow-[0_10px_24px_rgba(45,55,72,0.18)]">
-          주문하기
-        </button>
-      </aside>
+  <div id="cartBottomBar"
+       class="{% if active_tab == 'wishlist' or item_count == 0 %}hidden{% else %}block{% endif %}">
+    <div class="mx-auto w-full max-w-[960px]">
+      <div id="cartBottomBarSummary">
+        <p class="text-[12px] font-semibold text-[#90a4b8]">총 결제 금액</p>
+        <p id="cartBottomBarTotal" class="text-[18px] font-bold leading-none text-[#2d3748]">{{ final_total }}</p>
+      </div>
+      <a href="/checkout/"
+         id="cartBottomBarCheckoutButton">
+        총 <span id="cartBottomBarCount" class="mx-1">{{ item_count }}</span>개 상품 구매하기
+      </a>
     </div>
   </div>
 </div>
@@ -619,127 +1068,29 @@
      class="product-feedback-toast pointer-events-none fixed left-1/2 top-[88px] z-[70] flex min-h-[44px] min-w-[232px] max-w-[360px] -translate-x-1/2 items-center justify-center rounded-full bg-[#1f2937] px-[18px] py-[11px] text-center text-[13px] font-semibold text-white shadow-[0_14px_28px_rgba(15,23,42,0.28)]">
   오류가 발생했습니다.
 </div>
-
-<div id="checkoutConfirmModal" class="checkout-confirm-modal fixed inset-0 z-[60] items-center justify-center bg-black/10 px-4"
-     onclick="closeCheckoutConfirmModal(event)">
-  <div class="w-full max-w-[420px] rounded-[20px] border border-[#dbe7f5] bg-white px-8 pb-7 pt-8 shadow-[0_14px_36px_rgba(45,55,72,0.10)]"
-       onclick="event.stopPropagation()">
-    <div class="mx-auto flex h-[81px] w-[81px] items-center justify-center rounded-full border-[4px] border-[#3182ce]">
-      <span class="relative top-[-1px] text-[44px] font-bold leading-none text-[#3182ce]">?</span>
-    </div>
-    <p class="mt-6 text-center text-[19px] font-bold leading-none text-[#2d3748]">주문을 진행할까요?</p>
-    <p class="mt-4 text-center text-[14px] leading-[1.6] text-[#718096]">
-      배송 정보와 결제 금액을 확인한 뒤<br>주문이 접수됩니다.
-    </p>
-    <div class="mt-6 rounded-[14px] border border-[#dbe7f5] bg-[#f8fbff] px-4 py-3">
-      <div class="flex items-center justify-between gap-3 text-[13px]">
-        <span class="font-semibold text-[#90a4b8]">최종 결제 금액</span>
-        <span id="checkoutConfirmAmount" class="font-bold text-[#2563eb]">0원</span>
-      </div>
-      <div class="mt-2 flex items-center justify-between gap-3 text-[13px]">
-        <span class="font-semibold text-[#90a4b8]">수령인</span>
-        <span id="checkoutConfirmRecipient" class="text-right font-semibold text-[#2d3748]"></span>
-      </div>
-      <div class="mt-2 flex items-center justify-between gap-3 text-[13px]">
-        <span class="font-semibold text-[#90a4b8]">연락처</span>
-        <span id="checkoutConfirmPhone" class="text-right font-semibold text-[#2d3748]"></span>
-      </div>
-      <div class="mt-2 flex items-start justify-between gap-3 text-[13px]">
-        <span class="shrink-0 font-semibold text-[#90a4b8]">배송지</span>
-        <span id="checkoutConfirmAddress" class="text-right font-semibold leading-[1.6] text-[#2d3748]"></span>
-      </div>
-    </div>
-    <div class="mt-6 flex h-[42px] items-center justify-between gap-3">
-      <button type="button" onclick="closeCheckoutConfirmModal()"
-              class="flex h-full flex-1 items-center justify-center rounded-[8px] bg-[#edf2f7] text-[14px] font-bold text-[#4a5568]">
-        취소
-      </button>
-      <button type="button" id="confirmCheckoutSubmitBtn"
-              class="flex h-full flex-1 items-center justify-center rounded-[8px] bg-[#3182ce] text-[14px] font-bold text-white">
-        주문하기
-      </button>
-    </div>
-  </div>
-</div>
-
-<div id="discountBenefitModal" class="discount-modal fixed inset-0 z-50 items-center justify-center bg-[rgba(15,23,42,0.46)] px-4" onclick="closeDiscountModal(event)">
-  <div class="w-full max-w-[520px] rounded-[24px] bg-white px-6 py-6 shadow-[0_20px_60px_rgba(15,23,42,0.24)]">
-    <div class="flex items-start justify-between gap-4">
-      <div>
-        <p class="text-[22px] font-bold text-[#2d3748]">할인 혜택 적용</p>
-        <p class="mt-1 text-[13px] text-[#718096]">쿠폰과 마일리지를 선택하면 주문 정보에 바로 반영됩니다.</p>
-      </div>
-      <button type="button" class="inline-flex h-[28px] w-[28px] items-center justify-center rounded-full text-[16px] font-bold text-[#a0aec0] transition-colors hover:bg-[#f8fbff] hover:text-[#2d3748]" onclick="closeDiscountModal()" aria-label="할인 혜택 모달 닫기">X</button>
-    </div>
-
-    <div class="mt-5 inline-flex rounded-full border border-[#dbe7f5] bg-[#f8fbff] p-[4px]">
-      <button type="button" id="discountTabCoupon" class="inline-flex h-[36px] min-w-[92px] items-center justify-center rounded-full bg-[#2d3748] px-4 text-[13px] font-semibold text-white">쿠폰</button>
-      <button type="button" id="discountTabMileage" class="inline-flex h-[36px] min-w-[92px] items-center justify-center rounded-full px-4 text-[13px] font-semibold text-[#718096] transition-colors hover:text-[#2d3748]">마일리지</button>
-    </div>
-
-    <div id="discountPanelCoupon" class="mt-5 space-y-3">
-      <button type="button" class="discount-coupon-option flex w-full items-start justify-between rounded-[18px] border border-[#dbe7f5] bg-white px-4 py-4 text-left transition-colors hover:border-[#90cdf4]" data-coupon-id="none" data-coupon-label="적용된 쿠폰 없음" data-coupon-discount="0">
-        <div>
-          <p class="text-[14px] font-semibold text-[#2d3748]">쿠폰 적용 안 함</p>
-          <p class="mt-1 text-[12px] text-[#718096]">할인을 적용하지 않고 현재 금액으로 주문합니다.</p>
-        </div>
-        <span class="text-[13px] font-semibold text-[#718096]">0원</span>
-      </button>
-      <button type="button" class="discount-coupon-option flex w-full items-start justify-between rounded-[18px] border border-[#dbe7f5] bg-white px-4 py-4 text-left transition-colors hover:border-[#90cdf4]" data-coupon-id="new-member" data-coupon-label="신규회원 3,000원 할인" data-coupon-discount="3000">
-        <div>
-          <p class="text-[14px] font-semibold text-[#2d3748]">신규회원 3,000원 할인</p>
-          <p class="mt-1 text-[12px] text-[#718096]">30,000원 이상 결제 시 사용 가능</p>
-        </div>
-        <span class="text-[13px] font-semibold text-[#2563eb]">-3,000원</span>
-      </button>
-      <button type="button" class="discount-coupon-option flex w-full items-start justify-between rounded-[18px] border border-[#dbe7f5] bg-white px-4 py-4 text-left transition-colors hover:border-[#90cdf4]" data-coupon-id="pet-care" data-coupon-label="펫케어 5,000원 할인" data-coupon-discount="5000">
-        <div>
-          <p class="text-[14px] font-semibold text-[#2d3748]">펫케어 5,000원 할인</p>
-          <p class="mt-1 text-[12px] text-[#718096]">60,000원 이상 결제 시 사용 가능</p>
-        </div>
-        <span class="text-[13px] font-semibold text-[#2563eb]">-5,000원</span>
-      </button>
-    </div>
-
-    <div id="discountPanelMileage" class="mt-5 hidden">
-      <div class="rounded-[18px] border border-[#dbe7f5] bg-[#f8fbff] px-4 py-4">
-        <div class="flex items-center justify-between gap-4">
-          <div>
-            <p class="text-[14px] font-semibold text-[#2d3748]">사용 가능한 마일리지</p>
-            <p class="mt-1 text-[12px] text-[#718096]">보유 마일리지 3,200원</p>
-          </div>
-          <button type="button" id="useAllMileageBtn" class="shrink-0 text-[12px] font-semibold text-[#3182ce]">전액 사용</button>
-        </div>
-        <label class="mt-4 block">
-          <span class="text-[12px] font-semibold text-[#2d3748]">사용할 마일리지</span>
-          <div class="mt-2 flex items-center rounded-[14px] border border-[#dbe7f5] bg-white px-4">
-            <input id="mileageInput" type="number" min="0" max="3200" step="100" value="0" class="h-[48px] w-full bg-transparent text-[15px] font-semibold text-[#2d3748] outline-none" />
-            <span class="shrink-0 text-[13px] font-semibold text-[#718096]">원</span>
-          </div>
-        </label>
-      </div>
-    </div>
-
-    <div class="mt-6 flex items-center justify-between gap-4 rounded-[18px] bg-[#f8fbff] px-4 py-4">
-      <div>
-        <p class="text-[12px] font-semibold text-[#718096]">예상 할인 금액</p>
-        <p id="discountModalPreviewAmount" class="mt-1 text-[22px] font-bold text-[#2563eb]">- 0원</p>
-      </div>
-      <button type="button" id="applyDiscountBtn" class="inline-flex h-[46px] items-center justify-center rounded-[14px] bg-[#2d3748] px-5 text-[14px] font-semibold text-white">적용하기</button>
-    </div>
-  </div>
-</div>
 {% endblock %}
 
 {% block scripts %}
 <script>
 (function () {
+  var profileMenu = document.getElementById('profileMenu');
+  var profileMenuWrapper = document.getElementById('profileMenuWrapper');
   var cartTab = document.getElementById('productsTabCart');
   var wishlistTab = document.getElementById('productsTabWishlist');
   var productsPageShell = document.getElementById('productsPageShell');
   var productsPageInner = document.getElementById('productsPageInner');
   var productsLayoutGrid = document.getElementById('productsLayoutGrid');
   var productsMainSection = document.getElementById('productsMainSection');
+  var productsPageTitle = document.getElementById('productsPageTitle');
+  var headerCartNavLink = document.querySelector('.header-subnav-link[href="/products/"]');
+  var headerWishlistNavLink = document.querySelector('.header-subnav-link[href="/wishlist/"]');
+  var cartBottomBar = document.getElementById('cartBottomBar');
+  var cartBottomBarTotal = document.getElementById('cartBottomBarTotal');
+  var cartBottomBarCount = document.getElementById('cartBottomBarCount');
+  var cartBottomBarCheckoutButton = document.getElementById('cartBottomBarCheckoutButton');
+  var cartSelectionBar = document.getElementById('cartSelectionBar');
+  var cartSelectAllCheckbox = document.getElementById('cartSelectAllCheckbox');
+  var cartSelectionDeleteButton = document.getElementById('cartSelectionDeleteButton');
   var cartPanel = document.getElementById('productsPanelCart');
   var wishlistPanel = document.getElementById('productsPanelWishlist');
   var cartEmptyState = document.getElementById('cartEmptyState');
@@ -791,7 +1142,12 @@
   var discountMode = 'coupon';
   var viewportSyncFrame = null;
   var productToastTimer = null;
-  if (!cartTab || !wishlistTab || !cartPanel || !wishlistPanel) return;
+  if (!cartPanel || !wishlistPanel) return;
+
+  window.toggleProfileMenu = function () {
+    if (!profileMenu) return;
+    profileMenu.classList.toggle('is-open');
+  };
 
   function formatPrice(value) {
     return new Intl.NumberFormat('ko-KR').format(value) + '원';
@@ -829,6 +1185,24 @@
         }
         return data;
       });
+    });
+  }
+
+  function refreshMemberNavIndicators() {
+    return Promise.all([
+      requestJson('/api/orders/cart/'),
+      requestJson('/api/orders/wishlist/'),
+    ]).then(function (results) {
+      var cartData = results[0] || {};
+      var wishlistData = results[1] || {};
+      if (headerCartNavLink) {
+        headerCartNavLink.classList.toggle('has-indicator', !!(cartData.items && cartData.items.length));
+      }
+      if (headerWishlistNavLink) {
+        headerWishlistNavLink.classList.toggle('has-indicator', !!(wishlistData.items && wishlistData.items.length));
+      }
+    }).catch(function () {
+      return null;
     });
   }
 
@@ -952,7 +1326,7 @@
       window.closeCheckoutConfirmModal();
       window.location.href = '/orders/complete/' + orderId + '/?entry=cart';
     }).catch(function (error) {
-      showProductToast(error.message || '주문을 완료하지 못했습니다.');
+      showProductToast(error.message || '주문을 완료하지 못했어요');
       setOrderSubmitLoading(false);
       setConfirmCheckoutLoading(false);
     });
@@ -967,8 +1341,52 @@
     return digits || '0';
   }
 
+  function getSelectedCartItems() {
+    return Array.prototype.filter.call(document.querySelectorAll('[data-cart-item]'), function (item) {
+      var checkbox = item.querySelector('[data-cart-select-checkbox]');
+      return !!checkbox && checkbox.checked;
+    });
+  }
+
+  function getCurrentSelectionSelector() {
+    return cartPanel.classList.contains('is-active')
+      ? '[data-cart-select-checkbox]'
+      : '[data-wishlist-select-checkbox]';
+  }
+
+  function getCurrentSelectableItems() {
+    return Array.prototype.slice.call(
+      document.querySelectorAll(
+        cartPanel.classList.contains('is-active') ? '[data-cart-item]' : '[data-wishlist-item]'
+      )
+    );
+  }
+
+  function syncCartSelectionControls() {
+    var selector = getCurrentSelectionSelector();
+    var selectableItems = getCurrentSelectableItems();
+    var selectedItems = selectableItems.filter(function (item) {
+      var checkbox = item.querySelector(selector);
+      return !!checkbox && checkbox.checked;
+    });
+    var totalCount = selectableItems.length;
+    var selectedCount = selectedItems.length;
+
+    if (cartSelectAllCheckbox) {
+      cartSelectAllCheckbox.checked = totalCount > 0 && selectedCount === totalCount;
+      cartSelectAllCheckbox.indeterminate = selectedCount > 0 && selectedCount < totalCount;
+      cartSelectAllCheckbox.disabled = totalCount === 0;
+    }
+
+    if (cartSelectionDeleteButton) {
+      cartSelectionDeleteButton.classList.toggle('is-disabled', selectedCount === 0);
+      cartSelectionDeleteButton.setAttribute('aria-disabled', selectedCount === 0 ? 'true' : 'false');
+    }
+  }
+
   function updateCartSummary() {
-    var productTotal = 0;
+    var selectedProductTotal = 0;
+    var selectedQuantityTotal = 0;
     document.querySelectorAll('[data-cart-item]').forEach(function (item) {
       var unitPrice = Number(item.getAttribute('data-unit-price') || '0');
       var quantityNode = item.querySelector('[data-cart-quantity]');
@@ -978,22 +1396,42 @@
       if (lineNode) {
         lineNode.textContent = formatPrice(lineTotal);
       }
-      productTotal += lineTotal;
+      var checkbox = item.querySelector('[data-cart-select-checkbox]');
+      if (checkbox && checkbox.checked) {
+        selectedProductTotal += lineTotal;
+        selectedQuantityTotal += quantity;
+      }
     });
 
     var currentDiscountTotal = selectedCouponDiscount + selectedMileageValue;
-    var shippingFee = productTotal > 0 && productTotal < 30000 ? shippingFeeRaw : 0;
-    var finalTotal = Math.max(productTotal - currentDiscountTotal, 0) + shippingFee;
+    var shippingFee = selectedProductTotal > 0 && selectedProductTotal < 30000 ? shippingFeeRaw : 0;
+    var finalTotal = Math.max(selectedProductTotal - currentDiscountTotal, 0) + shippingFee;
 
     var productTotalNode = document.getElementById('productTotalAmount');
     var discountNode = document.getElementById('discountTotalAmount');
     var shippingNode = document.getElementById('shippingFeeAmount');
     var finalTotalNode = document.getElementById('finalTotalAmount');
+    if (cartBottomBarTotal) {
+      cartBottomBarTotal.textContent = formatPrice(finalTotal);
+    }
+    if (cartBottomBarCount) {
+      cartBottomBarCount.textContent = String(selectedQuantityTotal);
+    }
+    if (cartBottomBarCheckoutButton) {
+      var selectedGoodsIds = getSelectedCartItems().map(function (item) {
+        return item.getAttribute('data-goods-id') || '';
+      }).filter(Boolean);
+      var hasSelection = selectedGoodsIds.length > 0;
+      cartBottomBarCheckoutButton.classList.toggle('is-disabled', !hasSelection);
+      cartBottomBarCheckoutButton.setAttribute('aria-disabled', hasSelection ? 'false' : 'true');
+      cartBottomBarCheckoutButton.href = hasSelection ? '/checkout/?items=' + encodeURIComponent(selectedGoodsIds.join(',')) : '#';
+    }
 
-    if (productTotalNode) productTotalNode.textContent = formatPrice(productTotal);
+    if (productTotalNode) productTotalNode.textContent = formatPrice(selectedProductTotal);
     if (discountNode) discountNode.textContent = '- ' + formatPrice(currentDiscountTotal);
     if (shippingNode) shippingNode.textContent = shippingFee === 0 ? '무료' : formatPrice(shippingFee);
     if (finalTotalNode) finalTotalNode.textContent = formatPrice(finalTotal);
+    syncCartSelectionControls();
   }
 
   function updateCartQuantityBadge() {
@@ -1013,7 +1451,6 @@
       var quantityNode = item.querySelector('[data-cart-quantity]');
       items.push({
         goodsId: item.getAttribute('data-goods-id') || '',
-        brand: item.getAttribute('data-brand') || '',
         name: item.getAttribute('data-name') || '',
         price: Number(item.getAttribute('data-unit-price') || '0'),
         priceLabel: item.getAttribute('data-price-label') || formatPrice(Number(item.getAttribute('data-unit-price') || '0')),
@@ -1050,7 +1487,6 @@
     if (!item || !cartItem) return;
 
     item.setAttribute('data-unit-price', String(cartItem.price || 0));
-    item.setAttribute('data-brand', cartItem.brand || '');
     item.setAttribute('data-name', cartItem.name || '상품');
     item.setAttribute('data-price-label', cartItem.price_label || formatPrice(Number(cartItem.price || 0)));
     item.setAttribute('data-rating', cartItem.rating || '-');
@@ -1068,16 +1504,6 @@
       lineTotalNode.textContent = cartItem.line_total_label || formatPrice(Number(cartItem.line_total || 0));
     }
 
-    var brandNode = item.querySelector('[data-cart-brand]');
-    if (brandNode) {
-      brandNode.textContent = cartItem.brand || '';
-    }
-
-    var unitPriceNode = item.querySelector('[data-cart-unit-price]');
-    if (unitPriceNode) {
-      unitPriceNode.textContent = '개당 ' + (cartItem.price_label || formatPrice(Number(cartItem.price || 0)));
-    }
-
     var nameNode = item.querySelector('[data-cart-name]');
     if (nameNode) {
       var nextNameMarkup = cartNameMarkup(cartItem.product_url || '', cartItem.name || '상품');
@@ -1086,21 +1512,13 @@
       nameNode.replaceWith(nameTemplate.content.firstElementChild);
     }
 
-    var thumbnailNode = item.querySelector('[data-cart-thumbnail-link]');
-    if (thumbnailNode) {
-      var nextThumbnailMarkup = cartThumbnailMarkup(cartItem.product_url || '', cartItem.thumbnail_url || '', cartItem.name || '상품');
-      var thumbnailTemplate = document.createElement('template');
-      thumbnailTemplate.innerHTML = nextThumbnailMarkup.trim();
-      thumbnailNode.replaceWith(thumbnailTemplate.content.firstElementChild);
-    }
-
     var ratingNode = item.querySelector('[data-cart-rating]');
     if (ratingNode) {
       ratingNode.textContent = '★ ' + (cartItem.rating || '-');
     }
     var reviewCountNode = item.querySelector('[data-cart-review-count]');
     if (reviewCountNode) {
-      reviewCountNode.textContent = '리뷰 ' + normalizeReviewCount(cartItem.review_count || '0');
+      reviewCountNode.textContent = '(' + normalizeReviewCount(cartItem.review_count || '0') + ')';
     }
   }
 
@@ -1131,6 +1549,23 @@
     if (wishlistCountBadge) {
       wishlistCountBadge.textContent = String(wishlistCount);
       wishlistCountBadge.classList.toggle('hidden', wishlistCount === 0);
+    }
+
+    if (headerCartNavLink) {
+      headerCartNavLink.classList.toggle('has-indicator', cartCount > 0);
+    }
+
+    if (cartBottomBar) {
+      cartBottomBar.classList.toggle('hidden', !cartActive || cartCount === 0);
+      cartBottomBar.classList.toggle('block', cartActive && cartCount > 0);
+    }
+
+    if (cartSelectionBar) {
+      cartSelectionBar.classList.toggle('hidden', !cartActive);
+    }
+
+    if (headerWishlistNavLink) {
+      headerWishlistNavLink.classList.toggle('has-indicator', wishlistCount > 0);
     }
 
     if (wishlistEmptyState) {
@@ -1169,6 +1604,7 @@
     }
 
     scheduleViewportSync();
+    syncCartSelectionControls();
   }
 
   function escapeHtml(value) {
@@ -1235,30 +1671,11 @@
   }
 
   function syncProductViewportHeights() {
-    if (!cartListViewport || !wishlistListViewport || !finalTotalDivider || !orderSummaryPanel) return;
-
+    if (!cartListViewport || !wishlistListViewport) return;
     cartListViewport.style.removeProperty('height');
     cartListViewport.style.removeProperty('max-height');
     wishlistListViewport.style.removeProperty('height');
     wishlistListViewport.style.removeProperty('max-height');
-
-    if (orderSummaryPanel.classList.contains('hidden')) return;
-
-    var dividerTop = finalTotalDivider.getBoundingClientRect().top;
-    var cartTop = cartListViewport.getBoundingClientRect().top;
-    var wishlistTop = wishlistListViewport.getBoundingClientRect().top;
-    var cartHeight = Math.floor(dividerTop - cartTop);
-    var wishlistHeight = Math.floor(dividerTop - wishlistTop);
-
-    if (cartHeight > 0) {
-      cartListViewport.style.setProperty('height', cartHeight + 'px');
-      cartListViewport.style.setProperty('max-height', cartHeight + 'px');
-    }
-
-    if (wishlistHeight > 0) {
-      wishlistListViewport.style.setProperty('height', wishlistHeight + 'px');
-      wishlistListViewport.style.setProperty('max-height', wishlistHeight + 'px');
-    }
   }
 
   function scheduleViewportSync() {
@@ -1322,11 +1739,10 @@
     var nameHtml = cartNameMarkup(data.productUrl || '', data.name || '상품');
 
     return [
-      '<article class="relative rounded-[20px] border border-[#dbe7f5] bg-white px-4 py-4 shadow-[0_6px_18px_rgba(45,55,72,0.04)]"',
+      '<article class="cart-item-card relative rounded-[20px] border border-[#dbe7f5] bg-white px-4 py-4 shadow-[0_6px_18px_rgba(45,55,72,0.04)]"',
       ' data-cart-item',
       ' data-goods-id="' + escapeHtml(data.goodsId) + '"',
       ' data-unit-price="' + escapeHtml(data.price) + '"',
-      ' data-brand="' + escapeHtml(data.brand) + '"',
       ' data-name="' + escapeHtml(data.name) + '"',
       ' data-price-label="' + escapeHtml(data.priceLabel) + '"',
       ' data-rating="' + escapeHtml(data.rating) + '"',
@@ -1334,31 +1750,32 @@
       ' data-thumbnail-url="' + escapeHtml(data.thumbnailUrl) + '"',
       ' data-product-url="' + productUrl + '"',
       ' data-note="' + escapeHtml(data.note) + '">',
-      '<div class="absolute right-4 top-4 flex items-center gap-2">',
-      '<button type="button" class="wishlist-heart ' + (data.isWishlisted ? 'is-active ' : '') + 'inline-flex h-[18px] w-[18px] items-center justify-center leading-none text-[#4a5568] transition-colors hover:text-[#e53e3e]" aria-label="관심 상품 상태 변경" onclick="toggleWishlistHeart(this)">',
-      '<svg width="15" height="15" viewBox="0 0 24 24" fill="none" aria-hidden="true"><path d="M12 20.4 4.9 13.8a4.8 4.8 0 0 1 6.8-6.8L12 7.3l.3-.3a4.8 4.8 0 0 1 6.8 6.8L12 20.4Z" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"/></svg>',
-      '<svg width="15" height="15" viewBox="0 0 24 24" fill="currentColor" aria-hidden="true"><path d="M12 20.4 4.9 13.8a4.8 4.8 0 0 1 6.8-6.8L12 7.3l.3-.3a4.8 4.8 0 0 1 6.8 6.8L12 20.4Z"/></svg>',
-      '</button>',
+      '<div class="cart-item-actions absolute right-4 top-[22px] flex items-center gap-2">',
       '<button type="button" class="inline-flex h-[18px] w-[18px] items-center justify-center leading-none text-[14px] font-bold uppercase text-[#a0aec0] transition-colors hover:text-[#e53e3e]" aria-label="상품 삭제" onclick="removeCartItem(this)">X</button>',
       '</div>',
-      '<div class="flex items-start gap-3">',
+      '<div class="cart-item-main flex items-start gap-3">',
       thumbnailHtml,
-      '<div class="min-w-0 flex-1 pr-14">',
-      '<div class="flex items-center justify-between gap-3">',
-      '<p class="truncate text-[12px] font-semibold text-[#90a4b8]" data-cart-brand>' + escapeHtml(data.brand) + '</p>',
-      '<span class="shrink-0 text-[12px] text-[#90a4b8]" data-cart-unit-price>개당 ' + escapeHtml(data.priceLabel) + '</span>',
-      '</div>',
+      '<div class="cart-item-copy min-w-0 flex-1 pr-14">',
       nameHtml,
-      '<div class="mt-2 flex items-center gap-2 text-[11px]" data-cart-review-row><span class="font-bold text-[#d69e2e]" data-cart-rating>★ ' + escapeHtml(data.rating) + '</span><span class="text-[#a0aec0]" data-cart-review-count>리뷰 ' + escapeHtml(data.reviewCount) + '</span></div>',
+      '<div class="cart-item-meta mt-2 flex items-center gap-2 text-[11px]" data-cart-review-row><span class="font-bold text-[#d69e2e]" data-cart-rating>★ ' + escapeHtml(data.rating) + '</span><span class="text-[#a0aec0]" data-cart-review-count>(' + escapeHtml(data.reviewCount) + ')</span></div>',
       '</div>',
       '</div>',
-      '<div class="mt-2.5 flex items-center justify-end gap-2.5 border-t border-[#edf2f7] pt-2.5">',
-      '<div class="inline-flex items-center rounded-full border border-[#dbe7f5] bg-[#f8fbff] px-[3px] py-[2px] text-[12px] font-semibold text-[#2d3748]">',
+      '<div class="cart-item-footer mt-2.5 flex items-center justify-between gap-2.5 border-t border-[#edf2f7] pt-2.5">',
+      '<div class="flex items-center gap-2.5">',
+      '<input type="checkbox" class="cart-item-select" data-cart-select-checkbox aria-label="구매할 상품 선택" checked>',
+      '<button type="button" class="wishlist-heart ' + (data.isWishlisted ? 'is-active ' : '') + 'inline-flex h-[30px] w-[30px] items-center justify-center rounded-full border border-[#dbe7f5] bg-white leading-none text-[#4a5568] transition-colors" aria-label="관심 상품 상태 변경" onclick="toggleWishlistHeart(this)">',
+      '<svg width="16" height="16" viewBox="0 0 24 24" fill="none" aria-hidden="true"><path d="M12 20.4 4.9 13.8a4.8 4.8 0 0 1 6.8-6.8L12 7.3l.3-.3a4.8 4.8 0 0 1 6.8 6.8L12 20.4Z" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"/></svg>',
+      '<svg width="16" height="16" viewBox="0 0 24 24" fill="currentColor" aria-hidden="true"><path d="M12 20.4 4.9 13.8a4.8 4.8 0 0 1 6.8-6.8L12 7.3l.3-.3a4.8 4.8 0 0 1 6.8 6.8L12 20.4Z"/></svg>',
+      '</button>',
+      '</div>',
+      '<div class="ml-auto flex items-center gap-2.5">',
+      '<div class="cart-item-stepper inline-flex items-center rounded-full border border-[#dbe7f5] bg-[#f8fbff] px-[3px] py-[2px] text-[12px] font-semibold text-[#2d3748]">',
       '<button type="button" class="flex h-[22px] w-[22px] items-center justify-center rounded-full bg-white text-[13px]" onclick="adjustCartQuantity(this, -1)">−</button>',
       '<span class="inline-flex min-w-[28px] items-center justify-center px-1" data-cart-quantity>' + escapeHtml(data.quantity) + '</span>',
       '<button type="button" class="flex h-[22px] w-[22px] items-center justify-center rounded-full bg-white text-[13px]" onclick="adjustCartQuantity(this, 1)">+</button>',
       '</div>',
-      '<div class="min-w-[96px] text-right"><p class="text-[17px] font-bold text-[#2d3748]" data-cart-line-total>' + escapeHtml(formatPrice(Number(data.price || 0) * Number(data.quantity || 1))) + '</p></div>',
+      '<div class="cart-item-total flex min-w-[96px] items-center justify-end text-right"><p class="leading-none text-[17px] font-bold text-[#2d3748]" data-cart-line-total>' + escapeHtml(formatPrice(Number(data.price || 0) * Number(data.quantity || 1))) + '</p></div>',
+      '</div>',
       '</div>',
       '</article>'
     ].join('');
@@ -1367,19 +1784,21 @@
   function wishlistItemMarkup(data) {
     var thumbnail = data.thumbnailUrl
       ? '<img src="' + escapeHtml(data.thumbnailUrl) + '" alt="' + escapeHtml(data.name) + '" class="h-full w-full object-cover" />'
-      : '<span class="text-[20px] font-bold text-[#90a4b8]">?</span>';
+      : '<span class="flex h-full w-full items-center justify-center text-[32px] font-bold text-[#90a4b8]">?</span>';
     var productUrl = escapeHtml(data.productUrl || '');
-    var thumbnailHtml = productUrl
-      ? '<a href="' + productUrl + '" target="_blank" rel="noopener noreferrer" class="flex h-[64px] w-[64px] shrink-0 items-center justify-center overflow-hidden rounded-[18px] bg-[#f8fbff] shadow-[0_4px_12px_rgba(49,130,206,0.08)] transition-transform hover:scale-[1.02]">' + thumbnail + '</a>'
-      : '<div class="flex h-[64px] w-[64px] shrink-0 items-center justify-center overflow-hidden rounded-[18px] bg-[#f8fbff] shadow-[0_4px_12px_rgba(49,130,206,0.08)]">' + thumbnail + '</div>';
+    var checkboxHtml = '<input type="checkbox" class="cart-item-select catalog-card-select" data-wishlist-select-checkbox aria-label="관심 상품 선택">';
+    var thumbnailHtml = (
+      productUrl
+        ? '<div class="wishlist-item-media catalog-thumb relative overflow-hidden bg-[#f8fbff]">' + checkboxHtml + '<a href="' + productUrl + '" target="_blank" rel="noopener noreferrer" class="absolute inset-0 block">' + thumbnail + '</a><button type="button" class="catalog-card-wishlist wishlist-heart is-active" aria-label="관심 상품 상태 변경" onclick="toggleWishlistHeart(this)"><svg width="15" height="15" viewBox="0 0 24 24" fill="none" aria-hidden="true"><path d="M12 20.4 4.9 13.8a4.8 4.8 0 0 1 6.8-6.8L12 7.3l.3-.3a4.8 4.8 0 0 1 6.8 6.8L12 20.4Z" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"/></svg><svg width="15" height="15" viewBox="0 0 24 24" fill="currentColor" aria-hidden="true"><path d="M12 20.4 4.9 13.8a4.8 4.8 0 0 1 6.8-6.8L12 7.3l.3-.3a4.8 4.8 0 0 1 6.8 6.8L12 20.4Z"/></svg></button></div>'
+        : '<div class="wishlist-item-media catalog-thumb relative overflow-hidden bg-[#f8fbff]">' + checkboxHtml + thumbnail + '<button type="button" class="catalog-card-wishlist wishlist-heart is-active" aria-label="관심 상품 상태 변경" onclick="toggleWishlistHeart(this)"><svg width="15" height="15" viewBox="0 0 24 24" fill="none" aria-hidden="true"><path d="M12 20.4 4.9 13.8a4.8 4.8 0 0 1 6.8-6.8L12 7.3l.3-.3a4.8 4.8 0 0 1 6.8 6.8L12 20.4Z" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"/></svg><svg width="15" height="15" viewBox="0 0 24 24" fill="currentColor" aria-hidden="true"><path d="M12 20.4 4.9 13.8a4.8 4.8 0 0 1 6.8-6.8L12 7.3l.3-.3a4.8 4.8 0 0 1 6.8 6.8L12 20.4Z"/></svg></button></div>'
+    );
     var nameHtml = productUrl
-      ? '<a href="' + productUrl + '" target="_blank" rel="noopener noreferrer" class="product-card-name mt-1 block transition-colors hover:text-[#3182ce]">' + escapeHtml(data.name) + '</a>'
-      : '<p class="product-card-name mt-1">' + escapeHtml(data.name) + '</p>';
+      ? '<a href="' + productUrl + '" target="_blank" rel="noopener noreferrer" class="catalog-card-title hover:text-[#3182ce]">' + escapeHtml(data.name) + '</a>'
+      : '<p class="catalog-card-title">' + escapeHtml(data.name) + '</p>';
 
     return [
-      '<article class="relative rounded-[20px] border border-[#dbe7f5] bg-white px-4 py-4 shadow-[0_6px_18px_rgba(45,55,72,0.04)]" data-wishlist-item',
+      '<article class="wishlist-item-card catalog-card overflow-hidden rounded-[24px] border border-[#e2e8f0] bg-white shadow-[0_8px_24px_rgba(45,55,72,0.04)]" data-wishlist-item',
       ' data-goods-id="' + escapeHtml(data.goodsId) + '"',
-      ' data-brand="' + escapeHtml(data.brand) + '"',
       ' data-name="' + escapeHtml(data.name) + '"',
       ' data-price="' + escapeHtml(data.price) + '"',
       ' data-price-label="' + escapeHtml(data.priceLabel) + '"',
@@ -1388,21 +1807,12 @@
       ' data-thumbnail-url="' + escapeHtml(data.thumbnailUrl) + '"',
       ' data-product-url="' + productUrl + '"',
       ' data-note="' + escapeHtml(data.note) + '">',
-      '<div class="flex items-center gap-3">',
       thumbnailHtml,
-      '<div class="min-w-0 flex-1">',
-      '<p class="product-card-brand">' + escapeHtml(data.brand) + '</p>',
+      '<div class="catalog-card-body p-4">',
       nameHtml,
-      '<p class="product-card-price">' + escapeHtml(data.priceLabel) + '</p>',
-      '<div class="product-card-review-row">',
-      '<div class="product-card-review-meta"><span class="font-bold text-[#d69e2e]">★ ' + escapeHtml(data.rating) + '</span><span class="product-card-review-count">리뷰 ' + escapeHtml(data.reviewCount) + '</span></div>',
-      '<div class="product-card-actions">',
-      '<button type="button" class="wishlist-heart is-active inline-flex h-[28px] w-[28px] items-center justify-center rounded-full border border-[#e2e8f0] bg-white leading-none text-[#4a5568] transition-colors hover:text-[#e53e3e]" aria-label="관심 상품 상태 변경" onclick="toggleWishlistHeart(this)">',
-      '<svg width="15" height="15" viewBox="0 0 24 24" fill="none" aria-hidden="true"><path d="M12 20.4 4.9 13.8a4.8 4.8 0 0 1 6.8-6.8L12 7.3l.3-.3a4.8 4.8 0 0 1 6.8 6.8L12 20.4Z" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"/></svg>',
-      '<svg width="15" height="15" viewBox="0 0 24 24" fill="currentColor" aria-hidden="true"><path d="M12 20.4 4.9 13.8a4.8 4.8 0 0 1 6.8-6.8L12 7.3l.3-.3a4.8 4.8 0 0 1 6.8 6.8L12 20.4Z"/></svg>',
-      '</button>',
-      '<button type="button" class="inline-flex h-[28px] items-center justify-center rounded-full bg-[#2d3748] px-3 text-[12px] font-semibold text-white" onclick="addWishlistToCart(this)">담기</button>',
-      '</div>',
+      '<div class="catalog-card-meta">',
+      '<div><p class="catalog-card-price">₩ ' + escapeHtml(String(data.priceLabel).replace(/원/g, "")) + '</p><p class="catalog-card-review"><span class="text-[#f6ad55]">★</span><span>' + escapeHtml(data.rating) + '</span><span>(' + escapeHtml(data.reviewCount) + ')</span></p></div>',
+      '<button type="button" class="catalog-card-action" aria-label="장바구니에 상품 추가" onclick="addWishlistToCart(this)"><span class="relative top-[-2px]">+</span></button>',
       '</div>',
       '</div>',
       '</article>'
@@ -1412,7 +1822,6 @@
   function getCartItemData(item) {
     return {
       goodsId: item.getAttribute('data-goods-id') || '',
-      brand: item.getAttribute('data-brand') || '',
       name: item.getAttribute('data-name') || '',
       price: Number(item.getAttribute('data-unit-price') || '0'),
       priceLabel: item.getAttribute('data-price-label') || '',
@@ -1426,18 +1835,25 @@
 
   function setActiveTab(tab) {
     var cartActive = tab === 'cart';
+    if (productsPageTitle) {
+      productsPageTitle.textContent = cartActive ? '장바구니' : '관심 상품';
+    }
     cartPanel.classList.toggle('is-active', cartActive);
     wishlistPanel.classList.toggle('is-active', !cartActive);
 
-    cartTab.classList.toggle('bg-[#2d3748]', cartActive);
-    cartTab.classList.toggle('text-white', cartActive);
-    cartTab.classList.toggle('text-[#718096]', !cartActive);
-    cartTab.classList.toggle('hover:text-[#2d3748]', !cartActive);
+    if (cartTab) {
+      cartTab.classList.toggle('bg-[#2d3748]', cartActive);
+      cartTab.classList.toggle('text-white', cartActive);
+      cartTab.classList.toggle('text-[#718096]', !cartActive);
+      cartTab.classList.toggle('hover:text-[#2d3748]', !cartActive);
+    }
 
-    wishlistTab.classList.toggle('bg-[#2d3748]', !cartActive);
-    wishlistTab.classList.toggle('text-white', !cartActive);
-    wishlistTab.classList.toggle('text-[#718096]', cartActive);
-    wishlistTab.classList.toggle('hover:text-[#2d3748]', cartActive);
+    if (wishlistTab) {
+      wishlistTab.classList.toggle('bg-[#2d3748]', !cartActive);
+      wishlistTab.classList.toggle('text-white', !cartActive);
+      wishlistTab.classList.toggle('text-[#718096]', cartActive);
+      wishlistTab.classList.toggle('hover:text-[#2d3748]', cartActive);
+    }
 
     if (cartCountBadge) {
       cartCountBadge.classList.toggle('bg-white/18', cartActive);
@@ -1458,13 +1874,11 @@
   }
 
   function applyInitialProductsTab() {
-    try {
-      var params = new URLSearchParams(window.location.search || '');
-      if (params.get('tab') === 'wishlist') {
-        setActiveTab('wishlist');
-        return;
-      }
-    } catch (error) {}
+    var initialTab = '{{ active_tab|escapejs }}';
+    if (initialTab === 'wishlist') {
+      setActiveTab('wishlist');
+      return;
+    }
     setActiveTab('cart');
   }
 
@@ -1474,7 +1888,6 @@
     items.forEach(function (item) {
       wishlistListViewport.insertAdjacentHTML('beforeend', wishlistItemMarkup({
         goodsId: item.product_id || item.goodsId,
-        brand: item.brand || '',
         name: item.name || '상품',
         price: Number(item.price || 0),
         priceLabel: item.price_label || item.priceLabel || formatPrice(Number(item.price || 0)),
@@ -1507,7 +1920,6 @@
       (cartData.items || []).forEach(function (item) {
         cartListViewport.insertAdjacentHTML('beforeend', cartItemMarkup({
           goodsId: item.product_id,
-          brand: item.brand || '',
           name: item.name || '상품',
           price: Number(item.price || 0),
           priceLabel: item.price_label || formatPrice(Number(item.price || 0)),
@@ -1537,7 +1949,7 @@
         window.scrollTo(0, preservedWindowScrollY);
       });
     }).catch(function (error) {
-      showProductToast(error.message || '장바구니 정보를 불러오지 못했습니다.');
+      showProductToast(error.message || '장바구니 정보를 불러오지 못했어요');
     });
   }
 
@@ -1549,17 +1961,23 @@
     if (cartItem) {
       var goodsId = cartItem.getAttribute('data-goods-id');
       if (!goodsId) {
-        showProductToast('상품 식별 정보를 찾을 수 없습니다.');
+        showProductToast('상품 식별 정보를 찾을 수 없습니다');
         return;
       }
       var nextActive = !button.classList.contains('is-active');
+      button.disabled = true;
       requestJson('/api/orders/wishlist/', {
         method: nextActive ? 'POST' : 'DELETE',
         body: JSON.stringify({ product_id: goodsId }),
       }).then(function () {
-        return refreshProductsData();
+        button.classList.toggle('is-active', nextActive);
+        updateTabCounts();
+        refreshMemberNavIndicators();
+        showProductToast(nextActive ? '관심상품에 담았어요' : '관심상품에서 뺐어요');
       }).catch(function (error) {
-        showProductToast(error.message || '관심 상품 상태를 변경하지 못했습니다.');
+        showProductToast(error.message || '관심상품을 변경하지 못했어요');
+      }).finally(function () {
+        button.disabled = false;
       });
       return;
     }
@@ -1567,27 +1985,38 @@
     if (wishlistItem) {
       var goodsId = wishlistItem.getAttribute('data-goods-id');
       if (!goodsId) {
-        showProductToast('상품 식별 정보를 찾을 수 없습니다.');
+        showProductToast('상품 식별 정보를 찾을 수 없습니다');
         return;
       }
+      button.disabled = true;
       requestJson('/api/orders/wishlist/', {
         method: 'DELETE',
         body: JSON.stringify({ product_id: goodsId }),
       }).then(function () {
-        return refreshProductsData();
+        wishlistItem.remove();
+        updateTabCounts();
+        refreshMemberNavIndicators();
+        scheduleViewportSync();
+        showProductToast('관심상품에서 뺐어요');
       }).catch(function (error) {
-        showProductToast(error.message || '관심 상품 상태를 변경하지 못했습니다.');
+        showProductToast(error.message || '관심상품을 변경하지 못했어요');
+      }).finally(function () {
+        button.disabled = false;
       });
     }
   };
 
-  cartTab.addEventListener('click', function () {
-    setActiveTab('cart');
-  });
+  if (cartTab) {
+    cartTab.addEventListener('click', function () {
+      setActiveTab('cart');
+    });
+  }
 
-  wishlistTab.addEventListener('click', function () {
-    setActiveTab('wishlist');
-  });
+  if (wishlistTab) {
+    wishlistTab.addEventListener('click', function () {
+      setActiveTab('wishlist');
+    });
+  }
 
   window.adjustCartQuantity = function (button, delta) {
     var item = button.closest('[data-cart-item]');
@@ -1608,7 +2037,7 @@
       updateCartSummary();
       updateCartQuantityBadge();
     }).catch(function (error) {
-      showProductToast(error.message || '장바구니 수량을 변경하지 못했습니다.');
+      showProductToast(error.message || '장바구니 수량을 변경하지 못했어요');
     });
   };
 
@@ -1621,7 +2050,40 @@
     }).then(function () {
       return refreshProductsData();
     }).catch(function (error) {
-      showProductToast(error.message || '장바구니 상품을 삭제하지 못했습니다.');
+      showProductToast(error.message || '장바구니 상품을 삭제하지 못했어요');
+    });
+  };
+
+  window.removeSelectedCartItems = function () {
+    var cartActive = cartPanel.classList.contains('is-active');
+    var selector = getCurrentSelectionSelector();
+    var selectedItems = getCurrentSelectableItems().filter(function (item) {
+      var checkbox = item.querySelector(selector);
+      return !!checkbox && checkbox.checked;
+    });
+    if (!selectedItems.length) {
+      showProductToast('삭제할 상품을 먼저 선택해 주세요');
+      return;
+    }
+
+    if (cartSelectionDeleteButton) {
+      cartSelectionDeleteButton.classList.add('is-disabled');
+      cartSelectionDeleteButton.setAttribute('aria-disabled', 'true');
+    }
+
+    Promise.all(selectedItems.map(function (item) {
+      return requestJson(cartActive ? '/api/orders/cart/' : '/api/orders/wishlist/', {
+        method: 'DELETE',
+        body: JSON.stringify({ product_id: item.getAttribute('data-goods-id') }),
+      });
+    })).then(function () {
+      return refreshProductsData();
+    }).then(function () {
+      showProductToast('선택한 상품을 삭제했어요');
+    }).catch(function (error) {
+      showProductToast(error.message || '선택한 상품을 삭제하지 못했어요');
+    }).finally(function () {
+      syncCartSelectionControls();
     });
   };
 
@@ -1637,7 +2099,7 @@
     }).then(function () {
       return refreshProductsData();
     }).catch(function (error) {
-      showProductToast(error.message || '장바구니에 상품을 담지 못했습니다.');
+      showProductToast(error.message || '장바구니에 담지 못했어요');
     });
   };
 
@@ -1711,7 +2173,7 @@
       var validation = validateCheckoutState();
       syncCheckoutNotice();
       if (!validation.valid) {
-        showProductToast(validation.message || '주문 전에 필수 정보를 먼저 확인해 주세요.');
+        showProductToast(validation.message || '주문 전에 필수 정보를 먼저 확인해 주세요');
         return;
       }
       updateCheckoutConfirmSummary();
@@ -1725,6 +2187,28 @@
     confirmCheckoutSubmitBtn.addEventListener('click', submitOrderRequest);
   }
 
+  document.addEventListener('click', function (event) {
+    if (profileMenuWrapper && !profileMenuWrapper.contains(event.target) && profileMenu) {
+      profileMenu.classList.remove('is-open');
+    }
+  });
+
+  document.addEventListener('change', function (event) {
+    if (event.target && (event.target.matches('[data-cart-select-checkbox]') || event.target.matches('[data-wishlist-select-checkbox]'))) {
+      updateCartSummary();
+    }
+  });
+
+  if (cartSelectAllCheckbox) {
+    cartSelectAllCheckbox.addEventListener('change', function () {
+      var shouldCheck = !!cartSelectAllCheckbox.checked;
+      document.querySelectorAll(getCurrentSelectionSelector()).forEach(function (checkbox) {
+        checkbox.checked = shouldCheck;
+      });
+      updateCartSummary();
+    });
+  }
+
   var cartListViewport = document.getElementById('cartListViewport');
 
   function renderCartFromState(items) {
@@ -1735,7 +2219,6 @@
       if (!goodsId) return;
       cartListViewport.insertAdjacentHTML('beforeend', cartItemMarkup({
         goodsId: goodsId,
-        brand: item.brand || '',
         name: item.name || '상품',
         price: Number(item.price || 0),
         priceLabel: item.price_label || item.priceLabel || formatPrice(Number(item.price || 0)),
@@ -1759,7 +2242,9 @@
   syncCheckoutSummaryPreview();
   syncCheckoutNotice();
   applyInitialProductsTab();
-  refreshProductsData();
+  updateCartSummary();
+  updateTabCounts();
+  scheduleViewportSync();
   window.addEventListener('resize', scheduleViewportSync);
 })();
 </script>

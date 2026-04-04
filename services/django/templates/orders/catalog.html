@@ -3,10 +3,143 @@
 
 {% block head %}
 <style>
+  #pageGate {
+    min-height: 100dvh;
+    background: #f8f9fb;
+  }
+
+  #pageGate > .app-shell {
+    position: relative;
+    width: min(100%, 960px);
+    min-height: 100dvh;
+    height: 100dvh;
+    margin: 0 auto;
+    overflow: hidden;
+    background: #f8f9fb;
+  }
+
+  #catalogHeader {
+    position: absolute;
+    inset: 0 0 auto 0;
+    height: 72px;
+    border-bottom: 1px solid #e2e8f0;
+    background: #fff;
+    z-index: 40;
+  }
+
+  #catalogHeaderInner {
+    display: grid;
+    grid-template-columns: 40px auto 40px;
+    align-items: center;
+    gap: 8px;
+    height: 100%;
+    padding: 0 12px;
+  }
+
+  #catalogHeaderLogo {
+    justify-self: center;
+    font-size: 26px;
+    font-weight: 700;
+    line-height: 1;
+    color: #2d3748;
+    white-space: nowrap;
+  }
+
+  #headerSubnav {
+    position: absolute;
+    inset: 72px 0 auto 0;
+    z-index: 35;
+    border-bottom: 1px solid #e8eef6;
+    background: rgba(255, 255, 255, 0.98);
+    backdrop-filter: blur(12px);
+  }
+
+  #headerSubnavRail {
+    display: grid;
+    grid-template-columns: repeat(4, minmax(0, 1fr));
+    width: 100%;
+  }
+
+  .header-subnav-link {
+    position: relative;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    height: 44px;
+    color: #4a5568;
+    transition: background-color 160ms ease, color 160ms ease;
+  }
+
+  .header-subnav-link + .header-subnav-link::before {
+    content: '';
+    position: absolute;
+    left: 0;
+    top: 10px;
+    bottom: 10px;
+    width: 1px;
+    background: #e8eef6;
+  }
+
+  .header-subnav-link:hover {
+    background: #f8fbff;
+  }
+
+  .header-subnav-link.is-active {
+    color: #2d3748;
+    background: #f8f9fb;
+  }
+
+  .header-subnav-link.has-indicator::after {
+    content: '';
+    position: absolute;
+    top: 9px;
+    right: calc(50% - 12px);
+    width: 6px;
+    height: 6px;
+    border-radius: 9999px;
+    background: #f97316;
+  }
+
+  #profileMenuWrapper {
+    position: relative;
+    height: 40px;
+    width: 40px;
+  }
+
+  #profileMenu {
+    position: absolute;
+    top: calc(100% + 10px);
+    right: 0;
+    width: 188px;
+    overflow: hidden;
+    border: 1px solid #e2e8f0;
+    border-radius: 18px;
+    background: #fff;
+    box-shadow: 0 18px 36px rgba(15, 23, 42, 0.12);
+    opacity: 0;
+    pointer-events: none;
+    transform: translateY(-6px);
+    transition: opacity 160ms ease, transform 160ms ease;
+    z-index: 50;
+  }
+
+  #profileMenu.is-open {
+    opacity: 1;
+    pointer-events: auto;
+    transform: translateY(0);
+  }
+
+  #catalogViewport {
+    position: absolute;
+    inset: 116px 0 0 0;
+    overflow-y: auto;
+    padding: 24px 16px 28px;
+  }
+
   html,
   body,
   body.bg-white {
-    background: #f7fafc !important;
+    background: #f8f9fb !important;
   }
 
   .catalog-chip {
@@ -33,6 +166,9 @@
   }
 
   .catalog-card {
+    display: flex;
+    position: relative;
+    flex-direction: column;
     transition: transform 180ms ease, box-shadow 180ms ease, border-color 180ms ease;
   }
 
@@ -42,19 +178,55 @@
     border-color: #cbd5e0;
   }
 
+  @media (hover: none) and (pointer: coarse) {
+    .catalog-card:hover {
+      transform: none;
+      box-shadow: 0 8px 24px rgba(45, 55, 72, 0.04);
+      border-color: #e2e8f0;
+    }
+  }
+
   .catalog-thumb {
     aspect-ratio: 1 / 1;
+  }
+
+  .catalog-card-body {
+    display: flex;
+    min-height: 0;
+    flex: 1 1 auto;
+    flex-direction: column;
+  }
+
+  .catalog-card-title {
+    display: -webkit-box;
+    overflow: hidden;
+    -webkit-box-orient: vertical;
+    -webkit-line-clamp: 2;
+    min-height: calc(1em * 1.45 * 2);
   }
 
   .wishlist-heart svg:last-child {
     display: none;
   }
 
+  .catalog-card-meta {
+    margin-top: auto;
+    padding-top: 12px;
+  }
+
   .wishlist-heart {
     color: #4a5568;
   }
 
+  .wishlist-heart:hover {
+    color: #2d3748;
+  }
+
   .wishlist-heart.is-active {
+    color: #e53e3e;
+  }
+
+  .wishlist-heart.is-active:hover {
     color: #e53e3e;
   }
 
@@ -73,15 +245,147 @@
     pointer-events: auto;
   }
 
-  .catalog-sort-select {
-    appearance: none;
-    -webkit-appearance: none;
-    -moz-appearance: none;
-    background-image: linear-gradient(45deg, transparent 50%, #718096 50%), linear-gradient(135deg, #718096 50%, transparent 50%);
-    background-position: calc(100% - 18px) calc(50% - 1px), calc(100% - 13px) calc(50% - 1px);
-    background-size: 5px 5px, 5px 5px;
-    background-repeat: no-repeat;
-    padding-right: 38px;
+  .catalog-sort-select.hidden-native {
+    position: absolute;
+    opacity: 0;
+    pointer-events: none;
+    width: 0;
+    height: 0;
+  }
+
+  .catalog-sort-dropdown {
+    position: relative;
+    width: 148px;
+  }
+
+  .catalog-sort-trigger {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    width: 100%;
+    height: 36px;
+    padding: 0 14px;
+    border: 1px solid #dbe7f5;
+    border-radius: 9999px;
+    background: #fff;
+    color: #4a5568;
+    font-size: 12px;
+    font-weight: 600;
+    line-height: 1;
+    transition: border-color 160ms ease, background-color 160ms ease, color 160ms ease;
+  }
+
+  .catalog-sort-trigger:hover,
+  .catalog-sort-trigger.is-open {
+    border-color: #c5d7ee;
+    background: #f8fbff;
+  }
+
+  .catalog-sort-trigger-text {
+    min-width: 0;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+  }
+
+  .catalog-sort-trigger-caret {
+    flex: none;
+    margin-left: 8px;
+    color: #90a4b8;
+    transition: transform 160ms ease;
+  }
+
+  .catalog-sort-trigger.is-open .catalog-sort-trigger-caret {
+    transform: rotate(180deg);
+  }
+
+  .catalog-sort-option-panel {
+    position: absolute;
+    top: calc(100% + 8px);
+    left: 0;
+    z-index: 20;
+    width: 100%;
+    overflow: hidden;
+    border: 1px solid #dbe7f5;
+    border-radius: 16px;
+    background: #fff;
+    box-shadow: 0 12px 24px rgba(45, 55, 72, 0.08);
+    opacity: 0;
+    pointer-events: none;
+    transform: translateY(-4px);
+    transition: opacity 160ms ease, transform 160ms ease;
+  }
+
+  .catalog-sort-option-panel.is-open {
+    opacity: 1;
+    pointer-events: auto;
+    transform: translateY(0);
+  }
+
+  .catalog-sort-option {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    width: 100%;
+    min-height: 42px;
+    padding: 0 14px;
+    color: #4a5568;
+    font-size: 12px;
+    font-weight: 600;
+    line-height: 1.4;
+    transition: background-color 160ms ease, color 160ms ease;
+  }
+
+  .catalog-sort-option:hover {
+    background: #f8fbff;
+  }
+
+  .catalog-sort-option-check {
+    color: #3182ce;
+    opacity: 0;
+  }
+
+  .catalog-sort-option.is-active {
+    color: #2d3748;
+    background: #f8fbff;
+  }
+
+  .catalog-sort-option.is-active .catalog-sort-option-check {
+    opacity: 1;
+  }
+
+  .catalog-filter-trigger {
+    position: relative;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    gap: 6px;
+    height: 32px;
+    padding: 0 12px;
+    border: 1px solid #c5d7ee;
+    border-radius: 9999px;
+    background: #edf6ff;
+    color: #3182ce;
+    font-size: 11px;
+    font-weight: 700;
+    line-height: 1;
+    transition: border-color 160ms ease, background-color 160ms ease, color 160ms ease;
+  }
+
+  .catalog-filter-trigger:hover {
+    border-color: #90cdf4;
+    background: #dbeafe;
+  }
+
+  .catalog-filter-trigger.has-indicator::after {
+    content: '';
+    position: absolute;
+    top: 6px;
+    right: 8px;
+    width: 6px;
+    height: 6px;
+    border-radius: 9999px;
+    background: #ef4444;
   }
 
   .catalog-more-summary {
@@ -103,24 +407,276 @@
     content: "－";
   }
 
-  .catalog-session-drawer {
-    transition: transform 200ms ease, opacity 200ms ease, visibility 200ms ease;
+  #catalogSessionLauncher {
+    position: absolute;
+    right: 10.5px;
+    bottom: 16px;
+    z-index: 20;
+    display: flex;
+    height: 40px;
+    width: 40px;
+    align-items: center;
+    justify-content: center;
+    border-radius: 9999px;
+    border: 1px solid rgba(255, 255, 255, 0.72);
+    background: #e2e8f0;
+    color: #ffffff;
+    overflow: hidden;
+    pointer-events: auto;
+    transform: translateY(0) scale(1);
+    transition: transform 0.22s ease, opacity 0.22s ease, border-color 0.22s ease, background 0.22s ease, color 0.22s ease, box-shadow 0.22s ease;
   }
 
-  .catalog-session-drawer.is-open {
+  #catalogSessionLauncher.is-ready {
+    background: linear-gradient(135deg, #f59e0b 0%, #f97316 100%);
+    color: #fff;
+  }
+
+  #catalogSessionLauncher svg {
+    transform: scale(1);
+    transition: transform 0.18s ease;
+  }
+
+  #catalogSessionOverlay {
+    position: absolute;
+    inset: 0;
+    z-index: 45;
+    background: rgba(15, 23, 42, 0.16);
+    opacity: 0;
+    pointer-events: none;
+    transition: opacity 0.22s ease;
+  }
+
+  #catalogSessionOverlay.is-open {
     opacity: 1;
-    visibility: visible;
-    transform: translateY(-50%) translateX(0);
+    pointer-events: auto;
   }
 
-  .catalog-session-drawer-toggle {
-    transition: transform 180ms ease, box-shadow 180ms ease;
-    margin-right: -1px;
+  #catalogSessionPanel {
+    position: absolute;
+    right: 12px;
+    bottom: 64px;
+    width: min(calc(100% - 24px), 392px);
+    max-height: min(68vh, 560px);
+    overflow: hidden;
+    border: 1px solid #dbe7f5;
+    border-radius: 28px;
+    background: rgba(255, 255, 255, 0.96);
+    box-shadow: 0 24px 48px rgba(15, 23, 42, 0.16);
+    opacity: 0;
+    pointer-events: none;
+    transform-origin: calc(100% - 20px) calc(100% - 16px);
+    transform: translateY(16px) scale(0.2);
+    transition: transform 0.28s cubic-bezier(0.22, 1, 0.36, 1), opacity 0.2s ease;
+    backdrop-filter: blur(12px);
   }
 
-  .catalog-session-drawer.is-open .catalog-session-drawer-toggle {
-    box-shadow: 0 12px 24px rgba(45, 55, 72, 0.12);
+  #catalogSessionOverlay.is-open #catalogSessionPanel {
+    opacity: 1;
+    pointer-events: auto;
+    transform: translateY(0) scale(1);
   }
+
+  #catalogFilterOverlay {
+    position: absolute;
+    inset: 0;
+    z-index: 44;
+    background: rgba(15, 23, 42, 0.16);
+    opacity: 0;
+    pointer-events: none;
+    transition: opacity 0.22s ease;
+  }
+
+  #catalogFilterOverlay.is-open {
+    opacity: 1;
+    pointer-events: auto;
+  }
+
+  #catalogFilterPanel {
+    position: absolute;
+    top: 0;
+    right: 0;
+    height: 100%;
+    width: min(calc(100% - 24px), 352px);
+    overflow-y: auto;
+    border-left: 1px solid #dbe7f5;
+    background: rgba(255, 255, 255, 0.98);
+    box-shadow: -18px 0 36px rgba(15, 23, 42, 0.12);
+    transform: translateX(100%);
+    transition: transform 0.28s cubic-bezier(0.22, 1, 0.36, 1);
+    backdrop-filter: blur(12px);
+  }
+
+  .catalog-filter-panel-footer {
+    position: sticky;
+    bottom: 0;
+    display: flex;
+    gap: 10px;
+    padding: 14px 16px 16px;
+    border-top: 1px solid #edf2f7;
+    background: rgba(255, 255, 255, 0.98);
+    backdrop-filter: blur(12px);
+  }
+
+  .catalog-filter-panel-button {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    height: 42px;
+    border-radius: 9999px;
+    font-size: 13px;
+    font-weight: 700;
+    line-height: 1;
+  }
+
+  #catalogFilterOverlay.is-open #catalogFilterPanel {
+    transform: translateX(0);
+  }
+
+  @media (min-width: 1024px) {
+    #catalogFilterOverlay {
+      display: none;
+    }
+  }
+
+  @media (max-width: 1023px) {
+    .catalog-results-head {
+      gap: 12px;
+    }
+
+    .catalog-results-title {
+      position: relative;
+      min-width: 0;
+      flex: 1 1 100%;
+      padding-right: 244px;
+    }
+
+    .catalog-results-label {
+      display: flex;
+      align-items: center;
+      min-height: 32px;
+      line-height: 1;
+      margin: 0;
+    }
+
+    .catalog-results-sort-mobile {
+      position: absolute;
+      top: 0;
+      right: 0;
+      display: flex;
+      align-items: center;
+      gap: 6px;
+      margin-top: 0;
+    }
+
+    .catalog-results-sort-mobile .catalog-sort-dropdown {
+      width: 128px;
+    }
+
+    .catalog-results-sort-mobile .catalog-sort-trigger {
+      height: 32px;
+      padding: 0 12px;
+      font-size: 11px;
+    }
+
+    .catalog-results-sort-mobile .catalog-sort-info-trigger {
+      height: 22px;
+      width: 22px;
+      font-size: 10px;
+    }
+  }
+
+  @media (min-width: 768px) and (max-width: 1023px) {
+    .catalog-results-title {
+      position: relative;
+      padding-right: 0;
+    }
+
+    .catalog-results-sort-mobile {
+      position: absolute;
+      top: 0;
+      right: 0;
+      margin-left: 0;
+    }
+  }
+
+  @media (max-width: 767px) {
+    #pageGate > .app-shell {
+      width: 100vw;
+    }
+
+    .catalog-results-title {
+      padding-right: 196px;
+    }
+
+    .catalog-product-grid {
+      grid-template-columns: repeat(2, minmax(0, 1fr));
+      gap: 12px;
+    }
+
+    .catalog-card {
+      border-radius: 18px;
+    }
+
+    .catalog-card-body {
+      padding: 12px;
+    }
+
+    .catalog-card-brand {
+      font-size: 11px;
+    }
+
+    .catalog-card-title {
+      min-height: 38px;
+      margin-top: 6px;
+      font-size: 14px;
+      line-height: 1.35;
+      display: -webkit-box;
+      -webkit-box-orient: vertical;
+      -webkit-line-clamp: 2;
+      overflow: hidden;
+    }
+
+    .catalog-card-meta {
+      display: grid;
+      grid-template-columns: minmax(0, 1fr) 32px;
+      margin-top: auto;
+      padding-top: 10px;
+      gap: 8px;
+      align-items: end;
+    }
+
+    .catalog-card-price {
+      font-size: 16px;
+    }
+
+    .catalog-card-review {
+      margin-top: 2px;
+      font-size: 11px;
+      line-height: 1.25;
+    }
+
+    .catalog-card-action {
+      height: 32px;
+      width: 32px;
+      font-size: 20px;
+    }
+
+    .catalog-card-wishlist {
+      height: 32px;
+      width: 32px;
+      transform: none;
+    }
+
+    .catalog-results-breadcrumb-separator {
+      display: none;
+    }
+
+    .catalog-results-active-filters {
+      display: none;
+    }
+  }
+
   @media (max-width: 767px) {
     .catalog-header-stack {
       flex-direction: column;
@@ -131,25 +687,79 @@
 {% endblock %}
 
 {% block content %}
-<div class="min-h-screen bg-[#f7fafc]">
-  <div class="mx-auto max-w-[1320px] px-4 py-8 md:px-6">
-    <div class="catalog-header-stack flex items-center justify-between gap-4">
-      <div>
-        <a href="/chat/" class="text-[26px] font-bold leading-none text-[#2d3748]" aria-label="메인으로 이동">
+<div id="pageGate" class="min-h-screen bg-[#f7fafc]">
+  <div class="app-shell">
+    <header id="catalogHeader">
+      <div id="catalogHeaderInner">
+        <div></div>
+        <a href="/chat/" id="catalogHeaderLogo" aria-label="메인으로 돌아가기">
           <span class="text-[#3182ce]">Tail</span><span>Talk</span>
         </a>
-        <p class="mt-3 text-[28px] font-bold text-[#2d3748]">상품 목록</p>
-        <p class="mt-2 text-[14px] leading-[1.7] text-[#718096]">반려동물 유형과 카테고리 기준으로 전체 상품을 탐색해보세요</p>
+        <div class="justify-self-end min-w-0">
+          <div id="profileMenuWrapper">
+            <button type="button"
+                    class="flex h-[40px] w-[40px] items-center justify-center rounded-full border border-[#e2e8f0] bg-white shadow-[0_2px_8px_rgba(45,55,72,0.05)]"
+                    aria-label="프로필 메뉴 열기"
+                    onclick="toggleProfileMenu()">
+              <svg viewBox="0 0 24 24" class="h-[30px] w-[30px] text-[#4a5568]" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+                <circle cx="12" cy="8" r="3.2"></circle>
+                <path d="M5.5 19a6.5 6.5 0 0 1 13 0"></path>
+              </svg>
+            </button>
+            <div id="profileMenu">
+              <a href="/profile/"
+                 class="flex h-[44px] w-full items-center rounded-t-[16px] px-[16px] text-[14px] text-[#2d3748] hover:bg-[#edf2f7]">내 정보</a>
+              <div class="mx-[12px] h-px bg-[#edf2f7]"></div>
+              <a href="/pets/"
+                 class="flex h-[44px] w-full items-center px-[16px] text-[14px] text-[#2d3748] hover:bg-[#edf2f7]">반려동물 정보</a>
+              <div class="mx-[12px] h-px bg-[#edf2f7]"></div>
+              <a href="/logout/"
+                 class="flex h-[44px] w-full items-center rounded-b-[16px] px-[16px] text-[14px] text-[#ef4444] hover:bg-[#fef2f2]">로그아웃</a>
+            </div>
+          </div>
+        </div>
       </div>
-      <div class="flex flex-wrap items-center gap-2">
-        <a href="/chat/" class="inline-flex h-[40px] items-center justify-center rounded-full border border-[#dbe7f5] bg-white px-4 text-[13px] font-semibold text-[#4a5568]">채팅으로 돌아가기</a>
-        <a href="/products/" class="inline-flex h-[40px] items-center justify-center rounded-full bg-[#2d3748] px-4 text-[13px] font-semibold text-white">장바구니 / 관심상품</a>
+    </header>
+    <div id="headerSubnav">
+      <div id="headerSubnavRail">
+        <a href="/catalog/" class="header-subnav-link is-active" aria-label="상품 목록" title="상품 목록">
+          <svg viewBox="0 0 24 24" class="h-[17px] w-[17px]" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+            <rect x="4" y="4" width="6" height="6" rx="1.5"></rect>
+            <rect x="14" y="4" width="6" height="6" rx="1.5"></rect>
+            <rect x="4" y="14" width="6" height="6" rx="1.5"></rect>
+            <rect x="14" y="14" width="6" height="6" rx="1.5"></rect>
+          </svg>
+        </a>
+        <a href="/products/" class="header-subnav-link {% if member_nav_has_cart_items %}has-indicator{% endif %}" aria-label="장바구니" title="장바구니">
+          <svg viewBox="0 0 24 24" class="h-[18px] w-[18px]" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+            <circle cx="9" cy="20" r="1.5"></circle>
+            <circle cx="18" cy="20" r="1.5"></circle>
+            <path d="M3 4h2l2.2 10.2a1 1 0 0 0 1 .8h8.9a1 1 0 0 0 1-.75L20 8H7"></path>
+          </svg>
+        </a>
+        <a href="/wishlist/" class="header-subnav-link {% if member_nav_has_wishlist_items %}has-indicator{% endif %}" aria-label="관심 상품" title="관심 상품">
+          <svg viewBox="0 0 24 24" class="h-[17px] w-[17px]" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+            <path d="M12 20.4 4.9 13.8a4.8 4.8 0 0 1 6.8-6.8L12 7.3l.3-.3a4.8 4.8 0 0 1 6.8 6.8L12 20.4Z"></path>
+          </svg>
+        </a>
+        <a href="/orders/" class="header-subnav-link" aria-label="주문 내역" title="주문 내역">
+          <svg viewBox="0 0 24 24" class="h-[17px] w-[17px]" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+            <path d="M7 4.5h10"></path>
+            <path d="M7 9.5h10"></path>
+            <path d="M7 14.5h6"></path>
+            <rect x="4" y="3" width="16" height="18" rx="2"></rect>
+          </svg>
+        </a>
       </div>
     </div>
-
-    <div class="mt-8 grid gap-6 lg:grid-cols-[280px_minmax(0,1fr)]">
-      <aside class="space-y-4">
-        <section class="rounded-[24px] border border-[#dbe7f5] bg-white p-5 shadow-[0_8px_24px_rgba(45,55,72,0.04)]">
+    <div id="catalogViewport">
+    <div class="mb-0 pl-2">
+      <h1 class="text-[24px] font-bold leading-[1.25] text-[#2d3748]">상품 목록</h1>
+      <div class="mt-3 h-px w-full bg-[#e8eef6]"></div>
+    </div>
+    <div class="mt-3 grid gap-6 md:grid-cols-1 lg:grid-cols-[280px_minmax(0,1fr)]">
+      <aside class="order-2 hidden space-y-4 lg:order-1 lg:block">
+        <section class="rounded-[24px] border border-[#e2e8f0] bg-white p-5">
           <p class="text-[13px] font-bold text-[#90a4b8]">반려동물</p>
           <div class="mt-3 flex flex-wrap gap-2">
             <a href="/catalog/" class="catalog-chip inline-flex h-[34px] items-center justify-center rounded-full border border-[#dbe7f5] px-4 text-[12px] font-semibold {% if not catalog_current_pet %}is-active{% else %}bg-[#f8fbff] text-[#4a5568]{% endif %}">전체</a>
@@ -160,11 +770,11 @@
         </section>
 
         {% if catalog_current_pet %}
-        <section class="rounded-[24px] border border-[#dbe7f5] bg-white p-5 shadow-[0_8px_24px_rgba(45,55,72,0.04)]">
+        <section class="rounded-[24px] border border-[#e2e8f0] bg-white p-5">
           <div class="flex h-[24px] items-center justify-between gap-3">
             <p class="flex h-[24px] items-center text-[13px] font-bold leading-none text-[#90a4b8]">카테고리</p>
             {% if catalog_current_category %}
-            <a href="/catalog/{% if catalog_clear_category_query %}?{{ catalog_clear_category_query }}{% endif %}" class="inline-flex h-[24px] items-center text-[12px] font-semibold leading-none text-[#7aa6e9]">초기화</a>
+            <a href="/catalog/{% if catalog_clear_category_query %}?{{ catalog_clear_category_query }}{% endif %}" class="inline-flex h-[24px] items-center bg-transparent text-[12px] font-semibold leading-none text-[#7aa6e9] shadow-none">초기화</a>
             {% endif %}
           </div>
           <div class="mt-3 flex flex-wrap gap-2">
@@ -177,18 +787,14 @@
 
         {% if catalog_group_options %}
         <section class="relative rounded-[24px] border border-[#dbe7f5] bg-white p-5 shadow-[0_8px_24px_rgba(45,55,72,0.04)]">
-          {% if catalog_current_category != '사료' %}
           <div class="flex h-[24px] items-center justify-between gap-3">
             <p class="flex h-[24px] items-center text-[13px] font-bold leading-none text-[#90a4b8]">세부 항목</p>
             {% if catalog_current_subcategory or catalog_current_brand %}
-            <a href="/catalog/{% if catalog_clear_detail_query %}?{{ catalog_clear_detail_query }}{% endif %}" class="inline-flex h-[24px] items-center text-[12px] font-semibold leading-none text-[#7aa6e9]">초기화</a>
+            <a href="/catalog/{% if catalog_clear_detail_query %}?{{ catalog_clear_detail_query }}{% endif %}" class="inline-flex h-[24px] items-center bg-transparent text-[12px] font-semibold leading-none text-[#7aa6e9] shadow-none">초기화</a>
             {% endif %}
           </div>
-          {% elif catalog_current_subcategory or catalog_current_brand %}
-          <a href="/catalog/{% if catalog_clear_detail_query %}?{{ catalog_clear_detail_query }}{% endif %}" class="absolute right-5 top-5 inline-flex h-[24px] items-center text-[12px] font-semibold leading-none text-[#7aa6e9]">초기화</a>
-          {% endif %}
           {% for group in catalog_group_options %}
-          <div class="{% if not forloop.first %}mt-5 border-t border-[#edf2f7] pt-5{% else %}{% if catalog_current_category == '사료' %}mt-0{% else %}mt-3{% endif %}{% endif %}">
+          <div class="{% if not forloop.first %}mt-5 border-t border-[#edf2f7] pt-5{% else %}mt-3{% endif %}">
             {% if group.label != '전체' %}
             <p class="text-[13px] font-bold text-[#90a4b8]">{{ group.label }}</p>
             {% endif %}
@@ -207,7 +813,7 @@
           <div class="flex h-[24px] items-center justify-between gap-3">
             <p class="flex h-[24px] items-center text-[13px] font-bold leading-none text-[#90a4b8]">브랜드 (가나다순)</p>
             {% if catalog_current_brand %}
-            <a href="/catalog/{% if catalog_clear_brand_query %}?{{ catalog_clear_brand_query }}{% endif %}" class="inline-flex h-[24px] items-center text-[12px] font-semibold leading-none text-[#7aa6e9]">초기화</a>
+            <a href="/catalog/{% if catalog_clear_brand_query %}?{{ catalog_clear_brand_query }}{% endif %}" class="inline-flex h-[24px] items-center bg-transparent text-[12px] font-semibold leading-none text-[#7aa6e9] shadow-none">초기화</a>
             {% endif %}
           </div>
           <div class="mt-3 flex flex-wrap gap-2">
@@ -231,36 +837,83 @@
         {% endif %}
       </aside>
 
-      <section class="min-w-0">
+      <section class="order-1 min-w-0 lg:order-2">
         <div class="rounded-[24px] border border-[#dbe7f5] bg-white p-5 shadow-[0_8px_24px_rgba(45,55,72,0.04)]">
           <div class="space-y-4">
-            <div class="flex flex-wrap items-start justify-between gap-4">
-              <div>
-              <p class="text-[14px] font-semibold text-[#90a4b8]">{% if catalog_current_keyword %}“{{ catalog_current_keyword }}” 검색 결과{% else %}검색 결과{% endif %}</p>
-              <p class="mt-2 text-[26px] font-bold text-[#2d3748]">{{ catalog_count }}개 상품</p>
-              </div>
-              <div class="flex flex-wrap items-center justify-end gap-2">
-              {% if catalog_current_pet %}
-              <span class="inline-flex h-[32px] items-center justify-center rounded-full bg-[#edf2f7] px-3 text-[12px] font-semibold text-[#4a5568]">{{ catalog_current_pet }}</span>
-              {% endif %}
-              {% if catalog_current_category %}
-              {% if catalog_current_pet %}
-              <span class="text-[13px] font-semibold text-[#a0aec0]">&gt;</span>
-              {% endif %}
-              <span class="inline-flex h-[32px] items-center justify-center rounded-full bg-[#edf2f7] px-3 text-[12px] font-semibold text-[#4a5568]">{{ catalog_current_category }}</span>
-              {% endif %}
-              {% if catalog_current_subcategory %}
-              {% if catalog_current_category %}
-              <span class="text-[13px] font-semibold text-[#a0aec0]">&gt;</span>
-              {% endif %}
-              <span class="inline-flex min-h-[32px] items-center justify-center rounded-full bg-[#edf2f7] px-3 py-1 text-[12px] font-semibold text-[#4a5568]">{{ catalog_current_subcategory }}</span>
-              {% endif %}
-              {% if catalog_current_brand %}
-              {% if catalog_current_subcategory or catalog_current_category or catalog_current_pet %}
-              <span class="text-[13px] font-semibold text-[#a0aec0]">&gt;</span>
-              {% endif %}
-              <span class="inline-flex min-h-[32px] items-center justify-center rounded-full bg-[#edf2f7] px-3 py-1 text-[12px] font-semibold text-[#4a5568]">{{ catalog_current_brand }}</span>
-              {% endif %}
+            <div class="catalog-results-head flex flex-wrap items-start justify-between gap-4">
+              <div class="catalog-results-title min-w-0 w-full">
+                <p class="catalog-results-label min-w-0 text-[14px] font-semibold text-[#90a4b8]">{% if catalog_current_keyword %}“{{ catalog_current_keyword }}” 검색 결과{% else %}검색 결과{% endif %}</p>
+                <div class="catalog-results-sort-mobile flex items-center gap-2 lg:hidden">
+                  <button type="button"
+                          class="catalog-filter-trigger {% if catalog_current_pet or catalog_current_category or catalog_current_subcategory or catalog_current_brand %}has-indicator{% endif %}"
+                          onclick="openCatalogFilterPanel()">
+                    <svg viewBox="0 0 20 20" class="h-[12px] w-[12px]" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+                      <path d="M3 5h14"></path>
+                      <path d="M6 10h8"></path>
+                      <path d="M8.5 15h3"></path>
+                    </svg>
+                    <span>필터</span>
+                  </button>
+                  <div class="catalog-sort-dropdown">
+                    <button type="button"
+                            id="catalogSortTriggerMobile"
+                            class="catalog-sort-trigger"
+                            aria-haspopup="listbox"
+                            aria-expanded="false"
+                            onclick="toggleCatalogSortDropdown('mobile')">
+                      <span id="catalogSortTriggerTextMobile" class="catalog-sort-trigger-text">정렬</span>
+                      <svg class="catalog-sort-trigger-caret h-[12px] w-[12px]" viewBox="0 0 20 20" fill="none" aria-hidden="true">
+                        <path d="M5 7.5 10 12.5 15 7.5" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"></path>
+                      </svg>
+                    </button>
+                    <div id="catalogSortOptionsMobile" class="catalog-sort-option-panel" role="listbox" aria-label="상품 정렬">
+                      {% for option in catalog_sort_options %}
+                      <button type="button"
+                              class="catalog-sort-option {% if option.is_active %}is-active{% endif %}"
+                              onclick="selectCatalogSort('/catalog/{% if option.query %}?{{ option.query }}{% endif %}', '{{ option.label|escapejs }}')">
+                        <span>{{ option.label }}</span>
+                        <span class="catalog-sort-option-check">✓</span>
+                      </button>
+                      {% endfor %}
+                    </div>
+                  </div>
+                  <div class="catalog-sort-tooltip-wrap relative">
+                    <button type="button"
+                            class="catalog-sort-info-trigger inline-flex h-[24px] w-[24px] items-center justify-center rounded-full border border-[#dbe7f5] bg-white text-[11px] font-bold leading-none text-[#718096]"
+                            aria-label="TailTalk 추천순 설명">
+                      i
+                    </button>
+                    <div class="catalog-sort-tooltip pointer-events-none absolute right-0 top-[28px] z-10 w-[240px] rounded-[16px] border border-[#dbe7f5] bg-white p-3 text-[12px] leading-[1.6] text-[#4a5568] opacity-0 shadow-[0_12px_24px_rgba(45,55,72,0.08)] transition-all duration-150 ease-out">
+                      TailTalk 추천순은 상품 점수와<br>리뷰 수를 함께 반영해 정렬합니다
+                    </div>
+                  </div>
+                </div>
+                <div class="mt-4 flex w-full flex-wrap items-center gap-2 md:grid md:grid-cols-[auto_minmax(0,1fr)] md:items-center">
+                  <p class="text-[26px] font-bold leading-none text-[#2d3748]">{{ catalog_count }}개 상품</p>
+                  <div class="catalog-results-active-filters hidden md:flex md:flex-wrap md:items-center md:justify-end md:gap-2 md:text-right md:justify-self-end">
+                    {% if catalog_current_pet %}
+                    <span class="inline-flex h-[32px] items-center justify-center rounded-full bg-[#edf2f7] px-3 text-[12px] font-semibold text-[#4a5568]">{{ catalog_current_pet }}</span>
+                    {% endif %}
+                    {% if catalog_current_category %}
+                    {% if catalog_current_pet %}
+                    <span class="catalog-results-breadcrumb-separator text-[13px] font-semibold text-[#a0aec0]">&gt;</span>
+                    {% endif %}
+                    <span class="inline-flex h-[32px] items-center justify-center rounded-full bg-[#edf2f7] px-3 text-[12px] font-semibold text-[#4a5568]">{{ catalog_current_category }}</span>
+                    {% endif %}
+                    {% if catalog_current_subcategory %}
+                    {% if catalog_current_category %}
+                    <span class="catalog-results-breadcrumb-separator text-[13px] font-semibold text-[#a0aec0]">&gt;</span>
+                    {% endif %}
+                    <span class="inline-flex min-h-[32px] items-center justify-center rounded-full bg-[#edf2f7] px-3 py-1 text-[12px] font-semibold text-[#4a5568]">{{ catalog_current_subcategory }}</span>
+                    {% endif %}
+                    {% if catalog_current_brand %}
+                    {% if catalog_current_subcategory or catalog_current_category or catalog_current_pet %}
+                    <span class="catalog-results-breadcrumb-separator text-[13px] font-semibold text-[#a0aec0]">&gt;</span>
+                    {% endif %}
+                    <span class="inline-flex min-h-[32px] items-center justify-center rounded-full bg-[#edf2f7] px-3 py-1 text-[12px] font-semibold text-[#4a5568]">{{ catalog_current_brand }}</span>
+                    {% endif %}
+                  </div>
+                </div>
               </div>
             </div>
             <div class="flex flex-wrap items-center gap-3">
@@ -275,26 +928,49 @@
                          name="q"
                          value="{{ catalog_current_keyword }}"
                          maxlength="50"
-                         placeholder="상품명 또는 브랜드로 검색"
-                         class="h-[42px] w-full rounded-full border border-[#dbe7f5] bg-[#fbfdff] pl-4 pr-[88px] text-[13px] font-medium text-[#2d3748] outline-none transition-colors placeholder:text-[#a0aec0] focus:border-[#90cdf4]">
+                         placeholder="검색"
+                         class="h-[42px] w-full rounded-full border border-[#dbe7f5] bg-white pl-4 pr-[76px] text-[13px] font-medium text-[#2d3748] outline-none transition-colors placeholder:text-[#a0aec0] focus:border-[#90cdf4]">
                   <button type="submit"
-                          class="absolute right-[6px] top-1/2 inline-flex h-[30px] -translate-y-1/2 items-center justify-center rounded-full bg-[#2d3748] px-4 text-[12px] font-semibold text-white transition-colors hover:bg-[#1f2937]">
+                          class="absolute right-[6px] top-1/2 inline-flex h-[30px] -translate-y-1/2 items-center justify-center rounded-full bg-[#2d3748] px-3.5 text-[12px] font-semibold text-white transition-colors hover:bg-[#1f2937]">
                     검색
                   </button>
                 </div>
               </form>
-              <div class="relative">
+              <div class="relative hidden lg:block">
                 <div class="flex h-[36px] items-center gap-2">
-                  <select id="catalogSort"
-                          class="catalog-sort-select h-[36px] rounded-full border border-[#dbe7f5] bg-white pl-4 text-[12px] font-semibold text-[#4a5568] outline-none transition-colors focus:border-[#90cdf4]"
-                          onchange="if (this.value) { window.location.href = this.value; }">
-                    {% for option in catalog_sort_options %}
-                    <option value="/catalog/{% if option.query %}?{{ option.query }}{% endif %}" {% if option.is_active %}selected{% endif %}>{{ option.label }}</option>
-                    {% endfor %}
-                  </select>
+                  <div class="catalog-sort-dropdown">
+                    <select id="catalogSort"
+                            class="catalog-sort-select hidden-native"
+                            onchange="if (this.value) { window.location.href = this.value; }">
+                      {% for option in catalog_sort_options %}
+                      <option value="/catalog/{% if option.query %}?{{ option.query }}{% endif %}" {% if option.is_active %}selected{% endif %}>{{ option.label }}</option>
+                      {% endfor %}
+                    </select>
+                    <button type="button"
+                            id="catalogSortTrigger"
+                            class="catalog-sort-trigger"
+                            aria-haspopup="listbox"
+                            aria-expanded="false"
+                            onclick="toggleCatalogSortDropdown()">
+                      <span id="catalogSortTriggerText" class="catalog-sort-trigger-text">정렬</span>
+                      <svg class="catalog-sort-trigger-caret h-[12px] w-[12px]" viewBox="0 0 20 20" fill="none" aria-hidden="true">
+                        <path d="M5 7.5 10 12.5 15 7.5" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"></path>
+                      </svg>
+                    </button>
+                    <div id="catalogSortOptions" class="catalog-sort-option-panel" role="listbox" aria-label="상품 정렬">
+                      {% for option in catalog_sort_options %}
+                      <button type="button"
+                              class="catalog-sort-option {% if option.is_active %}is-active{% endif %}"
+                              onclick="selectCatalogSort('/catalog/{% if option.query %}?{{ option.query }}{% endif %}', '{{ option.label|escapejs }}')">
+                        <span>{{ option.label }}</span>
+                        <span class="catalog-sort-option-check">✓</span>
+                      </button>
+                      {% endfor %}
+                    </div>
+                  </div>
                   <div class="catalog-sort-tooltip-wrap relative">
                     <button type="button"
-                            class="catalog-sort-trigger inline-flex h-[24px] w-[24px] items-center justify-center rounded-full border border-[#dbe7f5] bg-white text-[11px] font-bold leading-none text-[#718096]"
+                            class="catalog-sort-info-trigger inline-flex h-[24px] w-[24px] items-center justify-center rounded-full border border-[#dbe7f5] bg-white text-[11px] font-bold leading-none text-[#718096]"
                             aria-label="TailTalk 추천순 설명">
                       i
                     </button>
@@ -309,48 +985,43 @@
         </div>
 
         {% if catalog_items %}
-        <div class="mt-6 grid gap-5 sm:grid-cols-2 xl:grid-cols-3">
+        <div class="catalog-product-grid mt-6 grid gap-5 sm:grid-cols-2">
           {% for item in catalog_items %}
           <article class="catalog-card overflow-hidden rounded-[24px] border border-[#e2e8f0] bg-white shadow-[0_8px_24px_rgba(45,55,72,0.04)]">
-            <a href="{{ item.product_url }}" target="_blank" rel="noreferrer" class="catalog-thumb block overflow-hidden bg-[#f8fbff]">
+            <a href="{{ item.product_url }}" target="_blank" rel="noreferrer" class="catalog-thumb relative block overflow-hidden bg-[#f8fbff]">
               <img src="{{ item.thumbnail_url }}" alt="{{ item.name }}" class="h-full w-full object-cover">
+              <button type="button"
+                      class="catalog-card-wishlist wishlist-heart {% if item.is_wishlisted %}is-active {% endif %}absolute bottom-3 right-3 z-[1] inline-flex h-[28px] w-[28px] shrink-0 items-center justify-center rounded-full border border-white/80 bg-white/95 leading-none shadow-[0_8px_20px_rgba(15,23,42,0.12)] backdrop-blur-sm transition-colors"
+                      aria-label="관심 상품 상태 변경"
+                      data-product-id="{{ item.product_id }}"
+                      onclick="event.preventDefault(); event.stopPropagation(); toggleCatalogWishlist(this)">
+                <svg width="15" height="15" viewBox="0 0 24 24" fill="none" aria-hidden="true">
+                  <path d="M12 20.4 4.9 13.8a4.8 4.8 0 0 1 6.8-6.8L12 7.3l.3-.3a4.8 4.8 0 0 1 6.8 6.8L12 20.4Z" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"/>
+                </svg>
+                <svg width="15" height="15" viewBox="0 0 24 24" fill="currentColor" aria-hidden="true">
+                  <path d="M12 20.4 4.9 13.8a4.8 4.8 0 0 1 6.8-6.8L12 7.3l.3-.3a4.8 4.8 0 0 1 6.8 6.8L12 20.4Z"/>
+                </svg>
+              </button>
             </a>
-            <div class="p-5">
-              <div class="flex items-start justify-between gap-3">
-                <p class="min-w-0 truncate text-[12px] font-semibold text-[#90a4b8]">{{ item.brand_name }}</p>
-                <button type="button"
-                        class="wishlist-heart {% if item.is_wishlisted %}is-active {% endif %}inline-flex h-[28px] w-[28px] shrink-0 items-center justify-center rounded-full border border-[#e2e8f0] bg-white leading-none transition-colors hover:text-[#e53e3e]"
-                        aria-label="관심 상품 상태 변경"
-                        data-product-id="{{ item.product_id }}"
-                        onclick="toggleCatalogWishlist(this)">
-                  <svg width="15" height="15" viewBox="0 0 24 24" fill="none" aria-hidden="true">
-                    <path d="M12 20.4 4.9 13.8a4.8 4.8 0 0 1 6.8-6.8L12 7.3l.3-.3a4.8 4.8 0 0 1 6.8 6.8L12 20.4Z" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"/>
-                  </svg>
-                  <svg width="15" height="15" viewBox="0 0 24 24" fill="currentColor" aria-hidden="true">
-                    <path d="M12 20.4 4.9 13.8a4.8 4.8 0 0 1 6.8-6.8L12 7.3l.3-.3a4.8 4.8 0 0 1 6.8 6.8L12 20.4Z"/>
-                  </svg>
-                </button>
-              </div>
-              <a href="{{ item.product_url }}" target="_blank" rel="noreferrer" class="mt-2 block min-h-[48px] text-[17px] font-bold leading-[1.45] text-[#2d3748] hover:text-[#3182ce]">
+            <div class="catalog-card-body p-4">
+              <a href="{{ item.product_url }}" target="_blank" rel="noreferrer" class="catalog-card-title text-[17px] font-bold leading-[1.45] text-[#2d3748] hover:text-[#3182ce]">
                 {{ item.name }}
               </a>
-              <p class="mt-2 text-[13px] leading-[1.6] text-[#718096]">{{ item.summary }}</p>
-              <div class="mt-4 flex items-end justify-between gap-3">
+              <div class="catalog-card-meta mt-3 flex items-end justify-between gap-3">
                 <div>
-                  <p class="text-[20px] font-bold text-[#2d3748]">{{ item.price_label }}</p>
-                  <p class="mt-1 flex items-center gap-1 text-[12px] text-[#a0aec0]">
+                  <p class="catalog-card-price text-[20px] font-bold text-[#2d3748]">₩ {{ item.price_label|cut:"원" }}</p>
+                  <p class="catalog-card-review mt-1 flex items-center gap-1 text-[12px] text-[#a0aec0]">
                     {% if item.rating %}
                     <span class="text-[#f6ad55]">★</span>
                     <span>{{ item.rating }}</span>
-                    <span>·</span>
-                    <span>리뷰 {{ item.review_count }}</span>
+                    <span>({{ item.review_count }})</span>
                     {% else %}
-                    <span>리뷰 {{ item.review_count }}</span>
+                    <span>리뷰 ({{ item.review_count }})</span>
                     {% endif %}
                   </p>
                 </div>
                   <button type="button"
-                          class="inline-flex h-[38px] w-[38px] shrink-0 items-center justify-center rounded-full bg-[#2d3748] text-[24px] font-semibold leading-none text-white"
+                          class="catalog-card-action inline-flex h-[38px] w-[38px] shrink-0 items-center justify-center rounded-full bg-[#2d3748] text-[24px] font-semibold leading-none text-white"
                           data-product-id="{{ item.product_id }}"
                           data-in-cart="{% if item.is_in_cart %}1{% else %}0{% endif %}"
                           aria-label="장바구니에 상품 추가"
@@ -380,11 +1051,87 @@
         <div class="mt-6 flex min-h-[420px] flex-col items-center justify-center rounded-[24px] border border-dashed border-[#dbe7f5] bg-white px-6 py-10 text-center shadow-[0_8px_24px_rgba(45,55,72,0.04)]">
           <div class="text-[38px] text-[#7aa6e9]">🔎</div>
           <p class="mt-4 text-[22px] font-bold text-[#2d3748]">조건에 맞는 상품이 없습니다</p>
-          <p class="mt-3 max-w-[420px] text-[14px] leading-[1.7] text-[#718096]">선택한 반려동물 유형이나 카테고리를 조금 넓혀서 다시 탐색해보세요.</p>
+          <p class="mt-3 max-w-[420px] text-[14px] leading-[1.7] text-[#718096]">조건을 조금 넓혀서 다시 탐색해보세요.</p>
           <a href="/catalog/{% if catalog_clear_category_query %}?{{ catalog_clear_category_query }}{% endif %}" class="mt-6 inline-flex h-[42px] items-center justify-center rounded-full bg-[#2d3748] px-5 text-[13px] font-semibold text-white">필터 초기화</a>
         </div>
         {% endif %}
       </section>
+</div>
+</div>
+</div>
+</div>
+</div>
+
+<div id="catalogFilterOverlay" aria-hidden="true" onclick="closeCatalogFilterPanel(event)">
+  <div id="catalogFilterPanel" onclick="event.stopPropagation()">
+    <div class="sticky top-0 z-[1] border-b border-[#edf2f7] bg-white/95 px-5 py-4 backdrop-blur">
+      <div class="flex items-center justify-between gap-3">
+        <div class="min-w-0">
+          <div class="flex items-center gap-2">
+            <span class="inline-flex h-[28px] w-[28px] items-center justify-center rounded-full bg-[#edf6ff] text-[#3182ce]">
+              <svg viewBox="0 0 20 20" class="h-[14px] w-[14px]" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+                <path d="M3 5h14"></path>
+                <path d="M6 10h8"></path>
+                <path d="M8.5 15h3"></path>
+              </svg>
+            </span>
+            <p class="relative top-[1px] text-[17px] font-bold leading-none text-[#2d3748]">필터</p>
+          </div>
+        </div>
+        <button type="button"
+                class="inline-flex h-[28px] w-[28px] items-center justify-center rounded-full bg-[#f8fafc] text-[18px] leading-none text-[#718096]"
+                aria-label="필터 닫기"
+                onclick="closeCatalogFilterPanel()">
+          ×
+        </button>
+      </div>
+    </div>
+    <div class="space-y-4 px-4 py-4">
+      <section class="rounded-[24px] border border-[#e2e8f0] bg-white p-5">
+        <p class="text-[13px] font-bold text-[#90a4b8]">반려동물</p>
+        <div class="mt-3 flex flex-wrap gap-2">
+          <a href="/catalog/" data-filter-href="/catalog/" onclick="event.preventDefault(); setCatalogFilterDraft(this.dataset.filterHref)" class="catalog-chip inline-flex h-[34px] items-center justify-center rounded-full border border-[#dbe7f5] px-4 text-[12px] font-semibold {% if not catalog_current_pet %}is-active{% else %}bg-[#f8fbff] text-[#4a5568]{% endif %}">전체</a>
+          {% for option in catalog_menu_sections %}
+          <a href="{{ option.href }}" data-filter-href="{{ option.href }}" onclick="event.preventDefault(); setCatalogFilterDraft(this.dataset.filterHref)" class="catalog-chip inline-flex h-[34px] items-center justify-center rounded-full border border-[#dbe7f5] px-4 text-[12px] font-semibold {% if option.is_active %}is-active{% else %}bg-[#f8fbff] text-[#4a5568]{% endif %}">{{ option.label }}</a>
+          {% endfor %}
+        </div>
+      </section>
+
+      <section id="catalogFilterCategorySection" class="rounded-[24px] border border-[#e2e8f0] bg-white p-5 {% if not catalog_current_pet %}hidden{% endif %}">
+        <div class="flex h-[24px] items-center justify-between gap-3">
+          <p class="flex h-[24px] items-center text-[13px] font-bold leading-none text-[#90a4b8]">카테고리</p>
+          <button type="button" id="catalogFilterCategoryReset" class="inline-flex h-[24px] items-center bg-transparent text-[12px] font-semibold leading-none text-[#7aa6e9] shadow-none {% if not catalog_current_category %}hidden{% endif %}" onclick="resetCatalogFilterLevel('category')">초기화</button>
+        </div>
+        <div id="catalogFilterCategoryOptions" class="mt-3 flex flex-wrap gap-2"></div>
+      </section>
+
+      <section id="catalogFilterDetailSection" class="rounded-[24px] border border-[#dbe7f5] bg-white p-5 shadow-[0_8px_24px_rgba(45,55,72,0.04)] {% if not catalog_current_category %}hidden{% endif %}">
+        <div class="flex h-[24px] items-center justify-between gap-3">
+          <p class="flex h-[24px] items-center text-[13px] font-bold leading-none text-[#90a4b8]">세부 항목</p>
+          <button type="button" id="catalogFilterDetailReset" class="inline-flex h-[24px] items-center bg-transparent text-[12px] font-semibold leading-none text-[#7aa6e9] shadow-none {% if not catalog_current_subcategory and not catalog_current_brand %}hidden{% endif %}" onclick="resetCatalogFilterLevel('detail')">초기화</button>
+        </div>
+        <div id="catalogFilterDetailGroups" class="mt-3"></div>
+      </section>
+
+      <section id="catalogFilterBrandSection" class="rounded-[24px] border border-[#dbe7f5] bg-white p-5 shadow-[0_8px_24px_rgba(45,55,72,0.04)]">
+        <div class="flex h-[24px] items-center justify-between gap-3">
+          <p class="flex h-[24px] items-center text-[13px] font-bold leading-none text-[#90a4b8]">브랜드 (가나다순)</p>
+          <button type="button" id="catalogFilterBrandReset" class="inline-flex h-[24px] items-center bg-transparent text-[12px] font-semibold leading-none text-[#7aa6e9] shadow-none {% if not catalog_current_brand %}hidden{% endif %}" onclick="resetCatalogFilterLevel('brand')">초기화</button>
+        </div>
+        <div id="catalogFilterBrandOptions" class="mt-3 flex flex-wrap gap-2"></div>
+      </section>
+    </div>
+    <div class="catalog-filter-panel-footer">
+      <button type="button"
+              class="catalog-filter-panel-button flex-1 border border-[#dbe7f5] bg-white text-[#4a5568]"
+              onclick="resetCatalogFilters()">
+        초기화
+      </button>
+      <button type="button"
+              class="catalog-filter-panel-button flex-1 bg-[#2d3748] text-white"
+              onclick="applyCatalogFilterDraft()">
+        적용
+      </button>
     </div>
   </div>
 </div>
@@ -394,23 +1141,26 @@
   오류가 발생했습니다.
 </div>
 
-<div id="catalogSessionDrawer"
+<div id="catalogSessionOverlay"
      data-current-session-id="{{ catalog_current_session_id|default:'' }}"
-     class="catalog-session-drawer fixed right-0 top-1/2 z-[65] flex -translate-y-1/2 translate-x-[calc(100%-48px)] items-center opacity-100 visible">
-  <button type="button"
-          id="catalogSessionDrawerToggle"
-          class="catalog-session-drawer-toggle inline-flex h-[120px] w-[48px] self-center items-center justify-center rounded-l-[20px] border border-r-0 border-[#dbe7f5] bg-white text-[12px] font-bold tracking-[0.08em] text-[#4a5568] shadow-[0_8px_20px_rgba(45,55,72,0.08)]"
-          onclick="toggleCatalogSessionDrawer()">
-    <span class="[writing-mode:vertical-rl]">추천 상품</span>
-  </button>
-  <aside class="h-[min(78vh,680px)] w-[360px] overflow-hidden rounded-l-[24px] border border-[#dbe7f5] bg-white shadow-[0_18px_40px_rgba(45,55,72,0.12)]">
-    <div class="flex items-center justify-between border-b border-[#edf2f7] px-5 py-4">
-      <div>
-        <p class="text-[16px] font-bold text-[#2d3748]">추천 상품</p>
-        <p id="catalogSessionDrawerSubtitle" class="mt-1 text-[12px] text-[#90a4b8]">{% if catalog_recommended_session %}현재 채팅 세션에서 추천된 상품{% else %}추천 세션이 연결되지 않았어요{% endif %}</p>
+     aria-hidden="true"
+     onclick="closeCatalogSessionDrawer(event)">
+  <div id="catalogSessionPanel" onclick="event.stopPropagation()">
+    <div class="border-b border-[#edf2f7] px-5 py-4">
+      <div class="relative flex items-start justify-between gap-3">
+        <div class="min-w-0 pt-[1px]">
+          <p class="text-[17px] font-bold text-[#2d3748]">추천 상품</p>
+          <p id="catalogSessionDrawerSubtitle" class="mt-1 text-[12px] text-[#90a4b8]">{% if catalog_recommended_session %}현재 채팅 세션에서 추천된 상품{% endif %}</p>
+        </div>
+        <button type="button"
+                class="inline-flex h-[28px] w-[28px] items-center justify-center rounded-full bg-[#f8fafc] text-[18px] leading-none text-[#718096]"
+                aria-label="추천 상품 닫기"
+                onclick="closeCatalogSessionDrawer()">
+          ×
+        </button>
       </div>
     </div>
-    <div id="catalogSessionDrawerBody" class="h-[calc(100%-69px)] overflow-y-auto px-4 py-4">
+    <div id="catalogSessionDrawerBody" class="max-h-[calc(min(68vh,560px)-78px)] overflow-y-auto px-4 py-4">
       {% if catalog_recommended_items %}
       <div class="space-y-3">
         {% for item in catalog_recommended_items %}
@@ -420,12 +1170,11 @@
               <img src="{{ item.thumbnail_url }}" alt="{{ item.name }}" class="h-full w-full object-cover">
             </a>
             <div class="min-w-0 flex-1">
-              <p class="truncate text-[11px] font-semibold text-[#90a4b8]">{{ item.brand_name }}</p>
-              <a href="{{ item.product_url }}" target="_blank" rel="noreferrer" class="mt-1 block text-[14px] font-bold leading-[1.5] text-[#2d3748] hover:text-[#3182ce]">{{ item.name }}</a>
+              <a href="{{ item.product_url }}" target="_blank" rel="noreferrer" class="block text-[14px] font-bold leading-[1.5] text-[#2d3748] hover:text-[#3182ce]">{{ item.name }}</a>
               <p class="mt-2 text-[12px] leading-[1.6] text-[#718096]">{{ item.summary }}</p>
               <div class="mt-3 flex items-end justify-between gap-3">
                 <div>
-                  <p class="text-[16px] font-bold text-[#2d3748]">{{ item.price_label }}</p>
+                  <p class="text-[16px] font-bold text-[#2d3748]">₩ {{ item.price_label|cut:"원" }}</p>
                   <p class="mt-1 flex items-center gap-1 text-[11px] text-[#a0aec0]">
                     {% if item.rating %}
                     <span class="text-[#f6ad55]">★</span>
@@ -437,7 +1186,7 @@
                 </div>
                 <div class="flex items-center gap-2">
                   <button type="button"
-                          class="wishlist-heart {% if item.is_wishlisted %}is-active {% endif %}inline-flex h-[28px] w-[28px] shrink-0 items-center justify-center rounded-full border border-[#e2e8f0] bg-white leading-none transition-colors hover:text-[#e53e3e]"
+                          class="wishlist-heart {% if item.is_wishlisted %}is-active {% endif %}inline-flex h-[28px] w-[28px] shrink-0 items-center justify-center rounded-full border border-[#e2e8f0] bg-white leading-none transition-colors"
                           aria-label="관심 상품 상태 변경"
                           data-product-id="{{ item.product_id }}"
                           onclick="toggleCatalogWishlist(this)">
@@ -454,7 +1203,7 @@
                           data-in-cart="{% if item.is_in_cart %}1{% else %}0{% endif %}"
                           aria-label="장바구니에 상품 추가"
                           onclick="addCatalogToCart(this)">
-                    <span class="relative top-[-1px]">+</span>
+                    <span>+</span>
                   </button>
                 </div>
               </div>
@@ -472,20 +1221,62 @@
       </div>
       {% endif %}
     </div>
-  </aside>
+  </div>
 </div>
+{{ catalog_filter_tree|json_script:"catalogFilterTreeData" }}
+<button type="button"
+        id="catalogSessionLauncher"
+        aria-label="추천 상품 열기"
+        onclick="toggleCatalogSessionDrawer()">
+  <svg aria-hidden="true" class="h-[24px] w-[24px]" viewBox="0 0 28 28" fill="none" xmlns="http://www.w3.org/2000/svg">
+    <path d="M14 4 16.45 10.55 23 13 16.45 15.45 14 22 11.55 15.45 5 13 11.55 10.55 14 4Z" fill="white"/>
+    <path d="M21.6 5.8 22.5 8.1 24.8 9 22.5 9.9 21.6 12.2 20.7 9.9 18.4 9 20.7 8.1 21.6 5.8Z" fill="white"/>
+    <path d="M8.2 17.6 9 19.6 11 20.4 9 21.2 8.2 23.2 7.4 21.2 5.4 20.4 7.4 19.6 8.2 17.6Z" fill="white"/>
+  </svg>
+</button>
 {% endblock %}
 
 {% block scripts %}
 <script>
 (function () {
+  var profileMenu = document.getElementById('profileMenu');
+  var profileMenuWrapper = document.getElementById('profileMenuWrapper');
+  var headerCartNavLink = document.querySelector('.header-subnav-link[href="/products/"]');
+  var headerWishlistNavLink = document.querySelector('.header-subnav-link[href="/wishlist/"]');
   var catalogFeedbackToast = document.getElementById('catalogFeedbackToast');
   var catalogToastTimer = null;
-  var catalogSessionDrawer = document.getElementById('catalogSessionDrawer');
+  var catalogSessionDrawer = document.getElementById('catalogSessionOverlay');
   var catalogSessionDrawerBody = document.getElementById('catalogSessionDrawerBody');
   var catalogSessionDrawerSubtitle = document.getElementById('catalogSessionDrawerSubtitle');
+  var catalogSessionLauncher = document.getElementById('catalogSessionLauncher');
+  var catalogFilterOverlay = document.getElementById('catalogFilterOverlay');
+  var catalogFilterPanel = document.getElementById('catalogFilterPanel');
+  var catalogFilterCategorySection = document.getElementById('catalogFilterCategorySection');
+  var catalogFilterDetailSection = document.getElementById('catalogFilterDetailSection');
+  var catalogFilterBrandSection = document.getElementById('catalogFilterBrandSection');
+  var catalogFilterCategoryOptions = document.getElementById('catalogFilterCategoryOptions');
+  var catalogFilterCategoryReset = document.getElementById('catalogFilterCategoryReset');
+  var catalogFilterDetailGroups = document.getElementById('catalogFilterDetailGroups');
+  var catalogFilterDetailReset = document.getElementById('catalogFilterDetailReset');
+  var catalogFilterBrandOptions = document.getElementById('catalogFilterBrandOptions');
+  var catalogFilterBrandReset = document.getElementById('catalogFilterBrandReset');
+  var catalogFilterTreeNode = document.getElementById('catalogFilterTreeData');
+  var catalogSortSelect = document.getElementById('catalogSort');
+  var catalogSortTrigger = document.getElementById('catalogSortTrigger');
+  var catalogSortTriggerText = document.getElementById('catalogSortTriggerText');
+  var catalogSortOptions = document.getElementById('catalogSortOptions');
+  var catalogSortTriggerMobile = document.getElementById('catalogSortTriggerMobile');
+  var catalogSortTriggerTextMobile = document.getElementById('catalogSortTriggerTextMobile');
+  var catalogSortOptionsMobile = document.getElementById('catalogSortOptionsMobile');
   var catalogCurrentSessionId = catalogSessionDrawer ? (catalogSessionDrawer.getAttribute('data-current-session-id') || '') : '';
   var SESSION_RECOMMENDED_PRODUCTS_STORAGE_PREFIX = 'tailtalk_session_recommended_products:';
+  var catalogFilterDraft = null;
+  var catalogFilterTree = catalogFilterTreeNode ? JSON.parse(catalogFilterTreeNode.textContent || '{}') : { pets: [], brands: {} };
+
+  window.toggleProfileMenu = function () {
+    if (!profileMenu) return;
+    profileMenu.classList.toggle('is-open');
+  };
 
   function getCsrfToken() {
     var match = document.cookie.match(/(?:^|;\s*)csrftoken=([^;]+)/);
@@ -534,6 +1325,373 @@
     }, 2400);
   }
 
+  function refreshCatalogNavIndicators() {
+    return Promise.all([
+      requestJson('/api/orders/cart/'),
+      requestJson('/api/orders/wishlist/'),
+    ]).then(function (results) {
+      var cartData = results[0] || {};
+      var wishlistData = results[1] || {};
+      if (headerCartNavLink) {
+        headerCartNavLink.classList.toggle('has-indicator', !!(cartData.items && cartData.items.length));
+      }
+      if (headerWishlistNavLink) {
+        headerWishlistNavLink.classList.toggle('has-indicator', !!(wishlistData.items && wishlistData.items.length));
+      }
+    }).catch(function () {
+      return null;
+    });
+  }
+
+  function setCatalogNavIndicatorState(type, active) {
+    if (type === 'cart' && headerCartNavLink) {
+      headerCartNavLink.classList.toggle('has-indicator', !!active);
+    }
+    if (type === 'wishlist' && headerWishlistNavLink) {
+      headerWishlistNavLink.classList.toggle('has-indicator', !!active);
+    }
+  }
+
+  function readCatalogFilterState(urlString) {
+    var url = new URL(urlString || window.location.pathname + window.location.search, window.location.origin);
+    var params = url.searchParams;
+    return {
+      pet: params.get('pet') || '',
+      category: params.get('category') || '',
+      subcategory: params.get('subcategory') || '',
+      brand: params.get('brand') || '',
+    };
+  }
+
+  function normalizeCatalogFilterState(state) {
+    var next = {
+      pet: state && state.pet ? state.pet : '',
+      category: state && state.category ? state.category : '',
+      subcategory: state && state.subcategory ? state.subcategory : '',
+      brand: state && state.brand ? state.brand : '',
+    };
+
+    if (!next.pet) {
+      next.category = '';
+      next.subcategory = '';
+      return next;
+    }
+
+    if (!next.category) {
+      next.subcategory = '';
+    }
+
+    return next;
+  }
+
+  function getCatalogBaseParams() {
+    var params = new URLSearchParams(window.location.search);
+    ['pet', 'category', 'subcategory', 'brand', 'page'].forEach(function (key) {
+      params.delete(key);
+    });
+    return params;
+  }
+
+  function getCatalogHrefForState(state) {
+    var normalized = normalizeCatalogFilterState(state);
+    var params = getCatalogBaseParams();
+    if (normalized.pet) params.set('pet', normalized.pet);
+    if (normalized.category) params.set('category', normalized.category);
+    if (normalized.subcategory) params.set('subcategory', normalized.subcategory);
+    if (normalized.brand) params.set('brand', normalized.brand);
+    return '/catalog/' + (params.toString() ? '?' + params.toString() : '');
+  }
+
+  function findCatalogPetNode(pet) {
+    return (catalogFilterTree.pets || []).find(function (entry) {
+      return entry.label === pet;
+    }) || null;
+  }
+
+  function findCatalogCategoryNode(pet, category) {
+    var petNode = findCatalogPetNode(pet);
+    if (!petNode) return null;
+    return (petNode.categories || []).find(function (entry) {
+      return entry.label === category;
+    }) || null;
+  }
+
+  function getCatalogBrandsForState(state) {
+    var allBrandTree = catalogFilterTree.brands || {};
+
+    function collectBrandsFromCategoryMap(categoryMap) {
+      var merged = [];
+      Object.keys(categoryMap || {}).forEach(function (subcategoryKey) {
+        merged = merged.concat(categoryMap[subcategoryKey] || []);
+      });
+      return Array.from(new Set(merged)).sort();
+    }
+
+    function collectBrandsFromPetMap(petMap) {
+      var merged = [];
+      Object.keys(petMap || {}).forEach(function (categoryKey) {
+        merged = merged.concat(collectBrandsFromCategoryMap(petMap[categoryKey] || {}));
+      });
+      return Array.from(new Set(merged)).sort();
+    }
+
+    if (state.pet && state.category && state.subcategory) {
+      var exactPetBrands = allBrandTree[state.pet] || {};
+      var exactCategoryBrands = exactPetBrands[state.category] || {};
+      return exactCategoryBrands[state.subcategory] || [];
+    }
+
+    if (state.pet && state.category) {
+      var categoryPetBrands = allBrandTree[state.pet] || {};
+      return collectBrandsFromCategoryMap(categoryPetBrands[state.category] || {});
+    }
+
+    if (state.pet) {
+      return collectBrandsFromPetMap(allBrandTree[state.pet] || {});
+    }
+
+    var mergedAll = [];
+    Object.keys(allBrandTree).forEach(function (petKey) {
+      mergedAll = mergedAll.concat(collectBrandsFromPetMap(allBrandTree[petKey] || {}));
+    });
+    return Array.from(new Set(mergedAll)).sort();
+  }
+
+  function renderCatalogDraftChip(label, state, active) {
+    return ''
+      + '<button type="button"'
+      + ' class="catalog-chip inline-flex min-h-[34px] items-center justify-center rounded-full border border-[#dbe7f5] px-4 py-2 text-[12px] font-semibold ' + (active ? 'is-active' : 'bg-[#f8fbff] text-[#4a5568]') + '"'
+      + ' data-pet="' + escapeHtml(state.pet || '') + '"'
+      + ' data-category="' + escapeHtml(state.category || '') + '"'
+      + ' data-subcategory="' + escapeHtml(state.subcategory || '') + '"'
+      + ' data-brand="' + escapeHtml(state.brand || '') + '"'
+      + ' onclick="event.preventDefault(); event.stopPropagation(); setCatalogFilterDraftFromElement(this)">'
+      + escapeHtml(label)
+      + '</button>';
+  }
+
+  function renderCatalogFilterDraftSections() {
+    var draft = normalizeCatalogFilterState(catalogFilterDraft || readCatalogFilterState());
+    var petNode = findCatalogPetNode(draft.pet);
+    var categoryNode = findCatalogCategoryNode(draft.pet, draft.category);
+    var brands = getCatalogBrandsForState(draft);
+
+    if (catalogFilterCategoryOptions) {
+      catalogFilterCategoryOptions.innerHTML = petNode
+        ? (petNode.categories || []).map(function (entry) {
+            return renderCatalogDraftChip(entry.label, {
+              pet: draft.pet,
+              category: entry.label,
+              subcategory: '',
+              brand: '',
+            }, draft.category === entry.label);
+          }).join('')
+        : '';
+    }
+    if (catalogFilterCategoryReset) {
+      catalogFilterCategoryReset.classList.toggle('hidden', !draft.category);
+    }
+
+    if (catalogFilterDetailGroups) {
+      if (!categoryNode) {
+        catalogFilterDetailGroups.innerHTML = '';
+      } else {
+        catalogFilterDetailGroups.innerHTML = (categoryNode.groups || []).map(function (group, index) {
+          var itemsMarkup = (group.items || []).map(function (item) {
+            return renderCatalogDraftChip(item.label, {
+              pet: draft.pet,
+              category: draft.category,
+              subcategory: item.value,
+              brand: '',
+            }, draft.subcategory === item.value);
+          }).join('');
+          return ''
+            + '<div class="' + (index > 0 ? 'mt-5 border-t border-[#edf2f7] pt-5' : '') + '">'
+            +   (group.label && group.label !== '전체' ? '<p class="text-[13px] font-bold text-[#90a4b8]">' + escapeHtml(group.label) + '</p>' : '')
+            +   '<div class="' + (group.label && group.label !== '전체' ? 'mt-3 ' : '') + 'flex flex-wrap gap-2">' + itemsMarkup + '</div>'
+            + '</div>';
+        }).join('');
+      }
+    }
+    if (catalogFilterDetailReset) {
+      catalogFilterDetailReset.classList.toggle('hidden', !draft.subcategory && !draft.brand);
+    }
+
+    if (catalogFilterBrandOptions) {
+      catalogFilterBrandOptions.innerHTML = brands.map(function (brandLabel) {
+        return renderCatalogDraftChip(brandLabel, {
+          pet: draft.pet,
+          category: draft.category,
+          subcategory: draft.subcategory,
+          brand: brandLabel,
+        }, draft.brand === brandLabel);
+      }).join('');
+    }
+    if (catalogFilterBrandReset) {
+      catalogFilterBrandReset.classList.toggle('hidden', !draft.brand);
+    }
+  }
+
+  function sameCatalogFilterState(a, b) {
+    return !!a && !!b
+      && (a.pet || '') === (b.pet || '')
+      && (a.category || '') === (b.category || '')
+      && (a.subcategory || '') === (b.subcategory || '')
+      && (a.brand || '') === (b.brand || '');
+  }
+
+  function syncCatalogFilterSectionVisibility() {
+    var draft = normalizeCatalogFilterState(catalogFilterDraft || readCatalogFilterState());
+    if (catalogFilterCategorySection) {
+      catalogFilterCategorySection.classList.toggle('hidden', !draft.pet);
+    }
+    if (catalogFilterDetailSection) {
+      catalogFilterDetailSection.classList.toggle('hidden', !draft.category);
+    }
+    if (catalogFilterBrandSection) {
+      catalogFilterBrandSection.classList.remove('hidden');
+    }
+  }
+
+  function syncCatalogFilterDraftUI() {
+    if (!catalogFilterPanel || !catalogFilterDraft) return;
+    catalogFilterDraft = normalizeCatalogFilterState(catalogFilterDraft);
+    catalogFilterPanel.querySelectorAll('[data-filter-href]').forEach(function (node) {
+      var targetState = normalizeCatalogFilterState(readCatalogFilterState(node.getAttribute('data-filter-href') || ''));
+      var isActive = false;
+      if (!targetState.pet && !targetState.category && !targetState.subcategory && !targetState.brand) {
+        isActive = !catalogFilterDraft.pet;
+      } else if (targetState.pet && !targetState.category && !targetState.subcategory && !targetState.brand) {
+        isActive = targetState.pet === catalogFilterDraft.pet;
+      } else {
+        isActive = sameCatalogFilterState(targetState, catalogFilterDraft);
+      }
+      node.classList.toggle('is-active', isActive);
+      if (isActive) {
+        node.classList.remove('bg-[#f8fbff]', 'text-[#4a5568]');
+      } else if (!node.classList.contains('bg-[#f8fbff]')) {
+        node.classList.add('bg-[#f8fbff]', 'text-[#4a5568]');
+      }
+    });
+    syncCatalogFilterSectionVisibility();
+    renderCatalogFilterDraftSections();
+  }
+
+  window.setCatalogFilterDraftFromElement = function (node) {
+    if (!node) return;
+    catalogFilterDraft = normalizeCatalogFilterState({
+      pet: node.getAttribute('data-pet') || '',
+      category: node.getAttribute('data-category') || '',
+      subcategory: node.getAttribute('data-subcategory') || '',
+      brand: node.getAttribute('data-brand') || '',
+    });
+    syncCatalogFilterDraftUI();
+  };
+
+  window.setCatalogFilterDraft = function (href) {
+    if (!href) return;
+    catalogFilterDraft = normalizeCatalogFilterState(readCatalogFilterState(href));
+    syncCatalogFilterDraftUI();
+  };
+
+  window.applyCatalogFilterDraft = function () {
+    var draft = normalizeCatalogFilterState(catalogFilterDraft || readCatalogFilterState());
+    var params = new URLSearchParams(window.location.search);
+    ['pet', 'category', 'subcategory', 'brand'].forEach(function (key) {
+      params.delete(key);
+      if (draft[key]) {
+        params.set(key, draft[key]);
+      }
+    });
+    params.delete('page');
+    window.location.href = '/catalog/' + (params.toString() ? '?' + params.toString() : '');
+  };
+
+  window.resetCatalogFilters = function () {
+    var params = new URLSearchParams(window.location.search);
+    ['pet', 'category', 'subcategory', 'brand', 'page'].forEach(function (key) {
+      params.delete(key);
+    });
+    var nextHref = '/catalog/' + (params.toString() ? '?' + params.toString() : '');
+    if (catalogFilterOverlay) {
+      catalogFilterOverlay.classList.remove('is-open');
+      window.setTimeout(function () {
+        window.location.href = nextHref;
+      }, 120);
+      return;
+    }
+    window.location.href = nextHref;
+  };
+
+  window.resetCatalogFilterLevel = function (level) {
+    var draft = normalizeCatalogFilterState(catalogFilterDraft || readCatalogFilterState());
+    if (level === 'category') {
+      draft.category = '';
+      draft.subcategory = '';
+      draft.brand = '';
+    } else if (level === 'detail') {
+      draft.subcategory = '';
+      draft.brand = '';
+    } else if (level === 'brand') {
+      draft.brand = '';
+    }
+    catalogFilterDraft = normalizeCatalogFilterState(draft);
+    syncCatalogFilterDraftUI();
+  };
+
+  function syncCatalogSortTriggerLabel() {
+    if (!catalogSortSelect) return;
+    var selectedOption = catalogSortSelect.options[catalogSortSelect.selectedIndex];
+    var label = selectedOption ? selectedOption.textContent : '정렬';
+    if (catalogSortTriggerText) catalogSortTriggerText.textContent = label;
+    if (catalogSortTriggerTextMobile) catalogSortTriggerTextMobile.textContent = label;
+  }
+
+  function closeCatalogSortDropdown(target) {
+    if ((!target || target === 'desktop') && catalogSortOptions && catalogSortTrigger) {
+      catalogSortOptions.classList.remove('is-open');
+      catalogSortTrigger.classList.remove('is-open');
+      catalogSortTrigger.setAttribute('aria-expanded', 'false');
+    }
+    if ((!target || target === 'mobile') && catalogSortOptionsMobile && catalogSortTriggerMobile) {
+      catalogSortOptionsMobile.classList.remove('is-open');
+      catalogSortTriggerMobile.classList.remove('is-open');
+      catalogSortTriggerMobile.setAttribute('aria-expanded', 'false');
+    }
+  }
+
+  window.toggleCatalogSortDropdown = function (target) {
+    var isMobile = target === 'mobile';
+    var trigger = isMobile ? catalogSortTriggerMobile : catalogSortTrigger;
+    var panel = isMobile ? catalogSortOptionsMobile : catalogSortOptions;
+    if (!trigger || !panel) return;
+    var isOpen = panel.classList.contains('is-open');
+    if (isOpen) {
+      closeCatalogSortDropdown(target);
+      return;
+    }
+    closeCatalogSortDropdown();
+    panel.classList.add('is-open');
+    trigger.classList.add('is-open');
+    trigger.setAttribute('aria-expanded', 'true');
+  };
+
+  window.selectCatalogSort = function (href, label) {
+    if (catalogSortSelect) {
+      catalogSortSelect.value = href;
+    }
+    if (catalogSortTriggerText) {
+      catalogSortTriggerText.textContent = label || '정렬';
+    }
+    if (catalogSortTriggerTextMobile) {
+      catalogSortTriggerTextMobile.textContent = label || '정렬';
+    }
+    closeCatalogSortDropdown();
+    if (href) {
+      window.location.href = href;
+    }
+  };
+
   function escapeHtml(value) {
     return String(value || '')
       .replace(/&/g, '&amp;')
@@ -552,13 +1710,18 @@
     }
   }
 
+  function compactPriceLabel(value) {
+    var raw = String(value || '').trim();
+    if (!raw || raw === '가격 정보 없음') return raw || '가격 정보 없음';
+    return '₩ ' + raw.replace(/원/g, '').trim();
+  }
+
   function drawerItemMarkup(item) {
     var productId = escapeHtml(item.product_id || item.goods_id || '');
     var productUrl = escapeHtml(item.product_url || '');
-    var brandName = escapeHtml(item.brand_name || item.brand || '');
     var productName = escapeHtml(item.product_name || item.name || '추천 상품');
     var summary = escapeHtml(item.summary || '');
-    var priceLabel = escapeHtml(item.price_label || item.price || '가격 정보 없음');
+    var priceLabel = escapeHtml(compactPriceLabel(item.price_label || item.price || '가격 정보 없음'));
     var rating = item.rating ? escapeHtml(item.rating) : '';
     var reviewCount = escapeHtml(item.review_count || item.reviews || '0');
     var thumbnailUrl = escapeHtml(item.thumbnail_url || '');
@@ -569,8 +1732,7 @@
       + '      <img src="' + thumbnailUrl + '" alt="' + productName + '" class="h-full w-full object-cover">'
       + '    </a>'
       + '    <div class="min-w-0 flex-1">'
-      + (brandName ? '      <p class="truncate text-[11px] font-semibold text-[#90a4b8]">' + brandName + '</p>' : '')
-      + '      <a href="' + productUrl + '" target="_blank" rel="noreferrer" class="mt-1 block text-[14px] font-bold leading-[1.5] text-[#2d3748] hover:text-[#3182ce]">' + productName + '</a>'
+      + '      <a href="' + productUrl + '" target="_blank" rel="noreferrer" class="block text-[14px] font-bold leading-[1.5] text-[#2d3748] hover:text-[#3182ce]">' + productName + '</a>'
       + (summary ? '      <p class="mt-2 text-[12px] leading-[1.6] text-[#718096]">' + summary + '</p>' : '')
       + '      <div class="mt-3 flex items-end justify-between gap-3">'
       + '        <div>'
@@ -581,12 +1743,12 @@
       + '          </p>'
       + '        </div>'
       + '        <div class="flex items-center gap-2">'
-      + '          <button type="button" class="wishlist-heart inline-flex h-[28px] w-[28px] shrink-0 items-center justify-center rounded-full border border-[#e2e8f0] bg-white leading-none transition-colors hover:text-[#e53e3e]" aria-label="관심 상품 상태 변경" data-product-id="' + productId + '" onclick="toggleCatalogWishlist(this)">'
+      + '          <button type="button" class="wishlist-heart inline-flex h-[28px] w-[28px] shrink-0 items-center justify-center rounded-full border border-[#e2e8f0] bg-white leading-none transition-colors" aria-label="관심 상품 상태 변경" data-product-id="' + productId + '" onclick="toggleCatalogWishlist(this)">'
       + '            <svg width="15" height="15" viewBox="0 0 24 24" fill="none" aria-hidden="true"><path d="M12 20.4 4.9 13.8a4.8 4.8 0 0 1 6.8-6.8L12 7.3l.3-.3a4.8 4.8 0 0 1 6.8 6.8L12 20.4Z" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"/></svg>'
       + '            <svg width="15" height="15" viewBox="0 0 24 24" fill="currentColor" aria-hidden="true"><path d="M12 20.4 4.9 13.8a4.8 4.8 0 0 1 6.8-6.8L12 7.3l.3-.3a4.8 4.8 0 0 1 6.8 6.8L12 20.4Z"/></svg>'
       + '          </button>'
       + '          <button type="button" class="inline-flex h-[28px] w-[28px] shrink-0 items-center justify-center rounded-full bg-[#2d3748] text-[16px] font-semibold leading-none text-white" data-product-id="' + productId + '" data-in-cart="0" aria-label="장바구니에 상품 추가" onclick="addCatalogToCart(this)">'
-      + '            <span class="relative top-[-1px]">+</span>'
+      + '            <span>+</span>'
       + '          </button>'
       + '        </div>'
       + '      </div>'
@@ -608,8 +1770,12 @@
   function renderCatalogSessionDrawerItems(items) {
     if (!catalogSessionDrawerBody) return;
     var normalizedItems = Array.isArray(items) ? items : [];
+    if (catalogSessionLauncher) {
+      catalogSessionLauncher.classList.toggle('is-ready', normalizedItems.length > 0);
+      catalogSessionLauncher.setAttribute('aria-disabled', normalizedItems.length ? 'false' : 'true');
+    }
     if (catalogSessionDrawerSubtitle) {
-      catalogSessionDrawerSubtitle.textContent = catalogCurrentSessionId ? '현재 채팅 세션에서 추천된 상품' : '추천 세션이 연결되지 않았어요';
+      catalogSessionDrawerSubtitle.textContent = catalogCurrentSessionId ? '현재 채팅 세션에서 추천된 상품' : '';
     }
     if (!normalizedItems.length) {
       catalogSessionDrawerBody.innerHTML = drawerEmptyMarkup(!!catalogCurrentSessionId);
@@ -623,23 +1789,50 @@
     catalogSessionDrawer.classList.toggle('is-open');
   };
 
-  window.closeCatalogSessionDrawer = function () {
+  window.openCatalogFilterPanel = function () {
+    if (!catalogFilterOverlay) return;
+    catalogFilterDraft = normalizeCatalogFilterState(readCatalogFilterState());
+    syncCatalogFilterDraftUI();
+    catalogFilterOverlay.classList.add('is-open');
+  };
+
+  window.closeCatalogFilterPanel = function (event) {
+    if (!catalogFilterOverlay) return;
+    if (event && event.target !== catalogFilterOverlay) return;
+    catalogFilterOverlay.classList.remove('is-open');
+  };
+
+  window.closeCatalogSessionDrawer = function (event) {
+    if (event && catalogSessionDrawer && event.target !== catalogSessionDrawer) return;
     if (!catalogSessionDrawer) return;
     catalogSessionDrawer.classList.remove('is-open');
   };
 
   document.addEventListener('mousedown', function (event) {
-    if (!catalogSessionDrawer || !catalogSessionDrawer.classList.contains('is-open')) return;
-    if (catalogSessionDrawer.contains(event.target)) return;
-    closeCatalogSessionDrawer();
+    if (profileMenuWrapper && !profileMenuWrapper.contains(event.target) && profileMenu) {
+      profileMenu.classList.remove('is-open');
+    }
+    var desktopDropdown = catalogSortTrigger ? catalogSortTrigger.closest('.catalog-sort-dropdown') : null;
+    var mobileDropdown = catalogSortTriggerMobile ? catalogSortTriggerMobile.closest('.catalog-sort-dropdown') : null;
+    if (desktopDropdown && !desktopDropdown.contains(event.target) && mobileDropdown && !mobileDropdown.contains(event.target)) {
+      closeCatalogSortDropdown();
+    } else if (desktopDropdown && !desktopDropdown.contains(event.target) && !mobileDropdown) {
+      closeCatalogSortDropdown('desktop');
+    } else if (mobileDropdown && !mobileDropdown.contains(event.target) && !desktopDropdown) {
+      closeCatalogSortDropdown('mobile');
+    } else if (desktopDropdown && mobileDropdown && !desktopDropdown.contains(event.target) && !mobileDropdown.contains(event.target)) {
+      closeCatalogSortDropdown();
+    }
   });
 
   if (catalogCurrentSessionId) {
     var storedItems = readStoredSessionRecommendations(catalogCurrentSessionId);
-    if (storedItems.length) {
-      renderCatalogSessionDrawerItems(storedItems);
-    }
+    renderCatalogSessionDrawerItems(storedItems);
+  } else {
+    renderCatalogSessionDrawerItems([]);
   }
+
+  syncCatalogSortTriggerLabel();
 
   window.addEventListener('storage', function (event) {
     if (!catalogCurrentSessionId) return;
@@ -650,7 +1843,7 @@
   window.toggleCatalogWishlist = function (button) {
     var productId = button && button.dataset ? button.dataset.productId : '';
     if (!productId) {
-      showCatalogToast('상품 식별 정보를 찾을 수 없습니다.');
+      showCatalogToast('상품 식별 정보를 찾을 수 없습니다');
       return;
     }
 
@@ -660,16 +1853,20 @@
       body: JSON.stringify({ product_id: productId }),
     }).then(function () {
       button.classList.toggle('is-active', !isActive);
-      showCatalogToast(isActive ? '관심 상품에서 제거했습니다.' : '관심 상품에 저장했습니다.');
+      if (!isActive) {
+        setCatalogNavIndicatorState('wishlist', true);
+      }
+      refreshCatalogNavIndicators();
+      showCatalogToast(isActive ? '관심상품에서 뺐어요' : '관심상품에 담았어요');
     }).catch(function (error) {
-      showCatalogToast(error.message || '관심 상품 상태를 변경하지 못했습니다.');
+      showCatalogToast(error.message || '관심상품을 변경하지 못했어요');
     });
   };
 
   window.addCatalogToCart = function (button) {
     var productId = button && button.dataset ? button.dataset.productId : '';
     if (!productId) {
-      showCatalogToast('상품 식별 정보를 찾을 수 없습니다.');
+      showCatalogToast('상품 식별 정보를 찾을 수 없습니다');
       return;
     }
 
@@ -681,9 +1878,11 @@
       }),
     }).then(function () {
       button.dataset.inCart = '1';
-      showCatalogToast('장바구니에 상품을 담았습니다.');
+      setCatalogNavIndicatorState('cart', true);
+      refreshCatalogNavIndicators();
+      showCatalogToast('장바구니에 담았어요');
     }).catch(function (error) {
-      showCatalogToast(error.message || '장바구니에 상품을 담지 못했습니다.');
+      showCatalogToast(error.message || '장바구니에 담지 못했어요');
     });
   };
 })();

@@ -32,21 +32,21 @@ ORDER_STATUS_META = {
         "tone": "info",
         "can_reorder": True,
         "detail_hint": "상품 준비가 시작되면\n배송 상태가 업데이트됩니다",
-        "cta_label": "같은 구성 다시 담기",
+        "cta_label": "다시 담기",
     },
     "shipping": {
         "label": "배송 중",
         "tone": "info",
         "can_reorder": True,
         "detail_hint": "상품이 배송 중입니다\n필요한 구성은 다시 주문할 수 있어요",
-        "cta_label": "같은 구성 다시 담기",
+        "cta_label": "다시 담기",
     },
     "completed": {
         "label": "배송 완료",
         "tone": "success",
         "can_reorder": True,
         "detail_hint": "배송이 완료된 주문입니다\n필요한 상품은 다시 주문할 수 있어요",
-        "cta_label": "다시 주문하기",
+        "cta_label": "다시 담기",
     },
     "cancelled": {
         "label": "주문 취소",
@@ -78,18 +78,7 @@ def error_response(detail, *, code, status_code, field=None, missing_fields=None
 
 
 def _display_product_name(brand_name, goods_name):
-    if not goods_name:
-        return ""
-
-    normalized_brand = (brand_name or "").strip()
-    normalized_name = goods_name.strip()
-
-    if normalized_brand and normalized_name.lower().startswith(normalized_brand.lower()):
-        trimmed = normalized_name[len(normalized_brand):].lstrip(" -_/|")
-        if trimmed:
-            return trimmed
-
-    return normalized_name
+    return (goods_name or "").strip()
 
 
 def serialize_product_summary(product: Product) -> dict:

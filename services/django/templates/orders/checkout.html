@@ -1,0 +1,1561 @@
+{% extends "base.html" %}
+{% block title %}주문 정보 — TailTalk{% endblock %}
+
+{% block head %}
+<style>
+  #pageGate {
+    min-height: 100dvh;
+    background: #f8f9fb;
+  }
+
+  #pageGate > .app-shell {
+    position: relative;
+    width: min(100%, 960px);
+    min-height: 100dvh;
+    height: 100dvh;
+    margin: 0 auto;
+    overflow: hidden;
+    background: #f8f9fb;
+  }
+
+  #checkoutHeader {
+    position: absolute;
+    inset: 0 0 auto 0;
+    height: 72px;
+    border-bottom: 1px solid #e2e8f0;
+    background: #fff;
+    z-index: 40;
+  }
+
+  #checkoutHeaderInner {
+    display: grid;
+    grid-template-columns: 40px auto 40px;
+    align-items: center;
+    gap: 8px;
+    height: 100%;
+    padding: 0 12px;
+  }
+
+  #checkoutHeaderLogo {
+    justify-self: center;
+    font-size: 26px;
+    font-weight: 700;
+    line-height: 1;
+    color: #2d3748;
+    white-space: nowrap;
+  }
+
+  #headerSubnav {
+    position: absolute;
+    inset: 72px 0 auto 0;
+    z-index: 35;
+    border-bottom: 1px solid #e8eef6;
+    background: rgba(255, 255, 255, 0.98);
+    backdrop-filter: blur(12px);
+  }
+
+  #headerSubnavRail {
+    display: grid;
+    grid-template-columns: repeat(4, minmax(0, 1fr));
+    width: 100%;
+  }
+
+  .header-subnav-link {
+    position: relative;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    height: 44px;
+    color: #4a5568;
+    transition: background-color 160ms ease, color 160ms ease;
+  }
+
+  .header-subnav-link + .header-subnav-link::before {
+    content: '';
+    position: absolute;
+    left: 0;
+    top: 10px;
+    bottom: 10px;
+    width: 1px;
+    background: #e8eef6;
+  }
+
+  .header-subnav-link:hover {
+    background: #f8fbff;
+  }
+
+  .header-subnav-link.is-active {
+    color: #2d3748;
+    background: #f8f9fb;
+  }
+
+  .header-subnav-link.has-indicator::after {
+    content: '';
+    position: absolute;
+    top: 9px;
+    right: calc(50% - 12px);
+    width: 6px;
+    height: 6px;
+    border-radius: 9999px;
+    background: #f97316;
+  }
+
+  #profileMenuWrapper {
+    position: relative;
+    height: 40px;
+    width: 40px;
+  }
+
+  #profileMenu {
+    position: absolute;
+    top: calc(100% + 10px);
+    right: 0;
+    width: 188px;
+    overflow: hidden;
+    border: 1px solid #e2e8f0;
+    border-radius: 18px;
+    background: #fff;
+    box-shadow: 0 18px 36px rgba(15, 23, 42, 0.12);
+    opacity: 0;
+    pointer-events: none;
+    transform: translateY(-6px);
+    transition: opacity 160ms ease, transform 160ms ease;
+    z-index: 50;
+  }
+
+  #profileMenu.is-open {
+    opacity: 1;
+    pointer-events: auto;
+    transform: translateY(0);
+  }
+
+  #checkoutViewport {
+    position: absolute;
+    inset: 116px 0 0 0;
+    overflow-y: auto;
+    padding: 24px 16px 32px;
+  }
+
+  html,
+  body,
+  body.bg-white {
+    background: #f8f9fb !important;
+  }
+
+  .checkout-sheet {
+    display: flex;
+    opacity: 0;
+    pointer-events: none;
+    transition: opacity 220ms ease;
+  }
+
+  .checkout-sheet.is-open {
+    opacity: 1;
+    pointer-events: auto;
+  }
+
+  .checkout-sheet-panel {
+    width: 100%;
+    max-width: 560px;
+    border-radius: 28px 28px 0 0;
+    background: #fff;
+    box-shadow: 0 -20px 50px rgba(15, 23, 42, 0.18);
+    transform: translateY(28px);
+    opacity: 0;
+    transition: transform 240ms ease, opacity 220ms ease;
+  }
+
+  .checkout-sheet.is-open .checkout-sheet-panel {
+    transform: translateY(0);
+    opacity: 1;
+  }
+
+  .discount-modal {
+    display: flex;
+    opacity: 0;
+    pointer-events: none;
+    transition: opacity 220ms ease;
+  }
+
+  .discount-modal.is-open {
+    opacity: 1;
+    pointer-events: auto;
+  }
+
+  .discount-sheet-panel {
+    width: 100%;
+    max-width: 560px;
+    border-radius: 28px 28px 0 0;
+    background: #fff;
+    box-shadow: 0 -20px 50px rgba(15, 23, 42, 0.18);
+    transform: translateY(28px);
+    opacity: 0;
+    transition: transform 240ms ease, opacity 220ms ease;
+  }
+
+  .discount-modal.is-open .discount-sheet-panel {
+    transform: translateY(0);
+    opacity: 1;
+  }
+
+  @media (min-width: 768px) {
+    .discount-sheet-panel {
+      border-radius: 24px;
+      box-shadow: 0 20px 60px rgba(15, 23, 42, 0.24);
+    }
+  }
+
+  .checkout-sheet-field {
+    display: block;
+  }
+
+  .checkout-sheet-field + .checkout-sheet-field {
+    margin-top: 12px;
+  }
+
+  .checkout-sheet-label {
+    display: block;
+    margin-bottom: 6px;
+    font-size: 12px;
+    font-weight: 600;
+    color: #718096;
+  }
+
+  .checkout-sheet-input {
+    height: 44px;
+    width: 100%;
+    border: 1px solid #dbe7f5;
+    border-radius: 14px;
+    background: #f8fbff;
+    padding: 0 14px;
+    font-size: 14px;
+    font-weight: 500;
+    color: #2d3748;
+    outline: none;
+  }
+
+  .checkout-sheet-input:focus {
+    border-color: #90cdf4;
+    background: #fff;
+  }
+
+  .checkout-sheet-input.is-invalid {
+    border-color: #fca5a5;
+    background: #fff5f5;
+  }
+
+  .checkout-sheet-helper {
+    margin-top: 6px;
+    font-size: 12px;
+    line-height: 1.45;
+    color: #718096;
+  }
+
+  .checkout-sheet-helper.is-error {
+    color: #dc2626;
+  }
+
+  .checkout-address-row {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    height: 44px;
+    width: 100%;
+    border: 1px solid #d7dee8;
+    border-radius: 14px;
+    overflow: hidden;
+    background: #eef2f7;
+    padding: 0 12px;
+  }
+
+  .checkout-address-postal {
+    flex: 0 0 5ch;
+    width: 5ch;
+    min-width: 0;
+    border: 0;
+    background: transparent;
+    font-size: 13px;
+    font-weight: 600;
+    color: #4a5568;
+    text-align: center;
+    font-variant-numeric: tabular-nums;
+    outline: none;
+  }
+
+  .checkout-address-postal::placeholder {
+    color: #718096;
+  }
+
+  .checkout-address-divider {
+    width: 1px;
+    align-self: stretch;
+    background: #d7dee8;
+  }
+
+  .checkout-address-main {
+    min-width: 0;
+    flex: 1 1 auto;
+    border: 0;
+    background: transparent;
+    font-size: 14px;
+    font-weight: 500;
+    color: #2d3748;
+    outline: none;
+  }
+
+  .checkout-address-postal[readonly],
+  .checkout-address-main[readonly] {
+    cursor: not-allowed;
+  }
+
+  .checkout-address-search-cell {
+    display: inline-flex;
+    flex: 0 0 34px;
+    align-self: stretch;
+    align-items: center;
+    justify-content: center;
+    margin: 0 -12px 0 -8px;
+    background: #ffffff;
+  }
+
+  .checkout-address-search-trigger {
+    display: inline-flex;
+    width: 100%;
+    height: 100%;
+    align-items: center;
+    justify-content: center;
+    padding: 0;
+    color: #3182ce;
+  }
+
+  .checkout-address-main::placeholder,
+  .checkout-sheet-input::placeholder {
+    color: #a0aec0;
+  }
+
+  .checkout-payment-option {
+    display: flex;
+    width: 100%;
+    align-items: center;
+    justify-content: space-between;
+    gap: 16px;
+    border: 1px solid #dbe7f5;
+    border-radius: 16px;
+    background: #fff;
+    padding: 14px 16px;
+    text-align: left;
+    transition: border-color 160ms ease, background-color 160ms ease;
+  }
+
+  .checkout-payment-option + .checkout-payment-option {
+    margin-top: 10px;
+  }
+
+  .checkout-payment-option.is-active {
+    border-color: #90cdf4;
+    background: #f8fbff;
+  }
+
+  .checkout-payment-option-badge {
+    display: inline-flex;
+    height: 22px;
+    min-width: 22px;
+    align-items: center;
+    justify-content: center;
+    border-radius: 9999px;
+    border: 1.5px solid #cbd5e0;
+    color: transparent;
+    transition: border-color 160ms ease, background-color 160ms ease, color 160ms ease;
+  }
+
+  .checkout-payment-option.is-active .checkout-payment-option-badge {
+    border-color: #2d3748;
+    background: #2d3748;
+    color: #fff;
+  }
+
+  .checkout-confirm-modal {
+    display: none;
+  }
+
+  .checkout-confirm-modal.is-open {
+    display: flex;
+  }
+
+  .checkout-feedback-toast {
+    opacity: 0;
+    visibility: hidden;
+    transform: translate(-50%, 10px) scale(0.98);
+    transition: opacity 180ms ease, transform 180ms ease;
+  }
+
+  .checkout-feedback-toast.is-open {
+    opacity: 1;
+    visibility: visible;
+    transform: translate(-50%, 0) scale(1);
+  }
+
+  #mileageInput::-webkit-outer-spin-button,
+  #mileageInput::-webkit-inner-spin-button {
+    -webkit-appearance: none;
+    margin: 0;
+  }
+
+  #mileageInput {
+    -moz-appearance: textfield;
+    appearance: textfield;
+  }
+
+  #deliveryMessageInput {
+    resize: none;
+  }
+
+  #deliveryMessageSelect {
+    appearance: none;
+    -webkit-appearance: none;
+    -moz-appearance: none;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+    background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='12' height='12' viewBox='0 0 12 12' fill='none'%3E%3Cpath d='M3 4.5L6 7.5L9 4.5' stroke='%23718096' stroke-width='1.4' stroke-linecap='round' stroke-linejoin='round'/%3E%3C/svg%3E");
+    background-position: right 14px center;
+    background-repeat: no-repeat;
+    background-size: 12px 12px;
+  }
+
+  #deliveryMessageSelect.hidden-native {
+    position: absolute;
+    opacity: 0;
+    pointer-events: none;
+  }
+
+  #deliveryMessageDropdown {
+    position: relative;
+  }
+
+  #deliveryMessageTrigger {
+    display: flex;
+    height: 44px;
+    width: 100%;
+    align-items: center;
+    justify-content: space-between;
+    gap: 12px;
+    overflow: hidden;
+    color: #4a5568;
+    font-size: 13px;
+    font-weight: 500;
+  }
+
+  #deliveryMessageTriggerLabel {
+    min-width: 0;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+  }
+
+  #deliveryMessageOptionPanel {
+    position: absolute;
+    top: calc(100% + 8px);
+    left: 0;
+    right: 0;
+    z-index: 20;
+    overflow: hidden;
+    border: 1px solid #dbe7f5;
+    border-radius: 16px;
+    background: #fff;
+    box-shadow: 0 16px 32px rgba(15, 23, 42, 0.12);
+  }
+
+  #deliveryMessageOptionPanel.hidden {
+    display: none;
+  }
+
+  .delivery-message-option {
+    display: flex;
+    width: 100%;
+    align-items: center;
+    min-height: 44px;
+    padding: 10px 14px;
+    text-align: left;
+    font-size: 13px;
+    font-weight: 500;
+    line-height: 1.45;
+    color: #4a5568;
+    background: #fff;
+  }
+
+  .delivery-message-option + .delivery-message-option {
+    border-top: 1px solid #edf2f7;
+  }
+
+  .delivery-message-option:hover {
+    background: #f8fbff;
+  }
+
+  .delivery-message-option.is-active {
+    color: #2d3748;
+    background: #f8fbff;
+  }
+
+  @media (max-width: 767px) {
+    #pageGate > .app-shell {
+      width: 100vw;
+    }
+  }
+
+  @media (min-width: 768px) {
+    .checkout-sheet {
+      align-items: center;
+      justify-content: center;
+    }
+
+    .checkout-sheet-panel {
+      border-radius: 24px;
+      box-shadow: 0 24px 60px rgba(15, 23, 42, 0.18);
+      transform: translateY(16px) scale(0.985);
+    }
+
+    .checkout-sheet.is-open .checkout-sheet-panel {
+      transform: translateY(0) scale(1);
+    }
+  }
+</style>
+{% endblock %}
+
+{% block content %}
+<div id="pageGate" class="min-h-screen bg-[#f8f9fb]">
+  <div class="app-shell">
+    <header id="checkoutHeader">
+      <div id="checkoutHeaderInner">
+        <div></div>
+        <a href="/chat/" id="checkoutHeaderLogo" aria-label="메인으로 돌아가기">
+          <span class="text-[#3182ce]">Tail</span><span>Talk</span>
+        </a>
+        <div class="justify-self-end min-w-0">
+          <div id="profileMenuWrapper">
+            <button type="button"
+                    class="flex h-[40px] w-[40px] items-center justify-center rounded-full border border-[#e2e8f0] bg-white shadow-[0_2px_8px_rgba(45,55,72,0.05)]"
+                    aria-label="프로필 메뉴 열기"
+                    onclick="toggleProfileMenu()">
+              <svg viewBox="0 0 24 24" class="h-[30px] w-[30px] text-[#4a5568]" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+                <circle cx="12" cy="8" r="3.2"></circle>
+                <path d="M5.5 19a6.5 6.5 0 0 1 13 0"></path>
+              </svg>
+            </button>
+            <div id="profileMenu">
+              <a href="/profile/" class="flex h-[44px] w-full items-center rounded-t-[16px] px-[16px] text-[14px] text-[#2d3748] hover:bg-[#edf2f7]">내 정보</a>
+              <div class="mx-[12px] h-px bg-[#edf2f7]"></div>
+              <a href="/pets/" class="flex h-[44px] w-full items-center px-[16px] text-[14px] text-[#2d3748] hover:bg-[#edf2f7]">반려동물 정보</a>
+              <div class="mx-[12px] h-px bg-[#edf2f7]"></div>
+              <a href="/logout/" class="flex h-[44px] w-full items-center rounded-b-[16px] px-[16px] text-[14px] text-[#ef4444] hover:bg-[#fef2f2]">로그아웃</a>
+            </div>
+          </div>
+        </div>
+      </div>
+    </header>
+    <div id="headerSubnav">
+      <div id="headerSubnavRail">
+        <a href="/catalog/" class="header-subnav-link" aria-label="상품 목록" title="상품 목록">
+          <svg viewBox="0 0 24 24" class="h-[17px] w-[17px]" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+            <rect x="4" y="4" width="6" height="6" rx="1.5"></rect>
+            <rect x="14" y="4" width="6" height="6" rx="1.5"></rect>
+            <rect x="4" y="14" width="6" height="6" rx="1.5"></rect>
+            <rect x="14" y="14" width="6" height="6" rx="1.5"></rect>
+          </svg>
+        </a>
+        <a href="/products/" class="header-subnav-link is-active {% if member_nav_has_cart_items %}has-indicator{% endif %}" aria-label="장바구니" title="장바구니">
+          <svg viewBox="0 0 24 24" class="h-[18px] w-[18px]" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+            <circle cx="9" cy="20" r="1.5"></circle>
+            <circle cx="18" cy="20" r="1.5"></circle>
+            <path d="M3 4h2l2.2 10.2a1 1 0 0 0 1 .8h8.9a1 1 0 0 0 1-.75L20 8H7"></path>
+          </svg>
+        </a>
+        <a href="/wishlist/" class="header-subnav-link {% if member_nav_has_wishlist_items %}has-indicator{% endif %}" aria-label="관심 상품" title="관심 상품">
+          <svg viewBox="0 0 24 24" class="h-[17px] w-[17px]" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+            <path d="M12 20.4 4.9 13.8a4.8 4.8 0 0 1 6.8-6.8L12 7.3l.3-.3a4.8 4.8 0 0 1 6.8 6.8L12 20.4Z"></path>
+          </svg>
+        </a>
+        <a href="/orders/" class="header-subnav-link" aria-label="주문 내역" title="주문 내역">
+          <svg viewBox="0 0 24 24" class="h-[17px] w-[17px]" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+            <path d="M7 4.5h10"></path>
+            <path d="M7 9.5h10"></path>
+            <path d="M7 14.5h6"></path>
+            <rect x="4" y="3" width="16" height="18" rx="2"></rect>
+          </svg>
+        </a>
+      </div>
+    </div>
+    <div id="checkoutViewport">
+      <div class="mb-5 pl-2">
+        <h1 class="text-[24px] font-bold leading-[1.25] text-[#2d3748]">주문 정보</h1>
+        <div class="mt-3 h-px w-full bg-[#e8eef6]"></div>
+      </div>
+
+      <div class="grid gap-6">
+        <section class="rounded-[24px] border border-[#dbe7f5] bg-white p-5 shadow-[0_8px_24px_rgba(45,55,72,0.04)]">
+          <div class="flex items-center justify-between gap-3">
+            <div>
+              <p class="text-[14px] font-semibold text-[#90a4b8]">주문 예정 상품</p>
+              <p class="mt-2 text-[24px] font-bold text-[#2d3748]">총 {{ item_count }}개 상품</p>
+            </div>
+            <a href="/products/" class="inline-flex h-[34px] items-center justify-center rounded-full border border-[#dbe7f5] bg-white px-4 text-[12px] font-semibold text-[#4a5568]">장바구니 수정</a>
+          </div>
+          <div class="mt-5 space-y-4">
+            {% for item in cart_items %}
+            <article class="flex items-start gap-3 {% if not forloop.last %}border-b border-[#e2e8f0] pb-4{% endif %} md:items-center">
+              <div class="h-[60px] w-[60px] shrink-0 overflow-hidden rounded-[16px] bg-[#f8fbff]">
+                {% if item.thumbnail_url %}
+                <img src="{{ item.thumbnail_url }}" alt="{{ item.name }}" class="h-full w-full object-cover">
+                {% else %}
+                <div class="flex h-full w-full items-center justify-center text-[18px] font-bold text-[#90a4b8]">?</div>
+                {% endif %}
+              </div>
+              <div class="min-w-0 flex-1">
+                <p class="text-[15px] font-bold leading-[1.45] text-[#2d3748] line-clamp-2">{{ item.name }}</p>
+                <p class="mt-1 text-[12px] text-[#718096]">{{ item.quantity }}개 · 개당 {{ item.price_label }}</p>
+                <div class="mt-2 text-left md:hidden">
+                  <p class="text-[16px] font-bold text-[#2d3748]">{{ item.line_total_label }}</p>
+                </div>
+              </div>
+              <div class="hidden shrink-0 text-right md:block">
+                <p class="text-[16px] font-bold text-[#2d3748]">{{ item.line_total_label }}</p>
+              </div>
+            </article>
+            {% endfor %}
+          </div>
+        </section>
+
+        <section id="orderSummaryPanel"
+                 data-recipient-name="{{ recipient_name }}"
+                 data-recipient-phone="{{ recipient_phone }}"
+                 data-postal-code="{{ delivery_postal_code|default:'' }}"
+                 data-delivery-address-main="{{ delivery_base_address }}"
+                 data-delivery-address-detail="{{ delivery_detail_address }}"
+                 data-delivery-address="{{ delivery_base_address }} | {{ delivery_detail_address }}"
+                 data-payment-method="{{ payment_method }}"
+                 class="rounded-[24px] border border-[#dbe7f5] bg-white p-6 shadow-[0_10px_28px_rgba(45,55,72,0.05)]">
+          <div class="grid gap-3 md:grid-cols-2">
+            <div class="rounded-[18px] border border-[#e2e8f0] bg-white px-4 py-4">
+              <div class="flex items-start justify-between gap-4">
+                <div class="min-w-0 flex-1">
+                  <p class="text-[13px] font-semibold text-[#2563eb]">배송 정보</p>
+                  <p id="checkoutRecipientName" class="mt-2 text-[13px] font-semibold text-[#4a5568]">{{ recipient_name }}</p>
+                  <p id="checkoutDeliveryBaseAddress" class="mt-1 text-[13px] leading-[1.6] text-[#718096]">{{ delivery_base_address }}</p>
+                  <p id="checkoutDeliveryDetailAddress" class="mt-1 text-[13px] leading-[1.6] text-[#718096]">{{ delivery_detail_address }}</p>
+                  <p id="checkoutRecipientPhone" class="mt-1 text-[13px] text-[#718096]">{{ recipient_phone }}</p>
+                </div>
+                <button type="button" id="openDeliverySheetBtn" class="mt-0.5 shrink-0 text-[12px] font-semibold text-[#3182ce]">수정</button>
+              </div>
+            </div>
+            <div class="rounded-[18px] border border-[#e2e8f0] bg-white px-4 py-4">
+              <div class="flex items-start justify-between gap-4">
+                <div class="min-w-0 flex-1">
+                  <p class="text-[13px] font-semibold text-[#2563eb]">결제 수단</p>
+                  <p id="checkoutPaymentMethod" class="mt-2 text-[13px] leading-[1.6] text-[#718096]">{{ payment_method }}</p>
+                </div>
+                <button type="button" id="openPaymentSheetBtn" class="mt-0.5 shrink-0 text-[12px] font-semibold text-[#3182ce]">수정</button>
+              </div>
+            </div>
+          </div>
+
+          <div class="mt-4 rounded-[18px] border border-[#e2e8f0] bg-white px-4 py-4">
+            <p class="text-[13px] font-semibold text-[#2563eb]">배송 메시지</p>
+            <div id="deliveryMessageDropdown" class="mt-3 rounded-[16px] border border-[#dbe7f5] bg-[#f8fbff] px-4">
+              <button type="button" id="deliveryMessageTrigger" aria-haspopup="listbox" aria-expanded="false">
+                <span id="deliveryMessageTriggerLabel">직접 입력</span>
+                <svg width="12" height="12" viewBox="0 0 12 12" fill="none" aria-hidden="true" class="shrink-0 text-[#718096]">
+                  <path d="M3 4.5L6 7.5L9 4.5" stroke="currentColor" stroke-width="1.4" stroke-linecap="round" stroke-linejoin="round"/>
+                </svg>
+              </button>
+              <div id="deliveryMessageOptionPanel" class="hidden" role="listbox">
+                <button type="button" class="delivery-message-option" data-delivery-option="직접 입력">직접 입력</button>
+                <button type="button" class="delivery-message-option" data-delivery-option="문 앞에 놓아주세요">문 앞에 놓아주세요</button>
+                <button type="button" class="delivery-message-option" data-delivery-option="배송 전에 미리 연락해 주세요">배송 전에 미리 연락해 주세요</button>
+                <button type="button" class="delivery-message-option" data-delivery-option="부재 시 경비실에 맡겨 주세요">부재 시 경비실에 맡겨 주세요</button>
+                <button type="button" class="delivery-message-option" data-delivery-option="부재 시 전화 또는 문자 남겨 주세요">부재 시 전화 또는 문자 남겨 주세요</button>
+                <button type="button" class="delivery-message-option" data-delivery-option="배송 시 벨은 누르지 말아 주세요">배송 시 벨은 누르지 말아 주세요</button>
+                <button type="button" class="delivery-message-option" data-delivery-option="도착 후 문 앞 사진을 남겨 주세요">도착 후 문 앞 사진을 남겨 주세요</button>
+              </div>
+              <select id="deliveryMessageSelect" data-initial-message="{{ delivery_message }}" class="hidden-native h-[44px] w-full bg-transparent pr-8 text-[13px] font-medium text-[#4a5568] outline-none">
+                <option value="직접 입력">직접 입력</option>
+                <option value="문 앞에 놓아주세요">문 앞에 놓아주세요</option>
+                <option value="배송 전에 미리 연락해 주세요">배송 전에 미리 연락해 주세요</option>
+                <option value="부재 시 경비실에 맡겨 주세요">부재 시 경비실에 맡겨 주세요</option>
+                <option value="부재 시 전화 또는 문자 남겨 주세요">부재 시 전화 또는 문자 남겨 주세요</option>
+                <option value="배송 시 벨은 누르지 말아 주세요">배송 시 벨은 누르지 말아 주세요</option>
+                <option value="도착 후 문 앞 사진을 남겨 주세요">도착 후 문 앞 사진을 남겨 주세요</option>
+              </select>
+            </div>
+            <input id="deliveryMessageInput" type="text" maxlength="100" value="{{ delivery_message }}" placeholder="직접 입력"
+                   class="checkout-sheet-input mt-2 hidden !text-[13px] !font-medium">
+          </div>
+
+          <div class="mt-4 rounded-[18px] border border-[#e2e8f0] bg-white px-4 py-4">
+            <div class="flex items-start justify-between gap-4">
+              <p class="text-[13px] font-semibold text-[#2563eb]">할인 혜택</p>
+              <button type="button" id="openDiscountModalBtn" class="mt-0.5 shrink-0 text-[12px] font-semibold text-[#3182ce]">적용</button>
+            </div>
+            <div class="mt-3 grid gap-3 md:grid-cols-[minmax(0,1fr)_minmax(0,1fr)]">
+              <div class="min-w-0">
+                <p class="text-[12px] font-semibold text-[#2d3748]">쿠폰</p>
+                <p id="couponSummaryText" class="mt-1 truncate text-[13px] text-[#4a5568]">{{ coupon_summary }}</p>
+              </div>
+              <div class="min-w-0 md:pl-4">
+                <p class="text-[12px] font-semibold text-[#2d3748]">마일리지</p>
+                <p id="mileageSummaryText" class="mt-1 truncate text-[13px] text-[#4a5568]">{{ mileage_summary }}</p>
+              </div>
+            </div>
+          </div>
+
+          <div class="mt-5 rounded-[18px] bg-[#f8fbff] px-4 py-4">
+            <p class="text-[13px] font-semibold text-[#2563eb]">결제 금액</p>
+            <div class="mt-4 space-y-3 text-[13px] text-[#4a5568]">
+              <div class="flex items-center justify-between">
+                <span>상품 금액</span>
+                <span class="font-semibold text-[#2d3748]" id="productTotalAmount">{{ product_total }}</span>
+              </div>
+              <div class="flex items-center justify-between">
+                <span>할인 적용</span>
+                <span class="font-semibold text-[#2563eb]" id="discountTotalAmount">- {{ discount_total }}</span>
+              </div>
+              <div class="flex items-center justify-between">
+                <span>배송비</span>
+                <span class="font-semibold text-[#2d3748]" id="shippingFeeAmount">{{ shipping_fee }}</span>
+              </div>
+            </div>
+            <div class="mt-4 border-t border-[#dbe7f5] pt-4">
+              <div class="flex items-center justify-between">
+                <span class="text-[14px] font-semibold text-[#4a5568]">최종 결제 금액</span>
+                <span class="text-[24px] font-bold text-[#2563eb]" id="finalTotalAmount">{{ final_total }}</span>
+              </div>
+            </div>
+          </div>
+
+          <button type="button" id="submitOrderBtn" class="mt-6 inline-flex h-[52px] w-full items-center justify-center rounded-[16px] bg-[#2d3748] text-[15px] font-bold text-white shadow-[0_10px_24px_rgba(45,55,72,0.18)]">주문하기</button>
+        </section>
+      </div>
+    </div>
+  </div>
+</div>
+
+<div id="checkoutFeedbackToast" class="checkout-feedback-toast pointer-events-none fixed left-1/2 top-[88px] z-[70] flex min-h-[44px] min-w-[232px] max-w-[360px] -translate-x-1/2 items-center justify-center rounded-full bg-[#1f2937] px-[18px] py-[11px] text-center text-[13px] font-semibold text-white shadow-[0_14px_28px_rgba(15,23,42,0.28)]">오류가 발생했습니다.</div>
+
+<div id="deliveryInfoSheet" class="checkout-sheet fixed inset-0 z-[65] items-end bg-[rgba(15,23,42,0.38)] px-0 md:px-4" onclick="closeDeliverySheet(event)">
+  <div class="checkout-sheet-panel px-5 pb-6 pt-5 md:px-6 md:pb-6 md:pt-6" onclick="event.stopPropagation()">
+    <div class="mx-auto mb-4 h-1.5 w-12 rounded-full bg-[#e2e8f0] md:hidden"></div>
+    <div class="flex items-start justify-between gap-4">
+      <div>
+        <p class="text-[22px] font-bold text-[#2d3748]">배송 정보 수정</p>
+      </div>
+      <button type="button" class="inline-flex h-[28px] w-[28px] items-center justify-center rounded-full text-[16px] font-bold text-[#a0aec0] transition-colors hover:bg-[#f8fbff] hover:text-[#2d3748]" onclick="closeDeliverySheet()" aria-label="배송 정보 시트 닫기">X</button>
+    </div>
+    <div class="mt-5">
+      <label class="checkout-sheet-field">
+        <span class="checkout-sheet-label">수령인</span>
+        <input id="deliverySheetRecipientInput" type="text" class="checkout-sheet-input">
+      </label>
+      <label class="checkout-sheet-field">
+        <span class="checkout-sheet-label">연락처</span>
+        <input id="deliverySheetPhoneInput" type="text" class="checkout-sheet-input">
+      </label>
+      <label class="checkout-sheet-field">
+        <span class="checkout-sheet-label">주소</span>
+        <div class="checkout-address-row">
+          <input id="deliverySheetPostalCodeInput" type="text" class="checkout-address-postal" placeholder="우편" readonly>
+          <span class="checkout-address-divider" aria-hidden="true"></span>
+          <input id="deliverySheetBaseAddressInput" type="text" class="checkout-address-main" placeholder="기본 주소" readonly>
+          <span class="checkout-address-divider" aria-hidden="true"></span>
+          <span class="checkout-address-search-cell" aria-hidden="true">
+            <span class="checkout-address-search-trigger">
+              <svg viewBox="0 0 24 24" class="h-[16px] w-[16px]" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round">
+                <circle cx="11" cy="11" r="6"></circle>
+                <path d="M20 20l-3.5-3.5"></path>
+              </svg>
+            </span>
+          </span>
+        </div>
+        <input id="deliverySheetDetailAddressInput" type="text" class="checkout-sheet-input mt-2" placeholder="상세 주소">
+      </label>
+    </div>
+    <div class="mt-6 flex gap-3">
+      <button type="button" class="flex h-[46px] flex-1 items-center justify-center rounded-[14px] bg-[#edf2f7] text-[14px] font-semibold text-[#4a5568]" onclick="closeDeliverySheet()">취소</button>
+      <button type="button" id="saveDeliverySheetBtn" class="flex h-[46px] flex-1 items-center justify-center rounded-[14px] bg-[#2d3748] text-[14px] font-semibold text-white">적용하기</button>
+    </div>
+  </div>
+</div>
+
+<div id="paymentMethodSheet" class="checkout-sheet fixed inset-0 z-[65] items-end bg-[rgba(15,23,42,0.38)] px-0 md:px-4" onclick="closePaymentSheet(event)">
+  <div class="checkout-sheet-panel px-5 pb-6 pt-5 md:px-6 md:pb-6 md:pt-6" onclick="event.stopPropagation()">
+    <div class="mx-auto mb-4 h-1.5 w-12 rounded-full bg-[#e2e8f0] md:hidden"></div>
+    <div class="flex items-start justify-between gap-4">
+      <div>
+        <p class="text-[22px] font-bold text-[#2d3748]">결제 수단 수정</p>
+        <p class="mt-1 text-[13px] text-[#718096]">주문에 사용할 결제 수단을 선택해 주세요</p>
+      </div>
+      <button type="button" class="inline-flex h-[28px] w-[28px] items-center justify-center rounded-full text-[16px] font-bold text-[#a0aec0] transition-colors hover:bg-[#f8fbff] hover:text-[#2d3748]" onclick="closePaymentSheet()" aria-label="결제 수단 시트 닫기">X</button>
+    </div>
+    <div class="mt-5">
+      <button type="button" class="checkout-payment-option" data-payment-option="간편 결제">
+        <div>
+          <p class="text-[14px] font-semibold text-[#2d3748]">간편 결제</p>
+          <p class="mt-1 text-[12px] text-[#718096]">등록된 간편 결제로 바로 결제</p>
+        </div>
+        <span class="checkout-payment-option-badge">✓</span>
+      </button>
+      <button type="button" class="checkout-payment-option" data-payment-option="신용/체크카드">
+        <div>
+          <p class="text-[14px] font-semibold text-[#2d3748]">신용/체크카드</p>
+          <p class="mt-1 text-[12px] text-[#718096]">기본 등록 카드로 결제</p>
+        </div>
+        <span class="checkout-payment-option-badge">✓</span>
+      </button>
+      <button type="button" class="checkout-payment-option" data-payment-option="무통장 입금">
+        <div>
+          <p class="text-[14px] font-semibold text-[#2d3748]">무통장 입금</p>
+          <p class="mt-1 text-[12px] text-[#718096]">입금 확인 후 주문이 접수됩니다</p>
+        </div>
+        <span class="checkout-payment-option-badge">✓</span>
+      </button>
+    </div>
+    <div class="mt-6 flex gap-3">
+      <button type="button" class="flex h-[46px] flex-1 items-center justify-center rounded-[14px] bg-[#edf2f7] text-[14px] font-semibold text-[#4a5568]" onclick="closePaymentSheet()">취소</button>
+      <button type="button" id="savePaymentSheetBtn" class="flex h-[46px] flex-1 items-center justify-center rounded-[14px] bg-[#2d3748] text-[14px] font-semibold text-white">적용하기</button>
+    </div>
+  </div>
+</div>
+
+<div id="checkoutConfirmModal" class="checkout-confirm-modal fixed inset-0 z-[60] items-center justify-center bg-black/10 px-4" onclick="closeCheckoutConfirmModal(event)">
+  <div class="w-full max-w-[420px] rounded-[20px] border border-[#dbe7f5] bg-white px-8 pb-7 pt-8 shadow-[0_14px_36px_rgba(45,55,72,0.10)]" onclick="event.stopPropagation()">
+    <div class="mx-auto flex h-[81px] w-[81px] items-center justify-center rounded-full border-[4px] border-[#3182ce]">
+      <span class="relative top-[-1px] text-[44px] font-bold leading-none text-[#3182ce]">?</span>
+    </div>
+    <p class="mt-6 text-center text-[19px] font-bold leading-none text-[#2d3748]">주문을 진행할까요?</p>
+    <p class="mt-4 text-center text-[14px] leading-[1.6] text-[#718096]">배송 정보와 결제 금액을 확인한 뒤<br>주문이 접수됩니다.</p>
+    <div class="mt-6 rounded-[14px] border border-[#dbe7f5] bg-[#f8fbff] px-4 py-3">
+      <div class="flex items-center justify-between gap-3 text-[13px]">
+        <span class="font-semibold text-[#90a4b8]">최종 결제 금액</span>
+        <span id="checkoutConfirmAmount" class="font-bold text-[#2563eb]">0원</span>
+      </div>
+      <div class="mt-2 flex items-center justify-between gap-3 text-[13px]">
+        <span class="font-semibold text-[#90a4b8]">수령인</span>
+        <span id="checkoutConfirmRecipient" class="text-right font-semibold text-[#2d3748]"></span>
+      </div>
+      <div class="mt-2 flex items-center justify-between gap-3 text-[13px]">
+        <span class="font-semibold text-[#90a4b8]">연락처</span>
+        <span id="checkoutConfirmPhone" class="text-right font-semibold text-[#2d3748]"></span>
+      </div>
+      <div class="mt-2 flex items-start justify-between gap-3 text-[13px]">
+        <span class="shrink-0 font-semibold text-[#90a4b8]">배송지</span>
+        <span id="checkoutConfirmAddress" class="text-right font-semibold leading-[1.6] text-[#2d3748]"></span>
+      </div>
+    </div>
+    <div class="mt-6 flex h-[42px] items-center justify-between gap-3">
+      <button type="button" onclick="closeCheckoutConfirmModal()" class="flex h-full flex-1 items-center justify-center rounded-[8px] bg-[#edf2f7] text-[14px] font-bold text-[#4a5568]">취소</button>
+      <button type="button" id="confirmCheckoutSubmitBtn" class="flex h-full flex-1 items-center justify-center rounded-[8px] bg-[#3182ce] text-[14px] font-bold text-white">주문하기</button>
+    </div>
+  </div>
+</div>
+
+<div id="discountBenefitModal" class="discount-modal fixed inset-0 z-[65] items-end bg-[rgba(15,23,42,0.38)] px-0 md:px-4" onclick="closeDiscountModal(event)">
+  <div class="discount-sheet-panel px-5 pb-6 pt-5 md:px-6 md:pb-6 md:pt-6" onclick="event.stopPropagation()">
+    <div class="mx-auto mb-4 h-1.5 w-12 rounded-full bg-[#e2e8f0] md:hidden"></div>
+    <div class="flex items-start justify-between gap-4">
+      <div>
+        <p class="text-[22px] font-bold text-[#2d3748]">할인 혜택 적용</p>
+        <p class="mt-1 text-[13px] text-[#718096]">쿠폰과 마일리지를 선택하면 주문 정보에 바로 반영됩니다.</p>
+      </div>
+      <button type="button" class="inline-flex h-[28px] w-[28px] items-center justify-center rounded-full text-[16px] font-bold text-[#a0aec0] transition-colors hover:bg-[#f8fbff] hover:text-[#2d3748]" onclick="closeDiscountModal()" aria-label="할인 혜택 모달 닫기">X</button>
+    </div>
+    <div class="mt-5 inline-flex rounded-full border border-[#dbe7f5] bg-[#f8fbff] p-[4px]">
+      <button type="button" id="discountTabCoupon" class="inline-flex h-[36px] min-w-[92px] items-center justify-center rounded-full bg-[#2d3748] px-4 text-[13px] font-semibold text-white">쿠폰</button>
+      <button type="button" id="discountTabMileage" class="inline-flex h-[36px] min-w-[92px] items-center justify-center rounded-full px-4 text-[13px] font-semibold text-[#718096] transition-colors hover:text-[#2d3748]">마일리지</button>
+    </div>
+    <div id="discountPanelCoupon" class="mt-5 space-y-3">
+      <button type="button" class="discount-coupon-option flex w-full items-start justify-between rounded-[18px] border border-[#dbe7f5] bg-white px-4 py-4 text-left transition-colors hover:border-[#90cdf4]" data-coupon-id="none" data-coupon-label="적용된 쿠폰 없음" data-coupon-discount="0">
+        <div>
+          <p class="text-[14px] font-semibold text-[#2d3748]">쿠폰 적용 안 함</p>
+          <p class="mt-1 text-[12px] text-[#718096]">할인을 적용하지 않고 현재 금액으로 주문합니다.</p>
+        </div>
+        <span class="text-[13px] font-semibold text-[#718096]">0원</span>
+      </button>
+      <button type="button" class="discount-coupon-option flex w-full items-start justify-between rounded-[18px] border border-[#dbe7f5] bg-white px-4 py-4 text-left transition-colors hover:border-[#90cdf4]" data-coupon-id="new-member" data-coupon-label="신규회원 3,000원 할인" data-coupon-discount="3000">
+        <div>
+          <p class="text-[14px] font-semibold text-[#2d3748]">신규회원 3,000원 할인</p>
+          <p class="mt-1 text-[12px] text-[#718096]">30,000원 이상 결제 시 사용 가능</p>
+        </div>
+        <span class="text-[13px] font-semibold text-[#2563eb]">-3,000원</span>
+      </button>
+      <button type="button" class="discount-coupon-option flex w-full items-start justify-between rounded-[18px] border border-[#dbe7f5] bg-white px-4 py-4 text-left transition-colors hover:border-[#90cdf4]" data-coupon-id="pet-care" data-coupon-label="펫케어 5,000원 할인" data-coupon-discount="5000">
+        <div>
+          <p class="text-[14px] font-semibold text-[#2d3748]">펫케어 5,000원 할인</p>
+          <p class="mt-1 text-[12px] text-[#718096]">60,000원 이상 결제 시 사용 가능</p>
+        </div>
+        <span class="text-[13px] font-semibold text-[#2563eb]">-5,000원</span>
+      </button>
+    </div>
+    <div id="discountPanelMileage" class="mt-5 hidden">
+      <div class="rounded-[18px] border border-[#dbe7f5] bg-[#f8fbff] px-4 py-4">
+        <div class="flex items-center justify-between gap-4">
+          <div>
+            <p class="text-[14px] font-semibold text-[#2d3748]">사용 가능한 마일리지</p>
+            <p class="mt-1 text-[12px] text-[#718096]">보유 마일리지 3,200원</p>
+          </div>
+          <button type="button" id="useAllMileageBtn" class="shrink-0 text-[12px] font-semibold text-[#3182ce]">전액 사용</button>
+        </div>
+        <label class="mt-4 block">
+          <span class="text-[12px] font-semibold text-[#2d3748]">사용할 마일리지</span>
+          <div class="mt-2 flex items-center rounded-[14px] border border-[#dbe7f5] bg-white px-4">
+            <input id="mileageInput" type="number" min="0" max="3200" step="100" value="0" class="h-[48px] w-full bg-transparent text-[15px] font-semibold text-[#2d3748] outline-none">
+            <span class="shrink-0 text-[13px] font-semibold text-[#718096]">원</span>
+          </div>
+        </label>
+      </div>
+    </div>
+    <div class="mt-6 flex items-center justify-between gap-4 rounded-[18px] bg-[#f8fbff] px-4 py-4">
+      <div>
+        <p class="text-[12px] font-semibold text-[#718096]">예상 할인 금액</p>
+        <p id="discountModalPreviewAmount" class="mt-1 text-[22px] font-bold text-[#2563eb]">- 0원</p>
+      </div>
+      <button type="button" id="applyDiscountBtn" class="inline-flex h-[46px] items-center justify-center rounded-[14px] bg-[#2d3748] px-5 text-[14px] font-semibold text-white">적용하기</button>
+    </div>
+  </div>
+</div>
+{% endblock %}
+
+{% block scripts %}
+<script>
+(function () {
+  var profileMenu = document.getElementById('profileMenu');
+  var orderSummaryPanel = document.getElementById('orderSummaryPanel');
+  var checkoutFeedbackToast = document.getElementById('checkoutFeedbackToast');
+  var openDeliverySheetBtn = document.getElementById('openDeliverySheetBtn');
+  var openPaymentSheetBtn = document.getElementById('openPaymentSheetBtn');
+  var deliveryInfoSheet = document.getElementById('deliveryInfoSheet');
+  var paymentMethodSheet = document.getElementById('paymentMethodSheet');
+  var deliverySheetRecipientInput = document.getElementById('deliverySheetRecipientInput');
+  var deliverySheetPhoneInput = document.getElementById('deliverySheetPhoneInput');
+  var deliverySheetPostalCodeInput = document.getElementById('deliverySheetPostalCodeInput');
+  var deliverySheetBaseAddressInput = document.getElementById('deliverySheetBaseAddressInput');
+  var deliverySheetDetailAddressInput = document.getElementById('deliverySheetDetailAddressInput');
+  var saveDeliverySheetBtn = document.getElementById('saveDeliverySheetBtn');
+  var paymentOptions = Array.prototype.slice.call(document.querySelectorAll('.checkout-payment-option'));
+  var savePaymentSheetBtn = document.getElementById('savePaymentSheetBtn');
+  var checkoutRecipientName = document.getElementById('checkoutRecipientName');
+  var checkoutDeliveryBaseAddress = document.getElementById('checkoutDeliveryBaseAddress');
+  var checkoutDeliveryDetailAddress = document.getElementById('checkoutDeliveryDetailAddress');
+  var checkoutRecipientPhone = document.getElementById('checkoutRecipientPhone');
+  var checkoutPaymentMethod = document.getElementById('checkoutPaymentMethod');
+  var deliveryMessageSelect = document.getElementById('deliveryMessageSelect');
+  var deliveryMessageDropdown = document.getElementById('deliveryMessageDropdown');
+  var deliveryMessageTrigger = document.getElementById('deliveryMessageTrigger');
+  var deliveryMessageTriggerLabel = document.getElementById('deliveryMessageTriggerLabel');
+  var deliveryMessageOptionPanel = document.getElementById('deliveryMessageOptionPanel');
+  var deliveryMessageOptions = Array.prototype.slice.call(document.querySelectorAll('.delivery-message-option'));
+  var deliveryMessageCustomField = document.getElementById('deliveryMessageCustomField');
+  var deliveryMessageInput = document.getElementById('deliveryMessageInput');
+  var submitOrderBtn = document.getElementById('submitOrderBtn');
+  var checkoutConfirmModal = document.getElementById('checkoutConfirmModal');
+  var checkoutConfirmAmount = document.getElementById('checkoutConfirmAmount');
+  var checkoutConfirmRecipient = document.getElementById('checkoutConfirmRecipient');
+  var checkoutConfirmPhone = document.getElementById('checkoutConfirmPhone');
+  var checkoutConfirmAddress = document.getElementById('checkoutConfirmAddress');
+  var confirmCheckoutSubmitBtn = document.getElementById('confirmCheckoutSubmitBtn');
+  var couponSummaryText = document.getElementById('couponSummaryText');
+  var mileageSummaryText = document.getElementById('mileageSummaryText');
+  var discountModal = document.getElementById('discountBenefitModal');
+  var openDiscountModalBtn = document.getElementById('openDiscountModalBtn');
+  var discountTabCoupon = document.getElementById('discountTabCoupon');
+  var discountTabMileage = document.getElementById('discountTabMileage');
+  var discountPanelCoupon = document.getElementById('discountPanelCoupon');
+  var discountPanelMileage = document.getElementById('discountPanelMileage');
+  var couponOptions = Array.prototype.slice.call(document.querySelectorAll('.discount-coupon-option'));
+  var mileageInput = document.getElementById('mileageInput');
+  var useAllMileageBtn = document.getElementById('useAllMileageBtn');
+  var applyDiscountBtn = document.getElementById('applyDiscountBtn');
+  var discountModalPreviewAmount = document.getElementById('discountModalPreviewAmount');
+  var productTotalRaw = {{ product_total_raw }};
+  var shippingFeeRaw = {{ shipping_fee_raw }};
+  var selectedCouponId = 'none';
+  var selectedCouponLabel = '{{ coupon_summary|escapejs }}';
+  var selectedCouponDiscount = {{ discount_total_raw }};
+  var selectedMileageValue = 0;
+  var discountMode = 'coupon';
+  var selectedPaymentMethod = '';
+  var initialCardPaymentSummary = '';
+  var toastTimer = null;
+
+  window.toggleProfileMenu = function () {
+    if (!profileMenu) return;
+    profileMenu.classList.toggle('is-open');
+  };
+
+  function formatPrice(value) {
+    return new Intl.NumberFormat('ko-KR').format(value) + '원';
+  }
+
+  function getCsrfToken() {
+    var match = document.cookie.match(/(?:^|;\s*)csrftoken=([^;]+)/);
+    return match ? decodeURIComponent(match[1]) : '';
+  }
+
+  function requestJson(url, options) {
+    return fetch(url, Object.assign({
+      headers: {
+        'Content-Type': 'application/json',
+        'X-CSRFToken': getCsrfToken(),
+      },
+      credentials: 'same-origin',
+    }, options || {})).then(function (response) {
+      return response.json().catch(function () { return {}; }).then(function (data) {
+        if (!response.ok) {
+          throw new Error(data.detail || data.message || '요청 처리에 실패했습니다.');
+        }
+        return data;
+      });
+    });
+  }
+
+  function showCheckoutToast(message) {
+    if (!checkoutFeedbackToast) return;
+    checkoutFeedbackToast.textContent = message || '요청 처리에 실패했습니다.';
+    checkoutFeedbackToast.classList.add('is-open');
+    if (toastTimer) {
+      window.clearTimeout(toastTimer);
+    }
+    toastTimer = window.setTimeout(function () {
+      checkoutFeedbackToast.classList.remove('is-open');
+    }, 1800);
+  }
+
+  function splitAddressParts(value) {
+    var parts = String(value || '').split('|');
+    return {
+      base: (parts[0] || '').trim(),
+      detail: (parts[1] || '').trim(),
+    };
+  }
+
+  function normalizeDeliveryFieldValue(value) {
+    var normalized = String(value || '').trim();
+    if (
+      !normalized ||
+      normalized === '배송지 정보가 아직 등록되지 않았어요' ||
+      normalized === '기본 배송지가 아직 등록되지 않았습니다' ||
+      normalized === '상세 주소 정보가 아직 없습니다'
+    ) {
+      return '';
+    }
+    return normalized;
+  }
+
+  function formatPhoneNumber(value) {
+    var digits = String(value || '').replace(/\D/g, '').slice(0, 11);
+    if (digits.length <= 3) return digits;
+    if (digits.length <= 7) return digits.slice(0, 3) + '-' + digits.slice(3);
+    return digits.slice(0, 3) + '-' + digits.slice(3, 7) + '-' + digits.slice(7);
+  }
+
+  function extractPhoneDigits(value) {
+    return String(value || '').replace(/\D/g, '').slice(0, 11);
+  }
+
+  function validatePhoneNumber(value) {
+    return /^01\d-\d{3,4}-\d{4}$/.test(String(value || '').trim());
+  }
+
+  function syncDeliveryPhoneState() {
+    if (!deliverySheetPhoneInput) return true;
+    var formattedValue = formatPhoneNumber(deliverySheetPhoneInput.value);
+    var isValid = !formattedValue || validatePhoneNumber(formattedValue);
+    deliverySheetPhoneInput.classList.toggle('is-invalid', !isValid);
+    return isValid;
+  }
+
+  function syncSummaryFields() {
+    if (!orderSummaryPanel) return;
+    if (checkoutRecipientName) checkoutRecipientName.textContent = (orderSummaryPanel.dataset.recipientName || '').trim() || '수령인 정보가 아직 없습니다';
+    if (checkoutDeliveryBaseAddress) checkoutDeliveryBaseAddress.textContent = (orderSummaryPanel.dataset.deliveryAddressMain || '').trim() || '기본 배송지가 아직 등록되지 않았습니다';
+    if (checkoutDeliveryDetailAddress) checkoutDeliveryDetailAddress.textContent = (orderSummaryPanel.dataset.deliveryAddressDetail || '').trim() || '상세 주소 정보가 아직 없습니다';
+    if (checkoutRecipientPhone) checkoutRecipientPhone.textContent = (orderSummaryPanel.dataset.recipientPhone || '').trim() || '연락처 정보가 아직 없습니다';
+    if (checkoutPaymentMethod) checkoutPaymentMethod.textContent = (orderSummaryPanel.dataset.paymentMethod || '').trim() || '결제 수단 정보가 아직 없습니다';
+  }
+
+  function validateCheckoutState() {
+    if (!orderSummaryPanel) {
+      return { valid: false, message: '주문 정보를 확인하지 못했습니다.' };
+    }
+    var recipientName = (orderSummaryPanel.dataset.recipientName || '').trim();
+    var recipientPhone = (orderSummaryPanel.dataset.recipientPhone || '').trim();
+    var addressParts = splitAddressParts(orderSummaryPanel.dataset.deliveryAddress || '');
+    var paymentMethod = (orderSummaryPanel.dataset.paymentMethod || '').trim();
+
+    if (!recipientName || recipientName === '주문자 정보 미등록') {
+      return { valid: false, message: '수령인 정보를 먼저 확인해 주세요.' };
+    }
+    if (!recipientPhone || recipientPhone.indexOf('없습니다') !== -1) {
+      return { valid: false, message: '연락처 정보를 먼저 확인해 주세요.' };
+    }
+    if (!addressParts.base || addressParts.base.indexOf('없습니다') !== -1) {
+      return { valid: false, message: '배송지 정보를 먼저 등록해 주세요.' };
+    }
+    if (!paymentMethod || paymentMethod.indexOf('없습니다') !== -1) {
+      return { valid: false, message: '결제 수단 정보를 먼저 등록해 주세요.' };
+    }
+    return { valid: true, message: '' };
+  }
+
+  function syncCheckoutNotice() {
+    return;
+  }
+
+  function updateDiscountSummaryTexts() {
+    if (couponSummaryText) {
+      couponSummaryText.textContent = selectedCouponLabel || '적용된 쿠폰 없음';
+    }
+    if (mileageSummaryText) {
+      mileageSummaryText.textContent = selectedMileageValue > 0 ? '사용 ' + formatPrice(selectedMileageValue) : '사용 가능 3,200원';
+    }
+  }
+
+  function updateDiscountPreview() {
+    if (!discountModalPreviewAmount) return;
+    discountModalPreviewAmount.textContent = '- ' + formatPrice(selectedCouponDiscount + selectedMileageValue);
+  }
+
+  function updateCheckoutSummary() {
+    var shippingFee = productTotalRaw > 0 && productTotalRaw < 30000 ? shippingFeeRaw : 0;
+    var discountTotal = selectedCouponDiscount + selectedMileageValue;
+    var finalTotal = Math.max(productTotalRaw - discountTotal, 0) + shippingFee;
+    var discountNode = document.getElementById('discountTotalAmount');
+    var shippingNode = document.getElementById('shippingFeeAmount');
+    var finalNode = document.getElementById('finalTotalAmount');
+
+    if (discountNode) discountNode.textContent = '- ' + formatPrice(discountTotal);
+    if (shippingNode) shippingNode.textContent = shippingFee === 0 ? '무료' : formatPrice(shippingFee);
+    if (finalNode) finalNode.textContent = formatPrice(finalTotal);
+  }
+
+  function syncDeliveryMessageField() {
+    if (!deliveryMessageSelect || !deliveryMessageInput) return;
+    var isCustom = deliveryMessageSelect.value === '직접 입력';
+    deliveryMessageInput.classList.toggle('hidden', !isCustom);
+    if (deliveryMessageTriggerLabel) {
+      deliveryMessageTriggerLabel.textContent = deliveryMessageSelect.value || '직접 입력';
+    }
+    deliveryMessageOptions.forEach(function (option) {
+      var isActive = option.getAttribute('data-delivery-option') === deliveryMessageSelect.value;
+      option.classList.toggle('is-active', isActive);
+    });
+    if (isCustom) {
+      deliveryMessageInput.value = '';
+    } else {
+      deliveryMessageInput.value = deliveryMessageSelect.value;
+    }
+  }
+
+  function initDeliveryMessageField() {
+    if (!deliveryMessageSelect || !deliveryMessageInput) return;
+    var initialMessage = (deliveryMessageSelect.dataset.initialMessage || '').trim();
+    if (!initialMessage) {
+      deliveryMessageSelect.value = '직접 입력';
+      deliveryMessageInput.value = '';
+      syncDeliveryMessageField();
+      return;
+    }
+
+    var hasPreset = Array.prototype.some.call(deliveryMessageSelect.options, function (option) {
+      return option.value === initialMessage;
+    });
+
+    if (hasPreset && initialMessage !== '직접 입력') {
+      deliveryMessageSelect.value = initialMessage;
+    } else {
+      deliveryMessageSelect.value = '직접 입력';
+      deliveryMessageInput.value = initialMessage;
+    }
+    syncDeliveryMessageField();
+  }
+
+  function syncPaymentOptions() {
+    paymentOptions.forEach(function (option) {
+      var isActive = option.getAttribute('data-payment-option') === selectedPaymentMethod;
+      option.classList.toggle('is-active', isActive);
+    });
+  }
+
+  function resolvePaymentOptionFromSummary(summary) {
+    var normalized = String(summary || '').trim();
+    if (!normalized) return '';
+    if (normalized === '간편 결제') return '간편 결제';
+    if (normalized === '무통장 입금') return '무통장 입금';
+    return '신용/체크카드';
+  }
+
+  window.closeDeliverySheet = function (event) {
+    if (!deliveryInfoSheet) return;
+    if (event && event.target !== deliveryInfoSheet) return;
+    deliveryInfoSheet.classList.remove('is-open');
+  };
+
+  window.openDeliverySheet = function () {
+    if (!orderSummaryPanel || !deliveryInfoSheet) return;
+    if (deliverySheetRecipientInput) deliverySheetRecipientInput.value = normalizeDeliveryFieldValue(orderSummaryPanel.dataset.recipientName || '');
+    if (deliverySheetPhoneInput) deliverySheetPhoneInput.value = normalizeDeliveryFieldValue(orderSummaryPanel.dataset.recipientPhone || '');
+    if (deliverySheetPostalCodeInput) deliverySheetPostalCodeInput.value = normalizeDeliveryFieldValue(orderSummaryPanel.dataset.postalCode || '');
+    if (deliverySheetBaseAddressInput) deliverySheetBaseAddressInput.value = normalizeDeliveryFieldValue(orderSummaryPanel.dataset.deliveryAddressMain || '');
+    if (deliverySheetDetailAddressInput) deliverySheetDetailAddressInput.value = normalizeDeliveryFieldValue(orderSummaryPanel.dataset.deliveryAddressDetail || '');
+    deliveryInfoSheet.classList.add('is-open');
+  };
+
+  window.closePaymentSheet = function (event) {
+    if (!paymentMethodSheet) return;
+    if (event && event.target !== paymentMethodSheet) return;
+    paymentMethodSheet.classList.remove('is-open');
+  };
+
+  window.openPaymentSheet = function () {
+    if (!orderSummaryPanel || !paymentMethodSheet) return;
+    if (!initialCardPaymentSummary) {
+      var existingPaymentSummary = (orderSummaryPanel.dataset.paymentMethod || '').trim();
+      if (existingPaymentSummary && existingPaymentSummary !== '간편 결제' && existingPaymentSummary !== '무통장 입금') {
+        initialCardPaymentSummary = existingPaymentSummary;
+      }
+    }
+    selectedPaymentMethod = resolvePaymentOptionFromSummary(orderSummaryPanel.dataset.paymentMethod || '');
+    syncPaymentOptions();
+    paymentMethodSheet.classList.add('is-open');
+  };
+
+  function closeDeliveryMessageDropdown() {
+    if (!deliveryMessageOptionPanel || !deliveryMessageTrigger) return;
+    deliveryMessageOptionPanel.classList.add('hidden');
+    deliveryMessageTrigger.setAttribute('aria-expanded', 'false');
+  }
+
+  function openDeliveryMessageDropdown() {
+    if (!deliveryMessageOptionPanel || !deliveryMessageTrigger) return;
+    deliveryMessageOptionPanel.classList.remove('hidden');
+    deliveryMessageTrigger.setAttribute('aria-expanded', 'true');
+  }
+
+  function getDeliveryMessageValue() {
+    if (!deliveryMessageSelect) return '';
+    if (deliveryMessageSelect.value === '직접 입력') {
+      return deliveryMessageInput ? (deliveryMessageInput.value || '').trim() : '';
+    }
+    return deliveryMessageSelect.value;
+  }
+
+  function setDiscountTab(mode) {
+    discountMode = mode;
+    var couponActive = mode === 'coupon';
+    if (discountPanelCoupon) discountPanelCoupon.classList.toggle('hidden', !couponActive);
+    if (discountPanelMileage) discountPanelMileage.classList.toggle('hidden', couponActive);
+    if (discountTabCoupon) {
+      discountTabCoupon.classList.toggle('bg-[#2d3748]', couponActive);
+      discountTabCoupon.classList.toggle('text-white', couponActive);
+      discountTabCoupon.classList.toggle('text-[#718096]', !couponActive);
+    }
+    if (discountTabMileage) {
+      discountTabMileage.classList.toggle('bg-[#2d3748]', !couponActive);
+      discountTabMileage.classList.toggle('text-white', !couponActive);
+      discountTabMileage.classList.toggle('text-[#718096]', couponActive);
+    }
+  }
+
+  function highlightSelectedCoupon() {
+    couponOptions.forEach(function (option) {
+      var isSelected = option.getAttribute('data-coupon-id') === selectedCouponId;
+      option.classList.toggle('border-[#90cdf4]', isSelected);
+      option.classList.toggle('bg-[#f8fbff]', isSelected);
+    });
+  }
+
+  window.closeDiscountModal = function (event) {
+    if (!discountModal) return;
+    if (event && event.target !== discountModal) return;
+    discountModal.classList.remove('is-open');
+  };
+
+  window.openDiscountModal = function () {
+    if (!discountModal) return;
+    if (mileageInput) mileageInput.value = String(selectedMileageValue);
+    highlightSelectedCoupon();
+    updateDiscountPreview();
+    setDiscountTab('coupon');
+    discountModal.classList.add('is-open');
+  };
+
+  function updateConfirmSummary() {
+    if (checkoutConfirmAmount) {
+      var finalTotalNode = document.getElementById('finalTotalAmount');
+      checkoutConfirmAmount.textContent = finalTotalNode ? finalTotalNode.textContent : '0원';
+    }
+    if (checkoutConfirmRecipient) {
+      checkoutConfirmRecipient.textContent = orderSummaryPanel ? ((orderSummaryPanel.dataset.recipientName || '').trim() || '수령인 정보가 아직 없습니다') : '';
+    }
+    if (checkoutConfirmPhone) {
+      checkoutConfirmPhone.textContent = orderSummaryPanel ? ((orderSummaryPanel.dataset.recipientPhone || '').trim() || '연락처 정보가 아직 없습니다') : '';
+    }
+    if (checkoutConfirmAddress) {
+      var addressParts = splitAddressParts(orderSummaryPanel ? (orderSummaryPanel.dataset.deliveryAddress || '') : '');
+      checkoutConfirmAddress.textContent = [addressParts.base, addressParts.detail].filter(Boolean).join(', ') || '배송지 정보가 아직 없습니다';
+    }
+  }
+
+  window.closeCheckoutConfirmModal = function (event) {
+    if (!checkoutConfirmModal) return;
+    if (event && event.target !== checkoutConfirmModal) return;
+    checkoutConfirmModal.classList.remove('is-open');
+    if (confirmCheckoutSubmitBtn) {
+      confirmCheckoutSubmitBtn.disabled = false;
+      confirmCheckoutSubmitBtn.textContent = '주문하기';
+    }
+  };
+
+  function setSubmitLoading(isLoading) {
+    if (!submitOrderBtn) return;
+    submitOrderBtn.disabled = isLoading;
+    submitOrderBtn.textContent = isLoading ? '주문 처리 중...' : '주문하기';
+    submitOrderBtn.classList.toggle('opacity-60', isLoading);
+  }
+
+  function setConfirmCheckoutLoading(isLoading) {
+    if (!confirmCheckoutSubmitBtn) return;
+    confirmCheckoutSubmitBtn.disabled = isLoading;
+    confirmCheckoutSubmitBtn.textContent = isLoading ? '주문 처리 중...' : '주문하기';
+  }
+
+  function submitOrderRequest() {
+    if (!orderSummaryPanel) return;
+    if (confirmCheckoutSubmitBtn && confirmCheckoutSubmitBtn.disabled) return;
+    setSubmitLoading(true);
+    setConfirmCheckoutLoading(true);
+    requestJson('/api/orders/', {
+      method: 'POST',
+      body: JSON.stringify({
+        recipient_name: orderSummaryPanel.dataset.recipientName || '',
+        recipient_phone: orderSummaryPanel.dataset.recipientPhone || '',
+        postal_code: orderSummaryPanel.dataset.postalCode || '',
+        delivery_address_main: orderSummaryPanel.dataset.deliveryAddressMain || '',
+        delivery_address_detail: orderSummaryPanel.dataset.deliveryAddressDetail || '',
+        delivery_address: orderSummaryPanel.dataset.deliveryAddress || '',
+        delivery_message: getDeliveryMessageValue(),
+        payment_method: orderSummaryPanel.dataset.paymentMethod || '',
+        coupon_id: selectedCouponId || 'none',
+        mileage_amount: selectedMileageValue || 0,
+      }),
+    }).then(function (data) {
+      var orderId = data && data.order && data.order.order_id;
+      if (!orderId) {
+        throw new Error('주문 완료 정보를 확인하지 못했습니다.');
+      }
+      window.closeCheckoutConfirmModal();
+      window.location.href = '/orders/complete/' + orderId + '/?entry=cart';
+    }).catch(function (error) {
+      showCheckoutToast(error.message || '주문을 완료하지 못했습니다.');
+      setSubmitLoading(false);
+      setConfirmCheckoutLoading(false);
+    });
+  }
+
+  document.addEventListener('click', function (event) {
+    if (!profileMenu || !profileMenuWrapper) return;
+    if (profileMenuWrapper.contains(event.target)) return;
+    profileMenu.classList.remove('is-open');
+  });
+
+  if (openDiscountModalBtn) {
+    openDiscountModalBtn.addEventListener('click', window.openDiscountModal);
+  }
+
+  if (openDeliverySheetBtn) {
+    openDeliverySheetBtn.addEventListener('click', window.openDeliverySheet);
+  }
+
+  if (openPaymentSheetBtn) {
+    openPaymentSheetBtn.addEventListener('click', window.openPaymentSheet);
+  }
+
+  if (saveDeliverySheetBtn) {
+    saveDeliverySheetBtn.addEventListener('click', function () {
+      if (!orderSummaryPanel) return;
+      var recipientName = deliverySheetRecipientInput ? (deliverySheetRecipientInput.value || '').trim() : '';
+      var recipientPhone = deliverySheetPhoneInput ? formatPhoneNumber(deliverySheetPhoneInput.value || '') : '';
+      var postalCode = deliverySheetPostalCodeInput ? (deliverySheetPostalCodeInput.value || '').trim() : '';
+      var baseAddress = deliverySheetBaseAddressInput ? (deliverySheetBaseAddressInput.value || '').trim() : '';
+      var detailAddress = deliverySheetDetailAddressInput ? (deliverySheetDetailAddressInput.value || '').trim() : '';
+
+      if (!validatePhoneNumber(recipientPhone)) {
+        syncDeliveryPhoneState();
+        showCheckoutToast('연락처 형식을 확인해 주세요');
+        return;
+      }
+
+      orderSummaryPanel.dataset.recipientName = recipientName;
+      orderSummaryPanel.dataset.recipientPhone = recipientPhone;
+      orderSummaryPanel.dataset.postalCode = postalCode;
+      orderSummaryPanel.dataset.deliveryAddressMain = baseAddress;
+      orderSummaryPanel.dataset.deliveryAddressDetail = detailAddress;
+      orderSummaryPanel.dataset.deliveryAddress = [baseAddress, detailAddress].filter(Boolean).join(' | ');
+      syncSummaryFields();
+      closeDeliverySheet();
+      showCheckoutToast('배송 정보를 반영했어요');
+    });
+  }
+
+  if (deliverySheetPhoneInput) {
+    deliverySheetPhoneInput.addEventListener('input', function () {
+      deliverySheetPhoneInput.value = extractPhoneDigits(deliverySheetPhoneInput.value || '');
+      deliverySheetPhoneInput.classList.remove('is-invalid');
+    });
+    deliverySheetPhoneInput.addEventListener('blur', function () {
+      deliverySheetPhoneInput.value = formatPhoneNumber(deliverySheetPhoneInput.value || '');
+      syncDeliveryPhoneState();
+    });
+  }
+
+  if (paymentOptions.length) {
+    paymentOptions.forEach(function (option) {
+      option.addEventListener('click', function () {
+        selectedPaymentMethod = option.getAttribute('data-payment-option') || '';
+        syncPaymentOptions();
+      });
+    });
+  }
+
+  if (savePaymentSheetBtn) {
+    savePaymentSheetBtn.addEventListener('click', function () {
+      if (!orderSummaryPanel || !selectedPaymentMethod) return;
+      if (selectedPaymentMethod === '신용/체크카드' && initialCardPaymentSummary) {
+        orderSummaryPanel.dataset.paymentMethod = initialCardPaymentSummary;
+      } else {
+        orderSummaryPanel.dataset.paymentMethod = selectedPaymentMethod;
+      }
+      syncSummaryFields();
+      closePaymentSheet();
+      showCheckoutToast('결제 수단을 반영했어요');
+    });
+  }
+
+  if (discountTabCoupon) {
+    discountTabCoupon.addEventListener('click', function () {
+      setDiscountTab('coupon');
+    });
+  }
+
+  if (discountTabMileage) {
+    discountTabMileage.addEventListener('click', function () {
+      setDiscountTab('mileage');
+    });
+  }
+
+  couponOptions.forEach(function (option) {
+    option.addEventListener('click', function () {
+      selectedCouponId = option.getAttribute('data-coupon-id') || 'none';
+      selectedCouponLabel = option.getAttribute('data-coupon-label') || '적용된 쿠폰 없음';
+      selectedCouponDiscount = Number(option.getAttribute('data-coupon-discount') || '0');
+      highlightSelectedCoupon();
+      updateDiscountPreview();
+    });
+  });
+
+  if (useAllMileageBtn) {
+    useAllMileageBtn.addEventListener('click', function () {
+      selectedMileageValue = 3200;
+      if (mileageInput) mileageInput.value = '3200';
+      updateDiscountPreview();
+    });
+  }
+
+  if (mileageInput) {
+    mileageInput.addEventListener('input', function () {
+      var nextValue = Number(mileageInput.value || '0');
+      nextValue = Math.max(0, Math.min(3200, nextValue));
+      if (nextValue !== Number(mileageInput.value || '0')) {
+        mileageInput.value = String(nextValue);
+      }
+      selectedMileageValue = nextValue;
+      updateDiscountPreview();
+    });
+  }
+
+  if (applyDiscountBtn) {
+    applyDiscountBtn.addEventListener('click', function () {
+      if (mileageInput) {
+        selectedMileageValue = Math.max(0, Math.min(3200, Number(mileageInput.value || '0')));
+        mileageInput.value = String(selectedMileageValue);
+      }
+      updateDiscountSummaryTexts();
+      updateCheckoutSummary();
+      window.closeDiscountModal();
+    });
+  }
+
+  if (deliveryMessageTrigger) {
+    deliveryMessageTrigger.addEventListener('click', function () {
+      if (!deliveryMessageOptionPanel) return;
+      var isHidden = deliveryMessageOptionPanel.classList.contains('hidden');
+      if (isHidden) {
+        openDeliveryMessageDropdown();
+      } else {
+        closeDeliveryMessageDropdown();
+      }
+    });
+  }
+
+  if (deliveryMessageOptions.length) {
+    deliveryMessageOptions.forEach(function (option) {
+      option.addEventListener('click', function () {
+        var value = option.getAttribute('data-delivery-option') || '직접 입력';
+        if (deliveryMessageSelect) {
+          deliveryMessageSelect.value = value;
+        }
+        syncDeliveryMessageField();
+        closeDeliveryMessageDropdown();
+      });
+    });
+  }
+
+  document.addEventListener('click', function (event) {
+    if (!deliveryMessageDropdown || !deliveryMessageOptionPanel) return;
+    if (!deliveryMessageDropdown.contains(event.target)) {
+      closeDeliveryMessageDropdown();
+    }
+  });
+
+  if (deliveryMessageSelect) {
+    deliveryMessageSelect.addEventListener('change', syncDeliveryMessageField);
+  }
+
+  if (submitOrderBtn) {
+    submitOrderBtn.addEventListener('click', function () {
+      var validation = validateCheckoutState();
+      if (!validation.valid) {
+        syncCheckoutNotice();
+        showCheckoutToast(validation.message);
+        return;
+      }
+      updateConfirmSummary();
+      if (checkoutConfirmModal) {
+        checkoutConfirmModal.classList.add('is-open');
+      }
+    });
+  }
+
+  if (confirmCheckoutSubmitBtn) {
+    confirmCheckoutSubmitBtn.addEventListener('click', submitOrderRequest);
+  }
+
+  initDeliveryMessageField();
+  if (deliverySheetPhoneInput) {
+    deliverySheetPhoneInput.value = formatPhoneNumber(deliverySheetPhoneInput.value || '');
+  }
+  syncDeliveryPhoneState();
+  syncSummaryFields();
+  updateDiscountSummaryTexts();
+  updateCheckoutSummary();
+  syncCheckoutNotice();
+})();
+</script>
+{% endblock %}

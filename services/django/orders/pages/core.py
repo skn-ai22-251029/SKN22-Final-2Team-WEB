@@ -1,10 +1,11 @@
+from collections import defaultdict
 from urllib.parse import parse_qs, urlencode, urlparse
 
 from django.db.models import Case, DecimalField, IntegerField, Q, Value, When
 from django.db.models.functions import Coalesce
 from django.contrib.auth.decorators import login_required
 from django.core.paginator import Paginator
-from django.shortcuts import get_object_or_404, render
+from django.shortcuts import get_object_or_404, redirect, render
 
 from chat.models import ChatSession
 from products.catalog_menu import build_catalog_menu_context
@@ -23,18 +24,7 @@ def _product_summary(product):
 
 
 def _display_product_name(brand_name, goods_name):
-    if not goods_name:
-        return ""
-
-    normalized_brand = (brand_name or "").strip()
-    normalized_name = goods_name.strip()
-
-    if normalized_brand and normalized_name.lower().startswith(normalized_brand.lower()):
-        trimmed = normalized_name[len(normalized_brand):].lstrip(" -_/|")
-        if trimmed:
-            return trimmed
-
-    return normalized_name
+    return (goods_name or "").strip()
 
 
 def _display_delivery_address(value):
@@ -82,27 +72,89 @@ def _recommended_note(index):
     return notes[index % len(notes)]
 
 
+def _build_catalog_filter_tree(catalog_menu_sections):
+    tree = {"pets": [], "brands": {}}
+
+    for section in catalog_menu_sections:
+        pet_label = section.get("label") or ""
+        pet_entry = {"label": pet_label, "categories": []}
+        for category in section.get("categories", []):
+            category_label = category.get("label") or ""
+            groups = []
+            for group in category.get("groups", []):
+                items = []
+                for item in group.get("items", []):
+                    query = parse_qs(urlparse(item.get("href") or "").query)
+                    subcategory_value = (query.get("subcategory") or [""])[0]
+                    if not subcategory_value:
+                        continue
+                    items.append(
+                        {
+                            "label": item.get("label") or subcategory_value,
+                            "value": subcategory_value,
+                        }
+                    )
+                if items:
+                    groups.append({"label": group.get("label") or "", "items": items})
+            pet_entry["categories"].append({"label": category_label, "groups": groups})
+        tree["pets"].append(pet_entry)
+
+    brand_map = defaultdict(lambda: defaultdict(lambda: defaultdict(set)))
+    rows = Product.objects.filter(soldout_yn=False).values_list("pet_type", "category", "subcategory", "brand_name")[:10000]
+    for pet_types, categories, subcategories, brand_name in rows:
+        if not brand_name:
+            continue
+        normalized_pet_types = [value for value in (pet_types or []) if value]
+        normalized_categories = [value for value in (categories or []) if value]
+        normalized_subcategories = [value for value in (subcategories or []) if value]
+        for pet_value in normalized_pet_types:
+            for category_value in normalized_categories:
+                for subcategory_value in normalized_subcategories:
+                    brand_map[pet_value][category_value][subcategory_value].add(brand_name)
+
+    tree["brands"] = {
+        pet_value: {
+            category_value: {
+                subcategory_value: sorted(values)
+                for subcategory_value, values in subcategory_map.items()
+            }
+            for category_value, subcategory_map in category_map.items()
+        }
+        for pet_value, category_map in brand_map.items()
+    }
+    return tree
+
+
+def _member_nav_indicator_state(user):
+    cart, _ = Cart.objects.get_or_create(user=user)
+    wishlist, _ = Wishlist.objects.get_or_create(user=user)
+    return {
+        "member_nav_has_cart_items": cart.items.exists(),
+        "member_nav_has_wishlist_items": wishlist.items.exists(),
+    }
+
+
 ORDER_STATUS_VIEW_META = {
     "pending": {
         "label": "주문 접수",
         "class": "bg-[#fef3c7] text-[#b45309]",
         "can_reorder": True,
         "detail_hint": "상품 준비가 시작되면\n배송 상태가 업데이트됩니다",
-        "cta_label": "같은 구성 다시 담기",
+        "cta_label": "다시 담기",
     },
     "shipping": {
         "label": "배송 중",
         "class": "bg-[#dbeafe] text-[#2563eb]",
         "can_reorder": True,
         "detail_hint": "상품이 배송 중입니다\n필요한 구성은 다시 주문할 수 있어요",
-        "cta_label": "같은 구성 다시 담기",
+        "cta_label": "다시 담기",
     },
     "completed": {
         "label": "배송 완료",
         "class": "bg-[#dcfce7] text-[#15803d]",
         "can_reorder": True,
         "detail_hint": "배송이 완료된 주문입니다\n필요한 상품은 다시 주문할 수 있어요",
-        "cta_label": "다시 주문하기",
+        "cta_label": "다시 담기",
     },
     "cancelled": {
         "label": "주문 취소",
@@ -607,7 +659,7 @@ def _order_groups():
             "status_class": "bg-[#dbeafe] text-[#2563eb]",
             "can_reorder": True,
             "detail_hint": "상품이 배송 중입니다\n필요한 구성은 다시 주문할 수 있어요",
-            "cta_label": "같은 구성 다시 담기",
+            "cta_label": "다시 담기",
             "recipient": "왈냥",
             "recipient_phone": "010-1234-5678",
             "delivery_address": "서울 강동구 올림픽로 123, 101동 1203호",
@@ -624,7 +676,7 @@ def _order_groups():
             "status_class": "bg-[#dcfce7] text-[#15803d]",
             "can_reorder": True,
             "detail_hint": "배송이 완료된 주문입니다\n필요한 상품은 다시 주문할 수 있어요",
-            "cta_label": "다시 주문하기",
+            "cta_label": "다시 담기",
             "recipient": "왈냥",
             "recipient_phone": "010-1234-5678",
             "delivery_address": "서울 강동구 올림픽로 123, 101동 1203호",
@@ -733,19 +785,50 @@ def order_list(request):
             "order_current_status": options["status_filter"],
             "order_current_ordering": options["ordering_key"],
             "order_demo_mode": demo_mode,
+            **_member_nav_indicator_state(request.user),
         },
     )
 
 
 @login_required
 def used_products(request):
-    items, wishlist_items = _load_user_product_panels(request.user)
+    if (request.GET.get("tab") or "").strip().lower() == "wishlist":
+        return redirect("wishlist_products")
+
+    return _render_used_products(request, active_tab="cart")
+
+
+@login_required
+def wishlist_products(request):
+    return _render_used_products(request, active_tab="wishlist")
+
+
+@login_required
+def checkout(request):
+    selected_items_query = (request.GET.get("items") or "").strip()
+    selected_goods_ids = [item.strip() for item in selected_items_query.split(",") if item.strip()]
+    context = _build_products_page_context(
+        request.user,
+        active_tab="cart",
+        selected_goods_ids=selected_goods_ids or None,
+    )
+    if context["item_count"] == 0:
+        return redirect("used_products")
+    return render(request, "orders/checkout.html", context)
+
+
+def _build_products_page_context(user, *, active_tab, selected_goods_ids=None):
+    items, wishlist_items = _load_user_product_panels(user)
+    if selected_goods_ids is not None:
+        selected_goods_ids = {str(goods_id).strip() for goods_id in selected_goods_ids if str(goods_id).strip()}
+        items = [item for item in items if str(item["goods_id"]) in selected_goods_ids]
+
     product_total = sum(item["price"] * item["quantity"] for item in items)
     discount = 0
     shipping_fee = 0 if product_total >= 30000 else 3000
     final_total = product_total - discount + shipping_fee
-    profile = getattr(request.user, "profile", None)
-    recipient_name = getattr(profile, "nickname", "") or request.user.email.split("@")[0] or "주문자 정보 미등록"
+    profile = getattr(user, "profile", None)
+    recipient_name = getattr(profile, "nickname", "") or user.email.split("@")[0] or "주문자 정보 미등록"
     address = getattr(profile, "address", "") or ""
     address_parts = [part.strip() for part in address.split("|", 1)] if address else []
     base_address = address_parts[0] if address_parts else "배송지 정보가 아직 등록되지 않았어요"
@@ -759,35 +842,37 @@ def used_products(request):
     for item in wishlist_items:
         item["price_label"] = _format_price(item["price"])
 
-    active_tab = (request.GET.get("tab") or "cart").strip().lower()
-    if active_tab not in {"cart", "wishlist"}:
-        active_tab = "cart"
+    return {
+        "cart_items": items,
+        "wishlist_items": wishlist_items,
+        "item_count": sum(item["quantity"] for item in items),
+        "wishlist_count": len(wishlist_items),
+        "product_total": _format_price(product_total),
+        "product_total_raw": product_total,
+        "discount_total": _format_price(discount),
+        "shipping_fee": "무료" if shipping_fee == 0 else _format_price(shipping_fee),
+        "final_total": _format_price(final_total),
+        "recipient_name": recipient_name,
+        "delivery_base_address": base_address,
+        "delivery_detail_address": detail_address,
+        "recipient_phone": phone,
+        "delivery_postal_code": postal_code,
+        "delivery_message": "",
+        "payment_method": payment_method,
+        "coupon_summary": "적용된 쿠폰 없음",
+        "mileage_summary": "사용 가능 3,200원",
+        "discount_total_raw": discount,
+        "shipping_fee_raw": shipping_fee,
+        "active_tab": active_tab,
+        **_member_nav_indicator_state(user),
+    }
 
+
+def _render_used_products(request, *, active_tab):
     return render(
         request,
         "orders/products.html",
-        {
-            "cart_items": items,
-            "wishlist_items": wishlist_items,
-            "item_count": sum(item["quantity"] for item in items),
-            "wishlist_count": len(wishlist_items),
-            "product_total": _format_price(product_total),
-            "discount_total": _format_price(discount),
-            "shipping_fee": "무료" if shipping_fee == 0 else _format_price(shipping_fee),
-            "final_total": _format_price(final_total),
-            "recipient_name": recipient_name,
-            "delivery_base_address": base_address,
-            "delivery_detail_address": detail_address,
-            "recipient_phone": phone,
-            "delivery_postal_code": postal_code,
-            "delivery_message": "",
-            "payment_method": payment_method,
-            "coupon_summary": "적용된 쿠폰 없음",
-            "mileage_summary": "사용 가능 3,200원",
-            "discount_total_raw": discount,
-            "shipping_fee_raw": shipping_fee,
-            "active_tab": active_tab,
-        },
+        _build_products_page_context(request.user, active_tab=active_tab),
     )
 
 
@@ -1004,6 +1089,7 @@ def catalog(request):
             }
             for value in hidden_brand_values
         ],
+        "catalog_filter_tree": _build_catalog_filter_tree(catalog_menu_sections),
         "catalog_query_all": _catalog_querystring(current_params, page=None),
         "catalog_clear_category_query": _catalog_querystring(current_params, category=None, subcategory=None, brand=None, page=None),
         "catalog_clear_detail_query": _catalog_querystring(current_params, subcategory=None, brand=None, page=None),
@@ -1011,6 +1097,7 @@ def catalog(request):
         "catalog_current_session_id": session_id,
         "catalog_recommended_session": recommended_session,
         "catalog_recommended_items": recommended_items,
+        **_member_nav_indicator_state(request.user),
     }
     return render(request, "orders/catalog.html", context)
 
@@ -1032,5 +1119,6 @@ def order_complete(request, order_id):
             "active_tab": "orders",
             "order_completion": _serialize_order_completion(order),
             "order_entry": entry,
+            **_member_nav_indicator_state(request.user),
         },
     )
