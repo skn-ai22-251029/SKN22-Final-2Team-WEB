@@ -85,6 +85,17 @@
     background: #f8fbff;
   }
 
+  .header-subnav-link.has-indicator::after {
+    content: '';
+    position: absolute;
+    top: 9px;
+    right: calc(50% - 12px);
+    width: 6px;
+    height: 6px;
+    border-radius: 9999px;
+    background: #f97316;
+  }
+
   #profileMenuWrapper {
     position: relative;
     height: 40px;
@@ -122,9 +133,126 @@
   }
 
   #withdrawModal,
-  #paymentModal {
+  #paymentModal,
+  #addressSearchModal {
     position: absolute;
     inset: 0;
+  }
+
+  .profile-address-row {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    height: 36px;
+    width: 100%;
+    border: 1px solid #d7dee8;
+    border-radius: 8px;
+    overflow: hidden;
+    background: #eef2f7;
+    padding: 0 12px;
+  }
+
+  .profile-address-postal {
+    flex: 0 0 5ch;
+    width: 5ch;
+    min-width: 0;
+    border: 0;
+    background: transparent;
+    font-size: 12px;
+    color: #4a5568;
+    font-variant-numeric: tabular-nums;
+    text-align: center;
+    outline: none;
+  }
+
+  .profile-address-postal::placeholder,
+  .profile-address-main::placeholder {
+    color: #718096;
+  }
+
+  .profile-address-divider {
+    width: 1px;
+    align-self: stretch;
+    background: #d7dee8;
+  }
+
+  .profile-address-main {
+    min-width: 0;
+    flex: 1 1 auto;
+    border: 0;
+    background: transparent;
+    font-size: 12px;
+    color: #4a5568;
+    outline: none;
+  }
+
+  .profile-address-search-cell {
+    display: inline-flex;
+    flex: 0 0 34px;
+    align-self: stretch;
+    align-items: center;
+    justify-content: center;
+    margin: 0 -12px 0 -8px;
+    background: #ffffff;
+  }
+
+  .profile-address-search-trigger {
+    display: inline-flex;
+    width: 100%;
+    height: 100%;
+    align-items: center;
+    justify-content: center;
+    padding: 0;
+    color: #3182ce;
+  }
+
+  #addressSearchModal {
+    z-index: 65;
+    display: none;
+    align-items: flex-end;
+    justify-content: center;
+    background: rgba(15, 23, 42, 0.28);
+  }
+
+  #addressSearchModal.is-open {
+    display: flex;
+  }
+
+  .address-search-sheet {
+    width: min(100%, 960px);
+    max-height: min(82dvh, 760px);
+    overflow: hidden;
+    border-radius: 24px 24px 0 0;
+    background: #ffffff;
+    transform: translateY(24px);
+    opacity: 0;
+    transition: transform 180ms ease, opacity 180ms ease;
+  }
+
+  #addressSearchModal.is-open .address-search-sheet {
+    transform: translateY(0);
+    opacity: 1;
+  }
+
+  .address-search-results {
+    overflow-y: auto;
+    max-height: min(52dvh, 420px);
+  }
+
+  .address-search-result {
+    width: 100%;
+    padding: 14px 18px;
+    border-top: 1px solid #edf2f7;
+    text-align: left;
+    background: #ffffff;
+  }
+
+  .address-search-result:first-child {
+    border-top: 0;
+  }
+
+  .address-search-result:hover {
+    background: #f8fafc;
   }
 
   @media (max-width: 767px) {
@@ -134,17 +262,14 @@
   }
 
   @media (min-width: 768px) {
-    #pageGate > .app-shell {
-      min-height: 100dvh;
-      height: auto;
-      overflow: visible;
+    #addressSearchModal {
+      align-items: center;
     }
 
-    #profileViewport {
-      position: relative;
-      inset: auto;
-      overflow: visible;
-      padding: 134px 16px 28px;
+    .address-search-sheet {
+      width: min(100%, 560px);
+      border-radius: 24px;
+      max-height: min(80dvh, 700px);
     }
   }
 </style>
@@ -216,6 +341,28 @@
     </div>
   </div>
 
+  <div id="addressSearchModal" onclick="closeAddressSearchModal(event)">
+    <div class="address-search-sheet" onclick="event.stopPropagation()">
+      <div class="flex items-center justify-between border-b border-[#edf2f7] px-5 py-4">
+        <div>
+          <div class="text-[18px] font-bold text-[#2d3748]">주소 검색</div>
+          <p class="mt-1 text-[12px] text-[#718096]">도로명 또는 건물명을 입력해 주세요</p>
+        </div>
+        <button type="button" onclick="closeAddressSearchModal()" class="text-[24px] leading-none text-[#718096]">×</button>
+      </div>
+      <div class="px-5 pb-5 pt-4">
+        <div class="flex gap-2">
+          <input type="text" id="addressSearchKeywordInput" placeholder="예: 테헤란로 212, 판교역로"
+                 class="h-[42px] flex-1 rounded-[10px] border border-[#d7dee8] bg-white px-4 text-[14px] text-[#2d3748] outline-none focus:border-[#3182ce] placeholder:text-[#a0aec0]" />
+          <button type="button" id="addressSearchSubmitButton"
+                  class="h-[42px] rounded-[10px] bg-[#3182ce] px-4 text-[14px] font-bold text-white">검색</button>
+        </div>
+        <p id="addressSearchStatus" class="mt-3 min-h-[18px] text-[12px] text-[#718096]"></p>
+      </div>
+      <div id="addressSearchResults" class="address-search-results"></div>
+    </div>
+  </div>
+
   <header id="profileHeader">
     <div id="profileHeaderInner">
       <div></div>
@@ -257,14 +404,14 @@
           <rect x="14" y="14" width="6" height="6" rx="1.5"></rect>
         </svg>
       </a>
-      <a href="/products/" class="header-subnav-link" aria-label="장바구니" title="장바구니">
+      <a href="/products/" class="header-subnav-link {% if member_nav_has_cart_items %}has-indicator{% endif %}" aria-label="장바구니" title="장바구니">
         <svg viewBox="0 0 24 24" class="h-[18px] w-[18px]" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
           <circle cx="9" cy="20" r="1.5"></circle>
           <circle cx="18" cy="20" r="1.5"></circle>
           <path d="M3 4h2l2.2 10.2a1 1 0 0 0 1 .8h8.9a1 1 0 0 0 1-.75L20 8H7"></path>
         </svg>
       </a>
-      <a href="/products/?tab=wishlist" class="header-subnav-link" aria-label="관심 상품" title="관심 상품">
+      <a href="/wishlist/" class="header-subnav-link {% if member_nav_has_wishlist_items %}has-indicator{% endif %}" aria-label="관심 상품" title="관심 상품">
         <svg viewBox="0 0 24 24" class="h-[17px] w-[17px]" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
           <path d="M12 20.4 4.9 13.8a4.8 4.8 0 0 1 6.8-6.8L12 7.3l.3-.3a4.8 4.8 0 0 1 6.8 6.8L12 20.4Z"></path>
         </svg>
@@ -336,15 +483,28 @@
 
       <div class="mt-3">
         <div class="mb-2 text-[14px] font-bold text-[#4a5568]">주소 <span class="text-[12px] font-medium text-[#a0aec0]">(선택)</span></div>
-        <div class="flex gap-3">
-          <input name="zipcode" id="zipcodeInput" value="{{ profile_zipcode }}" placeholder="우편번호" readonly
-                 class="h-[36px] w-[140px] cursor-not-allowed rounded-[8px] border border-[#d7dee8] bg-[#eef2f7] px-3 text-[12px] text-[#4a5568] outline-none placeholder:text-[#718096]" />
-          <button type="button" id="postcodeButton"
-                  class="h-[36px] w-[110px] rounded-[8px] border border-[#3182ce] text-[14px] font-bold text-[#3182ce]">우편번호 찾기</button>
+        <div class="flex">
+          <div class="profile-address-row w-full">
+            <input type="hidden" name="zipcode" id="zipcodeInput" value="{{ profile_zipcode }}" />
+            <input type="text" id="zipcodeDisplayInput" value="{{ profile_zipcode }}" placeholder="우편" readonly
+                   class="profile-address-postal cursor-not-allowed" />
+            <span class="profile-address-divider" aria-hidden="true"></span>
+            <input name="address_main" id="addressMainInput" placeholder="기본 주소" readonly
+                   value="{{ profile_address_main }}"
+                   class="profile-address-main cursor-not-allowed" />
+            <span class="profile-address-divider" aria-hidden="true"></span>
+            <span class="profile-address-search-cell">
+              <button type="button" id="postcodeButton"
+                      class="profile-address-search-trigger"
+                      aria-label="우편번호 찾기">
+                <svg viewBox="0 0 24 24" class="h-[16px] w-[16px]" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+                  <circle cx="11" cy="11" r="6"></circle>
+                  <path d="M20 20l-3.5-3.5"></path>
+                </svg>
+              </button>
+            </span>
+          </div>
         </div>
-        <input name="address_main" id="addressMainInput" placeholder="기본 주소" readonly
-               value="{{ profile_address_main }}"
-               class="mt-2 h-[36px] w-full cursor-not-allowed rounded-[8px] border border-[#d7dee8] bg-[#eef2f7] px-3 text-[12px] text-[#4a5568] outline-none placeholder:text-[#718096]" />
         <input name="address_detail" id="addressDetailInput" placeholder="상세 주소"
                value="{{ profile_address_detail }}"
                class="mt-2 h-[36px] w-full rounded-[8px] border border-[#e2e8f0] bg-white px-3 text-[12px] text-[#4a5568] outline-none focus:border-[#3182ce] placeholder:text-[#a0aec0]" />
@@ -457,6 +617,47 @@
 
 {% block scripts %}
 <script>
+  window.profileAddressCallback = function (payload) {
+    if (!payload) return;
+    var zipcodeInput = document.getElementById('zipcodeInput');
+    var zipcodeDisplayInput = document.getElementById('zipcodeDisplayInput');
+    var addressMainInput = document.getElementById('addressMainInput');
+    var addressDetailInput = document.getElementById('addressDetailInput');
+    var addressStatus = document.getElementById('addressStatus');
+
+    if (zipcodeInput) zipcodeInput.value = payload.zipcode || '';
+    if (zipcodeDisplayInput) zipcodeDisplayInput.value = payload.zipcode || '';
+    if (addressMainInput) addressMainInput.value = payload.address_main || '';
+    if (addressDetailInput) {
+      if (payload.address_detail) {
+        addressDetailInput.value = payload.address_detail;
+      }
+      addressDetailInput.focus();
+    }
+    if (addressStatus) {
+      addressStatus.textContent = '';
+    }
+  };
+
+  window.openAddressSearchModal = function () {
+    var modal = document.getElementById('addressSearchModal');
+    var keywordInput = document.getElementById('addressSearchKeywordInput');
+    if (!modal) return;
+    modal.classList.add('is-open');
+    document.body.style.overflow = 'hidden';
+    if (keywordInput) {
+      setTimeout(function () { keywordInput.focus(); }, 40);
+    }
+  };
+
+  window.closeAddressSearchModal = function (event) {
+    var modal = document.getElementById('addressSearchModal');
+    if (!modal) return;
+    if (event && event.target !== modal) return;
+    modal.classList.remove('is-open');
+    document.body.style.overflow = '';
+  };
+
   var profileMenu = document.getElementById('profileMenu');
   var profileMenuWrapper = document.getElementById('profileMenuWrapper');
 
@@ -606,6 +807,7 @@
     var phoneVerifyConfirmButton = document.getElementById('phoneVerifyConfirmButton');
     var postcodeButton = document.getElementById('postcodeButton');
     var zipcodeInput = document.getElementById('zipcodeInput');
+    var zipcodeDisplayInput = document.getElementById('zipcodeDisplayInput');
     var addressMainInput = document.getElementById('addressMainInput');
     var addressDetailInput = document.getElementById('addressDetailInput');
     var addressStatus = document.getElementById('addressStatus');
@@ -614,6 +816,13 @@
     var paymentSummary = document.getElementById('paymentMethodSummary');
     var paymentMethodInput = document.getElementById('paymentMethodInput');
     var paymentButton = document.getElementById('paymentRegisterButton');
+    var addressSearchKeywordInput = document.getElementById('addressSearchKeywordInput');
+    var addressSearchSubmitButton = document.getElementById('addressSearchSubmitButton');
+    var addressSearchStatus = document.getElementById('addressSearchStatus');
+    var addressSearchResults = document.getElementById('addressSearchResults');
+    var jusoSearchKey = '{{ juso_confm_key|escapejs }}';
+    var lastAddressSearchScript = null;
+    var addressSearchSequence = 0;
 
     if (!input || !button || !status || !form) return;
 
@@ -634,6 +843,11 @@
         address_detail: addressDetailInput ? addressDetailInput.value : '',
       };
       sessionStorage.setItem(profileDraftKey, JSON.stringify(draft));
+    }
+
+    function syncPostcodeDisplay() {
+      if (!zipcodeDisplayInput || !zipcodeInput) return;
+      zipcodeDisplayInput.value = zipcodeInput.value.trim();
     }
 
     function restoreProfileDraft() {
@@ -663,6 +877,7 @@
       if (addressStatus) {
         addressStatus.textContent = '';
       }
+      syncPostcodeDisplay();
       if (addressDetailInput) {
         addressDetailInput.focus();
       }
@@ -673,6 +888,8 @@
         history.replaceState({}, '', nextUrl);
       }
     }
+
+    syncPostcodeDisplay();
 
     function setStatus(text, color) {
       status.textContent = text;
@@ -759,6 +976,104 @@
           return data;
         });
       });
+    }
+
+    function setAddressSearchStatus(text, color) {
+      if (!addressSearchStatus) return;
+      addressSearchStatus.textContent = text || '';
+      addressSearchStatus.style.color = color || '#718096';
+    }
+
+    function renderAddressSearchResults(items) {
+      if (!addressSearchResults) return;
+      addressSearchResults.innerHTML = '';
+      if (!items.length) {
+        addressSearchResults.innerHTML = '<div class="px-5 py-6 text-center text-[13px] text-[#718096]">검색 결과가 없습니다</div>';
+        return;
+      }
+
+      items.forEach(function (item) {
+        var button = document.createElement('button');
+        button.type = 'button';
+        button.className = 'address-search-result';
+        button.innerHTML =
+          '<div class="text-[13px] font-semibold text-[#2d3748]">' + item.roadAddr + '</div>' +
+          '<div class="mt-1 text-[12px] text-[#718096]">' + item.zipNo + '</div>';
+        button.addEventListener('click', function () {
+          window.profileAddressCallback({
+            zipcode: item.zipNo || '',
+            address_main: item.roadAddr || '',
+            address_detail: ''
+          });
+          closeAddressSearchModal();
+        });
+        addressSearchResults.appendChild(button);
+      });
+    }
+
+    function searchAddressKeyword() {
+      if (!addressSearchKeywordInput || !addressSearchSubmitButton) return;
+      var keyword = addressSearchKeywordInput.value.trim();
+      if (!jusoSearchKey) {
+        setAddressSearchStatus('JUSO 검색 API 키가 필요합니다', '#e53e3e');
+        return;
+      }
+      if (keyword.length < 2) {
+        setAddressSearchStatus('두 글자 이상 입력해 주세요', '#e53e3e');
+        addressSearchKeywordInput.focus();
+        return;
+      }
+
+      addressSearchSequence += 1;
+      var callbackName = '__tailtalkJusoSearchCallback' + addressSearchSequence;
+      if (lastAddressSearchScript && lastAddressSearchScript.parentNode) {
+        lastAddressSearchScript.parentNode.removeChild(lastAddressSearchScript);
+      }
+
+      setAddressSearchStatus('주소를 검색하고 있습니다', '#718096');
+      if (addressSearchResults) {
+        addressSearchResults.innerHTML = '';
+      }
+      addressSearchSubmitButton.disabled = true;
+
+      window[callbackName] = function (response) {
+        delete window[callbackName];
+        if (lastAddressSearchScript && lastAddressSearchScript.parentNode) {
+          lastAddressSearchScript.parentNode.removeChild(lastAddressSearchScript);
+          lastAddressSearchScript = null;
+        }
+        addressSearchSubmitButton.disabled = false;
+
+        var common = response && response.results && response.results.common ? response.results.common : {};
+        var juso = response && response.results && response.results.juso ? response.results.juso : [];
+        if (common.errorCode && common.errorCode !== '0') {
+          setAddressSearchStatus(common.errorMessage || '주소를 검색하지 못했어요', '#e53e3e');
+          renderAddressSearchResults([]);
+          return;
+        }
+
+        setAddressSearchStatus('', '#718096');
+        renderAddressSearchResults(Array.isArray(juso) ? juso : [juso]);
+      };
+
+      var script = document.createElement('script');
+      var params = new URLSearchParams({
+        confmKey: jusoSearchKey,
+        currentPage: '1',
+        countPerPage: '10',
+        keyword: keyword,
+        resultType: 'json',
+        firstSort: 'road',
+        callback: callbackName
+      });
+      script.src = 'https://business.juso.go.kr/addrlink/addrLinkApiJsonp.do?' + params.toString();
+      script.onerror = function () {
+        delete window[callbackName];
+        addressSearchSubmitButton.disabled = false;
+        setAddressSearchStatus('주소를 검색하지 못했어요', '#e53e3e');
+      };
+      lastAddressSearchScript = script;
+      document.body.appendChild(script);
     }
 
     function sanitizeNickname() {
@@ -917,6 +1232,10 @@
           }
         }
       }
+
+      if (!e.defaultPrevented) {
+        sessionStorage.removeItem(profileDraftKey);
+      }
     });
 
     if (phoneInput) {
@@ -1035,9 +1354,20 @@
     if (postcodeButton) {
       postcodeButton.addEventListener('click', function () {
         saveProfileDraft();
-        var nextParams = new URLSearchParams(window.location.search);
-        var returnUrl = '/profile/' + (nextParams.toString() ? '?' + nextParams.toString() : '');
-        window.location.href = '/profile/address-search/?return=' + encodeURIComponent(returnUrl);
+        openAddressSearchModal();
+      });
+    }
+
+    if (addressSearchSubmitButton) {
+      addressSearchSubmitButton.addEventListener('click', searchAddressKeyword);
+    }
+
+    if (addressSearchKeywordInput) {
+      addressSearchKeywordInput.addEventListener('keydown', function (event) {
+        if (event.key === 'Enter') {
+          event.preventDefault();
+          searchAddressKeyword();
+        }
       });
     }
 

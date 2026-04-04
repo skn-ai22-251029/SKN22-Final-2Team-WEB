@@ -196,6 +196,10 @@ FASTAPI_STREAM_CONNECT_TIMEOUT = config("FASTAPI_STREAM_CONNECT_TIMEOUT", defaul
 FASTAPI_STREAM_READ_TIMEOUT = config("FASTAPI_STREAM_READ_TIMEOUT", default=25, cast=float)
 FASTAPI_STREAM_WRITE_TIMEOUT = config("FASTAPI_STREAM_WRITE_TIMEOUT", default=10, cast=float)
 FASTAPI_STREAM_POOL_TIMEOUT = config("FASTAPI_STREAM_POOL_TIMEOUT", default=5, cast=float)
+JUSO_CONFM_KEY = config(
+    "JUSO_CONFIRM_KEY",
+    default=config("JUSO_CONFM_KEY", default=config("JUSO_KEY", default="")),
+)
 
 AWS_S3_BUCKET_NAME = config("AWS_S3_BUCKET_NAME", default="")
 AWS_S3_REGION_NAME = config("AWS_S3_REGION_NAME", default="")

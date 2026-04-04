@@ -1,9 +1,11 @@
 from types import SimpleNamespace
 
+from django.conf import settings
 from django.contrib import messages
 from django.contrib.auth import logout
 from django.db import IntegrityError, transaction
 from django.shortcuts import redirect, render
+from orders.models import Cart, Wishlist
 
 from ..nickname_utils import get_nickname_validation_error
 from ..onboarding import (
@@ -13,6 +15,21 @@ from ..onboarding import (
 from ..quick_purchase import build_payment_info, split_legacy_address
 from ..selectors.user_selector import get_or_create_profile
 from ..services.auth_service import deactivate_user_and_purge_personal_data
+
+
+def _member_nav_indicator_state(user):
+    if not getattr(user, "is_authenticated", False):
+        return {
+            "member_nav_has_cart_items": False,
+            "member_nav_has_wishlist_items": False,
+        }
+
+    cart, _ = Cart.objects.get_or_create(user=user)
+    wishlist, _ = Wishlist.objects.get_or_create(user=user)
+    return {
+        "member_nav_has_cart_items": cart.items.exists(),
+        "member_nav_has_wishlist_items": wishlist.items.exists(),
+    }
 
 
 def _render_profile(request, profile):
@@ -37,6 +54,8 @@ def _render_profile(request, profile):
             "social_accounts": {account.provider: account for account in request.user.social_accounts.all()},
             "setup_mode": request.GET.get("setup") == "1",
             "profile_preview": False,
+            "juso_confm_key": settings.JUSO_CONFM_KEY,
+            **_member_nav_indicator_state(request.user),
         },
     )
 
@@ -59,6 +78,8 @@ def profile_view(request):
                 "profile_preview": True,
                 "social_accounts": preview_social_accounts,
                 "setup_mode": request.GET.get("setup") == "1",
+                "juso_confm_key": settings.JUSO_CONFM_KEY,
+                **_member_nav_indicator_state(request.user),
             },
         )
 

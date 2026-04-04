@@ -84,6 +84,17 @@
     background: #f8fbff;
   }
 
+  .header-subnav-link.has-indicator::after {
+    content: '';
+    position: absolute;
+    top: 9px;
+    right: calc(50% - 12px);
+    width: 6px;
+    height: 6px;
+    border-radius: 9999px;
+    background: #f97316;
+  }
+
   #profileMenuWrapper {
     position: relative;
     height: 40px;
@@ -235,14 +246,14 @@
             <rect x="14" y="14" width="6" height="6" rx="1.5"></rect>
           </svg>
         </a>
-        <a href="/products/" class="header-subnav-link" aria-label="장바구니" title="장바구니">
+        <a href="/products/" class="header-subnav-link {% if member_nav_has_cart_items %}has-indicator{% endif %}" aria-label="장바구니" title="장바구니">
           <svg viewBox="0 0 24 24" class="h-[18px] w-[18px]" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
             <circle cx="9" cy="20" r="1.5"></circle>
             <circle cx="18" cy="20" r="1.5"></circle>
             <path d="M3 4h2l2.2 10.2a1 1 0 0 0 1 .8h8.9a1 1 0 0 0 1-.75L20 8H7"></path>
           </svg>
         </a>
-        <a href="/products/?tab=wishlist" class="header-subnav-link" aria-label="관심 상품" title="관심 상품">
+        <a href="/wishlist/" class="header-subnav-link {% if member_nav_has_wishlist_items %}has-indicator{% endif %}" aria-label="관심 상품" title="관심 상품">
           <svg viewBox="0 0 24 24" class="h-[17px] w-[17px]" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
             <path d="M12 20.4 4.9 13.8a4.8 4.8 0 0 1 6.8-6.8L12 7.3l.3-.3a4.8 4.8 0 0 1 6.8 6.8L12 20.4Z"></path>
           </svg>
