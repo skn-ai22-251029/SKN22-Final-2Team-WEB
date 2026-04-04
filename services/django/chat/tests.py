@@ -7,6 +7,7 @@ from django.conf import settings
 from django.test import RequestFactory, TestCase
 from django.urls import reverse
 from django.utils import timezone
+from rest_framework_simplejwt.tokens import RefreshToken
 
 from chat.api_views import sessions_proxy_view
 from chat.models import ChatMessage, ChatMessageRecommendation, ChatSession
@@ -182,8 +183,9 @@ class _FakeHttpxClient:
         }
         return _FakeStreamResponse(
             [
-                b'data: {"type":"token","content":"hello"}\n\n',
+                b'data: {"type":"token","content":"hel"}\n\n',
                 'data: {"type":"products","cards":[{"goods_id":"TEST-PRODUCT-1","product_name":"추천 상품","brand_name":"브랜드","price":10000,"discount_price":9000,"rating":4.5,"reviews":12,"thumbnail_url":"https://example.com/thumb.jpg","product_url":"https://example.com/product"}]}\n\n',
+                'data: {"type":"final","message":"hello","cards":[{"goods_id":"TEST-PRODUCT-1","product_name":"추천 상품","brand_name":"브랜드","price":10000,"discount_price":9000,"rating":4.5,"reviews":12,"thumbnail_url":"https://example.com/thumb.jpg","product_url":"https://example.com/product"}],"meta":{"request_id":"req-test","session_id":"session-test"}}\n\n',
                 b'data: {"type":"done"}\n\n',
             ]
         )
@@ -194,6 +196,11 @@ def _read_streaming_response(response):
     for chunk in response.streaming_content:
         chunks.append(chunk.decode("utf-8") if isinstance(chunk, bytes) else chunk)
     return "".join(chunks)
+
+
+def _build_bearer_token(user):
+    refresh = RefreshToken.for_user(user)
+    return str(refresh.access_token)
 
 
 class ChatProxyTests(TestCase):
@@ -237,6 +244,7 @@ class ChatProxyTests(TestCase):
             user=self.other_user,
             title="다른 사람 세션",
         )
+        self.access_token = _build_bearer_token(self.user)
 
     def test_chat_proxy_requires_authentication(self):
         response = self.client.post(
@@ -249,29 +257,27 @@ class ChatProxyTests(TestCase):
 
     @patch("chat.api_views.httpx.Client", _FakeHttpxClient)
     def test_chat_proxy_streams_fastapi_response_with_internal_auth_headers(self):
-        self.client.force_login(self.user)
-
         response = self.client.post(
             "/api/chat/",
             data='{"message":"hello","thread_id":"thread-1","pet_profile":{"species":"cat"}}',
             content_type="application/json",
+            HTTP_AUTHORIZATION=f"Bearer {self.access_token}",
         )
 
         self.assertEqual(response.status_code, 200)
         self.assertEqual(response["Content-Type"], "text/event-stream")
         payload = _read_streaming_response(response)
         self.assertIn('"type":"token"', payload)
+        self.assertIn('"type":"final"', payload)
         self.assertEqual(_FakeHttpxClient.last_stream_request["url"], settings.FASTAPI_INTERNAL_CHAT_URL)
-        self.assertEqual(
-            _FakeHttpxClient.last_stream_request["headers"]["X-Internal-Service-Token"],
-            settings.INTERNAL_SERVICE_TOKEN,
-        )
         self.assertEqual(_FakeHttpxClient.last_stream_request["headers"]["X-User-Id"], str(self.user.id))
+        self.assertIn("X-Request-Id", _FakeHttpxClient.last_stream_request["headers"])
+        self.assertEqual(_FakeHttpxClient.last_stream_request["headers"]["Accept"], "text/event-stream")
         self.assertEqual(_FakeHttpxClient.last_stream_request["json"]["thread_id"], "thread-1")
         self.assertEqual(_FakeHttpxClient.last_stream_request["json"]["user_id"], str(self.user.id))
 
     def test_sessions_proxy_crud_and_message_load_are_backed_by_db(self):
-        self.client.force_login(self.user)
+        self.client.defaults["HTTP_AUTHORIZATION"] = f"Bearer {self.access_token}"
 
         existing_session = ChatSession.objects.create(
             user=self.user,
@@ -338,10 +344,10 @@ class ChatProxyTests(TestCase):
         self.assertEqual(delete_response.status_code, 200)
         self.assertTrue(delete_response.json()["deleted"])
         self.assertFalse(ChatSession.objects.filter(session_id=created_session.session_id).exists())
+        self.client.defaults.pop("HTTP_AUTHORIZATION", None)
 
     @patch("chat.api_views.httpx.Client", _FakeHttpxClient)
     def test_session_messages_proxy_persists_user_and_assistant_messages(self):
-        self.client.force_login(self.user)
         secondary_pet = Pet.objects.create(
             user=self.user,
             name="Bori",
@@ -355,18 +361,22 @@ class ChatProxyTests(TestCase):
             f"/api/chat/sessions/{session.session_id}/messages/",
             data='{"message":"hello","pet_profile":{"species":"cat"}}',
             content_type="application/json",
+            HTTP_AUTHORIZATION=f"Bearer {self.access_token}",
         )
 
         self.assertEqual(response.status_code, 200)
         self.assertEqual(response["Content-Type"], "text/event-stream")
         payload = _read_streaming_response(response)
         self.assertIn('"type":"done"', payload)
+        self.assertIn('"type":"final"', payload)
         self.assertEqual(_FakeHttpxClient.last_stream_request["url"], settings.FASTAPI_INTERNAL_CHAT_URL)
         self.assertEqual(_FakeHttpxClient.last_stream_request["json"]["message"], "hello")
         self.assertEqual(_FakeHttpxClient.last_stream_request["json"]["thread_id"], str(session.session_id))
         self.assertEqual(_FakeHttpxClient.last_stream_request["json"]["user_id"], str(self.user.id))
         self.assertEqual(_FakeHttpxClient.last_stream_request["json"]["target_pet_id"], str(self.pet.pet_id))
         self.assertNotEqual(_FakeHttpxClient.last_stream_request["json"]["target_pet_id"], str(secondary_pet.pet_id))
+        self.assertEqual(_FakeHttpxClient.last_stream_request["headers"]["X-Session-Id"], str(session.session_id))
+        self.assertIn("X-Request-Id", _FakeHttpxClient.last_stream_request["headers"])
 
         messages = list(session.messages.order_by("created_at").values_list("role", "content"))
         self.assertEqual(messages, [("user", "hello"), ("assistant", "hello")])
@@ -375,20 +385,23 @@ class ChatProxyTests(TestCase):
         self.assertEqual(recommendation.product_id, self.product.goods_id)
         self.assertEqual(recommendation.rank_order, 0)
 
-        list_response = self.client.get(f"/api/chat/sessions/{session.session_id}/messages/")
+        list_response = self.client.get(
+            f"/api/chat/sessions/{session.session_id}/messages/",
+            HTTP_AUTHORIZATION=f"Bearer {self.access_token}",
+        )
         self.assertEqual(list_response.status_code, 200)
         assistant_payload = list_response.json()["messages"][1]
         self.assertEqual(assistant_payload["recommended_products"][0]["goods_id"], self.product.goods_id)
 
     @patch("chat.api_views.httpx.Client", _ExplodingHttpxClient)
     def test_session_messages_proxy_persists_error_message_when_fastapi_is_unreachable(self):
-        self.client.force_login(self.user)
         session = ChatSession.objects.create(user=self.user, title="실패 세션")
 
         response = self.client.post(
             f"/api/chat/sessions/{session.session_id}/messages/",
             data='{"message":"hello"}',
             content_type="application/json",
+            HTTP_AUTHORIZATION=f"Bearer {self.access_token}",
         )
 
         self.assertEqual(response.status_code, 200)
@@ -405,9 +418,10 @@ class ChatProxyTests(TestCase):
         )
 
     def test_session_messages_proxy_rejects_other_users_session_access(self):
-        self.client.force_login(self.user)
-
-        response = self.client.get(f"/api/chat/sessions/{self.other_session.session_id}/messages/")
+        response = self.client.get(
+            f"/api/chat/sessions/{self.other_session.session_id}/messages/",
+            HTTP_AUTHORIZATION=f"Bearer {self.access_token}",
+        )
 
         self.assertEqual(response.status_code, 404)
         self.assertEqual(response.json()["detail"], "대화를 찾을 수 없습니다.")
@@ -435,8 +449,6 @@ class ChatProxyTests(TestCase):
         mocked_get_owned_target_pet.assert_called_once()
 
     def test_sessions_proxy_persists_none_profile_context_without_target_pet(self):
-        self.client.force_login(self.user)
-
         response = self.client.post(
             "/api/chat/sessions/",
             data=json.dumps(
@@ -447,6 +459,7 @@ class ChatProxyTests(TestCase):
                 }
             ),
             content_type="application/json",
+            HTTP_AUTHORIZATION=f"Bearer {self.access_token}",
         )
 
         self.assertEqual(response.status_code, 201)
