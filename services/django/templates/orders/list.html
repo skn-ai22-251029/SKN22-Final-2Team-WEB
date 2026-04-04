@@ -3,6 +3,139 @@
 
 {% block head %}
 <style>
+  #pageGate {
+    min-height: 100dvh;
+    background: #f8f9fb;
+  }
+
+  #pageGate > .app-shell {
+    position: relative;
+    width: min(100%, 960px);
+    min-height: 100dvh;
+    height: 100dvh;
+    margin: 0 auto;
+    overflow: hidden;
+    background: #f8f9fb;
+  }
+
+  #ordersHeader {
+    position: absolute;
+    inset: 0 0 auto 0;
+    height: 72px;
+    border-bottom: 1px solid #e2e8f0;
+    background: #fff;
+    z-index: 40;
+  }
+
+  #ordersHeaderInner {
+    display: grid;
+    grid-template-columns: 40px auto 40px;
+    align-items: center;
+    gap: 8px;
+    height: 100%;
+    padding: 0 12px;
+  }
+
+  #ordersHeaderLogo {
+    justify-self: center;
+    font-size: 26px;
+    font-weight: 700;
+    line-height: 1;
+    color: #2d3748;
+    white-space: nowrap;
+  }
+
+  #headerSubnav {
+    position: absolute;
+    inset: 72px 0 auto 0;
+    z-index: 35;
+    border-bottom: 1px solid #e8eef6;
+    background: rgba(255, 255, 255, 0.98);
+    backdrop-filter: blur(12px);
+  }
+
+  #headerSubnavRail {
+    display: grid;
+    grid-template-columns: repeat(4, minmax(0, 1fr));
+    width: 100%;
+  }
+
+  .header-subnav-link {
+    position: relative;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    height: 44px;
+    color: #4a5568;
+    transition: background-color 160ms ease, color 160ms ease;
+  }
+
+  .header-subnav-link + .header-subnav-link::before {
+    content: '';
+    position: absolute;
+    left: 0;
+    top: 10px;
+    bottom: 10px;
+    width: 1px;
+    background: #e8eef6;
+  }
+
+  .header-subnav-link:hover {
+    background: #f8fbff;
+  }
+
+  .header-subnav-link.is-active {
+    color: #2d3748;
+    background: #f8f9fb;
+  }
+
+  .header-subnav-link.has-indicator::after {
+    content: '';
+    position: absolute;
+    top: 9px;
+    right: calc(50% - 12px);
+    width: 6px;
+    height: 6px;
+    border-radius: 9999px;
+    background: #f97316;
+  }
+
+  #profileMenuWrapper {
+    position: relative;
+    height: 40px;
+    width: 40px;
+  }
+
+  #profileMenu {
+    position: absolute;
+    top: calc(100% + 10px);
+    right: 0;
+    width: 188px;
+    overflow: hidden;
+    border: 1px solid #e2e8f0;
+    border-radius: 18px;
+    background: #fff;
+    box-shadow: 0 18px 36px rgba(15, 23, 42, 0.12);
+    opacity: 0;
+    pointer-events: none;
+    transform: translateY(-6px);
+    transition: opacity 160ms ease, transform 160ms ease;
+    z-index: 50;
+  }
+
+  #profileMenu.is-open {
+    opacity: 1;
+    pointer-events: auto;
+    transform: translateY(0);
+  }
+
+  #ordersViewport {
+    position: absolute;
+    inset: 116px 0 0 0;
+    overflow-y: auto;
+    padding: 24px 16px 28px;
+  }
+
   .order-detail-modal {
     display: none;
   }
@@ -36,6 +169,128 @@
     background: #2d3748;
     border-color: #2d3748;
     color: #fff;
+  }
+
+  .order-toolbar-select.hidden-native {
+    position: absolute;
+    opacity: 0;
+    pointer-events: none;
+    width: 0;
+    height: 0;
+  }
+
+  .order-toolbar-dropdown {
+    position: relative;
+    width: 148px;
+  }
+
+  .order-toolbar-trigger {
+    display: flex;
+    width: 100%;
+    height: 34px;
+    align-items: center;
+    justify-content: space-between;
+    gap: 12px;
+    border: 1px solid #dbe7f5;
+    border-radius: 9999px;
+    background: #fff;
+    padding: 0 14px;
+    color: #4a5568;
+    font-size: 12px;
+    font-weight: 600;
+  }
+
+  .order-toolbar-control {
+    display: flex;
+    align-items: center;
+    justify-content: flex-start;
+    width: 100%;
+    max-width: 148px;
+    border-radius: 14px;
+    background: #f8fbff;
+    padding: 8px 0;
+  }
+
+  @media (min-width: 768px) {
+    .order-toolbar-control {
+      width: auto;
+      max-width: none;
+      border-radius: 0;
+      background: transparent;
+      padding: 0;
+    }
+  }
+
+  .order-toolbar-trigger-text {
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+  }
+
+  .order-toolbar-trigger-caret {
+    width: 8px;
+    height: 8px;
+    flex: 0 0 8px;
+    border-right: 1.5px solid #90a4b8;
+    border-bottom: 1.5px solid #90a4b8;
+    transform: rotate(45deg) translateY(-1px);
+    transition: transform 160ms ease;
+  }
+
+  .order-toolbar-dropdown.is-open .order-toolbar-trigger-caret {
+    transform: rotate(-135deg) translateY(-1px);
+  }
+
+  .order-toolbar-option-panel {
+    position: absolute;
+    top: calc(100% + 8px);
+    left: 0;
+    right: 0;
+    z-index: 25;
+    overflow: hidden;
+    border: 1px solid #dbe7f5;
+    border-radius: 16px;
+    background: #fff;
+    box-shadow: 0 14px 30px rgba(45, 55, 72, 0.12);
+  }
+
+  .order-toolbar-option-panel.hidden {
+    display: none;
+  }
+
+  .order-toolbar-option {
+    display: flex;
+    width: 100%;
+    align-items: center;
+    justify-content: space-between;
+    gap: 10px;
+    padding: 12px 14px;
+    color: #4a5568;
+    font-size: 12px;
+    font-weight: 600;
+    transition: background-color 160ms ease, color 160ms ease;
+  }
+
+  .order-toolbar-option + .order-toolbar-option {
+    border-top: 1px solid #edf2f7;
+  }
+
+  .order-toolbar-option:hover {
+    background: #f8fbff;
+  }
+
+  .order-toolbar-option.is-active {
+    background: #f8fbff;
+    color: #2d3748;
+  }
+
+  .order-toolbar-option-check {
+    opacity: 0;
+    color: #2d3748;
+  }
+
+  .order-toolbar-option.is-active .order-toolbar-option-check {
+    opacity: 1;
   }
 
   .order-detail-dialog {
@@ -73,10 +328,72 @@
     box-shadow: 0 6px 18px rgba(45, 55, 72, 0.04);
   }
 
+  html,
+  body,
+  body.bg-white {
+    background: #f8f9fb !important;
+  }
+
+  @media (max-width: 767px) {
+    #pageGate > .app-shell {
+      width: 100vw;
+    }
+
+    .order-detail-dialog {
+      width: 100%;
+      max-width: 100%;
+      padding: 18px 16px;
+    }
+
+    .order-detail-body {
+      min-width: 0;
+    }
+
+    .order-detail-left {
+      min-width: 0;
+    }
+
+    .order-detail-body > aside {
+      min-width: 0;
+    }
+
+    #orderDetailAddress,
+    #orderDetailMessage {
+      max-width: 100%;
+      min-width: 0;
+      overflow-wrap: anywhere;
+      word-break: break-word;
+    }
+  }
+
   @media (max-width: 1023px) {
     .order-detail-dialog {
       max-height: calc(100vh - 20px);
       padding: 20px 18px;
+      overflow-y: auto;
+    }
+
+    .order-detail-body {
+      display: block;
+      min-height: auto;
+      overflow: visible;
+    }
+
+    .order-detail-left {
+      display: block;
+      min-height: auto;
+    }
+
+    .order-detail-items-scroll {
+      max-height: 220px;
+      overflow-y: auto;
+      margin-top: 16px;
+      padding-right: 4px;
+    }
+
+    .order-detail-body > aside {
+      display: block;
+      margin-top: 16px;
     }
 
     .order-empty-state {
@@ -84,44 +401,134 @@
       min-height: 300px;
     }
   }
+
 </style>
 {% endblock %}
 
 {% block content %}
-<div class="min-h-screen bg-[#f7fafc]">
-  <div class="mx-auto max-w-[1180px] px-4 py-8 md:px-6">
-    <div class="flex items-center justify-start">
-      <a href="/chat/" class="text-[26px] font-bold leading-none text-[#2d3748]" aria-label="메인으로 이동">
-        <span class="text-[#3182ce]">Tail</span><span>Talk</span>
-      </a>
-    </div>
-
-    <div class="mt-8 flex items-center justify-start">
-      <div class="inline-flex rounded-full border border-[#dbe7f5] bg-white p-[4px] shadow-[0_6px_18px_rgba(45,55,72,0.04)]">
-        <a href="/orders/" class="inline-flex h-[38px] min-w-[124px] items-center justify-center rounded-full bg-[#2d3748] px-4 text-[13px] font-semibold text-white">
-          주문 내역
+<div id="pageGate" class="min-h-screen bg-[#f7fafc]">
+  <div class="app-shell">
+    <header id="ordersHeader">
+      <div id="ordersHeaderInner">
+        <div></div>
+        <a href="/chat/" id="ordersHeaderLogo" aria-label="메인으로 돌아가기">
+          <span class="text-[#3182ce]">Tail</span><span>Talk</span>
+        </a>
+        <div class="justify-self-end min-w-0">
+          <div id="profileMenuWrapper">
+            <button type="button"
+                    class="flex h-[40px] w-[40px] items-center justify-center rounded-full border border-[#e2e8f0] bg-white shadow-[0_2px_8px_rgba(45,55,72,0.05)]"
+                    aria-label="프로필 메뉴 열기"
+                    onclick="toggleProfileMenu()">
+              <svg viewBox="0 0 24 24" class="h-[30px] w-[30px] text-[#4a5568]" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+                <circle cx="12" cy="8" r="3.2"></circle>
+                <path d="M5.5 19a6.5 6.5 0 0 1 13 0"></path>
+              </svg>
+            </button>
+            <div id="profileMenu">
+              <a href="/profile/"
+                 class="flex h-[44px] w-full items-center rounded-t-[16px] px-[16px] text-[14px] text-[#2d3748] hover:bg-[#edf2f7]">내 정보</a>
+              <div class="mx-[12px] h-px bg-[#edf2f7]"></div>
+              <a href="/pets/"
+                 class="flex h-[44px] w-full items-center px-[16px] text-[14px] text-[#2d3748] hover:bg-[#edf2f7]">반려동물 정보</a>
+              <div class="mx-[12px] h-px bg-[#edf2f7]"></div>
+              <a href="/logout/"
+                 class="flex h-[44px] w-full items-center rounded-b-[16px] px-[16px] text-[14px] text-[#ef4444] hover:bg-[#fef2f2]">로그아웃</a>
+            </div>
+          </div>
+        </div>
+      </div>
+    </header>
+    <div id="headerSubnav">
+      <div id="headerSubnavRail">
+        <a href="/catalog/" class="header-subnav-link" aria-label="상품 목록" title="상품 목록">
+          <svg viewBox="0 0 24 24" class="h-[17px] w-[17px]" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+            <rect x="4" y="4" width="6" height="6" rx="1.5"></rect>
+            <rect x="14" y="4" width="6" height="6" rx="1.5"></rect>
+            <rect x="4" y="14" width="6" height="6" rx="1.5"></rect>
+            <rect x="14" y="14" width="6" height="6" rx="1.5"></rect>
+          </svg>
+        </a>
+        <a href="/products/" class="header-subnav-link {% if member_nav_has_cart_items %}has-indicator{% endif %}" aria-label="장바구니" title="장바구니">
+          <svg viewBox="0 0 24 24" class="h-[18px] w-[18px]" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+            <circle cx="9" cy="20" r="1.5"></circle>
+            <circle cx="18" cy="20" r="1.5"></circle>
+            <path d="M3 4h2l2.2 10.2a1 1 0 0 0 1 .8h8.9a1 1 0 0 0 1-.75L20 8H7"></path>
+          </svg>
+        </a>
+        <a href="/wishlist/" class="header-subnav-link {% if member_nav_has_wishlist_items %}has-indicator{% endif %}" aria-label="관심 상품" title="관심 상품">
+          <svg viewBox="0 0 24 24" class="h-[17px] w-[17px]" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+            <path d="M12 20.4 4.9 13.8a4.8 4.8 0 0 1 6.8-6.8L12 7.3l.3-.3a4.8 4.8 0 0 1 6.8 6.8L12 20.4Z"></path>
+          </svg>
+        </a>
+        <a href="/orders/" class="header-subnav-link is-active" aria-label="주문 내역" title="주문 내역">
+          <svg viewBox="0 0 24 24" class="h-[17px] w-[17px]" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+            <path d="M7 4.5h10"></path>
+            <path d="M7 9.5h10"></path>
+            <path d="M7 14.5h6"></path>
+            <rect x="4" y="3" width="16" height="18" rx="2"></rect>
+          </svg>
         </a>
       </div>
     </div>
-
-    <div class="mt-6 flex flex-col gap-3 rounded-[24px] border border-[#dbe7f5] bg-white px-4 py-4 shadow-[0_6px_18px_rgba(45,55,72,0.04)] md:flex-row md:items-center md:justify-between">
-      <div class="flex flex-wrap gap-2">
-        {% for option in order_filter_options %}
-        <a href="/orders/{% if option.query %}?{{ option.query }}{% endif %}"
-           class="order-toolbar-chip inline-flex h-[34px] items-center justify-center rounded-full border border-[#dbe7f5] px-4 text-[13px] font-semibold {% if option.is_active %}is-active{% else %}bg-[#f8fbff] text-[#4a5568]{% endif %}">
-          {{ option.label }}
-        </a>
-        {% endfor %}
+    <div id="ordersViewport">
+    <div class="mb-0 pl-2">
+      <h1 class="text-[24px] font-bold leading-[1.25] text-[#2d3748]">주문 내역</h1>
+      <div class="mt-3 h-px w-full bg-[#e8eef6]"></div>
+    </div>
+    <div class="mt-3 flex items-center justify-end gap-2 px-1 md:gap-5">
+      <div class="order-toolbar-control">
+        <div id="orderFilterDropdown" class="order-toolbar-dropdown">
+          <button type="button" id="orderFilterTrigger" class="order-toolbar-trigger" aria-haspopup="listbox" aria-expanded="false">
+            <span id="orderFilterTriggerText" class="order-toolbar-trigger-text"></span>
+            <span class="order-toolbar-trigger-caret" aria-hidden="true"></span>
+          </button>
+          <div id="orderFilterOptionPanel" class="order-toolbar-option-panel hidden" role="listbox">
+            {% for option in order_filter_options %}
+            <button type="button"
+                    class="order-toolbar-option {% if option.is_active %}is-active{% endif %}"
+                    data-order-filter-option
+                    data-value="/orders/{% if option.query %}?{{ option.query }}{% endif %}"
+                    data-label="{{ option.label }}">
+              <span>{{ option.label }}</span>
+              <span class="order-toolbar-option-check">✓</span>
+            </button>
+            {% endfor %}
+          </div>
+          <select id="orderFilterSelect" class="order-toolbar-select hidden-native">
+            {% for option in order_filter_options %}
+            <option value="/orders/{% if option.query %}?{{ option.query }}{% endif %}" {% if option.is_active %}selected{% endif %}>
+              {{ option.label }}
+            </option>
+            {% endfor %}
+          </select>
+        </div>
       </div>
-      <div class="flex items-center gap-2 self-end md:self-auto">
-        <span class="text-[12px] font-semibold text-[#90a4b8]">정렬</span>
-        <div class="inline-flex rounded-full border border-[#dbe7f5] bg-[#f8fbff] p-[3px]">
-          {% for option in order_ordering_options %}
-          <a href="/orders/{% if option.query %}?{{ option.query }}{% endif %}"
-             class="order-toolbar-chip inline-flex h-[30px] min-w-[78px] items-center justify-center rounded-full px-3 text-[12px] font-semibold {% if option.is_active %}is-active{% else %}text-[#4a5568]{% endif %}">
-            {{ option.label }}
-          </a>
-          {% endfor %}
+      <div class="order-toolbar-control">
+        <div id="orderSortDropdown" class="order-toolbar-dropdown">
+          <button type="button" id="orderSortTrigger" class="order-toolbar-trigger" aria-haspopup="listbox" aria-expanded="false">
+            <span id="orderSortTriggerText" class="order-toolbar-trigger-text"></span>
+            <span class="order-toolbar-trigger-caret" aria-hidden="true"></span>
+          </button>
+          <div id="orderSortOptionPanel" class="order-toolbar-option-panel hidden" role="listbox">
+            {% for option in order_ordering_options %}
+            <button type="button"
+                    class="order-toolbar-option {% if option.is_active %}is-active{% endif %}"
+                    data-order-sort-option
+                    data-value="/orders/{% if option.query %}?{{ option.query }}{% endif %}"
+                    data-label="{{ option.label }}">
+              <span>{{ option.label }}</span>
+              <span class="order-toolbar-option-check">✓</span>
+            </button>
+            {% endfor %}
+          </div>
+          <select id="orderSortSelect" class="order-toolbar-select hidden-native">
+            {% for option in order_ordering_options %}
+            <option value="/orders/{% if option.query %}?{{ option.query }}{% endif %}" {% if option.is_active %}selected{% endif %}>
+              {{ option.label }}
+            </option>
+            {% endfor %}
+          </select>
         </div>
       </div>
     </div>
@@ -133,21 +540,20 @@
     {% endif %}
 
     {% if order_groups %}
-    <div class="order-card-grid mt-8 grid items-start gap-5 lg:grid-cols-2">
+    <div class="order-card-grid mt-3 grid items-start gap-5 lg:grid-cols-2">
       {% for order in order_groups %}
-      <section class="overflow-hidden rounded-[24px] border border-[#dbe7f5] bg-white shadow-[0_8px_24px_rgba(45,55,72,0.04)]">
+      <section class="overflow-hidden rounded-[22px] border border-[#e2e8f0] bg-white">
         <div class="px-5 py-5">
-          <div class="flex flex-col gap-4">
+          <div class="flex flex-col gap-3">
             <div class="min-w-0">
               <div class="flex items-start justify-between gap-4">
                 <div class="min-w-0">
                   <div class="flex flex-wrap items-center gap-2">
-                    <p class="text-[18px] font-bold text-[#2d3748]">{{ order.created_at }}</p>
-                    <span class="inline-flex rounded-full px-3 py-1 text-[12px] font-bold {{ order.status_class }}">
+                    <p class="text-[17px] font-bold text-[#2d3748]">{{ order.created_at }}</p>
+                    <span class="inline-flex rounded-full px-2.5 py-1 text-[11px] font-bold {{ order.status_class }}">
                       {{ order.status }}
                     </span>
                   </div>
-                  <p class="mt-2 text-[14px] font-semibold text-[#2d3748]">주문번호 {{ order.order_id }}</p>
                 </div>
                 <div class="flex shrink-0 items-center gap-2">
                   {% if order.can_reorder %}
@@ -158,14 +564,14 @@
                   </button>
                   {% endif %}
                   <button type="button"
-                          class="inline-flex h-[32px] items-center justify-center rounded-[10px] bg-[#edf2f7] px-3 text-[12px] font-semibold text-[#2d3748]"
+                          class="inline-flex h-[32px] items-center justify-center rounded-[10px] border border-[#e2e8f0] bg-[#f8fbff] px-3 text-[12px] font-semibold text-[#2d3748]"
                           data-order-open="{{ forloop.counter0 }}">
                     상세 보기
                   </button>
                 </div>
               </div>
 
-              <div class="mt-4 min-w-0 rounded-[20px] border border-[#edf2f7] bg-[#fbfdff] px-4 py-3.5">
+              <div class="mt-3 min-w-0 rounded-[18px] border border-[#edf2f7] bg-[#fbfdff] px-4 py-3">
                 <div class="min-w-0">
                   {% for item in order.items|slice:":2" %}
                   <div class="{% if not forloop.first %}mt-1.5{% endif %} flex min-w-0 items-center gap-2">
@@ -180,12 +586,12 @@
               </div>
             </div>
 
-            <div class="rounded-[20px] border border-[#dbe7f5] bg-[#f8fbff] px-4 py-4">
+            <div class="rounded-[18px] border border-[#e2e8f0] bg-[#f8fbff] px-4 py-3.5">
               <div class="flex h-[20px] items-center justify-between gap-3">
-                <p class="text-[13px] font-semibold leading-none text-[#90a4b8]">결제 금액</p>
-                <span class="text-[13px] font-semibold leading-none text-[#90a4b8]">총 {{ order.item_count }} 개</span>
+                <p class="text-[12px] font-semibold leading-none text-[#90a4b8]">결제 금액</p>
+                <span class="text-[12px] font-semibold leading-none text-[#90a4b8]">총 {{ order.item_count }}개</span>
               </div>
-              <p class="mt-2 text-[22px] font-bold text-[#2d3748]">{{ order.total_price }}</p>
+              <p class="mt-1.5 text-[21px] font-bold text-[#2d3748]">{{ order.total_price }}</p>
             </div>
           </div>
         </div>
@@ -226,6 +632,7 @@
       </div>
     </div>
     {% endif %}
+    </div>
   </div>
 </div>
 
@@ -235,10 +642,10 @@
 </div>
 
 <div id="orderDetailModal" class="order-detail-modal fixed inset-0 z-50 items-center justify-center bg-[rgba(15,23,42,0.46)] px-4" onclick="closeOrderDetailModal(event)">
-  <div class="order-detail-dialog w-full max-w-[760px] rounded-[24px] bg-white px-6 py-6 shadow-[0_20px_60px_rgba(15,23,42,0.24)]">
+  <div class="order-detail-dialog w-full max-w-[760px] rounded-[22px] bg-white px-6 py-6 shadow-[0_18px_48px_rgba(15,23,42,0.2)]">
     <div class="flex items-start justify-between gap-4">
       <div>
-        <p id="orderDetailTitle" class="text-[24px] font-bold text-[#2d3748]"></p>
+        <p id="orderDetailTitle" class="text-[22px] font-bold text-[#2d3748]"></p>
       </div>
       <button type="button"
               class="inline-flex h-[30px] w-[30px] items-center justify-center rounded-full text-[16px] font-bold text-[#a0aec0] transition-colors hover:bg-[#f8fbff] hover:text-[#2d3748]"
@@ -246,49 +653,48 @@
               onclick="closeOrderDetailModal()">×</button>
     </div>
 
-    <div class="order-detail-body mt-5 grid gap-5 lg:grid-cols-[minmax(0,1fr)_260px]">
+    <div class="order-detail-body mt-4 grid gap-4 lg:grid-cols-[minmax(0,1fr)_248px]">
       <div class="order-detail-left min-h-0">
-        <div class="rounded-[20px] border border-[#dbe7f5] bg-[#f8fbff] px-5 py-5">
+        <div class="rounded-[18px] border border-[#e2e8f0] bg-[#f8fbff] px-5 py-4">
           <div class="flex flex-wrap items-center gap-2">
-            <p id="orderDetailDate" class="text-[18px] font-bold text-[#2d3748]"></p>
-            <span id="orderDetailStatus" class="inline-flex rounded-full px-3 py-1 text-[12px] font-bold"></span>
+            <p id="orderDetailDate" class="text-[17px] font-bold text-[#2d3748]"></p>
+            <span id="orderDetailStatus" class="inline-flex rounded-full px-2.5 py-1 text-[11px] font-bold"></span>
           </div>
-          <div class="mt-4 grid gap-3 text-[14px] text-[#4a5568]">
+          <div class="mt-4 grid gap-3 text-[13px] text-[#4a5568]">
             <div class="flex items-start justify-between gap-3">
-              <span class="text-[#90a4b8]">주문번호</span>
+              <span class="shrink-0 whitespace-nowrap text-[#90a4b8]">주문번호</span>
               <span id="orderDetailOrderId" class="font-semibold text-[#2d3748]"></span>
             </div>
             <div class="flex items-start justify-between gap-3">
-              <span class="text-[#90a4b8]">수령인</span>
+              <span class="shrink-0 whitespace-nowrap text-[#90a4b8]">수령인</span>
               <span id="orderDetailRecipient" class="font-semibold text-[#2d3748]"></span>
             </div>
             <div class="flex items-start justify-between gap-3">
-              <span class="text-[#90a4b8]">연락처</span>
+              <span class="shrink-0 whitespace-nowrap text-[#90a4b8]">연락처</span>
               <span id="orderDetailPhone" class="font-semibold text-[#2d3748]"></span>
             </div>
             <div class="flex items-start justify-between gap-3">
-              <span class="text-[#90a4b8]">배송지</span>
+              <span class="shrink-0 whitespace-nowrap text-[#90a4b8]">배송지</span>
               <span id="orderDetailAddress" class="max-w-[380px] text-right leading-[1.6] text-[#2d3748]"></span>
             </div>
             <div class="flex items-start justify-between gap-3">
-              <span id="orderDetailMessageLabel" class="text-[#90a4b8]">배송 메모</span>
+              <span id="orderDetailMessageLabel" class="shrink-0 whitespace-nowrap text-[#90a4b8]">배송 메모</span>
               <span id="orderDetailMessage" class="max-w-[380px] text-right leading-[1.6] text-[#2d3748]"></span>
             </div>
             <div class="flex items-start justify-between gap-3">
-              <span class="text-[#90a4b8]">결제 수단</span>
+              <span class="shrink-0 whitespace-nowrap text-[#90a4b8]">결제 수단</span>
               <span id="orderDetailPayment" class="font-semibold text-[#2d3748]"></span>
             </div>
           </div>
         </div>
 
-        <div class="order-detail-items-scroll mt-5 space-y-3" id="orderDetailItems"></div>
+        <div class="order-detail-items-scroll mt-4 space-y-3" id="orderDetailItems"></div>
       </div>
 
-      <aside class="rounded-[20px] border border-[#dbe7f5] bg-white px-5 py-5">
-        <p class="text-[13px] font-semibold text-[#90a4b8]">결제 요약</p>
-        <p id="orderDetailTotal" class="mt-3 text-[24px] font-bold text-[#2d3748]"></p>
-        <p id="orderDetailHint" class="mt-3 whitespace-pre-line text-[13px] leading-[1.6] text-[#718096]"></p>
-        <div class="mt-5 space-y-3 text-[13px] text-[#4a5568]">
+      <aside class="rounded-[18px] border border-[#e2e8f0] bg-white px-5 py-4">
+        <p class="text-[12px] font-semibold text-[#90a4b8]">결제 요약</p>
+        <p id="orderDetailTotal" class="mt-2.5 text-[23px] font-bold text-[#2d3748]"></p>
+        <div class="mt-4 space-y-3 text-[12px] text-[#4a5568]">
           <div class="flex items-center justify-between">
             <span>상품 수</span>
             <span id="orderDetailCount" class="font-semibold text-[#2d3748]"></span>
@@ -300,8 +706,8 @@
         </div>
         <button type="button"
                 id="orderDetailReorderButton"
-                class="mt-6 inline-flex h-[44px] w-full items-center justify-center rounded-[14px] border border-[#dbe7f5] bg-[#f8fbff] text-[14px] font-semibold text-[#2d3748]">
-          다시 주문하러 가기
+                class="mt-5 inline-flex h-[42px] w-full items-center justify-center rounded-[14px] border border-[#dbe7f5] bg-[#f8fbff] text-[14px] font-semibold text-[#2d3748]">
+          다시 담기
         </button>
       </aside>
     </div>
@@ -314,6 +720,8 @@
 {{ order_groups|json_script:"order-groups-data" }}
 <script>
 (function () {
+  var profileMenu = document.getElementById('profileMenu');
+  var profileMenuWrapper = document.getElementById('profileMenuWrapper');
   var modal = document.getElementById('orderDetailModal');
   var orderDataScript = document.getElementById('order-groups-data');
   if (!modal || !orderDataScript) return;
@@ -335,9 +743,26 @@
   var detailCount = document.getElementById('orderDetailCount');
   var detailStatusText = document.getElementById('orderDetailStatusText');
   var detailReorderButton = document.getElementById('orderDetailReorderButton');
+  var orderFilterDropdown = document.getElementById('orderFilterDropdown');
+  var orderFilterTrigger = document.getElementById('orderFilterTrigger');
+  var orderFilterTriggerText = document.getElementById('orderFilterTriggerText');
+  var orderFilterOptionPanel = document.getElementById('orderFilterOptionPanel');
+  var orderFilterSelect = document.getElementById('orderFilterSelect');
+  var orderFilterOptions = Array.prototype.slice.call(document.querySelectorAll('[data-order-filter-option]'));
+  var orderSortDropdown = document.getElementById('orderSortDropdown');
+  var orderSortTrigger = document.getElementById('orderSortTrigger');
+  var orderSortTriggerText = document.getElementById('orderSortTriggerText');
+  var orderSortOptionPanel = document.getElementById('orderSortOptionPanel');
+  var orderSortSelect = document.getElementById('orderSortSelect');
+  var orderSortOptions = Array.prototype.slice.call(document.querySelectorAll('[data-order-sort-option]'));
   var activeOrderIndex = null;
   var feedbackToast = document.getElementById('orderFeedbackToast');
   var feedbackToastTimer = null;
+
+  window.toggleProfileMenu = function () {
+    if (!profileMenu) return;
+    profileMenu.classList.toggle('is-open');
+  };
 
   function getCsrfToken() {
     var match = document.cookie.match(/(?:^|;\s*)csrftoken=([^;]+)/);
@@ -367,6 +792,30 @@
       feedbackToast.classList.remove('is-open');
       feedbackToastTimer = null;
     }, 2600);
+  }
+
+  function syncToolbarDropdown(selectElement, triggerTextElement, options, dataAttribute) {
+    if (!selectElement || !triggerTextElement) return;
+    var selectedOption = selectElement.options[selectElement.selectedIndex];
+    triggerTextElement.textContent = selectedOption ? selectedOption.textContent.trim() : '';
+    options.forEach(function (option) {
+      var isActive = option.getAttribute(dataAttribute) === selectElement.value;
+      option.classList.toggle('is-active', isActive);
+    });
+  }
+
+  function openToolbarDropdown(dropdown, trigger, panel) {
+    if (!dropdown || !trigger || !panel) return;
+    panel.classList.remove('hidden');
+    dropdown.classList.add('is-open');
+    trigger.setAttribute('aria-expanded', 'true');
+  }
+
+  function closeToolbarDropdown(dropdown, trigger, panel) {
+    if (!dropdown || !trigger || !panel) return;
+    panel.classList.add('hidden');
+    dropdown.classList.remove('is-open');
+    trigger.setAttribute('aria-expanded', 'false');
   }
 
   function resetReorderButtons() {
@@ -505,6 +954,67 @@
       reorderOrder(activeOrderIndex, detailReorderButton);
     });
   }
+
+  document.addEventListener('click', function (event) {
+    if (profileMenuWrapper && !profileMenuWrapper.contains(event.target) && profileMenu) {
+      profileMenu.classList.remove('is-open');
+    }
+    if (orderFilterDropdown && !orderFilterDropdown.contains(event.target)) {
+      closeToolbarDropdown(orderFilterDropdown, orderFilterTrigger, orderFilterOptionPanel);
+    }
+    if (orderSortDropdown && !orderSortDropdown.contains(event.target)) {
+      closeToolbarDropdown(orderSortDropdown, orderSortTrigger, orderSortOptionPanel);
+    }
+  });
+
+  syncToolbarDropdown(orderFilterSelect, orderFilterTriggerText, orderFilterOptions, 'data-value');
+  syncToolbarDropdown(orderSortSelect, orderSortTriggerText, orderSortOptions, 'data-value');
+
+  if (orderFilterTrigger) {
+    orderFilterTrigger.addEventListener('click', function () {
+      if (!orderFilterOptionPanel) return;
+      var isHidden = orderFilterOptionPanel.classList.contains('hidden');
+      closeToolbarDropdown(orderSortDropdown, orderSortTrigger, orderSortOptionPanel);
+      if (isHidden) {
+        openToolbarDropdown(orderFilterDropdown, orderFilterTrigger, orderFilterOptionPanel);
+      } else {
+        closeToolbarDropdown(orderFilterDropdown, orderFilterTrigger, orderFilterOptionPanel);
+      }
+    });
+  }
+
+  if (orderSortTrigger) {
+    orderSortTrigger.addEventListener('click', function () {
+      if (!orderSortOptionPanel) return;
+      var isHidden = orderSortOptionPanel.classList.contains('hidden');
+      closeToolbarDropdown(orderFilterDropdown, orderFilterTrigger, orderFilterOptionPanel);
+      if (isHidden) {
+        openToolbarDropdown(orderSortDropdown, orderSortTrigger, orderSortOptionPanel);
+      } else {
+        closeToolbarDropdown(orderSortDropdown, orderSortTrigger, orderSortOptionPanel);
+      }
+    });
+  }
+
+  orderFilterOptions.forEach(function (option) {
+    option.addEventListener('click', function () {
+      var value = option.getAttribute('data-value') || '';
+      if (!value) return;
+      if (orderFilterSelect) orderFilterSelect.value = value;
+      syncToolbarDropdown(orderFilterSelect, orderFilterTriggerText, orderFilterOptions, 'data-value');
+      window.location.href = value;
+    });
+  });
+
+  orderSortOptions.forEach(function (option) {
+    option.addEventListener('click', function () {
+      var value = option.getAttribute('data-value') || '';
+      if (!value) return;
+      if (orderSortSelect) orderSortSelect.value = value;
+      syncToolbarDropdown(orderSortSelect, orderSortTriggerText, orderSortOptions, 'data-value');
+      window.location.href = value;
+    });
+  });
 
   window.addEventListener('pageshow', function () {
     resetReorderButtons();

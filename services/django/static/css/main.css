@@ -7,12 +7,42 @@ html, body {
   margin: 0;
   padding: 0;
   height: 100%;
+  scrollbar-gutter: stable both-edges;
 }
 
 body {
   background: #ffffff;
   color: #171717;
   font-family: "Segoe UI", "Apple SD Gothic Neo", "Noto Sans KR", "Malgun Gothic", Arial, sans-serif;
+}
+
+@media (hover: hover) and (pointer: fine) {
+  html,
+  body,
+  * {
+    scrollbar-width: thin;
+    scrollbar-color: rgba(148, 163, 184, 0.72) transparent;
+  }
+
+  *::-webkit-scrollbar {
+    width: 10px;
+    height: 10px;
+  }
+
+  *::-webkit-scrollbar-track {
+    background: transparent;
+  }
+
+  *::-webkit-scrollbar-thumb {
+    border: 2px solid transparent;
+    border-radius: 9999px;
+    background-clip: padding-box;
+    background-color: rgba(148, 163, 184, 0.72);
+  }
+
+  *:hover::-webkit-scrollbar-thumb {
+    background-color: rgba(100, 116, 139, 0.82);
+  }
 }
 
 a,
@@ -73,7 +103,7 @@ input:disabled {
   position: absolute;
   display: inline-flex;
   align-items: center;
-  justify-content: flex-start;
+  justify-content: center;
   gap: 8px;
   border: 0;
   background: transparent;

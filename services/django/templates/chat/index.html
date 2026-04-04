@@ -9,7 +9,7 @@
 
   #pageGate {
     min-height: 100dvh;
-    background: #f7fafc;
+    background: #f8f9fb;
   }
 
   #pageGate > .app-shell {
@@ -19,7 +19,7 @@
     height: 100dvh;
     margin: 0 auto;
     overflow: hidden;
-    background: #f7fafc;
+    background: #f8f9fb;
   }
 
   #sidebar {
@@ -50,7 +50,7 @@
     position: absolute;
     inset: 0;
     z-index: 10;
-    background: #f7fafc;
+    background: #f8f9fb;
   }
 
   #mainHeader {
@@ -120,6 +120,17 @@
     background: #f8fbff;
   }
 
+  .header-subnav-link.has-indicator::after {
+    content: '';
+    position: absolute;
+    top: 9px;
+    right: calc(50% - 12px);
+    width: 6px;
+    height: 6px;
+    border-radius: 9999px;
+    background: #f97316;
+  }
+
   #workspaceShell {
     position: absolute;
     inset: 116px 0 0 0;
@@ -131,7 +142,7 @@
     inset: 0;
     display: flex;
     overflow: hidden;
-    background: #f7fafc;
+    background: #f8f9fb;
   }
 
   #chatSection {
@@ -139,30 +150,78 @@
     min-width: 0;
     flex: 1 1 auto;
     flex-direction: column;
-    background: #f7fafc;
+    background: #f8f9fb;
   }
 
   #chatScrollArea {
     position: relative;
     flex: 1 1 auto;
     overflow-y: auto;
-    padding: 24px 20px 88px;
+    padding: 18px 16px 88px;
   }
 
   #chatEmptyState {
     position: absolute;
     left: 50%;
     top: clamp(160px, 23vh, 240px);
-    width: min(760px, calc(100% - 48px));
+    width: min(680px, calc(100% - 40px));
     transform: translateX(-50%);
     text-align: center;
   }
 
   #guestHeroTitle {
-    font-size: 32px;
+    max-width: none;
+    margin: 0 auto;
+    font-size: clamp(28px, 5.8vw, 34px);
     font-weight: 700;
-    line-height: 1.2;
+    line-height: 1.28;
+    letter-spacing: -0.03em;
     color: #1a202c;
+    white-space: nowrap;
+  }
+
+  #guestHeroMessage {
+    width: auto;
+    max-width: none;
+    margin: 14px auto 0;
+    font-size: clamp(15px, 3.4vw, 16px);
+    line-height: 1.65;
+    color: #718096;
+    white-space: nowrap;
+  }
+
+  #guestHeroLoginLink {
+    margin-top: 28px;
+  }
+
+  .guest-hero-mobile-break {
+    display: none;
+  }
+
+  @media (max-width: 420px) {
+    #chatEmptyState {
+      width: calc(100% - 32px);
+    }
+
+    #guestHeroTitle {
+      max-width: 11.8em;
+      font-size: clamp(26px, 7.4vw, 30px);
+      line-height: 1.3;
+      white-space: normal;
+      word-break: keep-all;
+    }
+
+    #guestHeroMessage {
+      width: min(320px, 100%);
+      font-size: 15px;
+      line-height: 1.6;
+      white-space: normal;
+      word-break: keep-all;
+    }
+
+    .guest-hero-mobile-break {
+      display: block;
+    }
   }
 
   #chatThread {
@@ -170,7 +229,7 @@
     width: 100%;
     max-width: 760px;
     margin: 0 auto;
-    padding-top: 24px;
+    padding-top: 18px;
     position: relative;
   }
 
@@ -790,7 +849,8 @@
       {% if is_member_view %}
       <div id="headerSubnav">
         <div id="headerSubnavRail">
-          <a href="{% if is_preview_member %}#{% else %}/catalog/{% endif %}"
+          <a id="headerCatalogLink"
+             href="{% if is_preview_member %}#{% else %}/catalog/{% endif %}"
              class="header-subnav-link"
              aria-label="상품 목록"
              title="상품 목록"
@@ -803,7 +863,7 @@
             </svg>
           </a>
           <a href="{% if is_preview_member %}#{% else %}/products/{% endif %}"
-             class="header-subnav-link"
+             class="header-subnav-link {% if member_nav_has_cart_items %}has-indicator{% endif %}"
              aria-label="장바구니"
              title="장바구니"
              {% if is_preview_member %}onclick="return false"{% endif %}>
@@ -813,8 +873,8 @@
               <path d="M3 4h2l2.2 10.2a1 1 0 0 0 1 .8h8.9a1 1 0 0 0 1-.75L20 8H7"></path>
             </svg>
           </a>
-          <a href="{% if is_preview_member %}#{% else %}/products/?tab=wishlist{% endif %}"
-             class="header-subnav-link"
+          <a href="{% if is_preview_member %}#{% else %}/wishlist/{% endif %}"
+             class="header-subnav-link {% if member_nav_has_wishlist_items %}has-indicator{% endif %}"
              aria-label="관심 상품"
              title="관심 상품"
              {% if is_preview_member %}onclick="return false"{% endif %}>
@@ -845,12 +905,12 @@
               <div id="chatEmptyState">
                 {% if not chat_enabled %}
                 <div id="guestHeroTitle">
-                  <span class="text-[#3182ce]">Tail</span><span>Talk와 함께하는 스마트 반려 생활</span>
+                  <span class="text-[#3182ce]">Tail</span><span>Talk와 함께하는</span><br class="guest-hero-mobile-break"><span> 스마트 반려 생활</span>
                 </div>
                 {% endif %}
                 {% if not chat_enabled %}
-                <p class="mt-[14px] text-[16px] text-[#718096]">로그인 후 챗봇과 대화를 시작하고 맞춤 추천을 받아보세요</p>
-                <a href="/login/" class="mt-[32px] inline-flex items-center gap-[4px] font-bold text-[#2563eb] hover:text-[#1d4ed8]">
+                <p id="guestHeroMessage">로그인 후 챗봇과 대화를 시작하고<br class="guest-hero-mobile-break"> 맞춤 추천을 받아보세요</p>
+                <a id="guestHeroLoginLink" href="/login/" class="inline-flex items-center gap-[4px] font-bold text-[#2563eb] hover:text-[#1d4ed8]">
                   이미 계정이 있나요? 로그인
                 </a>
                 {% endif %}
@@ -1021,6 +1081,7 @@
     var SESSION_RECOMMENDED_PRODUCTS_STORAGE_PREFIX = 'tailtalk_session_recommended_products:';
     var chatActionToastTimer = null;
     var activeMessageAbortController = null;
+    var headerCatalogLink = document.getElementById('headerCatalogLink');
     var defaultMessagePlaceholder = messageInput ? messageInput.getAttribute('placeholder') || '메시지를 입력하세요...' : '메시지를 입력하세요...';
     var chatApiAccessToken = '{{ chat_api_access_token|default:""|escapejs }}';
 
@@ -1031,6 +1092,15 @@
     }
 
     var csrfToken = getCookie('csrftoken');
+
+    function updateCatalogSessionLink() {
+      if (!headerCatalogLink) return;
+      if (!activeSessionId) {
+        headerCatalogLink.setAttribute('href', '/catalog/');
+        return;
+      }
+      headerCatalogLink.setAttribute('href', '/catalog/?session=' + encodeURIComponent(activeSessionId));
+    }
 
     function buildApiHeaders(headers) {
       var merged = Object.assign({}, headers || {});
@@ -2054,6 +2124,7 @@
           var sessionId = item.getAttribute('data-id');
           if (!sessionId) return;
           activeSessionId = sessionId;
+          updateCatalogSessionLink();
           applySessionProfileState(sessionId);
           updateHistoryActiveState();
 
@@ -2216,6 +2287,7 @@
         }),
       }).then(function (data) {
         activeSessionId = data.session_id;
+        updateCatalogSessionLink();
         ensureSessionState(activeSessionId).targetPetId = data.target_pet_id || '';
         ensureSessionState(activeSessionId).profileContextType = data.profile_context_type || 'none';
         ensureSessionState(activeSessionId).profilePromptResolved = profilePromptResolved;
@@ -2227,6 +2299,7 @@
 
     window.resetChatState = function () {
       activeSessionId = null;
+      updateCatalogSessionLink();
       activePetId = '';
       profilePromptResolved = false;
       pendingPromptMessage = '';
@@ -2321,6 +2394,7 @@
 
       function submitWithSession(sessionId) {
         activeSessionId = sessionId;
+        updateCatalogSessionLink();
         updateHistoryActiveState();
 
         var state = ensureSessionState(sessionId);
@@ -2554,6 +2628,7 @@
     }
     updatePetSummaryDisplay();
     syncPetDropdownOptionState();
+    updateCatalogSessionLink();
     updateRecommendationLauncher();
     renderRecommendationPanel([]);
     bindHistoryItems();
