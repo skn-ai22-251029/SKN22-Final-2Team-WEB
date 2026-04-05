@@ -1034,7 +1034,10 @@
                       class="catalog-card-action"
                       aria-label="장바구니에 상품 추가"
                       onclick="addWishlistToCart(this)">
-                <span class="relative top-[-2px]">+</span>
+                <svg width="14" height="14" viewBox="0 0 14 14" fill="none" aria-hidden="true">
+                  <path d="M7 2.2V11.8" stroke="currentColor" stroke-width="2" stroke-linecap="round"/>
+                  <path d="M2.2 7H11.8" stroke="currentColor" stroke-width="2" stroke-linecap="round"/>
+                </svg>
               </button>
             </div>
           </div>
@@ -1065,7 +1068,7 @@
 </div>
 
 <div id="productFeedbackToast"
-     class="product-feedback-toast pointer-events-none fixed left-1/2 top-[88px] z-[70] flex min-h-[44px] min-w-[232px] max-w-[360px] -translate-x-1/2 items-center justify-center rounded-full bg-[#1f2937] px-[18px] py-[11px] text-center text-[13px] font-semibold text-white shadow-[0_14px_28px_rgba(15,23,42,0.28)]">
+     class="app-feedback-toast product-feedback-toast pointer-events-none flex min-h-[44px] min-w-[232px] max-w-[360px] items-center justify-center rounded-full bg-[#1f2937] px-[18px] py-[11px] text-center text-[13px] font-semibold text-white shadow-[0_14px_28px_rgba(15,23,42,0.28)]">
   오류가 발생했습니다.
 </div>
 {% endblock %}
@@ -1812,7 +1815,7 @@
       nameHtml,
       '<div class="catalog-card-meta">',
       '<div><p class="catalog-card-price">₩ ' + escapeHtml(String(data.priceLabel).replace(/원/g, "")) + '</p><p class="catalog-card-review"><span class="text-[#f6ad55]">★</span><span>' + escapeHtml(data.rating) + '</span><span>(' + escapeHtml(data.reviewCount) + ')</span></p></div>',
-      '<button type="button" class="catalog-card-action" aria-label="장바구니에 상품 추가" onclick="addWishlistToCart(this)"><span class="relative top-[-2px]">+</span></button>',
+      '<button type="button" class="catalog-card-action" aria-label="장바구니에 상품 추가" onclick="addWishlistToCart(this)"><svg width="14" height="14" viewBox="0 0 14 14" fill="none" aria-hidden="true"><path d="M7 2.2V11.8" stroke="currentColor" stroke-width="2" stroke-linecap="round"/><path d="M2.2 7H11.8" stroke="currentColor" stroke-width="2" stroke-linecap="round"/></svg></button>',
       '</div>',
       '</div>',
       '</article>'
