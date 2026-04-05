@@ -2,7 +2,7 @@ import json
 
 from django.db.models import Q
 
-from orders.models import Cart
+from orders.models import Cart, Wishlist
 from pets.future_profile import get_future_pet_profile_for_request
 from products.catalog_menu import build_catalog_menu_context
 from products.models import Product
@@ -89,6 +89,21 @@ def serialize_cart_product(item):
         "unit_price": price,
         "badge": "장바구니",
         "accent": "bg-[#e9d5ff] text-[#7c3aed]",
+    }
+
+
+def member_nav_indicator_state(user):
+    if not getattr(user, "is_authenticated", False):
+        return {
+            "member_nav_has_cart_items": False,
+            "member_nav_has_wishlist_items": False,
+        }
+
+    cart, _ = Cart.objects.get_or_create(user=user)
+    wishlist, _ = Wishlist.objects.get_or_create(user=user)
+    return {
+        "member_nav_has_cart_items": cart.items.exists(),
+        "member_nav_has_wishlist_items": wishlist.items.exists(),
     }
 
 
@@ -480,5 +495,6 @@ def build_chat_page_context(request):
         "promo_banners": promo_banners,
         "session_threads": session_threads,
         "catalog_menu_sections": build_catalog_menu_sections(),
+        **member_nav_indicator_state(request.user),
         **quick_order_profile,
     }

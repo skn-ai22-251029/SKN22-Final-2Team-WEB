@@ -553,19 +553,15 @@
   }
 
   #chatActionToast {
-    position: absolute;
-    left: 50%;
-    top: 50%;
     opacity: 0;
     visibility: hidden;
-    transform: translate(-50%, calc(-50% + 10px)) scale(0.98);
-    transition: opacity 180ms ease, transform 180ms ease;
+    transition: opacity 180ms ease, transform 180ms ease, visibility 180ms ease;
   }
 
   #chatActionToast.is-open {
     opacity: 1;
     visibility: visible;
-    transform: translate(-50%, -50%) scale(1);
+    transform: translate(-50%, 0) scale(1);
   }
 
   @keyframes recommendation-icon-twinkle {
@@ -758,7 +754,7 @@
             <span class="history-title absolute left-[6px] right-[72px] top-[12px] overflow-hidden text-ellipsis whitespace-nowrap text-[12px] font-semibold leading-none text-[#2d3748]">
               {{ session.title|default:"새 대화" }}
             </span>
-            <span class="history-date absolute right-0 top-[12px] w-[66px] whitespace-nowrap text-right text-[11px] leading-none tabular-nums text-[#a0aec0]">
+            <span class="history-date absolute right-[8px] top-[12px] w-[58px] whitespace-nowrap text-right text-[11px] leading-none tabular-nums text-[#a0aec0]">
               {% if session.updated_at|date:"y/m/d" != "" %}{{ session.updated_at|date:"y/m/d" }}{% else %}{{ session.updated_at }}{% endif %}
             </span>
           </div>
@@ -1003,7 +999,7 @@
             <p class="text-[17px] font-bold text-[#2d3748]">추천 상품</p>
           </div>
           <div id="chatActionToast"
-               class="pointer-events-none z-[2] flex min-h-[34px] min-w-[140px] max-w-[220px] items-center justify-center rounded-full bg-[#1f2937] px-[14px] py-[8px] text-center text-[12px] font-semibold leading-[1.35] text-white shadow-[0_10px_24px_rgba(15,23,42,0.22)]">
+               class="app-feedback-toast pointer-events-none z-[72] flex min-h-[44px] min-w-[232px] max-w-[360px] items-center justify-center rounded-full bg-[#1f2937] px-[18px] py-[11px] text-center text-[13px] font-semibold leading-[1.35] text-white shadow-[0_14px_28px_rgba(15,23,42,0.28)]">
             작업이 완료되었습니다
           </div>
           <button type="button" class="inline-flex h-[30px] w-[30px] items-center justify-center rounded-full bg-[#f8fafc] text-[18px] text-[#718096]" aria-label="추천 상품 닫기" onclick="closeRecommendationPanel()">
@@ -2173,7 +2169,7 @@
       wrapper.setAttribute('data-profile-context-type', state && state.profileContextType ? state.profileContextType : 'none');
       wrapper.innerHTML = ''
         + '<span class="history-title absolute left-[6px] right-[72px] top-[12px] overflow-hidden text-ellipsis whitespace-nowrap text-[12px] font-semibold leading-none text-[#2d3748]"></span>'
-        + '<span class="history-date absolute right-0 top-[12px] w-[66px] whitespace-nowrap text-right text-[11px] leading-none tabular-nums text-[#a0aec0]"></span>';
+        + '<span class="history-date absolute right-[8px] top-[12px] w-[58px] whitespace-nowrap text-right text-[11px] leading-none tabular-nums text-[#a0aec0]"></span>';
 
       wrapper.querySelector('.history-title').textContent = title || '새 대화';
       var now = new Date();

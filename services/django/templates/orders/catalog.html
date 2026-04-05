@@ -457,6 +457,7 @@
     right: 12px;
     bottom: 64px;
     width: min(calc(100% - 24px), 392px);
+    max-width: calc(100% - 24px);
     max-height: min(68vh, 560px);
     overflow: hidden;
     border: 1px solid #dbe7f5;
@@ -494,12 +495,15 @@
 
   #catalogFilterPanel {
     position: absolute;
-    top: 0;
-    right: 0;
-    height: 100%;
+    top: 12px;
+    right: 12px;
+    bottom: 12px;
+    height: auto;
     width: min(calc(100% - 24px), 352px);
+    max-width: calc(100% - 24px);
     overflow-y: auto;
-    border-left: 1px solid #dbe7f5;
+    border: 1px solid #dbe7f5;
+    border-radius: 28px;
     background: rgba(255, 255, 255, 0.98);
     box-shadow: -18px 0 36px rgba(15, 23, 42, 0.12);
     transform: translateX(100%);
@@ -583,6 +587,23 @@
       height: 22px;
       width: 22px;
       font-size: 10px;
+    }
+  }
+
+  @media (max-width: 767px) {
+    #catalogSessionPanel {
+      right: 8px;
+      bottom: 56px;
+      width: min(calc(100% - 16px), 392px);
+      max-width: calc(100% - 16px);
+    }
+
+    #catalogFilterPanel {
+      top: 8px;
+      right: 8px;
+      bottom: 8px;
+      width: min(calc(100% - 16px), 352px);
+      max-width: calc(100% - 16px);
     }
   }
 
@@ -1026,7 +1047,10 @@
                           data-in-cart="{% if item.is_in_cart %}1{% else %}0{% endif %}"
                           aria-label="장바구니에 상품 추가"
                           onclick="addCatalogToCart(this)">
-                    <span class="relative top-[-2px]">+</span>
+                    <svg width="14" height="14" viewBox="0 0 14 14" fill="none" aria-hidden="true">
+                      <path d="M7 2.2V11.8" stroke="currentColor" stroke-width="2" stroke-linecap="round"/>
+                      <path d="M2.2 7H11.8" stroke="currentColor" stroke-width="2" stroke-linecap="round"/>
+                    </svg>
                   </button>
               </div>
             </div>
@@ -1137,7 +1161,7 @@
 </div>
 
 <div id="catalogFeedbackToast"
-     class="catalog-feedback-toast pointer-events-none fixed left-1/2 top-[88px] z-[70] flex min-h-[44px] min-w-[232px] max-w-[360px] -translate-x-1/2 items-center justify-center rounded-full bg-[#1f2937] px-[18px] py-[11px] text-center text-[13px] font-semibold text-white shadow-[0_14px_28px_rgba(15,23,42,0.28)]">
+     class="app-feedback-toast catalog-feedback-toast pointer-events-none flex min-h-[44px] min-w-[232px] max-w-[360px] items-center justify-center rounded-full bg-[#1f2937] px-[18px] py-[11px] text-center text-[13px] font-semibold text-white shadow-[0_14px_28px_rgba(15,23,42,0.28)]">
   오류가 발생했습니다.
 </div>
 
@@ -1203,7 +1227,10 @@
                           data-in-cart="{% if item.is_in_cart %}1{% else %}0{% endif %}"
                           aria-label="장바구니에 상품 추가"
                           onclick="addCatalogToCart(this)">
-                    <span>+</span>
+                    <svg width="12" height="12" viewBox="0 0 12 12" fill="none" aria-hidden="true">
+                      <path d="M6 1.8V10.2" stroke="currentColor" stroke-width="2" stroke-linecap="round"/>
+                      <path d="M1.8 6H10.2" stroke="currentColor" stroke-width="2" stroke-linecap="round"/>
+                    </svg>
                   </button>
                 </div>
               </div>
@@ -1748,7 +1775,7 @@
       + '            <svg width="15" height="15" viewBox="0 0 24 24" fill="currentColor" aria-hidden="true"><path d="M12 20.4 4.9 13.8a4.8 4.8 0 0 1 6.8-6.8L12 7.3l.3-.3a4.8 4.8 0 0 1 6.8 6.8L12 20.4Z"/></svg>'
       + '          </button>'
       + '          <button type="button" class="inline-flex h-[28px] w-[28px] shrink-0 items-center justify-center rounded-full bg-[#2d3748] text-[16px] font-semibold leading-none text-white" data-product-id="' + productId + '" data-in-cart="0" aria-label="장바구니에 상품 추가" onclick="addCatalogToCart(this)">'
-      + '            <span>+</span>'
+      + '            <svg width="12" height="12" viewBox="0 0 12 12" fill="none" aria-hidden="true"><path d="M6 1.8V10.2" stroke="currentColor" stroke-width="2" stroke-linecap="round"/><path d="M1.8 6H10.2" stroke="currentColor" stroke-width="2" stroke-linecap="round"/></svg>'
       + '          </button>'
       + '        </div>'
       + '      </div>'
