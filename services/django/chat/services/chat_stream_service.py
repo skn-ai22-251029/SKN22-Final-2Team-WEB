@@ -39,6 +39,6 @@ def persist_streamed_response(session, url, payload, user_id, request_id=None):
                     session,
                     dialog_state=capture["dialog_state"],
                     memory_summary=capture["memory_summary"],
-                    last_compacted_message_id=capture["last_compacted_message_id"] or assistant_message.message_id,
+                    last_compacted_message_id=capture["last_compacted_message_id"],
                 )
             touch_session(session)

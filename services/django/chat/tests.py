@@ -1,5 +1,6 @@
 from datetime import timedelta
 import json
+import json as json_module
 import uuid
 from unittest.mock import patch
 
@@ -241,11 +242,53 @@ class _FakeHttpxClient:
             "headers": headers,
             "json": json,
         }
+        final_payload = {
+            "type": "final",
+            "message": "hello",
+            "cards": [
+                {
+                    "goods_id": "TEST-PRODUCT-1",
+                    "product_name": "추천 상품",
+                    "brand_name": "브랜드",
+                    "price": 10000,
+                    "discount_price": 9000,
+                    "rating": 4.5,
+                    "reviews": 12,
+                    "thumbnail_url": "https://example.com/thumb.jpg",
+                    "product_url": "https://example.com/product",
+                }
+            ],
+            "meta": {"request_id": "req-test", "session_id": "session-test"},
+            "memory": {
+                "dialog_state": {
+                    "intents": ["recommend"],
+                    "filters": {"pet_type": "고양이", "category": "사료"},
+                    "domain_intent": None,
+                    "clarification_count": 1,
+                    "pending_pet_ids": [],
+                    "pending_categories": [],
+                    "target_pet_id": "pet-memory",
+                    "pet_profile": {"species": "cat"},
+                    "health_concerns": [],
+                    "allergies": [],
+                    "food_preferences": [],
+                    "is_pet_override": False,
+                    "pet_mismatch": False,
+                    "form_hint": None,
+                    "detected_aspect": None,
+                    "budget": None,
+                    "filter_relaxation_count": 0,
+                    "recommend_retry_pending": False,
+                },
+                "memory_summary": "업데이트된 요약",
+                "last_compacted_message_id": None,
+            },
+        }
         return _FakeStreamResponse(
             [
                 b'data: {"type":"token","content":"hel"}\n\n',
                 'data: {"type":"products","cards":[{"goods_id":"TEST-PRODUCT-1","product_name":"추천 상품","brand_name":"브랜드","price":10000,"discount_price":9000,"rating":4.5,"reviews":12,"thumbnail_url":"https://example.com/thumb.jpg","product_url":"https://example.com/product"}]}\n\n',
-                'data: {"type":"final","message":"hello","cards":[{"goods_id":"TEST-PRODUCT-1","product_name":"추천 상품","brand_name":"브랜드","price":10000,"discount_price":9000,"rating":4.5,"reviews":12,"thumbnail_url":"https://example.com/thumb.jpg","product_url":"https://example.com/product"}],"meta":{"request_id":"req-test","session_id":"session-test"},"memory":{"dialog_state":{"intents":["recommend"],"filters":{"pet_type":"고양이","category":"사료"},"domain_intent":null,"clarification_count":1,"pending_pet_ids":[],"pending_categories":[],"target_pet_id":"pet-memory","pet_profile":{"species":"cat"},"health_concerns":[],"allergies":[],"food_preferences":[],"is_pet_override":false,"pet_mismatch":false,"form_hint":null,"detected_aspect":null,"budget":null,"filter_relaxation_count":0,"recommend_retry_pending":false},"memory_summary":"업데이트된 요약","last_compacted_message_id":null}}\n\n',
+                f"data: {json_module.dumps(final_payload, ensure_ascii=False, separators=(',', ':'))}\n\n",
                 b'data: {"type":"done"}\n\n',
             ]
         )
@@ -426,8 +469,8 @@ class ChatProxyTests(TestCase):
                 "clarification_count": 1,
             },
         )
-        ChatMessage.objects.create(session=session, role="user", content="이전 질문")
-        ChatMessage.objects.create(session=session, role="assistant", content="이전 답변")
+        ChatMessage.objects.create(session=session, role="user", content="이전 대화 1")
+        ChatMessage.objects.create(session=session, role="assistant", content="이전 대화 2")
 
         response = self.client.post(
             f"/api/chat/sessions/{session.session_id}/messages/",
@@ -442,23 +485,16 @@ class ChatProxyTests(TestCase):
         self.assertIn('"type":"done"', payload)
         self.assertIn('"type":"final"', payload)
         self.assertEqual(_FakeHttpxClient.last_stream_request["url"], settings.FASTAPI_INTERNAL_CHAT_URL)
-        self.assertEqual(_FakeHttpxClient.last_stream_request["json"]["message"], "hello")
         self.assertEqual(_FakeHttpxClient.last_stream_request["json"]["thread_id"], str(session.session_id))
         self.assertEqual(_FakeHttpxClient.last_stream_request["json"]["user_id"], str(self.user.id))
+        self.assertIn("current_user_message_id", _FakeHttpxClient.last_stream_request["json"])
+        self.assertNotIn("message", _FakeHttpxClient.last_stream_request["json"])
         self.assertEqual(_FakeHttpxClient.last_stream_request["json"]["target_pet_id"], str(self.pet.pet_id))
         self.assertNotEqual(_FakeHttpxClient.last_stream_request["json"]["target_pet_id"], str(secondary_pet.pet_id))
-        self.assertEqual(
-            _FakeHttpxClient.last_stream_request["json"]["conversation_history"],
-            [
-                {"role": "user", "content": "이전 질문"},
-                {"role": "assistant", "content": "이전 답변"},
-            ],
-        )
-        self.assertEqual(_FakeHttpxClient.last_stream_request["json"]["memory_summary"], "기존 요약")
-        self.assertEqual(
-            _FakeHttpxClient.last_stream_request["json"]["dialog_state"]["filters"],
-            {"pet_type": "고양이", "category": "사료"},
-        )
+        self.assertNotIn("conversation_history", _FakeHttpxClient.last_stream_request["json"])
+        self.assertNotIn("summary_candidates", _FakeHttpxClient.last_stream_request["json"])
+        self.assertNotIn("memory_summary", _FakeHttpxClient.last_stream_request["json"])
+        self.assertNotIn("dialog_state", _FakeHttpxClient.last_stream_request["json"])
         self.assertEqual(_FakeHttpxClient.last_stream_request["headers"]["X-Session-Id"], str(session.session_id))
         self.assertIn("X-Request-Id", _FakeHttpxClient.last_stream_request["headers"])
 
@@ -472,7 +508,7 @@ class ChatProxyTests(TestCase):
         self.assertEqual(memory.summary_text, "업데이트된 요약")
         self.assertEqual(memory.dialog_state["intents"], ["recommend"])
         self.assertEqual(memory.dialog_state["filters"], {"pet_type": "고양이", "category": "사료"})
-        self.assertEqual(memory.last_compacted_message_id, assistant_message.message_id)
+        self.assertIsNone(memory.last_compacted_message_id)
 
         list_response = self.client.get(
             f"/api/chat/sessions/{session.session_id}/messages/",

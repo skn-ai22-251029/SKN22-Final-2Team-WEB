@@ -3,18 +3,13 @@ def build_chat_payload(
     user_id,
     thread_id=None,
     target_pet_id=None,
-    conversation_history=None,
-    memory_summary=None,
-    dialog_state=None,
+    current_user_message_id=None,
 ):
-    safe_payload = {
-        "message": (payload.get("message") or "").strip(),
-        "pet_profile": payload.get("pet_profile"),
-        "health_concerns": payload.get("health_concerns") or [],
-        "allergies": payload.get("allergies") or [],
-        "food_preferences": payload.get("food_preferences") or [],
-        "user_id": str(user_id),
-    }
+    safe_payload = {"user_id": str(user_id)}
+    message = (payload.get("message") or "").strip()
+    if message and current_user_message_id is None:
+        safe_payload["message"] = message
+
     if thread_id:
         safe_payload["thread_id"] = str(thread_id)
     elif payload.get("thread_id"):
@@ -25,10 +20,18 @@ def build_chat_payload(
     resolved_target_pet_id = target_pet_id or payload.get("target_pet_id")
     if resolved_target_pet_id:
         safe_payload["target_pet_id"] = str(resolved_target_pet_id)
-    if conversation_history is not None:
-        safe_payload["conversation_history"] = conversation_history
-    if memory_summary is not None:
-        safe_payload["memory_summary"] = memory_summary
-    if dialog_state is not None:
-        safe_payload["dialog_state"] = dialog_state
+
+    if current_user_message_id is not None:
+        safe_payload["current_user_message_id"] = str(current_user_message_id)
+
+    for key in ("profile_context_type", "pet_profile"):
+        value = payload.get(key)
+        if value is not None:
+            safe_payload[key] = value
+
+    for key in ("health_concerns", "allergies", "food_preferences"):
+        values = payload.get(key) or []
+        if values:
+            safe_payload[key] = values
+
     return safe_payload
