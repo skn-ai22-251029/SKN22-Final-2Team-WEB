@@ -1,3 +1,4 @@
+from datetime import timedelta
 import json
 import uuid
 from unittest.mock import patch
@@ -7,14 +8,17 @@ from django.conf import settings
 from django.test import RequestFactory, TestCase
 from django.urls import reverse
 from django.utils import timezone
+from rest_framework_simplejwt.tokens import AccessToken
 from rest_framework_simplejwt.tokens import RefreshToken
 
 from chat.api_views import sessions_proxy_view
 from chat.models import ChatMessage, ChatMessageRecommendation, ChatSession
+from chat.pages.views import ensure_chat_api_tokens
 from pets.models import FuturePetProfile, Pet, PetAllergy, PetFoodPreference, PetHealthConcern
 from products.models import Product
 from users.models import User, UserProfile
 from users.onboarding import ONBOARDING_FORCE_PROFILE_SESSION_KEY
+from users.social_auth import SOCIAL_AUTH_ACCESS_SESSION_KEY, SOCIAL_AUTH_REFRESH_SESSION_KEY
 
 
 class ChatPageTests(TestCase):
@@ -67,6 +71,29 @@ class ChatPageTests(TestCase):
 
         self.assertEqual(response.status_code, 200)
 
+    def test_chat_page_reissues_expired_chat_api_access_token(self):
+        expired_tokens = self._issue_expired_tokens()
+        session = self.client.session
+        session[SOCIAL_AUTH_ACCESS_SESSION_KEY] = expired_tokens["access"]
+        session[SOCIAL_AUTH_REFRESH_SESSION_KEY] = expired_tokens["refresh"]
+        session.save()
+
+        response = self.client.get(reverse("chat"))
+
+        self.assertEqual(response.status_code, 200)
+        next_access_token = self.client.session[SOCIAL_AUTH_ACCESS_SESSION_KEY]
+        self.assertNotEqual(next_access_token, expired_tokens["access"])
+        self.assertEqual(AccessToken(next_access_token)["user_id"], str(self.user.id))
+
+    def _issue_expired_tokens(self):
+        refresh = RefreshToken.for_user(self.user)
+        access = refresh.access_token
+        access.set_exp(lifetime=timedelta(seconds=-1))
+        return {
+            "access": str(access),
+            "refresh": str(refresh),
+        }
+
     def test_chat_page_allows_future_guardian_profile_without_registered_pet(self):
         FuturePetProfile.objects.create(
             user=self.user,
@@ -104,6 +131,39 @@ class ChatPageTests(TestCase):
 
         self.assertEqual(response.status_code, 302)
         self.assertEqual(response["Location"], f"{reverse('profile')}?setup=1")
+
+
+class EnsureChatApiTokensTests(TestCase):
+    def setUp(self):
+        self.user = User.objects.create_user(
+            email="chat-token@example.com",
+            password="Password123!",
+        )
+        self.factory = RequestFactory()
+
+    def test_reissues_when_access_token_is_expired(self):
+        request = self.factory.get("/chat/")
+        request.user = self.user
+        request.session = {}
+
+        expired_tokens = self._issue_expired_tokens()
+        request.session[SOCIAL_AUTH_ACCESS_SESSION_KEY] = expired_tokens["access"]
+        request.session[SOCIAL_AUTH_REFRESH_SESSION_KEY] = expired_tokens["refresh"]
+
+        ensure_chat_api_tokens(request)
+
+        self.assertNotEqual(request.session[SOCIAL_AUTH_ACCESS_SESSION_KEY], expired_tokens["access"])
+        self.assertNotEqual(request.session[SOCIAL_AUTH_REFRESH_SESSION_KEY], expired_tokens["refresh"])
+        self.assertEqual(AccessToken(request.session[SOCIAL_AUTH_ACCESS_SESSION_KEY])["user_id"], str(self.user.id))
+
+    def _issue_expired_tokens(self):
+        refresh = RefreshToken.for_user(self.user)
+        access = refresh.access_token
+        access.set_exp(lifetime=timedelta(seconds=-1))
+        return {
+            "access": str(access),
+            "refresh": str(refresh),
+        }
 
 
 class _FakeStreamResponse:
