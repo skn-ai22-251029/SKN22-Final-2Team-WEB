@@ -46,6 +46,8 @@ class CartApiTests(TestCase):
         self.assertEqual(response.data["cart_item"]["product_id"], self.product.goods_id)
         self.assertEqual(response.data["cart_item"]["quantity"], 2)
         self.assertTrue(CartItem.objects.filter(cart__user=self.user, product=self.product).exists())
+        interaction = UserInteraction.objects.get(user=self.user, product=self.product, interaction_type="cart")
+        self.assertEqual(interaction.weight, 2)
 
     def test_post_cart_existing_item_increments_quantity(self):
         self.client.post("/api/orders/cart/", {"product_id": self.product.goods_id}, format="json")
@@ -58,6 +60,9 @@ class CartApiTests(TestCase):
 
         self.assertEqual(response.status_code, status.HTTP_200_OK)
         self.assertEqual(response.data["cart_item"]["quantity"], 4)
+        interactions = UserInteraction.objects.filter(user=self.user, product=self.product, interaction_type="cart")
+        self.assertEqual(interactions.count(), 2)
+        self.assertEqual(list(interactions.order_by("created_at").values_list("weight", flat=True)), [1, 3])
 
     def test_patch_cart_updates_quantity(self):
         self.client.post("/api/orders/cart/", {"product_id": self.product.goods_id}, format="json")
@@ -130,6 +135,68 @@ class WishlistApiTests(TestCase):
 
         self.assertEqual(response.status_code, status.HTTP_204_NO_CONTENT)
         self.assertFalse(WishlistItem.objects.filter(wishlist__user=self.user, product=self.product).exists())
+
+
+class InteractionApiTests(TestCase):
+    def setUp(self):
+        self.client = APIClient()
+        self.user = User.objects.create_user(email="interaction@example.com", password="Password123!")
+        self.client.force_authenticate(self.user)
+        self.product = Product.objects.create(
+            goods_id="GI2101",
+            goods_name="상호작용 테스트 상품",
+            brand_name="테스트 브랜드",
+            price=15000,
+            discount_price=12900,
+            thumbnail_url="https://example.com/interaction-thumb.png",
+            product_url="https://example.com/interaction-product",
+            crawled_at=timezone.now(),
+        )
+
+    def test_post_interaction_logs_click(self):
+        response = self.client.post(
+            "/api/orders/interactions/",
+            {
+                "product_id": self.product.goods_id,
+                "interaction_type": "click",
+                "weight": 1,
+            },
+            format="json",
+        )
+
+        self.assertEqual(response.status_code, status.HTTP_201_CREATED)
+        interaction = UserInteraction.objects.get(user=self.user, product=self.product, interaction_type="click")
+        self.assertEqual(interaction.weight, 1)
+        self.assertEqual(response.data["interaction"]["product_id"], self.product.goods_id)
+        self.assertEqual(response.data["interaction"]["interaction_type"], "click")
+
+    def test_post_interaction_logs_reject(self):
+        response = self.client.post(
+            "/api/orders/interactions/",
+            {
+                "product_id": self.product.goods_id,
+                "interaction_type": "reject",
+            },
+            format="json",
+        )
+
+        self.assertEqual(response.status_code, status.HTTP_201_CREATED)
+        interaction = UserInteraction.objects.get(user=self.user, product=self.product, interaction_type="reject")
+        self.assertEqual(interaction.weight, 1)
+
+    def test_post_interaction_rejects_unknown_type(self):
+        response = self.client.post(
+            "/api/orders/interactions/",
+            {
+                "product_id": self.product.goods_id,
+                "interaction_type": "unknown",
+            },
+            format="json",
+        )
+
+        self.assertEqual(response.status_code, status.HTTP_400_BAD_REQUEST)
+        self.assertEqual(response.data["code"], "invalid_interaction_type")
+        self.assertEqual(response.data["field"], "interaction_type")
 
 
 class OrderCreateApiTests(TestCase):
