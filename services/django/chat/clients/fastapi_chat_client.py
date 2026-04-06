@@ -65,6 +65,10 @@ def capture_sse_event(event_lines, capture):
         final_cards = payload.get("cards")
         if final_cards is not None:
             capture["product_cards"] = final_cards or []
+        memory_payload = payload.get("memory") or {}
+        capture["dialog_state"] = memory_payload.get("dialog_state")
+        capture["memory_summary"] = memory_payload.get("memory_summary")
+        capture["last_compacted_message_id"] = memory_payload.get("last_compacted_message_id")
         capture["completed"] = True
     elif event_type == "error":
         capture["error_message"] = payload.get("message") or "죄송합니다, 오류가 발생했습니다."

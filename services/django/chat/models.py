@@ -50,3 +50,15 @@ class ChatMessageRecommendation(models.Model):
     class Meta:
         db_table = "chat_message_recommendation"
         unique_together = [("message", "product")]
+
+
+class ChatSessionMemory(models.Model):
+    session = models.OneToOneField(ChatSession, on_delete=models.CASCADE, related_name="memory", primary_key=True)
+    summary_text = models.TextField(blank=True, default="")
+    dialog_state = models.JSONField(default=dict, blank=True)
+    last_compacted_message_id = models.UUIDField(null=True, blank=True)
+    version = models.PositiveIntegerField(default=1)
+    updated_at = models.DateTimeField(auto_now=True)
+
+    class Meta:
+        db_table = "chat_session_memory"

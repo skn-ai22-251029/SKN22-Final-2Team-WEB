@@ -12,6 +12,7 @@ from ..models import ChatMessage, ChatSession
 from ..policies.chat_access_policy import require_authenticated
 from ..selectors.chat_selector import get_owned_session
 from ..selectors.pet_selector import get_owned_target_pet
+from ..services.chat_memory_service import get_or_create_session_memory
 from ..services.chat_session_service import (
     normalize_profile_context_type,
     touch_session,
@@ -82,6 +83,7 @@ def sessions_proxy_view(
     serialize_session_groups_fn=serialize_session_groups,
     normalize_profile_context_type_fn=normalize_profile_context_type,
     get_owned_target_pet_fn=get_owned_target_pet,
+    get_or_create_session_memory_fn=get_or_create_session_memory,
 ):
     unauthorized = require_authenticated_fn(request)
     if unauthorized:
@@ -118,6 +120,7 @@ def sessions_proxy_view(
         profile_context_type=profile_context_type,
         title=title,
     )
+    get_or_create_session_memory_fn(session)
     return JsonResponse(serialize_session_fn(session), status=201)
 
 
@@ -222,7 +225,7 @@ def session_messages_proxy_view(
     if not message:
         return build_proxy_error_response_fn("message is required.", status=400)
 
-    ChatMessage.objects.create(session=session, role="user", content=message)
+    user_message = ChatMessage.objects.create(session=session, role="user", content=message)
     touch_session_fn(session)
 
     request_id = build_request_id(request)
@@ -231,6 +234,7 @@ def session_messages_proxy_view(
         request.user.id,
         thread_id=session.session_id,
         target_pet_id=session.target_pet_id,
+        current_user_message_id=user_message.message_id,
     )
     return StreamingHttpResponse(
         persist_streamed_response_fn(
