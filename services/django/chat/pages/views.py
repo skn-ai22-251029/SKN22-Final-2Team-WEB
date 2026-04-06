@@ -17,8 +17,6 @@ def ensure_chat_api_tokens(
 ):
     if not request.user.is_authenticated:
         return
-    if request.session.get(access_session_key) and request.session.get(refresh_session_key):
-        return
 
     tokens = issue_user_tokens_fn(request.user)
     request.session[access_session_key] = tokens["access"]
