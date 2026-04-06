@@ -439,7 +439,7 @@
 
     function sanitizeBreedInput(value) {
       return (value || '')
-        .replace(/[^A-Za-z가-힣ㄱ-ㅎ\s]/g, '')
+        .replace(/[^A-Za-z가-힣ㄱ-ㅎ()\s]/g, '')
         .replace(/\s+/g, ' ')
         .replace(/^\s+/, '');
     }
