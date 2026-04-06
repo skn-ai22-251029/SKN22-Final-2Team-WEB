@@ -81,6 +81,29 @@ def _display_product_name(brand_name, goods_name):
     return (goods_name or "").strip()
 
 
+def create_user_interaction(*, user, product, interaction_type, weight=1, session_id=None):
+    return UserInteraction.objects.create(
+        user=user,
+        product=product,
+        session_id=session_id,
+        interaction_type=interaction_type,
+        weight=max(int(weight or 1), 1),
+    )
+
+
+def validate_interaction_type(interaction_type):
+    valid_types = {choice[0] for choice in UserInteraction.INTERACTION_CHOICES}
+    if interaction_type not in valid_types:
+        return error_response(
+            "invalid interaction_type.",
+            code="invalid_interaction_type",
+            status_code=status.HTTP_400_BAD_REQUEST,
+            field="interaction_type",
+            extra={"available_interaction_types": sorted(valid_types)},
+        )
+    return None
+
+
 def serialize_product_summary(product: Product) -> dict:
     price = product.price
     return {
@@ -759,6 +782,13 @@ class CartView(APIView):
             cart_item.quantity += quantity
             cart_item.save(update_fields=["quantity"])
 
+        create_user_interaction(
+            user=request.user,
+            product=product,
+            interaction_type="cart",
+            weight=quantity,
+        )
+
         return Response(
             {"cart_item": serialize_cart_item(cart_item)},
             status=status.HTTP_201_CREATED if created else status.HTTP_200_OK,
@@ -833,3 +863,41 @@ class WishlistView(APIView):
             return Response({"detail": "wishlist item not found."}, status=status.HTTP_404_NOT_FOUND)
 
         return Response(status=status.HTTP_204_NO_CONTENT)
+
+
+class InteractionView(APIView):
+    authentication_classes = [JWTAuthentication, SessionAuthentication]
+    permission_classes = [IsAuthenticated]
+
+    @transaction.atomic
+    def post(self, request):
+        product, product_error_response = get_product_or_400(request.data.get("product_id"))
+        if product_error_response:
+            return product_error_response
+
+        interaction_type = (request.data.get("interaction_type") or "").strip()
+        interaction_type_error = validate_interaction_type(interaction_type)
+        if interaction_type_error:
+            return interaction_type_error
+
+        session_id = request.data.get("session_id")
+        weight = request.data.get("weight", 1)
+
+        interaction = create_user_interaction(
+            user=request.user,
+            product=product,
+            interaction_type=interaction_type,
+            weight=weight,
+            session_id=session_id,
+        )
+        return Response(
+            {
+                "interaction": {
+                    "id": str(interaction.id),
+                    "product_id": product.goods_id,
+                    "interaction_type": interaction.interaction_type,
+                    "weight": interaction.weight,
+                }
+            },
+            status=status.HTTP_201_CREATED,
+        )

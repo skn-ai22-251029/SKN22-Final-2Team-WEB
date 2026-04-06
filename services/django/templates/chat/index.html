@@ -1141,6 +1141,35 @@
       });
     }
 
+    function logRecommendationInteraction(productId, interactionType, weight) {
+      if (!productId || !interactionType) return;
+      requestJson('/api/orders/interactions/', {
+        method: 'POST',
+        body: JSON.stringify({
+          product_id: productId,
+          interaction_type: interactionType,
+          session_id: activeSessionId || null,
+          weight: weight || 1,
+        }),
+      }).catch(function () {});
+    }
+
+    window.dismissRecommendationCard = function (button) {
+      if (!button) return;
+      var productId = button.getAttribute('data-product-id');
+      logRecommendationInteraction(productId, 'reject');
+      var card = button.closest('[data-recommendation-card]');
+      if (card) {
+        card.remove();
+      }
+      if (recommendationPanelBody && !recommendationPanelBody.querySelector('[data-recommendation-card]')) {
+        recommendationPanelBody.innerHTML = ''
+          + '<div class="rounded-[18px] border border-dashed border-[#d6e3f5] bg-white/88 px-5 py-7 text-center text-[14px] leading-6 text-[#718096]">'
+          + '이번 추천은 모두 닫았어요. 다시 대화를 이어가면 새 추천이 표시됩니다.'
+          + '</div>';
+      }
+    };
+
     function ensureSessionState(sessionId) {
       if (!sessionId) return null;
       if (!sessionState[sessionId]) {
@@ -1473,6 +1502,7 @@
     }
 
     function recommendationCardMarkup(item) {
+      var productId = escapeHtml(item.product_id || item.goods_id || '');
       var display = splitBrandAndName(item.brand_name || '', item.product_name || '추천 상품');
       var productUrl = escapeHtml(item.product_url || '');
       var brandName = escapeHtml(display.brand || '');
@@ -1482,7 +1512,7 @@
       var reviews = escapeHtml(normalizeReviewLabel(item.reviews));
       var rating = escapeHtml(item.rating || '4.7');
       var thumbnailHtml = productUrl
-        ? '<a href="' + productUrl + '" target="_blank" rel="noopener noreferrer" class="relative flex h-[68px] w-[68px] shrink-0 items-center justify-center overflow-hidden rounded-[14px] bg-gradient-to-br from-[#dbeafe] via-[#eff6ff] to-[#f8fafc] transition-transform hover:scale-[1.02]">'
+        ? '<a href="' + productUrl + '" target="_blank" rel="noopener noreferrer" class="relative flex h-[68px] w-[68px] shrink-0 items-center justify-center overflow-hidden rounded-[14px] bg-gradient-to-br from-[#dbeafe] via-[#eff6ff] to-[#f8fafc] transition-transform hover:scale-[1.02]" onclick="logRecommendationInteraction(\'' + productId + '\', \'click\')">'
           + '  <img src="' + thumbnailUrl + '" alt="" class="h-full w-full object-cover" onerror="this.style.display=\'none\'; this.parentNode.querySelector(&quot;.fallback-emoji&quot;).style.display = \'flex\';">'
           + '  <div class="fallback-emoji absolute inset-0 hidden items-center justify-center text-[26px]">🛍️</div>'
           + '</a>'
@@ -1491,11 +1521,11 @@
           + '  <div class="fallback-emoji absolute inset-0 hidden items-center justify-center text-[26px]">🛍️</div>'
           + '</div>';
       var nameHtml = productUrl
-        ? '<a href="' + productUrl + '" target="_blank" rel="noopener noreferrer" class="product-card-name block transition-colors hover:text-[#2b6cb0]">' + productName + '</a>'
+        ? '<a href="' + productUrl + '" target="_blank" rel="noopener noreferrer" class="product-card-name block transition-colors hover:text-[#2b6cb0]" onclick="logRecommendationInteraction(\'' + productId + '\', \'click\')">' + productName + '</a>'
         : '<div class="product-card-name">' + productName + '</div>';
 
       return ''
-        + '<article class="rounded-[20px] border border-[#dbe7f5] bg-white px-[14px] py-[13px] shadow-[0_8px_20px_rgba(45,55,72,0.05)]">'
+        + '<article class="rounded-[20px] border border-[#dbe7f5] bg-white px-[14px] py-[13px] shadow-[0_8px_20px_rgba(45,55,72,0.05)]" data-recommendation-card>'
         + '  <div class="flex items-center gap-[10px]">'
         +        thumbnailHtml
         + '    <div class="product-card-text-block min-w-0">'
@@ -1510,15 +1540,22 @@
         + '        <div class="flex items-center gap-[6px]">'
         + '          <button type="button"'
         + ' class="wishlist-heart inline-flex h-[28px] w-[28px] items-center justify-center rounded-full border border-[#e2e8f0] bg-white leading-none transition-colors hover:border-[#f3c1c1] hover:text-[#e53e3e]"'
-        + ' data-product-id="' + escapeHtml(item.product_id || item.goods_id || '') + '"'
+        + ' data-product-id="' + productId + '"'
         + ' onclick="toggleRecommendedWishlist(this)"'
         + ' aria-label="관심 상품 추가">'
         + '  <svg width="14" height="14" viewBox="0 0 24 24" fill="none" aria-hidden="true"><path d="M12 20.4 4.9 13.8a4.8 4.8 0 0 1 6.8-6.8L12 7.3l.3-.3a4.8 4.8 0 0 1 6.8 6.8L12 20.4Z" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"/></svg>'
         + '  <svg width="14" height="14" viewBox="0 0 24 24" fill="currentColor" aria-hidden="true"><path d="M12 20.4 4.9 13.8a4.8 4.8 0 0 1 6.8-6.8L12 7.3l.3-.3a4.8 4.8 0 0 1 6.8 6.8L12 20.4Z"/></svg>'
         + '</button>'
         + '<button type="button"'
+        + ' class="flex h-[28px] w-[28px] shrink-0 items-center justify-center rounded-full border border-[#e2e8f0] bg-white text-[#94a3b8] transition-colors hover:border-[#cbd5e1] hover:text-[#64748b]"'
+        + ' data-product-id="' + productId + '"'
+        + ' onclick="dismissRecommendationCard(this)"'
+        + ' aria-label="이 추천 숨기기">'
+        + '  <span class="relative top-[-1px] text-[16px] leading-none">×</span>'
+        + '</button>'
+        + '<button type="button"'
         + ' class="flex h-[28px] w-[28px] shrink-0 items-center justify-center rounded-full border border-[#dbe7f5] bg-[#f8fbff] text-[#3182ce] transition-colors hover:border-[#bfdbfe] hover:bg-[#eef6ff]"'
-        + ' data-product-id="' + escapeHtml(item.product_id || item.goods_id || '') + '"'
+        + ' data-product-id="' + productId + '"'
         + ' onclick="addRecommendedToCart(this)"'
         + ' aria-label="장바구니 추가">'
         + '  <span class="relative top-[-1px] text-[16px] font-semibold leading-none">+</span>'
