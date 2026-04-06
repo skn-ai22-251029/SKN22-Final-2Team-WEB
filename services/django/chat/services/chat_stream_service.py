@@ -1,5 +1,6 @@
 from ..clients.fastapi_chat_client import stream_fastapi_response
 from ..models import ChatMessage
+from .chat_memory_service import update_session_memory
 from .chat_message_service import persist_recommended_products
 from .chat_session_service import touch_session
 
@@ -11,6 +12,9 @@ def persist_streamed_response(session, url, payload, user_id, request_id=None):
         "error_message": None,
         "completed": False,
         "product_cards": [],
+        "dialog_state": None,
+        "memory_summary": None,
+        "last_compacted_message_id": None,
     }
 
     try:
@@ -28,4 +32,13 @@ def persist_streamed_response(session, url, payload, user_id, request_id=None):
         if content:
             assistant_message = ChatMessage.objects.create(session=session, role="assistant", content=content)
             persist_recommended_products(assistant_message, capture["product_cards"])
+            if not capture["error_message"] and (
+                capture["dialog_state"] is not None or capture["memory_summary"] is not None
+            ):
+                update_session_memory(
+                    session,
+                    dialog_state=capture["dialog_state"],
+                    memory_summary=capture["memory_summary"],
+                    last_compacted_message_id=capture["last_compacted_message_id"] or assistant_message.message_id,
+                )
             touch_session(session)

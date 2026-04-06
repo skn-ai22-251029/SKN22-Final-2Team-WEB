@@ -1,4 +1,12 @@
-def build_chat_payload(payload, user_id, thread_id=None, target_pet_id=None):
+def build_chat_payload(
+    payload,
+    user_id,
+    thread_id=None,
+    target_pet_id=None,
+    conversation_history=None,
+    memory_summary=None,
+    dialog_state=None,
+):
     safe_payload = {
         "message": (payload.get("message") or "").strip(),
         "pet_profile": payload.get("pet_profile"),
@@ -17,4 +25,10 @@ def build_chat_payload(payload, user_id, thread_id=None, target_pet_id=None):
     resolved_target_pet_id = target_pet_id or payload.get("target_pet_id")
     if resolved_target_pet_id:
         safe_payload["target_pet_id"] = str(resolved_target_pet_id)
+    if conversation_history is not None:
+        safe_payload["conversation_history"] = conversation_history
+    if memory_summary is not None:
+        safe_payload["memory_summary"] = memory_summary
+    if dialog_state is not None:
+        safe_payload["dialog_state"] = dialog_state
     return safe_payload

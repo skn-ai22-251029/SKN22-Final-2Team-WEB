@@ -12,7 +12,7 @@ from rest_framework_simplejwt.tokens import AccessToken
 from rest_framework_simplejwt.tokens import RefreshToken
 
 from chat.api_views import sessions_proxy_view
-from chat.models import ChatMessage, ChatMessageRecommendation, ChatSession
+from chat.models import ChatMessage, ChatMessageRecommendation, ChatSession, ChatSessionMemory
 from chat.pages.views import ensure_chat_api_tokens
 from pets.models import FuturePetProfile, Pet, PetAllergy, PetFoodPreference, PetHealthConcern
 from products.models import Product
@@ -245,7 +245,7 @@ class _FakeHttpxClient:
             [
                 b'data: {"type":"token","content":"hel"}\n\n',
                 'data: {"type":"products","cards":[{"goods_id":"TEST-PRODUCT-1","product_name":"추천 상품","brand_name":"브랜드","price":10000,"discount_price":9000,"rating":4.5,"reviews":12,"thumbnail_url":"https://example.com/thumb.jpg","product_url":"https://example.com/product"}]}\n\n',
-                'data: {"type":"final","message":"hello","cards":[{"goods_id":"TEST-PRODUCT-1","product_name":"추천 상품","brand_name":"브랜드","price":10000,"discount_price":9000,"rating":4.5,"reviews":12,"thumbnail_url":"https://example.com/thumb.jpg","product_url":"https://example.com/product"}],"meta":{"request_id":"req-test","session_id":"session-test"}}\n\n',
+                'data: {"type":"final","message":"hello","cards":[{"goods_id":"TEST-PRODUCT-1","product_name":"추천 상품","brand_name":"브랜드","price":10000,"discount_price":9000,"rating":4.5,"reviews":12,"thumbnail_url":"https://example.com/thumb.jpg","product_url":"https://example.com/product"}],"meta":{"request_id":"req-test","session_id":"session-test"},"memory":{"dialog_state":{"intents":["recommend"],"filters":{"pet_type":"고양이","category":"사료"},"domain_intent":null,"clarification_count":1,"pending_pet_ids":[],"pending_categories":[],"target_pet_id":"pet-memory","pet_profile":{"species":"cat"},"health_concerns":[],"allergies":[],"food_preferences":[],"is_pet_override":false,"pet_mismatch":false,"form_hint":null,"detected_aspect":null,"budget":null,"filter_relaxation_count":0,"recommend_retry_pending":false},"memory_summary":"업데이트된 요약","last_compacted_message_id":null}}\n\n',
                 b'data: {"type":"done"}\n\n',
             ]
         )
@@ -375,6 +375,7 @@ class ChatProxyTests(TestCase):
         self.assertEqual(created_session.user_id, self.user.id)
         self.assertEqual(created_session.target_pet_id, self.pet.pet_id)
         self.assertEqual(created_session.profile_context_type, ChatSession.PROFILE_CONTEXT_PET)
+        self.assertTrue(ChatSessionMemory.objects.filter(session=created_session).exists())
 
         patch_response = self.client.patch(
             f"/api/chat/sessions/{existing_session.session_id}/",
@@ -416,6 +417,17 @@ class ChatProxyTests(TestCase):
             budget_range="10_15",
         )
         session = ChatSession.objects.create(user=self.user, target_pet=self.pet, title="추천 세션")
+        ChatSessionMemory.objects.create(
+            session=session,
+            summary_text="기존 요약",
+            dialog_state={
+                "intents": ["recommend"],
+                "filters": {"pet_type": "고양이", "category": "사료"},
+                "clarification_count": 1,
+            },
+        )
+        ChatMessage.objects.create(session=session, role="user", content="이전 질문")
+        ChatMessage.objects.create(session=session, role="assistant", content="이전 답변")
 
         response = self.client.post(
             f"/api/chat/sessions/{session.session_id}/messages/",
@@ -435,22 +447,39 @@ class ChatProxyTests(TestCase):
         self.assertEqual(_FakeHttpxClient.last_stream_request["json"]["user_id"], str(self.user.id))
         self.assertEqual(_FakeHttpxClient.last_stream_request["json"]["target_pet_id"], str(self.pet.pet_id))
         self.assertNotEqual(_FakeHttpxClient.last_stream_request["json"]["target_pet_id"], str(secondary_pet.pet_id))
+        self.assertEqual(
+            _FakeHttpxClient.last_stream_request["json"]["conversation_history"],
+            [
+                {"role": "user", "content": "이전 질문"},
+                {"role": "assistant", "content": "이전 답변"},
+            ],
+        )
+        self.assertEqual(_FakeHttpxClient.last_stream_request["json"]["memory_summary"], "기존 요약")
+        self.assertEqual(
+            _FakeHttpxClient.last_stream_request["json"]["dialog_state"]["filters"],
+            {"pet_type": "고양이", "category": "사료"},
+        )
         self.assertEqual(_FakeHttpxClient.last_stream_request["headers"]["X-Session-Id"], str(session.session_id))
         self.assertIn("X-Request-Id", _FakeHttpxClient.last_stream_request["headers"])
 
         messages = list(session.messages.order_by("created_at").values_list("role", "content"))
-        self.assertEqual(messages, [("user", "hello"), ("assistant", "hello")])
-        assistant_message = session.messages.get(role="assistant")
+        self.assertEqual(messages[-2:], [("user", "hello"), ("assistant", "hello")])
+        assistant_message = session.messages.filter(role="assistant").order_by("-created_at").first()
         recommendation = ChatMessageRecommendation.objects.get(message=assistant_message)
         self.assertEqual(recommendation.product_id, self.product.goods_id)
         self.assertEqual(recommendation.rank_order, 0)
+        memory = ChatSessionMemory.objects.get(session=session)
+        self.assertEqual(memory.summary_text, "업데이트된 요약")
+        self.assertEqual(memory.dialog_state["intents"], ["recommend"])
+        self.assertEqual(memory.dialog_state["filters"], {"pet_type": "고양이", "category": "사료"})
+        self.assertEqual(memory.last_compacted_message_id, assistant_message.message_id)
 
         list_response = self.client.get(
             f"/api/chat/sessions/{session.session_id}/messages/",
             HTTP_AUTHORIZATION=f"Bearer {self.access_token}",
         )
         self.assertEqual(list_response.status_code, 200)
-        assistant_payload = list_response.json()["messages"][1]
+        assistant_payload = list_response.json()["messages"][-1]
         self.assertEqual(assistant_payload["recommended_products"][0]["goods_id"], self.product.goods_id)
 
     @patch("chat.api_views.httpx.Client", _ExplodingHttpxClient)
