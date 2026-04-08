@@ -3,19 +3,13 @@
 
 {% block vendor_content %}
 <section class="rounded-[26px] border border-white/70 bg-white/86 px-4 py-5 shadow-[0_18px_48px_rgba(148,163,184,0.14)] backdrop-blur sm:px-6 sm:py-6 md:px-8 md:py-8">
-  <div class="flex flex-col gap-4 lg:flex-row lg:items-end lg:justify-between">
-    <div>
-      <h1 class="text-[28px] font-bold tracking-[-0.03em] text-[#1e293b] sm:text-[30px]">통계</h1>
-      <p class="mt-2 text-[14px] leading-6 text-[#64748b] sm:text-[15px]">브랜드 성과, 전환 병목, 우선 액션을 한 화면에서 확인합니다.</p>
+  <div class="grid gap-2 sm:grid-cols-3">
+    {% for item in vendor_inventory_summary %}
+    <div class="rounded-[16px] border border-[#dbe7f5] bg-[#f8fbff] px-4 py-3 text-center">
+      <p class="text-[12px] font-semibold text-[#64748b]">{{ item.label }}</p>
+      <p class="mt-1 text-[18px] font-bold text-[#1e293b]">{{ item.value }}</p>
     </div>
-    <div class="grid gap-2 sm:grid-cols-3">
-      {% for item in vendor_inventory_summary %}
-      <div class="rounded-[16px] border border-[#dbe7f5] bg-[#f8fbff] px-4 py-3 text-center">
-        <p class="text-[12px] font-semibold text-[#64748b]">{{ item.label }}</p>
-        <p class="mt-1 text-[18px] font-bold text-[#1e293b]">{{ item.value }}</p>
-      </div>
-      {% endfor %}
-    </div>
+    {% endfor %}
   </div>
 
   <div class="mt-6 grid gap-4 md:grid-cols-2 xl:grid-cols-4">

@@ -112,14 +112,16 @@
 <section class="relative z-10 overflow-visible rounded-[24px] border border-white/70 bg-white/86 px-4 py-4 shadow-[0_16px_40px_rgba(148,163,184,0.12)] backdrop-blur sm:px-5 sm:py-5 md:px-6">
   <div class="flex flex-col gap-4 md:flex-row md:items-start md:justify-between">
     <div>
-      <h1 class="text-[24px] font-bold tracking-[-0.03em] text-[#1e293b] sm:text-[26px]">상품 목록</h1>
-      <p class="mt-1 text-[14px] leading-6 text-[#64748b] sm:text-[15px]">
+      <p class="text-[26px] font-bold tracking-[-0.03em] text-[#1e293b] sm:text-[30px]">
         {% if vendor_search_keyword %}
-        "{{ vendor_search_keyword }}" 검색 결과 {{ vendor_product_count }}개
+        검색 결과 {{ vendor_product_count }}개
         {% else %}
         운영 상품 {{ vendor_product_count }}개
         {% endif %}
       </p>
+      {% if vendor_search_keyword %}
+      <p class="mt-1 text-[13px] font-semibold text-[#64748b]">"{{ vendor_search_keyword }}"</p>
+      {% endif %}
     </div>
     <a
       href="{% url 'vendor-product-create' %}"

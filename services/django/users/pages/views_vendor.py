@@ -40,6 +40,13 @@ VENDOR_PRODUCT_SORT_OPTIONS = {
         "description": "평점이 높은 상품부터 정렬합니다",
     },
 }
+VENDOR_ORDER_FOCUS_OPTIONS = (
+    ("all", "전체"),
+    ("processing", "주문 접수"),
+    ("packing", "출고 준비"),
+    ("refund", "취소/환불"),
+    ("delayed", "배송 지연"),
+)
 
 
 def _normalize_vendor_login_id(value):
@@ -434,6 +441,128 @@ def _build_vendor_attention_products(vendor_products, demo_soldout_goods_ids, de
         append_item(product, "리뷰 점검", "평점과 리뷰 반응을 확인해 상세 설명 또는 CS 대응이 필요한 상품입니다.", "리뷰 확인", "blue")
 
     return attention_items[:4]
+
+
+def _build_vendor_mock_order_rows(vendor_products, demo_soldout_goods_ids, demo_pending_goods_ids):
+    serialized_products = [
+        _serialize_vendor_product(product, demo_soldout_goods_ids, demo_pending_goods_ids)
+        for product in vendor_products.order_by("-review_count", "goods_name")[:8]
+    ]
+
+    if not serialized_products:
+        return []
+
+    blueprints = [
+        {
+            "focus": "processing",
+            "order_number": "TT-260408-1041",
+            "ordered_at_label": "2026.04.08 10:41",
+            "customer_name": "김하늘",
+            "customer_phone": "010-2387-1145",
+            "quantity": 1,
+            "amount": 72000,
+            "payment_status": "결제 완료",
+            "next_step": "출고 지시",
+            "tone": "blue",
+        },
+        {
+            "focus": "processing",
+            "order_number": "TT-260408-1024",
+            "ordered_at_label": "2026.04.08 10:24",
+            "customer_name": "박도윤",
+            "customer_phone": "010-8173-5208",
+            "quantity": 2,
+            "amount": 118000,
+            "payment_status": "결제 완료",
+            "next_step": "주문 확인",
+            "tone": "blue",
+        },
+        {
+            "focus": "packing",
+            "order_number": "TT-260408-0932",
+            "ordered_at_label": "2026.04.08 09:32",
+            "customer_name": "이서윤",
+            "customer_phone": "010-5521-8834",
+            "quantity": 1,
+            "amount": 86000,
+            "payment_status": "출고 준비",
+            "next_step": "송장 입력",
+            "tone": "amber",
+        },
+        {
+            "focus": "packing",
+            "order_number": "TT-260408-0908",
+            "ordered_at_label": "2026.04.08 09:08",
+            "customer_name": "최민준",
+            "customer_phone": "010-2943-6671",
+            "quantity": 3,
+            "amount": 149000,
+            "payment_status": "출고 준비",
+            "next_step": "포장 완료",
+            "tone": "amber",
+        },
+        {
+            "focus": "refund",
+            "order_number": "TT-260407-1825",
+            "ordered_at_label": "2026.04.07 18:25",
+            "customer_name": "정유진",
+            "customer_phone": "010-7312-9844",
+            "quantity": 1,
+            "amount": 69000,
+            "payment_status": "환불 요청",
+            "next_step": "사유 확인",
+            "tone": "rose",
+        },
+        {
+            "focus": "refund",
+            "order_number": "TT-260407-1713",
+            "ordered_at_label": "2026.04.07 17:13",
+            "customer_name": "송지호",
+            "customer_phone": "010-4448-2910",
+            "quantity": 1,
+            "amount": 54000,
+            "payment_status": "취소 요청",
+            "next_step": "회수 접수",
+            "tone": "rose",
+        },
+        {
+            "focus": "delayed",
+            "order_number": "TT-260406-1537",
+            "ordered_at_label": "2026.04.06 15:37",
+            "customer_name": "윤아린",
+            "customer_phone": "010-6128-7730",
+            "quantity": 2,
+            "amount": 98000,
+            "payment_status": "배송 지연",
+            "next_step": "고객 안내",
+            "tone": "slate",
+        },
+    ]
+
+    order_rows = []
+    for index, blueprint in enumerate(blueprints):
+        product = serialized_products[index % len(serialized_products)]
+        order_rows.append(
+            {
+                "focus": blueprint["focus"],
+                "order_number": blueprint["order_number"],
+                "ordered_at_label": blueprint["ordered_at_label"],
+                "customer_name": blueprint["customer_name"],
+                "customer_phone": blueprint["customer_phone"],
+                "quantity_label": f"{blueprint['quantity']}개",
+                "amount_label": _format_vendor_price(blueprint["amount"]),
+                "payment_status": blueprint["payment_status"],
+                "next_step": blueprint["next_step"],
+                "tone": blueprint["tone"],
+                "status_label": dict(VENDOR_ORDER_FOCUS_OPTIONS).get(blueprint["focus"], "전체"),
+                "product_name": product["goods_name"],
+                "product_meta": f"{product['pet_type_label']} · {product['category_label']}",
+                "product_thumbnail_url": product["thumbnail_url"],
+                "product_detail_url": product["detail_url"],
+            }
+        )
+
+    return order_rows
 
 
 def _collect_vendor_product_form_options():
@@ -1106,20 +1235,68 @@ def vendor_orders_view(request):
     if base_context is None:
         return redirect("vendor-login")
 
-    focus = request.GET.get("focus", "processing")
-    order_items = [
-        {"label": "주문 접수", "count": 22, "status": "결제 완료"},
-        {"label": "출고 준비", "count": 11, "status": "오늘 출고 예정"},
-        {"label": "취소/환불", "count": 3, "status": "우선 확인"},
-        {"label": "배송 지연", "count": 2, "status": "확인 필요"},
+    focus = request.GET.get("focus", "all")
+    if focus not in dict(VENDOR_ORDER_FOCUS_OPTIONS):
+        focus = "all"
+
+    vendor_products = Product.objects.filter(brand_name=base_context["vendor_account"]["brand_name"])
+    demo_soldout_goods_ids = _get_demo_soldout_goods_ids(vendor_products)
+    demo_pending_goods_ids = _get_demo_pending_goods_ids(vendor_products, demo_soldout_goods_ids)
+    order_rows = _build_vendor_mock_order_rows(vendor_products, demo_soldout_goods_ids, demo_pending_goods_ids)
+
+    focus_counts = Counter(row["focus"] for row in order_rows)
+    summary_items = [
+        {
+            "label": "주문 접수",
+            "count": focus_counts["processing"],
+            "status": "결제 완료 기준",
+            "href": f"{reverse('vendor-orders')}?focus=processing",
+            "is_active": focus == "processing",
+        },
+        {
+            "label": "출고 준비",
+            "count": focus_counts["packing"],
+            "status": "송장 입력 전",
+            "href": f"{reverse('vendor-orders')}?focus=packing",
+            "is_active": focus == "packing",
+        },
+        {
+            "label": "취소/환불",
+            "count": focus_counts["refund"],
+            "status": "우선 확인",
+            "href": f"{reverse('vendor-orders')}?focus=refund",
+            "is_active": focus == "refund",
+        },
+        {
+            "label": "배송 지연",
+            "count": focus_counts["delayed"],
+            "status": "고객 안내 필요",
+            "href": f"{reverse('vendor-orders')}?focus=delayed",
+            "is_active": focus == "delayed",
+        },
     ]
+    focus_options = []
+    for value, label in VENDOR_ORDER_FOCUS_OPTIONS:
+        focus_options.append(
+            {
+                "label": label,
+                "count": len(order_rows) if value == "all" else focus_counts[value],
+                "href": reverse("vendor-orders") if value == "all" else f"{reverse('vendor-orders')}?focus={value}",
+                "is_active": value == focus,
+            }
+        )
+
+    filtered_order_rows = order_rows if focus == "all" else [row for row in order_rows if row["focus"] == focus]
     return render(
         request,
         "users/vendor_orders.html",
         {
             **base_context,
             "vendor_orders_focus": focus,
-            "vendor_order_items": order_items,
+            "vendor_order_summary_items": summary_items,
+            "vendor_order_focus_options": focus_options,
+            "vendor_order_rows": filtered_order_rows,
+            "vendor_order_filtered_count": len(filtered_order_rows),
         },
     )
 
