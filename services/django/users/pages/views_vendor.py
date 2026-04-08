@@ -224,27 +224,25 @@ def _build_vendor_product_detail_context(product, serialized_product):
     subcategory_segments = list(product.subcategory or [])
     ingredient_tokens = _normalize_vendor_tokens(product.main_ingredients)
     health_tags = [str(tag).strip() for tag in (product.health_concern_tags or []) if str(tag).strip()]
+    health_tag_preview = health_tags[:3]
+    ingredient_token_preview = ingredient_tokens[:3]
 
     detail_highlights = [
         {
             "label": "실판매가",
             "value": serialized_product["discount_price_label"],
-            "description": "현재 운영 화면에 노출되는 판매가",
         },
         {
             "label": "할인율",
             "value": serialized_product["discount_rate_label"] or "할인 없음",
-            "description": f"할인 금액 {_format_vendor_price(price_gap)}" if price_gap else "정가와 동일하게 판매 중",
         },
         {
             "label": "리뷰 / 평점",
             "value": f"{serialized_product['review_count']:,}개 / {serialized_product['rating_label']}",
-            "description": "고객 반응을 직접 확인할 수 있는 기본 지표",
         },
         {
-            "label": "추천 적합도",
+            "label": "추천 점수",
             "value": _format_vendor_metric(product.popularity_score, 2),
-            "description": "추천 슬롯과 검색 랭킹에 반영되는 내부 지표",
         },
     ]
 
@@ -252,36 +250,29 @@ def _build_vendor_product_detail_context(product, serialized_product):
         {
             "label": "반복 구매율",
             "value": _format_vendor_percent(product.repeat_rate, 1),
-            "description": "재구매 가능성을 보여주는 반응 지표",
         },
         {
             "label": "리뷰 정서",
             "value": _format_vendor_percent(product.sentiment_avg, 1),
-            "description": "리뷰 기반 전반 만족도",
         },
         {
             "label": "기호성",
             "value": _format_vendor_metric(product.aspect_palatability, 2),
-            "description": "섭취 만족 반응 점수",
         },
         {
             "label": "배송/포장",
             "value": _format_vendor_metric(product.aspect_delivery_packaging, 2),
-            "description": "배송 품질 및 포장 만족도",
         },
         {
-            "label": "가격/구매",
+            "label": "가격 반응",
             "value": _format_vendor_metric(product.aspect_price_purchase, 2),
-            "description": "가격 저항과 구매 반응 체감",
         },
     ]
 
     info_rows = [
         {"label": "상품 ID", "value": product.goods_id},
-        {"label": "상태", "value": serialized_product["status_label"]},
-        {"label": "등록일", "value": _get_vendor_product_registered_date_label(product)},
         {"label": "브랜드", "value": product.brand_name},
-        {"label": "반려동물 유형", "value": serialized_product["pet_type_label"]},
+        {"label": "등록일", "value": _get_vendor_product_registered_date_label(product)},
         {"label": "카테고리", "value": serialized_product["category_label"]},
         {"label": "세부 분류", "value": " · ".join(subcategory_segments) if subcategory_segments else "-"},
         {"label": "정가", "value": serialized_product["price_label"]},
@@ -295,19 +286,13 @@ def _build_vendor_product_detail_context(product, serialized_product):
             "external": False,
         },
         {
-            "label": "원본 페이지",
-            "href": product.product_url,
-            "tone": "secondary",
-            "external": True,
-        },
-        {
             "label": "리뷰 관리",
             "href": f"{reverse('vendor-reviews')}?focus=pending",
             "tone": "secondary",
             "external": False,
         },
         {
-            "label": "주문 흐름 보기",
+            "label": "주문 관리",
             "href": f"{reverse('vendor-orders')}?focus=processing",
             "tone": "secondary",
             "external": False,
@@ -317,17 +302,14 @@ def _build_vendor_product_detail_context(product, serialized_product):
     checkpoint_rows = [
         {
             "title": "가격/할인 점검",
-            "description": "할인율과 가격 반응 지표를 함께 확인해 전환 이탈이 큰지 먼저 봅니다.",
             "status": "확인 필요" if price_gap and float(product.aspect_price_purchase or 0) < 0.6 else "안정",
         },
         {
             "title": "재고/노출 상태",
-            "description": "판매중·준비중·품절 상태에 따라 운영 배너와 추천 노출 전략을 조정합니다.",
             "status": "품절 대응" if serialized_product["soldout"] else ("등록 검수" if serialized_product["pending"] else "판매중"),
         },
         {
             "title": "리뷰 대응",
-            "description": "리뷰 수와 정서 지표를 보고 CS 응답 또는 상세 설명 보강이 필요한지 판단합니다.",
             "status": "우선 확인" if serialized_product["review_count"] >= 100 else "모니터링",
         },
     ]
@@ -340,7 +322,11 @@ def _build_vendor_product_detail_context(product, serialized_product):
         "vendor_product_action_links": action_links,
         "vendor_product_checkpoint_rows": checkpoint_rows,
         "vendor_product_health_tags": health_tags,
+        "vendor_product_health_tag_preview": health_tag_preview,
+        "vendor_product_health_tag_overflow_count": max(len(health_tags) - len(health_tag_preview), 0),
         "vendor_product_ingredient_tokens": ingredient_tokens,
+        "vendor_product_ingredient_token_preview": ingredient_token_preview,
+        "vendor_product_ingredient_token_overflow_count": max(len(ingredient_tokens) - len(ingredient_token_preview), 0),
         "vendor_product_subcategory_label": " · ".join(subcategory_segments) if subcategory_segments else "-",
         "vendor_product_category_path": " · ".join(category_segments) if category_segments else "카테고리 미지정",
         "vendor_product_registered_date_label": _get_vendor_product_registered_date_label(product),
@@ -747,6 +733,12 @@ def vendor_products_view(request):
         _serialize_vendor_product(product, demo_soldout_goods_ids, demo_pending_goods_ids)
         for product in ordered_products
     ]
+    product_status_counts = {
+        "all": len(serialized_products),
+        "active": sum(1 for product in serialized_products if not product["soldout"] and not product["pending"]),
+        "pending": sum(1 for product in serialized_products if product["pending"]),
+        "soldout": sum(1 for product in serialized_products if product["soldout"]),
+    }
 
     if soldout_filter == "active":
         serialized_products = [product for product in serialized_products if not product["soldout"] and not product["pending"]]
@@ -760,16 +752,34 @@ def vendor_products_view(request):
 
     sort_options = []
     for key, option in VENDOR_PRODUCT_SORT_OPTIONS.items():
-        query = {"sort": key}
-        if keyword:
-            query["q"] = keyword
-        if soldout_filter != "all":
-            query["stock"] = soldout_filter
         sort_options.append(
             {
                 "label": option["label"],
-                "query": urlencode(query),
+                "value": key,
                 "is_active": key == sort_key,
+            }
+        )
+
+    stock_options = []
+    for value, label in (
+        ("all", "전체"),
+        ("active", "판매중"),
+        ("pending", "준비중"),
+        ("soldout", "품절"),
+    ):
+        query = {}
+        if keyword:
+            query["q"] = keyword
+        if sort_key != "default":
+            query["sort"] = sort_key
+        if value != "all":
+            query["stock"] = value
+        stock_options.append(
+            {
+                "label": label,
+                "count": product_status_counts[value],
+                "query": urlencode(query),
+                "is_active": value == soldout_filter,
             }
         )
 
@@ -784,6 +794,7 @@ def vendor_products_view(request):
             "vendor_stock_filter": soldout_filter,
             "vendor_sort_key": sort_key,
             "vendor_sort_options": sort_options,
+            "vendor_stock_options": stock_options,
             "vendor_sort_description": VENDOR_PRODUCT_SORT_OPTIONS[sort_key]["description"],
         },
     )

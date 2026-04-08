@@ -408,8 +408,8 @@ class VendorAdminPageTests(TestCase):
         self.assertEqual(response.status_code, status.HTTP_200_OK)
         self.assertContains(response, "대시보드")
         self.assertContains(response, "처리 대기함")
-        self.assertContains(response, "즉시 조치가 필요한 상품")
-        self.assertContains(response, "성과가 좋은 상품")
+        self.assertContains(response, "확인 필요 상품")
+        self.assertContains(response, "상위 성과 상품")
         self.assertContains(response, reverse("vendor-product-detail", args=["GI-VENDOR-1"]))
         self.assertContains(response, "상품 등록")
         self.assertContains(response, "취소/교환/반품")
@@ -426,6 +426,9 @@ class VendorAdminPageTests(TestCase):
         self.assertContains(response, "오리젠 오리지널 독")
         self.assertNotContains(response, "다른 브랜드 상품")
         self.assertContains(response, reverse("vendor-product-detail", args=["GI-VENDOR-1"]))
+        self.assertContains(response, "운영 상품")
+        self.assertContains(response, "전체")
+        self.assertContains(response, "판매중")
 
     def test_vendor_product_detail_requires_vendor_session(self):
         response = self.client.get(reverse("vendor-product-detail", args=["GI-VENDOR-1"]))
