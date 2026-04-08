@@ -217,6 +217,107 @@ jobs:
       - name: Login to Amazon ECR
         uses: aws-actions/amazon-ecr-login@v2
 
+      - name: Update Django EB environment variables
+        env:
+          POSTGRES_DB: ${{ secrets.POSTGRES_DB }}
+          POSTGRES_USER: ${{ secrets.POSTGRES_USER }}
+          POSTGRES_PASSWORD: ${{ secrets.POSTGRES_PASSWORD }}
+          POSTGRES_HOST: ${{ secrets.POSTGRES_HOST }}
+          POSTGRES_PORT: ${{ secrets.POSTGRES_PORT || 5432 }}
+          DJANGO_SECRET_KEY: ${{ secrets.DJANGO_SECRET_KEY }}
+          DJANGO_DEBUG: "False"
+          DJANGO_ALLOWED_HOSTS: ${{ secrets.DJANGO_ALLOWED_HOSTS || '.elasticbeanstalk.com' }}
+          APP_BASE_URL: ${{ secrets.APP_BASE_URL }}
+          FASTAPI_INTERNAL_CHAT_URL: ${{ secrets.FASTAPI_INTERNAL_CHAT_URL }}
+          FASTAPI_INTERNAL_RECOMMEND_URL: ${{ secrets.FASTAPI_INTERNAL_RECOMMEND_URL }}
+          INTERNAL_SERVICE_TOKEN: ${{ secrets.INTERNAL_SERVICE_TOKEN }}
+          CORS_ALLOWED_ORIGINS: ${{ secrets.CORS_ALLOWED_ORIGINS }}
+          DJANGO_SECURE_SSL_REDIRECT: ${{ secrets.DJANGO_SECURE_SSL_REDIRECT }}
+          DJANGO_SESSION_COOKIE_SECURE: ${{ secrets.DJANGO_SESSION_COOKIE_SECURE }}
+          DJANGO_CSRF_COOKIE_SECURE: ${{ secrets.DJANGO_CSRF_COOKIE_SECURE }}
+          DJANGO_CSRF_TRUSTED_ORIGINS: ${{ secrets.DJANGO_CSRF_TRUSTED_ORIGINS }}
+          AWS_S3_BUCKET_NAME: ${{ secrets.AWS_S3_BUCKET_NAME }}
+          AWS_S3_REGION_NAME: ap-northeast-2
+          AWS_S3_CUSTOM_DOMAIN: ${{ secrets.AWS_S3_CUSTOM_DOMAIN }}
+          AWS_S3_ENDPOINT_URL: ${{ secrets.AWS_S3_ENDPOINT_URL }}
+          GOOGLE_CLIENT_ID: ${{ secrets.GOOGLE_CLIENT_ID }}
+          GOOGLE_CLIENT_SECRET: ${{ secrets.GOOGLE_CLIENT_SECRET }}
+          NAVER_CLIENT_ID: ${{ secrets.NAVER_CLIENT_ID }}
+          NAVER_CLIENT_SECRET: ${{ secrets.NAVER_CLIENT_SECRET }}
+          KAKAO_CLIENT_ID: ${{ secrets.KAKAO_CLIENT_ID }}
+          KAKAO_CLIENT_SECRET: ${{ secrets.KAKAO_CLIENT_SECRET }}
+          JUSO_CONFIRM_KEY: ${{ secrets.JUSO_CONFIRM_KEY }}
+          FASTAPI_STREAM_CONNECT_TIMEOUT: ${{ secrets.FASTAPI_STREAM_CONNECT_TIMEOUT }}
+          FASTAPI_STREAM_READ_TIMEOUT: ${{ secrets.FASTAPI_STREAM_READ_TIMEOUT }}
+          FASTAPI_STREAM_WRITE_TIMEOUT: ${{ secrets.FASTAPI_STREAM_WRITE_TIMEOUT }}
+          FASTAPI_STREAM_POOL_TIMEOUT: ${{ secrets.FASTAPI_STREAM_POOL_TIMEOUT }}
+        run: |
+          options_file="$RUNNER_TEMP/django-eb-env-options.json"
+          python3 - <<'PY' > "$options_file"
+          import json
+          import os
+
+          required_names = [
+              "POSTGRES_DB",
+              "POSTGRES_USER",
+              "POSTGRES_PASSWORD",
+              "POSTGRES_HOST",
+              "POSTGRES_PORT",
+              "DJANGO_SECRET_KEY",
+              "FASTAPI_INTERNAL_CHAT_URL",
+              "FASTAPI_INTERNAL_RECOMMEND_URL",
+          ]
+          optional_names = [
+              "DJANGO_DEBUG",
+              "DJANGO_ALLOWED_HOSTS",
+              "APP_BASE_URL",
+              "INTERNAL_SERVICE_TOKEN",
+              "CORS_ALLOWED_ORIGINS",
+              "DJANGO_SECURE_SSL_REDIRECT",
+              "DJANGO_SESSION_COOKIE_SECURE",
+              "DJANGO_CSRF_COOKIE_SECURE",
+              "DJANGO_CSRF_TRUSTED_ORIGINS",
+              "AWS_S3_BUCKET_NAME",
+              "AWS_S3_REGION_NAME",
+              "AWS_S3_CUSTOM_DOMAIN",
+              "AWS_S3_ENDPOINT_URL",
+              "GOOGLE_CLIENT_ID",
+              "GOOGLE_CLIENT_SECRET",
+              "NAVER_CLIENT_ID",
+              "NAVER_CLIENT_SECRET",
+              "KAKAO_CLIENT_ID",
+              "KAKAO_CLIENT_SECRET",
+              "JUSO_CONFIRM_KEY",
+              "FASTAPI_STREAM_CONNECT_TIMEOUT",
+              "FASTAPI_STREAM_READ_TIMEOUT",
+              "FASTAPI_STREAM_WRITE_TIMEOUT",
+              "FASTAPI_STREAM_POOL_TIMEOUT",
+          ]
+
+          missing = [name for name in required_names if not os.environ.get(name)]
+          if missing:
+              raise SystemExit(f"Missing required EB environment values: {', '.join(missing)}")
+
+          options = []
+          for name in required_names + optional_names:
+              value = os.environ.get(name)
+              if value is None or (name in optional_names and value == ""):
+                  continue
+              options.append(
+                  {
+                      "Namespace": "aws:elasticbeanstalk:application:environment",
+                      "OptionName": name,
+                      "Value": value,
+                  }
+              )
+          print(json.dumps(options))
+          PY
+          aws elasticbeanstalk update-environment \
+            --environment-name "$DJANGO_EB_ENV_NAME" \
+            --option-settings "file://$options_file"
+          aws elasticbeanstalk wait environment-updated \
+            --environment-names "$DJANGO_EB_ENV_NAME"
+
       - name: Build & push Django image
         uses: docker/build-push-action@v6
         with:
@@ -242,46 +343,46 @@ jobs:
           )
           PY
           cp -r deploy/eb/test-django/nginx .deploy-django/nginx
-          cat <<'EOF' > .deploy-django/.env
-          POSTGRES_DB=${{ secrets.POSTGRES_DB }}
-          POSTGRES_USER=${{ secrets.POSTGRES_USER }}
-          POSTGRES_PASSWORD=${{ secrets.POSTGRES_PASSWORD }}
-          POSTGRES_HOST=${{ secrets.POSTGRES_HOST }}
-          POSTGRES_PORT=${{ secrets.POSTGRES_PORT || 5432 }}
-
-          DJANGO_SECRET_KEY=${{ secrets.DJANGO_SECRET_KEY }}
+          cat <<'EOF' > .deploy-django/.env.check
+          POSTGRES_DB=check_db
+          POSTGRES_USER=check_user
+          POSTGRES_PASSWORD=check_password
+          POSTGRES_HOST=check-postgres
+          POSTGRES_PORT=5432
+          DJANGO_SECRET_KEY=check-secret
           DJANGO_DEBUG=False
-          DJANGO_ALLOWED_HOSTS=${{ secrets.DJANGO_ALLOWED_HOSTS || '.elasticbeanstalk.com' }}
-
-          APP_BASE_URL=${{ secrets.APP_BASE_URL }}
-          FASTAPI_INTERNAL_CHAT_URL=${{ secrets.FASTAPI_INTERNAL_CHAT_URL }}
-          INTERNAL_SERVICE_TOKEN=${{ secrets.INTERNAL_SERVICE_TOKEN }}
-          CORS_ALLOWED_ORIGINS=${{ secrets.CORS_ALLOWED_ORIGINS }}
-          DJANGO_SECURE_SSL_REDIRECT=${{ secrets.DJANGO_SECURE_SSL_REDIRECT }}
-          DJANGO_SESSION_COOKIE_SECURE=${{ secrets.DJANGO_SESSION_COOKIE_SECURE }}
-          DJANGO_CSRF_COOKIE_SECURE=${{ secrets.DJANGO_CSRF_COOKIE_SECURE }}
-          DJANGO_CSRF_TRUSTED_ORIGINS=${{ secrets.DJANGO_CSRF_TRUSTED_ORIGINS }}
-
-          AWS_S3_BUCKET_NAME=${{ secrets.AWS_S3_BUCKET_NAME }}
+          DJANGO_ALLOWED_HOSTS=.elasticbeanstalk.com
+          APP_BASE_URL=http://example.com
+          FASTAPI_INTERNAL_CHAT_URL=http://fastapi.example.com/api/chat/
+          FASTAPI_INTERNAL_RECOMMEND_URL=http://fastapi.example.com/api/recommend/
+          INTERNAL_SERVICE_TOKEN=check-internal-token
+          CORS_ALLOWED_ORIGINS=
+          DJANGO_SECURE_SSL_REDIRECT=False
+          DJANGO_SESSION_COOKIE_SECURE=False
+          DJANGO_CSRF_COOKIE_SECURE=False
+          DJANGO_CSRF_TRUSTED_ORIGINS=
+          AWS_S3_BUCKET_NAME=
           AWS_S3_REGION_NAME=ap-northeast-2
-          AWS_S3_CUSTOM_DOMAIN=${{ secrets.AWS_S3_CUSTOM_DOMAIN }}
-          AWS_S3_ENDPOINT_URL=${{ secrets.AWS_S3_ENDPOINT_URL }}
-          AWS_ACCESS_KEY_ID=${{ secrets.AWS_ACCESS_KEY_ID }}
-          AWS_SECRET_ACCESS_KEY=${{ secrets.AWS_SECRET_ACCESS_KEY }}
-
-          GOOGLE_CLIENT_ID=${{ secrets.GOOGLE_CLIENT_ID }}
-          GOOGLE_CLIENT_SECRET=${{ secrets.GOOGLE_CLIENT_SECRET }}
-          NAVER_CLIENT_ID=${{ secrets.NAVER_CLIENT_ID }}
-          NAVER_CLIENT_SECRET=${{ secrets.NAVER_CLIENT_SECRET }}
-          KAKAO_CLIENT_ID=${{ secrets.KAKAO_CLIENT_ID }}
-          KAKAO_CLIENT_SECRET=${{ secrets.KAKAO_CLIENT_SECRET }}
+          AWS_S3_CUSTOM_DOMAIN=
+          AWS_S3_ENDPOINT_URL=
+          GOOGLE_CLIENT_ID=
+          GOOGLE_CLIENT_SECRET=
+          NAVER_CLIENT_ID=
+          NAVER_CLIENT_SECRET=
+          KAKAO_CLIENT_ID=
+          KAKAO_CLIENT_SECRET=
+          JUSO_CONFIRM_KEY=
+          FASTAPI_STREAM_CONNECT_TIMEOUT=5
+          FASTAPI_STREAM_READ_TIMEOUT=25
+          FASTAPI_STREAM_WRITE_TIMEOUT=10
+          FASTAPI_STREAM_POOL_TIMEOUT=5
           EOF
-          docker compose -f .deploy-django/docker-compose.yml --env-file .deploy-django/.env config -q
+          docker compose -f .deploy-django/docker-compose.yml --env-file .deploy-django/.env.check config -q
           # .ebextensions 디렉토리 복사 (EB 기본 설정)
           cp -r deploy/eb/test-django/.ebextensions .deploy-django/.ebextensions
           cp -r deploy/eb/test-django/.platform .deploy-django/.platform
           cd .deploy-django
-          zip -r ../django-deploy.zip docker-compose.yml .env nginx .ebextensions .platform
+          zip -r ../django-deploy.zip docker-compose.yml nginx .ebextensions .platform
 
       - name: Deploy Django to Elastic Beanstalk
         uses: einaregilsson/beanstalk-deploy@v22

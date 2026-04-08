@@ -28,6 +28,7 @@ INSTALLED_APPS = [
     "products",
     "orders",
     "chat",
+    "recommendations",
 ]
 
 AUTH_USER_MODEL = "users.User"
@@ -191,6 +192,14 @@ MEDIA_URL = "/media/"
 MEDIA_ROOT = BASE_DIR / "media"
 APP_BASE_URL = config("APP_BASE_URL", default="")
 FASTAPI_INTERNAL_CHAT_URL = config("FASTAPI_INTERNAL_CHAT_URL", default="http://fastapi:8001/api/chat/")
+_fastapi_recommend_url = config("FASTAPI_INTERNAL_RECOMMEND_URL", default="").strip()
+if not _fastapi_recommend_url:
+    _fastapi_chat_url = FASTAPI_INTERNAL_CHAT_URL.rstrip("/")
+    if _fastapi_chat_url.endswith("/api/chat"):
+        _fastapi_recommend_url = f"{_fastapi_chat_url.removesuffix('/api/chat')}/api/recommend/"
+    else:
+        _fastapi_recommend_url = "http://fastapi:8001/api/recommend/"
+FASTAPI_INTERNAL_RECOMMEND_URL = _fastapi_recommend_url
 INTERNAL_SERVICE_TOKEN = config("INTERNAL_SERVICE_TOKEN", default="dev-internal-token")
 FASTAPI_STREAM_CONNECT_TIMEOUT = config("FASTAPI_STREAM_CONNECT_TIMEOUT", default=5, cast=float)
 FASTAPI_STREAM_READ_TIMEOUT = config("FASTAPI_STREAM_READ_TIMEOUT", default=25, cast=float)
