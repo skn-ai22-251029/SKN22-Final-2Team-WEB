@@ -1,64 +1,414 @@
 {% extends "base.html" %}
 {% block title %}{% block vendor_title %}관리자 페이지{% endblock %} — TailTalk{% endblock %}
 
+{% block head %}
+{{ block.super }}
+<style>
+  #pageGate {
+    min-height: 100dvh;
+    background: #f8f9fb;
+  }
+
+  #pageGate > .app-shell {
+    position: relative;
+    width: min(100%, 960px);
+    min-height: 100dvh;
+    height: 100dvh;
+    margin: 0 auto;
+    overflow: hidden;
+    background: linear-gradient(180deg, #f8fbff 0%, #f3f7fc 48%, #eef4fb 100%);
+  }
+
+  #vendorHeader {
+    position: absolute;
+    inset: 0 0 auto 0;
+    height: 72px;
+    border-bottom: 1px solid #e2e8f0;
+    background: rgba(255, 255, 255, 0.96);
+    backdrop-filter: blur(14px);
+    z-index: 40;
+  }
+
+  #vendorHeaderInner {
+    display: grid;
+    grid-template-columns: 40px auto 40px;
+    align-items: center;
+    gap: 8px;
+    height: 100%;
+    padding: 0 12px;
+  }
+
+  #vendorBrandLogo {
+    justify-self: center;
+    display: inline-flex;
+    align-items: center;
+    font-size: 26px;
+    font-weight: 700;
+    line-height: 1;
+    color: #2d3748;
+    white-space: nowrap;
+  }
+
+  #vendorMenuWrapper {
+    position: relative;
+    height: 40px;
+    width: 40px;
+  }
+
+  #vendorMenuToggle {
+    display: flex;
+    height: 40px;
+    width: 40px;
+    align-items: center;
+    justify-content: center;
+    border: 1px solid #dbe7f5;
+    border-radius: 12px;
+    background: #ffffff;
+    color: #475569;
+    transition: border-color 160ms ease, background-color 160ms ease, color 160ms ease;
+    box-shadow: 0 2px 8px rgba(45, 55, 72, 0.05);
+  }
+
+  #vendorMenuToggle:hover {
+    border-color: #bfdbfe;
+    background: #f8fbff;
+    color: #1d4ed8;
+  }
+
+  #vendorMenu {
+    position: absolute;
+    top: calc(100% + 10px);
+    right: 0;
+    width: 252px;
+    overflow: hidden;
+    border: 1px solid #e2e8f0;
+    border-radius: 18px;
+    background: #fff;
+    box-shadow: 0 18px 36px rgba(15, 23, 42, 0.12);
+    opacity: 0;
+    pointer-events: none;
+    transform: translateY(-6px);
+    transition: opacity 160ms ease, transform 160ms ease;
+    z-index: 50;
+  }
+
+  #vendorMenu.is-open {
+    opacity: 1;
+    pointer-events: auto;
+    transform: translateY(0);
+  }
+
+  #vendorMenuHeader {
+    padding: 14px 16px 12px;
+    background: linear-gradient(180deg, #f8fbff 0%, #f3f7fc 100%);
+  }
+
+  #vendorMenuTitle {
+    font-size: 14px;
+    font-weight: 700;
+    color: #1e293b;
+  }
+
+  #vendorMenuMeta {
+    margin-top: 3px;
+    font-size: 12px;
+    font-weight: 600;
+    color: #64748b;
+  }
+
+  .vendor-menu-section-title {
+    padding: 10px 16px 8px;
+    font-size: 11px;
+    font-weight: 700;
+    letter-spacing: 0.08em;
+    text-transform: uppercase;
+    color: #94a3b8;
+  }
+
+  .vendor-menu-link,
+  .vendor-menu-static {
+    display: flex;
+    height: 44px;
+    width: 100%;
+    align-items: center;
+    justify-content: space-between;
+    gap: 12px;
+    padding: 0 16px;
+    font-size: 14px;
+    color: #2d3748;
+    transition: background-color 160ms ease, color 160ms ease;
+  }
+
+  .vendor-menu-link:hover {
+    background: #edf2f7;
+  }
+
+  .vendor-menu-static {
+    color: #94a3b8;
+    background: #fafcff;
+  }
+
+  .vendor-menu-link.is-danger {
+    color: #ef4444;
+  }
+
+  .vendor-menu-link.is-danger:hover {
+    background: #fef2f2;
+  }
+
+  .vendor-menu-divider {
+    margin: 0 12px;
+    height: 1px;
+    background: #edf2f7;
+  }
+
+  .vendor-menu-chip {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    min-width: 46px;
+    height: 22px;
+    border-radius: 9999px;
+    border: 1px solid #e2e8f0;
+    padding: 0 8px;
+    font-size: 11px;
+    font-weight: 700;
+    color: #94a3b8;
+    background: #ffffff;
+  }
+
+  #vendorSubnav {
+    position: absolute;
+    inset: 72px 0 auto 0;
+    z-index: 35;
+    border-bottom: 1px solid #e8eef6;
+    background: rgba(255, 255, 255, 0.98);
+    backdrop-filter: blur(12px);
+  }
+
+  #vendorSubnavRail {
+    display: grid;
+    grid-template-columns: repeat(4, minmax(0, 1fr));
+    width: 100%;
+  }
+
+  .vendor-subnav-link,
+  .vendor-subnav-label {
+    position: relative;
+    display: flex;
+    min-width: 0;
+    align-items: center;
+    justify-content: center;
+    gap: 6px;
+    height: 46px;
+    padding: 0 6px;
+    white-space: nowrap;
+    font-size: 12px;
+    font-weight: 600;
+    line-height: 1.2;
+    text-align: center;
+    transition: background-color 160ms ease, color 160ms ease;
+  }
+
+  .vendor-subnav-link {
+    color: #4a5568;
+  }
+
+  .vendor-subnav-link + .vendor-subnav-link::before,
+  .vendor-subnav-link + .vendor-subnav-label::before,
+  .vendor-subnav-label + .vendor-subnav-link::before,
+  .vendor-subnav-label + .vendor-subnav-label::before {
+    content: "";
+    position: absolute;
+    left: 0;
+    top: 10px;
+    bottom: 10px;
+    width: 1px;
+    background: #e8eef6;
+  }
+
+  .vendor-subnav-link:hover {
+    background: #f8fbff;
+    color: #1e293b;
+  }
+
+  .vendor-subnav-link.is-active {
+    background: #f8f9fb;
+    color: #1e293b;
+  }
+
+  .vendor-subnav-label {
+    color: #94a3b8;
+    background: #f8fafc;
+    cursor: default;
+  }
+
+  .vendor-subnav-badge {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    min-width: 20px;
+    height: 20px;
+    border-radius: 9999px;
+    border: 1px solid #e2e8f0;
+    padding: 0 6px;
+    font-size: 11px;
+    font-weight: 700;
+    color: #94a3b8;
+    background: #ffffff;
+  }
+
+  #vendorViewport {
+    position: absolute;
+    inset: 116px 0 0 0;
+    overflow-y: auto;
+    padding: 18px 16px 28px;
+  }
+
+  html,
+  body,
+  body.bg-white {
+    background: #f8f9fb !important;
+  }
+
+  @media (max-width: 767px) {
+    #pageGate > .app-shell {
+      width: 100vw;
+    }
+  }
+
+  @media (min-width: 768px) {
+    #vendorHeaderInner {
+      padding: 0 16px;
+    }
+
+    #vendorSubnavRail {
+      grid-template-columns: repeat(4, minmax(0, 1fr));
+    }
+
+    .vendor-subnav-link,
+    .vendor-subnav-label {
+      padding: 0 10px;
+      font-size: 14px;
+      height: 44px;
+    }
+
+    #vendorViewport {
+      padding: 24px 20px 36px;
+    }
+  }
+</style>
+{% endblock %}
+
 {% block content %}
-<div class="min-h-screen bg-[radial-gradient(circle_at_top,#f8fbff_0%,#eef4fb_46%,#e6eef8_100%)]">
-  <div class="mx-auto flex min-h-screen w-full max-w-[1440px] gap-6 px-5 py-6 lg:px-8">
-    <aside class="hidden w-[264px] shrink-0 rounded-[28px] border border-white/60 bg-[linear-gradient(180deg,rgba(31,41,55,0.98)_0%,rgba(17,24,39,0.98)_100%)] px-6 py-7 text-white shadow-[0_24px_60px_rgba(15,23,42,0.18)] lg:flex lg:flex-col">
-      <a href="{% url 'vendor-dashboard' %}" class="block px-2 text-[28px] font-bold tracking-[-0.03em] text-white">
-        <span class="text-[#7dd3fc]">Tail</span><span>Talk</span>
-      </a>
-
-      <div class="mt-8 rounded-[22px] border border-white/10 bg-white/5 px-6 py-5">
-        <p class="text-[22px] font-bold text-white">{{ vendor_account.display_name }}</p>
-        <p class="mt-1 text-[13px] text-white/60">@{{ vendor_account.login_id }}</p>
+<div id="pageGate">
+  <div class="app-shell">
+    <header id="vendorHeader">
+      <div id="vendorHeaderInner">
+        <div aria-hidden="true"></div>
+        <a href="{% url 'vendor-dashboard' %}" id="vendorBrandLogo" aria-label="관리자 대시보드로 이동">
+          <span class="text-[#3182ce]">Tail</span><span>Talk</span>
+        </a>
+        <div class="justify-self-end min-w-0">
+          <div id="vendorMenuWrapper">
+            <button type="button" id="vendorMenuToggle" aria-label="관리자 메뉴 열기" onclick="toggleVendorMenu()">
+              <svg viewBox="0 0 24 24" class="h-[30px] w-[30px] text-[#4a5568]" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+                <circle cx="12" cy="8" r="3.2"></circle>
+                <path d="M5.5 19a6.5 6.5 0 0 1 13 0"></path>
+              </svg>
+            </button>
+            <div id="vendorMenu">
+              <div id="vendorMenuHeader">
+                <p id="vendorMenuTitle">{{ vendor_account.display_name }} 관리자</p>
+                <p id="vendorMenuMeta">@{{ vendor_account.login_id }}</p>
+              </div>
+              <div class="vendor-menu-section-title">바로 가기</div>
+              <div class="vendor-menu-divider"></div>
+              <a href="{% url 'vendor-product-create' %}" class="vendor-menu-link">
+                <span>상품 등록</span>
+              </a>
+              <div class="vendor-menu-divider"></div>
+              <a href="{% url 'vendor-reviews' %}" class="vendor-menu-link">
+                <span>리뷰 관리</span>
+              </a>
+              <div class="vendor-menu-section-title">운영 메뉴</div>
+              <div class="vendor-menu-divider"></div>
+              <div class="vendor-menu-static">
+                <span>취소/교환/반품</span>
+                <span class="vendor-menu-chip">준비 중</span>
+              </div>
+              <div class="vendor-menu-divider"></div>
+              <div class="vendor-menu-static">
+                <span>배송/재고</span>
+                <span class="vendor-menu-chip">준비 중</span>
+              </div>
+              <div class="vendor-menu-divider"></div>
+              <div class="vendor-menu-static">
+                <span>고객문의 / CS</span>
+                <span class="vendor-menu-chip">준비 중</span>
+              </div>
+              <div class="vendor-menu-divider"></div>
+              <div class="vendor-menu-static">
+                <span>정산</span>
+                <span class="vendor-menu-chip">준비 중</span>
+              </div>
+              <div class="vendor-menu-divider"></div>
+              <div class="vendor-menu-static">
+                <span>설정</span>
+                <span class="vendor-menu-chip">준비 중</span>
+              </div>
+              <div class="vendor-menu-section-title">계정</div>
+              <div class="vendor-menu-divider"></div>
+              <a href="{% url 'vendor-logout' %}" class="vendor-menu-link is-danger">
+                <span>로그아웃</span>
+              </a>
+            </div>
+          </div>
+        </div>
       </div>
+    </header>
 
-      <nav class="mt-8 space-y-2">
+    <nav id="vendorSubnav" aria-label="관리자 섹션">
+      <div id="vendorSubnavRail">
         {% for item in vendor_navigation %}
         {% if item.disabled %}
-        <div
-          class="flex h-[48px] items-center justify-between rounded-[14px] border border-white/8 bg-white/[0.03] px-6 text-[15px] font-semibold text-white/35"
-        >
+        <span class="vendor-subnav-label">
           <span>{{ item.label }}</span>
-          <span class="rounded-full border border-white/10 px-2 py-1 text-[11px] font-medium text-white/35">준비 중</span>
-        </div>
+          <span class="vendor-subnav-badge">준비</span>
+        </span>
         {% else %}
-        <a
-          href="{{ item.href }}"
-          class="flex h-[48px] items-center rounded-[14px] px-6 text-[15px] font-semibold transition {% if item.active %}bg-white text-[#1f2937] shadow-[0_10px_24px_rgba(255,255,255,0.10)]{% else %}text-white/70 hover:bg-white/6 hover:text-white{% endif %}"
-        >
+        <a href="{{ item.href }}" class="vendor-subnav-link{% if item.active %} is-active{% endif %}">
           {{ item.label }}
         </a>
         {% endif %}
         {% endfor %}
-      </nav>
-
-      <div class="mt-auto space-y-3">
-        <a
-          href="{% url 'vendor-logout' %}"
-          class="flex h-[46px] items-center justify-center rounded-[14px] border border-white/10 px-6 text-[14px] font-semibold text-white/60 transition hover:bg-white/6 hover:text-white"
-        >
-          관리자 로그아웃
-        </a>
       </div>
-    </aside>
+    </nav>
 
-    <main class="min-w-0 flex-1">
-      <div class="flex items-center justify-between gap-4 lg:hidden">
-        <div>
-          <p class="text-[24px] font-bold text-[#1e293b]">{{ vendor_account.display_name }}</p>
-        </div>
-        <a
-          href="{% url 'vendor-logout' %}"
-          class="flex h-[42px] items-center justify-center rounded-[12px] border border-[#d8e2f0] bg-white px-4 text-[13px] font-semibold text-[#475569]"
-        >
-          로그아웃
-        </a>
-      </div>
-
+    <main id="vendorViewport">
       {% block vendor_content %}{% endblock %}
     </main>
   </div>
 </div>
+{% endblock %}
+
+{% block scripts %}
+{{ block.super }}
+<script>
+  (function () {
+    var vendorMenu = document.getElementById('vendorMenu');
+    var vendorMenuWrapper = document.getElementById('vendorMenuWrapper');
+
+    window.toggleVendorMenu = function () {
+      if (!vendorMenu) return;
+      vendorMenu.classList.toggle('is-open');
+    };
+
+    document.addEventListener('click', function (event) {
+      if (vendorMenuWrapper && !vendorMenuWrapper.contains(event.target) && vendorMenu) {
+        vendorMenu.classList.remove('is-open');
+      }
+    });
+  })();
+</script>
 {% endblock %}

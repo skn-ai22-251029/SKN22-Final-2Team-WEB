@@ -1,0 +1,155 @@
+{% extends "users/vendor_base.html" %}
+{% block vendor_title %}관리자 상품 상세{% endblock %}
+
+{% block vendor_content %}
+<section class="rounded-[26px] border border-white/70 bg-white/86 px-4 py-5 shadow-[0_18px_48px_rgba(148,163,184,0.14)] backdrop-blur sm:px-6 sm:py-6 md:px-8 md:py-8">
+  <div class="grid gap-6 xl:grid-cols-[220px,minmax(0,1fr)] xl:items-start">
+    <div class="overflow-hidden rounded-[28px] border border-[#dbe7f5] bg-white shadow-[0_12px_32px_rgba(148,163,184,0.10)]">
+      <img src="{{ vendor_product.thumbnail_url }}" alt="{{ vendor_product.goods_name }}" class="aspect-square w-full object-cover" />
+    </div>
+
+    <div class="min-w-0">
+      <div class="flex flex-wrap items-center gap-2">
+        <a href="{% url 'vendor-products' %}" class="text-[13px] font-semibold text-[#2563eb] hover:text-[#1d4ed8]">상품 목록</a>
+        <span class="text-[#cbd5e1]">/</span>
+        <span class="text-[13px] font-semibold text-[#64748b]">{{ vendor_product.goods_id }}</span>
+      </div>
+
+      <div class="mt-4 flex flex-col gap-4 xl:flex-row xl:items-start xl:justify-between">
+        <div class="min-w-0">
+          <div class="flex flex-wrap items-center gap-2">
+            <span class="rounded-full px-3 py-1 text-[12px] font-semibold {% if vendor_product_status_tone == 'green' %}bg-[#dcfce7] text-[#15803d]{% elif vendor_product_status_tone == 'amber' %}bg-[#fef3c7] text-[#b45309]{% else %}bg-[#fee2e2] text-[#b91c1c]{% endif %}">
+              {{ vendor_product.status_label }}
+            </span>
+            <span class="rounded-full bg-[#eef4fb] px-3 py-1 text-[12px] font-semibold text-[#475569]">{{ vendor_product.pet_type_label }}</span>
+          </div>
+          <h1 class="mt-4 text-[28px] font-bold tracking-[-0.03em] text-[#1e293b] sm:text-[32px]">{{ vendor_product.goods_name }}</h1>
+          <p class="mt-3 text-[14px] leading-7 text-[#64748b] sm:text-[15px]">
+            {{ vendor_product_category_path }} · 등록일 {{ vendor_product_registered_date_label }}
+          </p>
+        </div>
+
+        <div class="flex flex-wrap gap-2">
+          {% for item in vendor_product_action_links %}
+          <a
+            href="{{ item.href }}"
+            {% if item.external %}target="_blank" rel="noreferrer"{% endif %}
+            class="inline-flex h-[40px] items-center justify-center rounded-[12px] px-4 text-[13px] font-semibold transition sm:h-[42px] sm:text-[14px] {% if item.tone == 'primary' %}border border-[#93c5fd] bg-[#dbeafe] text-[#1d4ed8] hover:bg-[#bfdbfe]{% else %}border border-[#dbe7f5] bg-white text-[#475569] hover:border-[#bfdbfe] hover:bg-[#f8fbff]{% endif %}"
+          >
+            {{ item.label }}
+          </a>
+          {% endfor %}
+        </div>
+      </div>
+
+      <div class="mt-6 grid gap-4 md:grid-cols-2 xl:grid-cols-4">
+        {% for item in vendor_product_detail_highlights %}
+        <article class="rounded-[24px] border border-[#e5eef8] bg-[linear-gradient(180deg,#ffffff_0%,#f8fbff_100%)] px-5 py-5 shadow-[0_10px_24px_rgba(148,163,184,0.08)]">
+          <p class="text-[12px] font-semibold uppercase tracking-[0.08em] text-[#64748b]">{{ item.label }}</p>
+          <p class="mt-4 text-[24px] font-bold tracking-[-0.03em] text-[#0f172a]">{{ item.value }}</p>
+          <p class="mt-3 text-[12px] leading-5 text-[#94a3b8]">{{ item.description }}</p>
+        </article>
+        {% endfor %}
+      </div>
+    </div>
+  </div>
+</section>
+
+<section class="mt-6 grid gap-6 xl:grid-cols-[1.02fr,0.98fr]">
+  <article class="rounded-[26px] border border-white/70 bg-white/86 px-4 py-5 shadow-[0_18px_48px_rgba(148,163,184,0.14)] backdrop-blur sm:px-6 sm:py-6 md:px-8">
+    <div>
+      <p class="text-[12px] font-semibold uppercase tracking-[0.08em] text-[#2563eb]">Product Info</p>
+      <h2 class="mt-2 text-[20px] font-bold tracking-[-0.02em] text-[#1e293b] sm:text-[22px]">상품 기본 정보</h2>
+    </div>
+
+    <div class="mt-6 grid gap-3 md:grid-cols-2">
+      {% for item in vendor_product_info_rows %}
+      <div class="rounded-[20px] border border-[#e5eef8] bg-[#f8fbff] px-4 py-4">
+        <p class="text-[12px] font-semibold text-[#64748b]">{{ item.label }}</p>
+        <p class="mt-2 text-[16px] font-semibold leading-6 text-[#0f172a]">{{ item.value }}</p>
+      </div>
+      {% endfor %}
+    </div>
+
+    <div class="mt-6 grid gap-4 lg:grid-cols-2">
+      <section class="rounded-[24px] border border-[#dbeafe] bg-[linear-gradient(180deg,#f8fbff_0%,#eef6ff_100%)] px-5 py-5">
+        <p class="text-[12px] font-semibold uppercase tracking-[0.08em] text-[#2563eb]">Signals</p>
+        <h3 class="mt-2 text-[18px] font-bold tracking-[-0.02em] text-[#1e293b]">리뷰·추천 지표</h3>
+        <div class="mt-5 space-y-3">
+          {% for item in vendor_product_detail_signals %}
+          <div class="rounded-[18px] border border-white/80 bg-white/88 px-4 py-4">
+            <div class="flex items-center justify-between gap-4">
+              <p class="text-[13px] font-semibold text-[#64748b]">{{ item.label }}</p>
+              <p class="text-[16px] font-bold text-[#0f172a]">{{ item.value }}</p>
+            </div>
+            <p class="mt-2 text-[12px] leading-5 text-[#64748b]">{{ item.description }}</p>
+          </div>
+          {% endfor %}
+        </div>
+      </section>
+
+      <section class="rounded-[24px] border border-[#dcfce7] bg-[linear-gradient(180deg,#f7fff8_0%,#eefbf1_100%)] px-5 py-5">
+        <p class="text-[12px] font-semibold uppercase tracking-[0.08em] text-[#15803d]">Attributes</p>
+        <h3 class="mt-2 text-[18px] font-bold tracking-[-0.02em] text-[#1e293b]">카테고리·성분 메모</h3>
+
+        <div class="mt-5">
+          <p class="text-[12px] font-semibold text-[#64748b]">세부 분류</p>
+          <p class="mt-2 text-[15px] font-semibold text-[#0f172a]">{{ vendor_product_subcategory_label }}</p>
+        </div>
+
+        <div class="mt-5">
+          <p class="text-[12px] font-semibold text-[#64748b]">건강 태그</p>
+          <div class="mt-3 flex flex-wrap gap-2">
+            {% for item in vendor_product_health_tags %}
+            <span class="rounded-full bg-white px-3 py-1 text-[12px] font-semibold text-[#166534]">{{ item }}</span>
+            {% empty %}
+            <span class="rounded-full bg-white px-3 py-1 text-[12px] font-semibold text-[#94a3b8]">등록된 태그 없음</span>
+            {% endfor %}
+          </div>
+        </div>
+
+        <div class="mt-5">
+          <p class="text-[12px] font-semibold text-[#64748b]">주요 성분</p>
+          <div class="mt-3 flex flex-wrap gap-2">
+            {% for item in vendor_product_ingredient_tokens %}
+            <span class="rounded-full bg-white px-3 py-1 text-[12px] font-semibold text-[#475569]">{{ item }}</span>
+            {% empty %}
+            <span class="rounded-full bg-white px-3 py-1 text-[12px] font-semibold text-[#94a3b8]">성분 메타데이터 없음</span>
+            {% endfor %}
+          </div>
+        </div>
+      </section>
+    </div>
+  </article>
+
+  <article class="rounded-[26px] border border-white/70 bg-white/86 px-4 py-5 shadow-[0_18px_48px_rgba(148,163,184,0.14)] backdrop-blur sm:px-6 sm:py-6 md:px-8">
+    <div>
+      <p class="text-[12px] font-semibold uppercase tracking-[0.08em] text-[#4f46e5]">Operations</p>
+      <h2 class="mt-2 text-[20px] font-bold tracking-[-0.02em] text-[#1e293b] sm:text-[22px]">운영 체크 포인트</h2>
+      <p class="mt-2 text-[14px] leading-6 text-[#64748b]">가격, 상태, 리뷰 반응을 한 화면에서 확인하고 다음 액션으로 이어질 수 있게 정리했습니다.</p>
+    </div>
+
+    <div class="mt-6 space-y-3">
+      {% for item in vendor_product_checkpoint_rows %}
+      <div class="rounded-[22px] border border-[#e5e7eb] bg-[linear-gradient(180deg,#ffffff_0%,#f8fbff_100%)] px-5 py-5">
+        <div class="flex items-center justify-between gap-3">
+          <p class="text-[17px] font-bold tracking-[-0.02em] text-[#0f172a]">{{ item.title }}</p>
+          <span class="rounded-full bg-[#eef4ff] px-3 py-1 text-[12px] font-semibold text-[#1d4ed8]">{{ item.status }}</span>
+        </div>
+        <p class="mt-3 text-[13px] leading-6 text-[#475569]">{{ item.description }}</p>
+      </div>
+      {% endfor %}
+    </div>
+
+    <div class="mt-6 rounded-[24px] border border-[#dbe7f5] bg-[#f8fbff] px-5 py-5">
+      <p class="text-[12px] font-semibold uppercase tracking-[0.08em] text-[#64748b]">Next Actions</p>
+      <div class="mt-4 grid gap-3 sm:grid-cols-2">
+        <a href="{% url 'vendor-product-edit' vendor_product.goods_id %}" class="inline-flex h-[42px] items-center justify-center rounded-[12px] border border-[#93c5fd] bg-[#dbeafe] px-4 text-[14px] font-semibold text-[#1d4ed8] transition hover:bg-[#bfdbfe]">상품 정보 수정</a>
+        <a href="{% url 'vendor-products' %}?sort=reviews" class="inline-flex h-[42px] items-center justify-center rounded-[12px] border border-[#dbe7f5] bg-white px-4 text-[14px] font-semibold text-[#475569] transition hover:border-[#bfdbfe] hover:bg-[#f8fbff]">리뷰 많은 상품 비교</a>
+        <a href="{% url 'vendor-analytics' %}" class="inline-flex h-[42px] items-center justify-center rounded-[12px] border border-[#dbe7f5] bg-white px-4 text-[14px] font-semibold text-[#475569] transition hover:border-[#bfdbfe] hover:bg-[#f8fbff]">통계 페이지에서 확인</a>
+        <a href="{{ vendor_product.product_url }}" target="_blank" rel="noreferrer" class="inline-flex h-[42px] items-center justify-center rounded-[12px] border border-[#dbe7f5] bg-white px-4 text-[14px] font-semibold text-[#475569] transition hover:border-[#bfdbfe] hover:bg-[#f8fbff]">스토어 원본 열기</a>
+      </div>
+    </div>
+  </article>
+</section>
+{% endblock %}
