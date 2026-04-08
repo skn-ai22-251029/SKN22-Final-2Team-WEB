@@ -26,6 +26,7 @@ vendor_dashboard_view = vendor_page_impl.vendor_dashboard_view
 vendor_products_view = vendor_page_impl.vendor_products_view
 vendor_analytics_view = vendor_page_impl.vendor_analytics_view
 vendor_product_create_view = vendor_page_impl.vendor_product_create_view
+vendor_product_detail_view = vendor_page_impl.vendor_product_detail_view
 vendor_product_edit_view = vendor_page_impl.vendor_product_edit_view
 vendor_orders_view = vendor_page_impl.vendor_orders_view
 vendor_reviews_view = vendor_page_impl.vendor_reviews_view
@@ -120,6 +121,7 @@ __all__ = [
     "vendor_logout_view",
     "vendor_orders_view",
     "vendor_product_create_view",
+    "vendor_product_detail_view",
     "vendor_product_edit_view",
     "vendor_products_view",
     "vendor_reviews_view",

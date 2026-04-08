@@ -407,8 +407,13 @@ class VendorAdminPageTests(TestCase):
 
         self.assertEqual(response.status_code, status.HTTP_200_OK)
         self.assertContains(response, "대시보드")
-        self.assertContains(response, "등록 상품")
-        self.assertContains(response, "오리젠 오리지널 독")
+        self.assertContains(response, "처리 대기함")
+        self.assertContains(response, "확인 필요 상품")
+        self.assertContains(response, "상위 성과 상품")
+        self.assertContains(response, reverse("vendor-product-detail", args=["GI-VENDOR-1"]))
+        self.assertContains(response, "상품 등록")
+        self.assertContains(response, "취소/교환/반품")
+        self.assertContains(response, "고객문의 / CS")
 
     def test_vendor_products_filters_to_vendor_brand(self):
         session = self.client.session
@@ -420,6 +425,37 @@ class VendorAdminPageTests(TestCase):
         self.assertEqual(response.status_code, status.HTTP_200_OK)
         self.assertContains(response, "오리젠 오리지널 독")
         self.assertNotContains(response, "다른 브랜드 상품")
+        self.assertContains(response, reverse("vendor-product-detail", args=["GI-VENDOR-1"]))
+        self.assertContains(response, "운영 상품")
+        self.assertContains(response, "전체")
+        self.assertContains(response, "판매중")
+
+    def test_vendor_product_detail_requires_vendor_session(self):
+        response = self.client.get(reverse("vendor-product-detail", args=["GI-VENDOR-1"]))
+
+        self.assertEqual(response.status_code, status.HTTP_302_FOUND)
+        self.assertEqual(response["Location"], reverse("vendor-login"))
+
+    def test_vendor_product_detail_renders_admin_sections(self):
+        session = self.client.session
+        session["tailtalk_vendor_admin_id"] = "orijen"
+        session.save()
+
+        response = self.client.get(reverse("vendor-product-detail", args=["GI-VENDOR-1"]))
+
+        self.assertEqual(response.status_code, status.HTTP_200_OK)
+        self.assertContains(response, "오리젠 오리지널 독")
+        self.assertContains(response, "운영 체크 포인트")
+        self.assertContains(response, reverse("vendor-product-edit", args=["GI-VENDOR-1"]))
+
+    def test_vendor_product_detail_blocks_other_brand_product(self):
+        session = self.client.session
+        session["tailtalk_vendor_admin_id"] = "orijen"
+        session.save()
+
+        response = self.client.get(reverse("vendor-product-detail", args=["GI-VENDOR-2"]))
+
+        self.assertEqual(response.status_code, status.HTTP_404_NOT_FOUND)
 
     def test_vendor_product_create_requires_vendor_session(self):
         response = self.client.get(reverse("vendor-product-create"))

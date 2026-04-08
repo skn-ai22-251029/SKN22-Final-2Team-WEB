@@ -11,6 +11,7 @@ urlpatterns = [
     path("vendor/products/", page_views.vendor_products_view, name="vendor-products"),
     path("vendor/products/new/", page_views.vendor_product_create_view, name="vendor-product-create"),
     path("vendor/products/<str:goods_id>/edit/", page_views.vendor_product_edit_view, name="vendor-product-edit"),
+    path("vendor/products/<str:goods_id>/", page_views.vendor_product_detail_view, name="vendor-product-detail"),
     path("vendor/orders/", page_views.vendor_orders_view, name="vendor-orders"),
     path("vendor/reviews/", page_views.vendor_reviews_view, name="vendor-reviews"),
     path("signup/", page_views.signup_view, name="signup"),

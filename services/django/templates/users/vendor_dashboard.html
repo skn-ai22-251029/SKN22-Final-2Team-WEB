@@ -2,124 +2,198 @@
 {% block vendor_title %}관리자 대시보드{% endblock %}
 
 {% block vendor_content %}
-<section class="rounded-[30px] border border-white/70 bg-white/86 px-6 py-6 shadow-[0_18px_48px_rgba(148,163,184,0.14)] backdrop-blur md:px-8 md:py-8">
-  <div class="flex flex-col gap-4 lg:flex-row lg:items-end lg:justify-between">
-    <div>
-      <div class="flex items-center gap-2">
-        <h1 class="text-[30px] font-bold tracking-[-0.03em] text-[#1e293b]">대시보드</h1>
-        <span class="rounded-full border border-[#dbe7f5] bg-white px-3 py-1 text-[12px] font-semibold text-[#64748b]">시연용 지표</span>
-      </div>
-      <p class="mt-2 text-[15px] text-[#64748b]">판매 현황과 운영 이슈를 빠르게 확인할 수 있습니다</p>
+<section class="rounded-[24px] border border-white/70 bg-white/86 px-4 py-4 shadow-[0_16px_40px_rgba(148,163,184,0.12)] backdrop-blur sm:px-5 sm:py-5 md:px-6">
+  <div class="grid grid-cols-3 gap-2 sm:gap-2.5">
+    {% for item in vendor_secondary_metrics %}
+    <div class="rounded-[14px] border border-[#dbe7f5] bg-[#f8fbff] px-3 py-2.5 text-center sm:px-3.5">
+      <p class="text-[10px] font-semibold text-[#64748b] sm:text-[11px]">{{ item.label }}</p>
+      <p class="mt-1 text-[15px] font-bold text-[#1e293b] sm:text-[17px]">{{ item.value }}</p>
     </div>
-    <div class="flex flex-wrap gap-2">
-      {% for item in vendor_realtime_metrics %}
-      <div class="rounded-[14px] border border-[#dbe7f5] bg-[#f8fbff] px-4 py-3">
-        <p class="text-[12px] font-medium text-[#64748b]">{{ item.label }}</p>
-        <p class="mt-1 text-[16px] font-bold text-[#1e293b]">{{ item.value }}</p>
-      </div>
-      {% endfor %}
-    </div>
+    {% endfor %}
   </div>
 
-  <div class="mt-7 grid gap-4 md:grid-cols-2 xl:grid-cols-4">
-    {% for metric in vendor_metrics %}
-    <article class="rounded-[24px] border border-[#e5eef8] bg-[linear-gradient(180deg,#ffffff_0%,#f8fbff_100%)] px-5 py-5 shadow-[0_10px_24px_rgba(148,163,184,0.08)]">
-      <p class="text-[13px] font-semibold text-[#64748b]">{{ metric.label }}</p>
-      {% if metric.status_items %}
-      <div class="mt-4 grid gap-2">
-        {% for item in metric.status_items %}
-        <div class="flex items-center justify-between rounded-[14px] {% if item.tone == 'green' %}bg-[#f0fdf4]{% elif item.tone == 'amber' %}bg-[#fffbeb]{% else %}bg-[#fff1f2]{% endif %} px-3 py-3">
-          <span class="text-[12px] font-semibold {% if item.tone == 'green' %}text-[#15803d]{% elif item.tone == 'amber' %}text-[#b45309]{% else %}text-[#be123c]{% endif %}">{{ item.label }}</span>
-          <span class="text-[15px] font-bold text-[#1e293b]">{{ item.value }}</span>
-        </div>
-        {% endfor %}
-      </div>
-      {% else %}
-      <p class="mt-4 text-[28px] font-bold tracking-[-0.03em] text-[#1e293b]">{{ metric.value }}</p>
-      {% if metric.description %}
-      <p class="mt-3 text-[12px] font-medium text-[#94a3b8]">{{ metric.description }}</p>
-      {% endif %}
-      {% endif %}
-    </article>
+  <div class="mt-4 grid gap-2.5 sm:grid-cols-2 xl:grid-cols-4">
+    {% for item in vendor_primary_kpis %}
+    <a
+      href="{{ item.href }}"
+      class="group rounded-[20px] border px-4 py-4 shadow-[0_8px_22px_rgba(148,163,184,0.08)] transition hover:-translate-y-[1px] hover:shadow-[0_12px_24px_rgba(148,163,184,0.14)] {% if item.tone == 'rose' %}border-[#fecdd3] bg-[linear-gradient(180deg,#fff8f8_0%,#fff3f4_100%)]{% elif item.tone == 'amber' %}border-[#fde68a] bg-[linear-gradient(180deg,#fffef7_0%,#fffbef_100%)]{% else %}border-[#e5eef8] bg-[linear-gradient(180deg,#ffffff_0%,#f8fbff_100%)]{% endif %}"
+    >
+      <p class="text-[11px] font-semibold tracking-[0.02em] {% if item.tone == 'rose' %}text-[#be123c]{% elif item.tone == 'amber' %}text-[#b45309]{% else %}text-[#64748b]{% endif %}">
+        {{ item.label }}
+      </p>
+      <p class="mt-2.5 text-[24px] font-bold tracking-[-0.03em] text-[#0f172a] sm:text-[26px]">{{ item.value }}</p>
+    </a>
     {% endfor %}
   </div>
 </section>
 
-<section class="mt-6 grid gap-6 xl:grid-cols-[1.15fr,0.85fr]">
-  <article class="rounded-[30px] border border-white/70 bg-white/86 px-6 py-6 shadow-[0_18px_48px_rgba(148,163,184,0.14)] backdrop-blur md:px-8">
+<section class="mt-6 grid gap-6 xl:grid-cols-[0.9fr,1.1fr]">
+  <article class="rounded-[26px] border border-[#c7d2fe] bg-[linear-gradient(135deg,#eef2ff_0%,#ffffff_44%,#eff6ff_100%)] px-4 py-5 shadow-[0_18px_48px_rgba(99,102,241,0.14)] backdrop-blur sm:px-6 sm:py-6 md:px-8">
     <div class="flex items-center justify-between gap-3">
-      <div>
-        <h2 class="text-[22px] font-bold tracking-[-0.02em] text-[#1e293b]">최근 7일 주문 추이</h2>
+      <div class="flex min-h-[28px] items-center sm:min-h-[32px]">
+        <h2 class="text-[20px] font-bold leading-[1.2] tracking-[-0.02em] text-[#1e293b] sm:text-[22px]">처리 대기함</h2>
       </div>
     </div>
 
-    <div class="mt-8">
-      <div class="flex h-[250px] items-end gap-3 rounded-[24px] bg-[linear-gradient(180deg,#f8fbff_0%,#eef5ff_100%)] px-4 pb-6 pt-8">
+    <div class="mt-5 space-y-2.5">
+      {% for item in vendor_queue_items %}
+      <a
+        href="{{ item.href }}"
+        class="block rounded-[18px] border px-3.5 py-3 transition hover:-translate-y-[1px] hover:shadow-[0_10px_20px_rgba(148,163,184,0.14)] {% if item.tone == 'rose' %}border-[#fecdd3] bg-[#fff7f8]{% elif item.tone == 'amber' %}border-[#fde68a] bg-[#fffdf5]{% else %}border-white/80 bg-white/86{% endif %}"
+      >
+        <div class="flex items-center justify-between gap-4">
+          <div class="min-w-0">
+            <p class="text-[14px] font-semibold text-[#1e293b]">{{ item.title }}</p>
+          </div>
+          <div class="shrink-0 text-right">
+            <p class="text-[17px] font-bold text-[#0f172a]">{{ item.count_label }}</p>
+          </div>
+        </div>
+      </a>
+      {% endfor %}
+    </div>
+  </article>
+
+  <article class="rounded-[26px] border border-[#dbeafe] bg-[linear-gradient(180deg,#f8fbff_0%,#eef6ff_100%)] px-4 py-5 shadow-[0_18px_48px_rgba(96,165,250,0.14)] backdrop-blur sm:px-6 sm:py-6 md:px-8">
+    <div class="flex flex-col gap-3">
+      <div class="flex min-h-[28px] items-center sm:min-h-[32px]">
+        <h2 class="text-[20px] font-bold leading-[1.2] tracking-[-0.02em] text-[#1e293b] sm:text-[22px]">주문 / 매출 추이</h2>
+      </div>
+      <div class="flex flex-wrap gap-2">
+        {% for item in vendor_trend_highlights %}
+        <div class="inline-flex min-w-0 items-center gap-2 rounded-[14px] border border-white/80 bg-white/78 px-3 py-2">
+          <p class="text-[10px] font-semibold text-[#64748b]">{{ item.label }}</p>
+          <p class="text-[12px] font-bold text-[#1e293b] sm:text-[13px]">{{ item.value }}</p>
+        </div>
+        {% endfor %}
+      </div>
+    </div>
+
+    <div class="mt-6 rounded-[24px] bg-[linear-gradient(180deg,#f8fbff_0%,#eef5ff_100%)] px-3 pb-5 pt-6 sm:px-4 sm:pb-6 sm:pt-8">
+      <div class="grid grid-cols-7 gap-2 sm:gap-3">
         {% for point in vendor_order_trend %}
-        <div class="flex flex-1 flex-col items-center gap-3">
-          <div class="flex h-[180px] w-full items-end justify-center">
+        <div class="flex min-w-0 flex-col items-center gap-2 sm:gap-3">
+          <div class="flex h-[132px] w-full items-end justify-center sm:h-[180px]">
             <div
-              class="w-full max-w-[52px] rounded-t-[16px] bg-[linear-gradient(180deg,#60a5fa_0%,#2563eb_100%)] shadow-[0_12px_24px_rgba(37,99,235,0.18)]"
+              class="w-full rounded-t-[12px] bg-[linear-gradient(180deg,#60a5fa_0%,#2563eb_100%)] shadow-[0_12px_24px_rgba(37,99,235,0.18)] sm:max-w-[52px] sm:rounded-t-[16px]"
               style="height: {{ point.height_percent }}%;"
             ></div>
           </div>
           <div class="text-center">
-            <p class="text-[12px] font-semibold text-[#1e293b]">{{ point.value }}건</p>
-            <p class="mt-1 text-[11px] text-[#64748b]">{{ point.label }}</p>
+            <p class="text-[10px] font-semibold text-[#1e293b] sm:text-[12px]">{{ point.value }}건</p>
+            <p class="mt-1 text-[10px] text-[#64748b] sm:text-[11px]">{{ point.label }}</p>
           </div>
         </div>
         {% endfor %}
       </div>
     </div>
   </article>
+</section>
 
-  <article class="rounded-[30px] border border-white/70 bg-white/86 px-6 py-6 shadow-[0_18px_48px_rgba(148,163,184,0.14)] backdrop-blur">
-    <h2 class="text-[22px] font-bold tracking-[-0.02em] text-[#1e293b]">운영 알림</h2>
-    <div class="mt-6 grid max-h-[320px] gap-3 overflow-y-auto px-[1px] py-[2px] pr-1 md:grid-cols-2">
-      {% for alert in vendor_alerts %}
-      <a href="{{ alert.href }}" class="block rounded-[18px] border {% if alert.tone == 'rose' %}border-[#fecdd3] bg-[#fff4f6]{% elif alert.tone == 'amber' %}border-[#fde68a] bg-[#fffcf0]{% else %}border-[#bfdbfe] bg-[#f2f7ff]{% endif %} px-4 py-4 transition hover:-translate-y-[1px] hover:shadow-[0_10px_20px_rgba(148,163,184,0.14)]">
-        <p class="text-[14px] font-semibold text-[#1e293b]">{{ alert.title }}</p>
-      </a>
+<section class="mt-6 grid gap-6 xl:grid-cols-[0.92fr,1.08fr]">
+  <article class="rounded-[26px] border border-white/70 bg-white/86 px-4 py-5 shadow-[0_18px_48px_rgba(148,163,184,0.14)] backdrop-blur sm:px-6 sm:py-6 md:px-8">
+    <div class="flex min-h-[28px] items-center sm:min-h-[32px]">
+      <h2 class="text-[20px] font-bold leading-[1.2] tracking-[-0.02em] text-[#1e293b] sm:text-[22px]">상품 운영 상태</h2>
+    </div>
+
+    <div class="mt-5 grid gap-3 md:grid-cols-2">
+      {% for section in vendor_mix_sections %}
+      <div class="rounded-[20px] border border-[#e5eef8] bg-[#f8fbff] px-4 py-4">
+        <p class="text-[14px] font-semibold text-[#1e293b]">{{ section.title }}</p>
+        <div class="mt-4 space-y-2.5">
+          {% for item in section.items|slice:":3" %}
+          <div class="rounded-[16px] bg-white/80 px-3 py-3">
+            <div class="flex items-end justify-between gap-3">
+              <div class="min-w-0">
+                <p class="truncate text-[13px] font-semibold text-[#475569]">{{ item.label }}</p>
+                <p class="mt-1 text-[11px] text-[#94a3b8]">{{ item.count_label }}</p>
+              </div>
+              <span class="shrink-0 text-[16px] font-bold text-[#1e293b]">{{ item.share_label }}</span>
+            </div>
+            <div class="mt-2.5 h-[6px] rounded-full bg-[#dbe7f5]">
+              <div class="h-full rounded-full bg-[linear-gradient(90deg,#60a5fa_0%,#2563eb_100%)]" style="width: max({{ item.share_percent }}%, 12px);"></div>
+            </div>
+          </div>
+          {% empty %}
+          <p class="text-[13px] text-[#94a3b8]">표시할 데이터가 없습니다.</p>
+          {% endfor %}
+        </div>
+      </div>
+      {% endfor %}
+    </div>
+  </article>
+
+  <article class="rounded-[26px] border border-[#dcfce7] bg-[linear-gradient(180deg,#f7fff8_0%,#eefbf1_100%)] px-4 py-5 shadow-[0_18px_48px_rgba(34,197,94,0.12)] backdrop-blur sm:px-6 sm:py-6 md:px-8">
+    <div class="flex min-h-[28px] items-center sm:min-h-[32px]">
+      <h2 class="text-[20px] font-bold leading-[1.2] tracking-[-0.02em] text-[#1e293b] sm:text-[22px]">고객 반응 모니터링</h2>
+    </div>
+
+    <div class="mt-6 grid gap-3 sm:grid-cols-2">
+      {% for item in vendor_customer_signals %}
+      <div class="rounded-[20px] border border-[#e5eef8] bg-[#f8fbff] px-4 py-4">
+        <p class="text-[12px] font-semibold text-[#64748b]">{{ item.label }}</p>
+        <p class="mt-2.5 text-[22px] font-bold tracking-[-0.02em] text-[#0f172a]">{{ item.value }}</p>
+      </div>
       {% endfor %}
     </div>
   </article>
 </section>
 
-<section class="mt-6">
-  <article class="rounded-[30px] border border-white/70 bg-white/86 px-6 py-6 shadow-[0_18px_48px_rgba(148,163,184,0.14)] backdrop-blur md:px-8">
-    <div class="flex items-center justify-between gap-3">
-      <div>
-        <h2 class="text-[22px] font-bold tracking-[-0.02em] text-[#1e293b]">리뷰 반응이 높은 상품</h2>
-      </div>
-      <a href="{% url 'vendor-products' %}" class="text-[13px] font-semibold text-[#2563eb] hover:text-[#1d4ed8]">전체 보기</a>
+<section class="mt-6 grid gap-5 xl:grid-cols-2">
+  <article class="rounded-[24px] border border-[#c7d2fe] bg-[linear-gradient(135deg,#eef2ff_0%,#ffffff_44%,#eff6ff_100%)] px-4 py-4 shadow-[0_16px_40px_rgba(99,102,241,0.12)] backdrop-blur sm:px-5 sm:py-5 md:px-6">
+    <div class="flex min-h-[28px] items-center sm:min-h-[32px]">
+      <h2 class="text-[20px] font-bold leading-[1.2] tracking-[-0.02em] text-[#1e293b] sm:text-[22px]">확인 필요 상품</h2>
     </div>
 
-    <div class="mt-6 space-y-3">
-      {% for product in vendor_top_products %}
-      <a
-        href="{{ product.product_url }}"
-        target="_blank"
-        rel="noreferrer"
-        class="flex items-center gap-4 rounded-[20px] border border-[#e5eef8] bg-[#f8fbff] px-4 py-4 transition hover:border-[#bfdbfe] hover:bg-white"
-      >
-        <img src="{{ product.thumbnail_url }}" alt="{{ product.goods_name }}" class="h-[72px] w-[72px] rounded-[16px] border border-[#e2e8f0] bg-white object-cover" />
-        <div class="min-w-0 flex-1">
-          <p class="truncate text-[16px] font-semibold text-[#1e293b]">{{ product.goods_name }}</p>
-          <p class="mt-1 text-[13px] text-[#64748b]">{{ product.category_label }} · {{ product.pet_type_label }}</p>
-          <div class="mt-2 flex flex-wrap items-center gap-2 text-[13px] text-[#475569]">
-            <span>리뷰 {{ product.review_count }}개</span>
-            <span>평점 {{ product.rating_label }}</span>
-            <span>{{ product.discount_price_label }}</span>
+    <div class="mt-5 space-y-2.5">
+      {% for item in vendor_attention_products %}
+      <a href="{{ item.href }}" class="block rounded-[18px] border border-white/80 bg-white/88 px-3.5 py-3.5 transition hover:border-[#bfdbfe] hover:bg-white">
+        <div class="flex items-start justify-between gap-3">
+          <div class="min-w-0">
+          <div class="flex flex-wrap items-center gap-2">
+              <span class="rounded-full px-3 py-1 text-[11px] font-semibold {% if item.tone == 'rose' %}bg-[#fee2e2] text-[#b91c1c]{% elif item.tone == 'amber' %}bg-[#fef3c7] text-[#b45309]{% else %}bg-[#dbeafe] text-[#1d4ed8]{% endif %}">
+                {{ item.issue_label }}
+              </span>
+              <p class="truncate text-[14px] font-semibold text-[#1e293b]">{{ item.goods_name }}</p>
+            </div>
           </div>
         </div>
-        {% if product.soldout %}
-        <span class="rounded-full bg-[#fee2e2] px-3 py-1 text-[12px] font-semibold text-[#b91c1c]">품절</span>
-        {% endif %}
       </a>
       {% empty %}
-      <div class="rounded-[20px] border border-dashed border-[#d8e2f0] bg-[#f8fbff] px-5 py-8 text-center text-[14px] text-[#64748b]">
-        연결된 상품 데이터가 없습니다
+      <div class="rounded-[18px] border border-dashed border-[#d8e2f0] bg-[#f8fbff] px-5 py-6 text-center text-[14px] text-[#64748b]">
+        현재 즉시 조치가 필요한 상품이 없습니다
       </div>
+      {% endfor %}
+    </div>
+  </article>
+
+  <article class="rounded-[24px] border border-white/70 bg-white/86 px-4 py-4 shadow-[0_16px_40px_rgba(148,163,184,0.12)] backdrop-blur sm:px-5 sm:py-5 md:px-6">
+    <div class="flex min-h-[28px] items-center sm:min-h-[32px]">
+      <h2 class="text-[20px] font-bold leading-[1.2] tracking-[-0.02em] text-[#1e293b] sm:text-[22px]">상위 성과 상품</h2>
+    </div>
+
+    <div class="mt-5 space-y-2.5">
+      {% for product in vendor_top_products %}
+      <a href="{{ product.detail_url }}" class="block rounded-[18px] border border-[#e5eef8] bg-[#f8fbff] px-3.5 py-3.5 transition hover:border-[#bfdbfe] hover:bg-white">
+        <div class="flex gap-3">
+          <img src="{{ product.thumbnail_url }}" alt="{{ product.goods_name }}" class="h-[60px] w-[60px] shrink-0 rounded-[14px] border border-[#e2e8f0] bg-white object-cover" />
+          <div class="min-w-0 flex-1">
+            <div class="flex flex-wrap items-center gap-2">
+              <span class="rounded-full bg-white px-3 py-1 text-[11px] font-semibold text-[#64748b]">{{ product.pet_type_label }}</span>
+              {% if product.soldout %}
+              <span class="rounded-full bg-[#fee2e2] px-3 py-1 text-[11px] font-semibold text-[#b91c1c]">품절</span>
+              {% endif %}
+            </div>
+            <p class="mt-2.5 text-[14px] font-semibold leading-5 text-[#1e293b]" style="display:-webkit-box;-webkit-line-clamp:2;-webkit-box-orient:vertical;overflow:hidden;">{{ product.goods_name }}</p>
+            <p class="mt-1 text-[12px] text-[#64748b]">{{ product.category_label }}</p>
+            <div class="mt-2 flex flex-wrap items-center gap-x-3 gap-y-1 text-[11px] text-[#475569]">
+              <span>리뷰 {{ product.review_count }}개</span>
+              <span>평점 {{ product.rating_label }}</span>
+              <span>{{ product.discount_price_label }}</span>
+            </div>
+          </div>
+        </div>
+      </a>
       {% endfor %}
     </div>
   </article>
