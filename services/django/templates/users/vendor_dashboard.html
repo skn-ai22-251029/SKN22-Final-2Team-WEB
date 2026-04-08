@@ -111,7 +111,7 @@
               <span class="shrink-0 text-[16px] font-bold text-[#1e293b]">{{ item.share_label }}</span>
             </div>
             <div class="mt-2.5 h-[6px] rounded-full bg-[#dbe7f5]">
-              <div class="h-full rounded-full bg-[linear-gradient(90deg,#60a5fa_0%,#2563eb_100%)]" style="width: {{ item.share_percent }}%;"></div>
+              <div class="h-full rounded-full bg-[linear-gradient(90deg,#60a5fa_0%,#2563eb_100%)]" style="width: max({{ item.share_percent }}%, 12px);"></div>
             </div>
           </div>
           {% empty %}

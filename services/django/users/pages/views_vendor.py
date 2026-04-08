@@ -393,16 +393,25 @@ def _build_vendor_breakdown_items(counter):
     total = sum(counter.values())
     items = []
     for label, count in counter.most_common(4):
-        share = int(round((count / total) * 100)) if total else 0
+        share = round((count / total) * 100, 1) if total else 0
         items.append(
             {
                 "label": label,
                 "count_label": f"{count:,}개",
-                "share_label": f"{share}%",
-                "share_percent": max(12, share) if count else 0,
+                "share_label": f"{share:.1f}%" if share % 1 else f"{int(share)}%",
+                "share_percent": share if count else 0,
             }
         )
     return items
+
+
+def _pick_vendor_performance_strength(ctr, conversion, repeat_rate):
+    candidates = [
+        ("CTR 우수", "blue", ctr / 6 if ctr else 0),
+        ("전환 안정", "slate", conversion / 10 if conversion else 0),
+        ("재구매 강점", "green", repeat_rate / 40 if repeat_rate else 0),
+    ]
+    return max(candidates, key=lambda item: item[2])[:2]
 
 
 def _build_vendor_attention_products(vendor_products, demo_soldout_goods_ids, demo_pending_goods_ids):
@@ -975,11 +984,41 @@ def vendor_analytics_view(request):
     repurchase_potential = max(0.0, min((repeat_rate_percent * 0.55) + (relevance_score * 22), 100))
 
     funnel_items = [
-        {"label": "노출", "value": f"{impressions:,}", "subtext": "추천 + 검색"},
-        {"label": "클릭", "value": f"{clicks:,}", "subtext": f"CTR {ctr:.1f}%"},
-        {"label": "상세 진입", "value": f"{detail_views:,}", "subtext": f"상세 전환 {detail_rate:.1f}%"},
-        {"label": "장바구니", "value": f"{carts:,}", "subtext": f"담기율 {cart_rate:.1f}%"},
-        {"label": "구매", "value": f"{orders:,}", "subtext": f"구매 전환 {order_rate:.1f}%"},
+        {
+            "label": "노출",
+            "value": f"{impressions:,}",
+            "rate_label": "기준 모수",
+            "rate_tone": "slate",
+            "detail": "추천 + 검색 유입 기준",
+        },
+        {
+            "label": "클릭",
+            "value": f"{clicks:,}",
+            "rate_label": f"CTR {ctr:.1f}%",
+            "rate_tone": "blue",
+            "detail": "노출 대비 클릭 수",
+        },
+        {
+            "label": "상세 진입",
+            "value": f"{detail_views:,}",
+            "rate_label": f"클릭 대비 {detail_rate:.1f}%",
+            "rate_tone": "indigo",
+            "detail": "클릭 이후 상세 탐색 수",
+        },
+        {
+            "label": "장바구니",
+            "value": f"{carts:,}",
+            "rate_label": f"상세 대비 {cart_rate:.1f}%",
+            "rate_tone": "green",
+            "detail": "상세 진입 이후 담기 수",
+        },
+        {
+            "label": "구매",
+            "value": f"{orders:,}",
+            "rate_label": f"상세 대비 {order_rate:.1f}%",
+            "rate_tone": "amber",
+            "detail": "상세 진입 이후 구매 수",
+        },
     ]
 
     explicit_metrics = [
@@ -1005,26 +1044,40 @@ def vendor_analytics_view(request):
         },
     ]
 
+    # Presentation-friendly personalization metrics.
+    # Replace these derived values with real event-based aggregates per
+    # docs/planning/13_vendor_personalization_signal_plan.md when
+    # recommendation/product/order interaction logging is implemented.
     implicit_metrics = [
         {
-            "label": "추천 CTR",
+            "label": "추천 클릭률",
             "value": f"{ctr:.1f}%",
-            "description": "노출 대비 클릭",
+            "description": "노출 대비 클릭 반응",
         },
         {
-            "label": "상세 전환율",
+            "label": "상세 진입률",
             "value": f"{detail_rate:.1f}%",
-            "description": "클릭 대비 상세 진입",
+            "description": "클릭 이후 상세 탐색 비율",
         },
         {
-            "label": "반복 구매율",
-            "value": f"{repeat_rate_percent:.1f}%",
-            "description": "재구매 잠재력",
+            "label": "장바구니 전환율",
+            "value": f"{cart_rate:.1f}%",
+            "description": "상세 진입 이후 담기 비율",
         },
         {
-            "label": "추천 적합도",
+            "label": "구매 전환율",
+            "value": f"{order_rate:.1f}%",
+            "description": "상세 진입 대비 구매 전환",
+        },
+        {
+            "label": "재구매 잠재 점수",
+            "value": f"{repurchase_potential:.1f}",
+            "description": "리마케팅·재추천 우선순위",
+        },
+        {
+            "label": "추천 적합 점수",
             "value": f"{relevance_score:.2f}",
-            "description": "추천 슬롯 효율 지표",
+            "description": "개인화 랭킹 반영 지표",
         },
     ]
 
@@ -1052,17 +1105,23 @@ def vendor_analytics_view(request):
     recommended_actions = [
         {
             "title": "추천 가중치 상향",
+            "tag": "추천",
+            "tag_tone": "blue",
             "reason": "추천 적합도와 CTR이 안정적이라 상단 슬롯 확대 효과가 큼",
-            "impact": "30일 예상 매출 +₩1,420,000",
+            "impact": "예상 매출 +₩1,420,000",
         },
         {
             "title": "재구매 타겟 강화",
-            "reason": "재구매율과 기호성 지표가 높아 CRM 리마케팅 효율이 좋음",
+            "tag": "CRM",
+            "tag_tone": "green",
+            "reason": "재구매율과 기호성 지표가 높아 리마케팅 효율이 좋음",
             "impact": "예상 재구매 주문 +26건",
         },
         {
             "title": "가격 저항 보정",
-            "reason": "가격/구매 반응이 낮아 상세 전환 이후 이탈 구간이 큼",
+            "tag": "가격",
+            "tag_tone": "amber",
+            "reason": "가격·구매 반응이 낮아 상세 전환 이후 이탈 구간이 큼",
             "impact": "전환 이탈 -7.8%",
         },
     ]
@@ -1073,6 +1132,12 @@ def vendor_analytics_view(request):
         item = _serialize_vendor_product(product, demo_soldout_goods_ids, demo_pending_goods_ids)
         product_ctr = 3.8 + (index * 0.3)
         product_conversion = 9.2 - (index * 0.6)
+        product_repeat = max(repeat_rate_percent - (index * 1.3), 8.0)
+        strength_label, strength_tone = _pick_vendor_performance_strength(
+            product_ctr,
+            max(product_conversion, 4.1),
+            product_repeat,
+        )
         performance_rows.append(
             {
                 "goods_id": item["goods_id"],
@@ -1081,11 +1146,14 @@ def vendor_analytics_view(request):
                 "revenue_label": f"₩{max(3800000 - (index * 240000), 780000):,}",
                 "ctr_label": f"{product_ctr:.1f}%",
                 "conversion_label": f"{max(product_conversion, 4.1):.1f}%",
-                "repeat_label": f"{max(repeat_rate_percent - (index * 1.3), 8.0):.1f}%",
+                "repeat_label": f"{product_repeat:.1f}%",
+                "strength_label": strength_label,
+                "strength_tone": strength_tone,
             }
         )
 
-    category_breakdown = [{"label": label, "count": count} for label, count in category_counter.most_common(5)]
+    category_breakdown = _build_vendor_breakdown_items(category_counter)
+    pet_type_breakdown = _build_vendor_breakdown_items(pet_type_counter)
 
     return render(
         request,
@@ -1093,18 +1161,20 @@ def vendor_analytics_view(request):
         {
             **base_context,
             "vendor_analytics_summary": [
-                {"label": "이번 달 매출", "value": "₩23,920,000", "description": "전월 대비 +8.6%"},
-                {"label": "구매 전환율", "value": f"{order_rate:.1f}%", "description": "상세 진입 대비"},
-                {"label": "반복 구매율", "value": f"{repeat_rate_percent:.1f}%", "description": "브랜드 평균"},
-                {"label": "평균 실판매가", "value": _format_vendor_price(average_discount_price), "description": "운영 상품 평균"},
+                {"label": "이번 달 매출", "value": "₩23,920,000", "delta": "전월 대비 +8.6%", "delta_tone": "positive"},
+                {"label": "구매 전환율", "value": f"{order_rate:.1f}%", "delta": "전주 대비 +1.2%p", "delta_tone": "positive"},
+                {"label": "반복 구매율", "value": f"{repeat_rate_percent:.1f}%", "delta": "전월 대비 +2.4%p", "delta_tone": "positive"},
+                {"label": "평균 실판매가", "value": _format_vendor_price(average_discount_price), "delta": "전월 대비 -3.1%", "delta_tone": "negative"},
             ],
             "vendor_funnel_items": funnel_items,
             "vendor_explicit_metrics": explicit_metrics,
             "vendor_implicit_metrics": implicit_metrics,
+            "vendor_personalization_note": "개인화 추천 고도화 시 클릭, 탐색, 구매 전환 신호와 재구매 잠재력을 함께 사용해 추천 가중치에 반영할 수 있습니다.",
             "vendor_bottlenecks": bottlenecks,
             "vendor_recommended_actions": recommended_actions,
             "vendor_performance_rows": performance_rows,
             "vendor_category_breakdown": category_breakdown,
+            "vendor_pet_type_breakdown": pet_type_breakdown,
             "vendor_inventory_summary": [
                 {"label": "판매중", "value": f"{active_count:,}개"},
                 {"label": "준비중", "value": f"{pending_count:,}개"},
