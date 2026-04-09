@@ -5,6 +5,68 @@
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
   <title>{% block title %}TailTalk{% endblock %}</title>
+  {% if google_analytics_measurement_id %}
+  <script async src="https://www.googletagmanager.com/gtag/js?id={{ google_analytics_measurement_id|escape }}"></script>
+  <script>
+    window.dataLayer = window.dataLayer || [];
+    function gtag(){dataLayer.push(arguments);}
+    window.gtag = window.gtag || gtag;
+    gtag('js', new Date());
+    gtag('config', '{{ google_analytics_measurement_id|escapejs }}');
+  </script>
+  {% endif %}
+  <script>
+    (function () {
+      function buildStorageKey(eventName, dedupeKey) {
+        return ['tailtalk-ga4', eventName, dedupeKey].join(':');
+      }
+
+      function getSessionStorage() {
+        try {
+          return window.sessionStorage;
+        } catch (error) {
+          return null;
+        }
+      }
+
+      function sanitizeParams(params) {
+        var result = {};
+        Object.keys(params || {}).forEach(function (key) {
+          var value = params[key];
+          if (value === undefined || value === null || value === '') return;
+          result[key] = value;
+        });
+        return result;
+      }
+
+      function track(eventName, params) {
+        if (!window.gtag || !eventName) return false;
+        window.gtag('event', eventName, sanitizeParams(params || {}));
+        return true;
+      }
+
+      function trackOnce(eventName, dedupeKey, params) {
+        var storage = getSessionStorage();
+        var key = buildStorageKey(eventName, dedupeKey);
+        if (storage && storage.getItem(key)) {
+          return false;
+        }
+        var didTrack = track(eventName, params);
+        if (didTrack && storage) {
+          storage.setItem(key, '1');
+        }
+        return didTrack;
+      }
+
+      window.tailTalkAnalytics = {
+        enabled: function () {
+          return !!window.gtag;
+        },
+        track: track,
+        trackOnce: trackOnce,
+      };
+    })();
+  </script>
   <script src="https://cdn.tailwindcss.com"></script>
   <link rel="stylesheet" href="{% static 'css/main.css' %}" />
   {% block head %}{% endblock %}

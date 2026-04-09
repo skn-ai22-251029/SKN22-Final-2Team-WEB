@@ -328,10 +328,12 @@
 {% endblock %}
 
 {% block scripts %}
+{{ order_completion|json_script:"order-completion-data" }}
 <script>
 (function () {
   var profileMenu = document.getElementById('profileMenu');
   var profileMenuWrapper = document.getElementById('profileMenuWrapper');
+  var completionDataNode = document.getElementById('order-completion-data');
 
   window.toggleProfileMenu = function () {
     if (!profileMenu) return;
@@ -343,6 +345,31 @@
     if (profileMenuWrapper.contains(event.target)) return;
     profileMenu.classList.remove('is-open');
   });
+
+  if (completionDataNode && window.tailTalkAnalytics) {
+    try {
+      var completion = JSON.parse(completionDataNode.textContent || '{}');
+      var dedupeKey = completion.order_id || '';
+      var items = Array.isArray(completion.items) ? completion.items : [];
+      window.tailTalkAnalytics.trackOnce('purchase_complete', dedupeKey, {
+        currency: 'KRW',
+        transaction_id: completion.order_id || '',
+        value: Number(completion.total_price_raw || 0),
+        payment_type: completion.payment_method || '',
+        item_count: Number(completion.item_count || 0),
+        source: '{{ order_entry|escapejs }}' === 'quick' ? 'quick_purchase' : 'cart',
+        items: items.map(function (item) {
+          return {
+            item_id: item.product_id || '',
+            item_name: item.name || '',
+            item_brand: item.brand || '',
+            price: Number(item.unit_price_raw || 0),
+            quantity: Number(item.quantity || 0),
+          };
+        }),
+      });
+    } catch (error) {}
+  }
 })();
 </script>
 {% endblock %}

@@ -85,7 +85,16 @@ class OrderItem(models.Model):
 
 
 class UserInteraction(models.Model):
-    INTERACTION_CHOICES = [("click", "클릭"), ("cart", "장바구니"), ("purchase", "구매"), ("reject", "거절")]
+    INTERACTION_CHOICES = [
+        ("impression", "노출"),
+        ("click", "클릭"),
+        ("detail_view", "상세 진입"),
+        ("wishlist", "관심 상품"),
+        ("cart", "장바구니"),
+        ("checkout_start", "체크아웃 시작"),
+        ("purchase", "구매"),
+        ("reject", "거절"),
+    ]
 
     id               = models.UUIDField(primary_key=True, default=uuid.uuid4, editable=False)
     user             = models.ForeignKey(User, on_delete=models.CASCADE)

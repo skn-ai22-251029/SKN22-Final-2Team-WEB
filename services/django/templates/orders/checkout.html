@@ -920,6 +920,7 @@
     </div>
   </div>
 </div>
+{{ cart_items|json_script:"checkout-cart-items" }}
 {% endblock %}
 
 {% block scripts %}
@@ -973,6 +974,7 @@
   var useAllMileageBtn = document.getElementById('useAllMileageBtn');
   var applyDiscountBtn = document.getElementById('applyDiscountBtn');
   var discountModalPreviewAmount = document.getElementById('discountModalPreviewAmount');
+  var checkoutCartItemsNode = document.getElementById('checkout-cart-items');
   var productTotalRaw = {{ product_total_raw }};
   var shippingFeeRaw = {{ shipping_fee_raw }};
   var selectedCouponId = 'none';
@@ -983,6 +985,15 @@
   var selectedPaymentMethod = '';
   var initialCardPaymentSummary = '';
   var toastTimer = null;
+  var checkoutCartItems = [];
+
+  if (checkoutCartItemsNode) {
+    try {
+      checkoutCartItems = JSON.parse(checkoutCartItemsNode.textContent || '[]');
+    } catch (error) {
+      checkoutCartItems = [];
+    }
+  }
 
   window.toggleProfileMenu = function () {
     if (!profileMenu) return;
@@ -1012,6 +1023,38 @@
         }
         return data;
       });
+    });
+  }
+
+  function hasLoggedCheckoutInteraction(dedupeKey) {
+    if (!dedupeKey) return false;
+    try {
+      return window.sessionStorage.getItem('tailtalk:checkout-interaction:' + dedupeKey) === '1';
+    } catch (error) {
+      return false;
+    }
+  }
+
+  function markCheckoutInteractionLogged(dedupeKey) {
+    if (!dedupeKey) return;
+    try {
+      window.sessionStorage.setItem('tailtalk:checkout-interaction:' + dedupeKey, '1');
+    } catch (error) {}
+  }
+
+  function logCheckoutInteractionBatchOnce(items, interactionType, dedupeKey) {
+    if (!dedupeKey || hasLoggedCheckoutInteraction(dedupeKey)) return;
+    markCheckoutInteractionLogged(dedupeKey);
+    (items || []).forEach(function (item) {
+      if (!item || !item.item_id) return;
+      requestJson('/api/orders/interactions/', {
+        method: 'POST',
+        body: JSON.stringify({
+          product_id: item.item_id,
+          interaction_type: interactionType,
+          weight: item.quantity || 1,
+        }),
+      }).catch(function () {});
     });
   }
 
@@ -1303,6 +1346,53 @@
     }
   }
 
+  function buildCheckoutAnalyticsItems() {
+    return (checkoutCartItems || []).map(function (item) {
+      return {
+        item_id: item.goods_id || item.product_id || '',
+        item_name: item.name || '',
+        item_brand: item.brand || '',
+        price: Number(item.price || 0) || 0,
+        quantity: Number(item.quantity || 0) || 0,
+      };
+    }).filter(function (item) {
+      return item.item_id;
+    });
+  }
+
+  function trackCheckoutStart() {
+    if (!orderSummaryPanel) return;
+
+    var items = buildCheckoutAnalyticsItems();
+    if (!items.length) return;
+
+    var goodsIds = items.map(function (item) { return item.item_id; }).filter(Boolean);
+    var totalQuantity = items.reduce(function (sum, item) {
+      return sum + Number(item.quantity || 0);
+    }, 0);
+    var dedupeKey = ['checkout', goodsIds.join(','), productTotalRaw, selectedCouponId || 'none', selectedMileageValue || 0].join(':');
+
+    if (window.tailTalkAnalytics) {
+      window.tailTalkAnalytics.trackOnce(
+        'checkout_start',
+        dedupeKey,
+        {
+          source: 'checkout',
+          page_type: 'checkout',
+          currency: 'KRW',
+          value: Math.max(productTotalRaw - selectedCouponDiscount - selectedMileageValue, 0) + shippingFeeRaw,
+          item_count: totalQuantity,
+          payment_type: orderSummaryPanel.dataset.paymentMethod || '',
+          goods_ids: goodsIds.join(','),
+          coupon_id: selectedCouponId || 'none',
+          mileage_amount: selectedMileageValue || 0,
+          items: items,
+        }
+      );
+    }
+    logCheckoutInteractionBatchOnce(items, 'checkout_start', dedupeKey);
+  }
+
   window.closeCheckoutConfirmModal = function (event) {
     if (!checkoutConfirmModal) return;
     if (event && event.target !== checkoutConfirmModal) return;
@@ -1537,6 +1627,7 @@
         return;
       }
       updateConfirmSummary();
+      trackCheckoutStart();
       if (checkoutConfirmModal) {
         checkoutConfirmModal.classList.add('is-open');
       }

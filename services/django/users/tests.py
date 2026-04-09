@@ -7,7 +7,7 @@ from rest_framework import status
 from rest_framework.test import APIClient
 from social_django.models import UserSocialAuth
 
-from orders.models import Order
+from orders.models import Order, OrderItem, UserInteraction
 from pets.models import FuturePetProfile, Pet
 from products.models import Product
 from users.models import SocialAccount, User, UserProfile
@@ -476,6 +476,33 @@ class VendorAdminPageTests(TestCase):
         self.assertContains(response, "파일 업로드")
 
     def test_vendor_analytics_renders_metrics(self):
+        analytics_user = User.objects.create_user(email="vendor-analytics@example.com", password="Password123!")
+        order = Order.objects.create(
+            user=analytics_user,
+            recipient_name="오리젠 고객",
+            recipient_phone="01012341234",
+            delivery_address="서울 강남구 테일톡로 1",
+            payment_method="우리카드 1234 / 일시불",
+            product_total=49900,
+            total_price=49900,
+            status="completed",
+        )
+        OrderItem.objects.create(order=order, product=self.product, quantity=1, price_at_order=49900)
+        for interaction_type, count in (
+            ("impression", 5),
+            ("click", 2),
+            ("detail_view", 1),
+            ("wishlist", 1),
+            ("cart", 1),
+            ("checkout_start", 1),
+        ):
+            for _ in range(count):
+                UserInteraction.objects.create(
+                    user=analytics_user,
+                    product=self.product,
+                    interaction_type=interaction_type,
+                )
+
         session = self.client.session
         session["tailtalk_vendor_admin_id"] = "orijen"
         session.save()
@@ -486,6 +513,19 @@ class VendorAdminPageTests(TestCase):
         self.assertContains(response, "통계")
         self.assertContains(response, "퍼널")
         self.assertContains(response, "우선 액션")
+        summary = {item["label"]: item["value"] for item in response.context["vendor_analytics_summary"]}
+        funnel = {item["label"]: item["value"] for item in response.context["vendor_funnel_items"]}
+        implicit = {item["label"]: item["value"] for item in response.context["vendor_implicit_metrics"]}
+        self.assertEqual(summary["이번 달 매출"], "₩49,900")
+        self.assertEqual(summary["구매 전환율"], "100.0%")
+        self.assertEqual(summary["반복 구매율"], "0.0%")
+        self.assertEqual(funnel["노출"], "5")
+        self.assertEqual(funnel["클릭"], "2")
+        self.assertEqual(funnel["상세 진입"], "1")
+        self.assertEqual(funnel["장바구니"], "1")
+        self.assertEqual(funnel["구매"], "1")
+        self.assertEqual(implicit["체크아웃 시작 수"], "1회")
+        self.assertEqual(implicit["관심상품 추가 수"], "1회")
 
     def test_vendor_orders_requires_vendor_session(self):
         response = self.client.get(reverse("vendor-orders"))

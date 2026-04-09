@@ -64,6 +64,7 @@ TEMPLATES = [
                 "django.template.context_processors.request",
                 "django.contrib.auth.context_processors.auth",
                 "django.contrib.messages.context_processors.messages",
+                "config.context_processors.analytics_settings",
                 "social_django.context_processors.backends",
             ],
         },
@@ -191,6 +192,7 @@ STATIC_ROOT = BASE_DIR / "staticfiles"
 MEDIA_URL = "/media/"
 MEDIA_ROOT = BASE_DIR / "media"
 APP_BASE_URL = config("APP_BASE_URL", default="")
+GOOGLE_ANALYTICS_MEASUREMENT_ID = config("GOOGLE_ANALYTICS_MEASUREMENT_ID", default="")
 FASTAPI_INTERNAL_CHAT_URL = config("FASTAPI_INTERNAL_CHAT_URL", default="http://fastapi:8001/api/chat/")
 _fastapi_recommend_url = config("FASTAPI_INTERNAL_RECOMMEND_URL", default="").strip()
 if not _fastapi_recommend_url:
