@@ -1,3 +1,4 @@
+from datetime import timedelta
 from unittest.mock import patch
 
 from django.test import TestCase, override_settings
@@ -399,6 +400,72 @@ class VendorAdminPageTests(TestCase):
         self.assertEqual(response["Location"], reverse("vendor-login"))
 
     def test_vendor_dashboard_renders_vendor_brand_metrics(self):
+        analytics_user = User.objects.create_user(email="vendor-dashboard@example.com", password="Password123!")
+        today = timezone.localdate()
+
+        pending_order = Order.objects.create(
+            user=analytics_user,
+            recipient_name="오리젠 고객",
+            recipient_phone="01012341234",
+            delivery_address="서울 강남구 테일톡로 1",
+            payment_method="우리카드 1234 / 일시불",
+            product_total=49900,
+            total_price=49900,
+            status="pending",
+        )
+        OrderItem.objects.create(order=pending_order, product=self.product, quantity=1, price_at_order=49900)
+
+        completed_order = Order.objects.create(
+            user=analytics_user,
+            recipient_name="오리젠 고객",
+            recipient_phone="01012341234",
+            delivery_address="서울 강남구 테일톡로 1",
+            payment_method="우리카드 1234 / 일시불",
+            product_total=49900,
+            total_price=49900,
+            status="completed",
+        )
+        OrderItem.objects.create(order=completed_order, product=self.product, quantity=1, price_at_order=49900)
+
+        cancelled_order = Order.objects.create(
+            user=analytics_user,
+            recipient_name="오리젠 고객",
+            recipient_phone="01012341234",
+            delivery_address="서울 강남구 테일톡로 1",
+            payment_method="우리카드 1234 / 일시불",
+            product_total=49900,
+            total_price=49900,
+            status="cancelled",
+        )
+        OrderItem.objects.create(order=cancelled_order, product=self.product, quantity=1, price_at_order=49900)
+
+        old_order = Order.objects.create(
+            user=analytics_user,
+            recipient_name="오리젠 고객",
+            recipient_phone="01012341234",
+            delivery_address="서울 강남구 테일톡로 1",
+            payment_method="우리카드 1234 / 일시불",
+            product_total=49900,
+            total_price=49900,
+            status="completed",
+        )
+        OrderItem.objects.create(order=old_order, product=self.product, quantity=1, price_at_order=49900)
+        old_timestamp = timezone.now() - timedelta(days=3)
+        Order.objects.filter(order_id=old_order.order_id).update(created_at=old_timestamp)
+
+        other_brand_product = Product.objects.get(goods_id="GI-VENDOR-2")
+        other_brand_order = Order.objects.create(
+            user=analytics_user,
+            recipient_name="다른 브랜드 고객",
+            recipient_phone="01012341234",
+            delivery_address="서울 강남구 테일톡로 2",
+            payment_method="우리카드 1234 / 일시불",
+            product_total=42000,
+            total_price=42000,
+            status="completed",
+        )
+        OrderItem.objects.create(order=other_brand_order, product=other_brand_product, quantity=1, price_at_order=42000)
+
         session = self.client.session
         session["tailtalk_vendor_admin_id"] = "orijen"
         session.save()
@@ -414,6 +481,20 @@ class VendorAdminPageTests(TestCase):
         self.assertContains(response, "상품 등록")
         self.assertContains(response, "취소/교환/반품")
         self.assertContains(response, "고객문의 / CS")
+        primary = {item["label"]: item["value"] for item in response.context["vendor_primary_kpis"]}
+        queue = {item["title"]: item["count_label"] for item in response.context["vendor_queue_items"]}
+        trend = {item["label"]: item["value"] for item in response.context["vendor_trend_highlights"]}
+        self.assertEqual(primary["오늘 매출"], "₩99,800")
+        self.assertEqual(primary["신규 주문"], "2건")
+        self.assertEqual(primary["취소 / 환불 대기"], "1건")
+        self.assertEqual(queue["신규 주문"], "1건")
+        self.assertEqual(queue["취소 / 환불"], "1건")
+        self.assertEqual(queue["리뷰 확인"], "1건")
+        self.assertEqual(trend["7일 주문"], "3건")
+        self.assertEqual(trend["7일 매출"], "₩149,700")
+
+        order_trend = {point["label"]: point["value"] for point in response.context["vendor_order_trend"]}
+        self.assertEqual(order_trend[today.strftime("%m/%d")], 2)
 
     def test_vendor_products_filters_to_vendor_brand(self):
         session = self.client.session
@@ -513,10 +594,12 @@ class VendorAdminPageTests(TestCase):
         self.assertContains(response, "통계")
         self.assertContains(response, "퍼널")
         self.assertContains(response, "우선 액션")
+        self.assertContains(response, "실제 이벤트 로그 기준")
         summary = {item["label"]: item["value"] for item in response.context["vendor_analytics_summary"]}
         funnel = {item["label"]: item["value"] for item in response.context["vendor_funnel_items"]}
         implicit = {item["label"]: item["value"] for item in response.context["vendor_implicit_metrics"]}
-        self.assertEqual(summary["이번 달 매출"], "₩49,900")
+        self.assertEqual(response.context["vendor_analytics_period_label"], "최근 30일")
+        self.assertEqual(summary["최근 30일 매출"], "₩49,900")
         self.assertEqual(summary["구매 전환율"], "100.0%")
         self.assertEqual(summary["반복 구매율"], "0.0%")
         self.assertEqual(funnel["노출"], "5")
@@ -526,6 +609,60 @@ class VendorAdminPageTests(TestCase):
         self.assertEqual(funnel["구매"], "1")
         self.assertEqual(implicit["체크아웃 시작 수"], "1회")
         self.assertEqual(implicit["관심상품 추가 수"], "1회")
+
+    def test_vendor_analytics_period_filter_excludes_old_events(self):
+        analytics_user = User.objects.create_user(email="vendor-analytics-period@example.com", password="Password123!")
+        recent_order = Order.objects.create(
+            user=analytics_user,
+            recipient_name="오리젠 고객",
+            recipient_phone="01012341234",
+            delivery_address="서울 강남구 테일톡로 1",
+            payment_method="우리카드 1234 / 일시불",
+            product_total=49900,
+            total_price=49900,
+            status="completed",
+        )
+        OrderItem.objects.create(order=recent_order, product=self.product, quantity=1, price_at_order=49900)
+        for interaction_type, count in (("impression", 3), ("click", 1), ("detail_view", 1)):
+            for _ in range(count):
+                UserInteraction.objects.create(
+                    user=analytics_user,
+                    product=self.product,
+                    interaction_type=interaction_type,
+                )
+
+        old_order = Order.objects.create(
+            user=analytics_user,
+            recipient_name="오리젠 고객",
+            recipient_phone="01012341234",
+            delivery_address="서울 강남구 테일톡로 1",
+            payment_method="우리카드 1234 / 일시불",
+            product_total=49900,
+            total_price=49900,
+            status="completed",
+        )
+        OrderItem.objects.create(order=old_order, product=self.product, quantity=1, price_at_order=49900)
+        old_timestamp = timezone.now() - timedelta(days=10)
+        Order.objects.filter(order_id=old_order.order_id).update(created_at=old_timestamp)
+        old_interaction = UserInteraction.objects.create(
+            user=analytics_user,
+            product=self.product,
+            interaction_type="impression",
+        )
+        UserInteraction.objects.filter(id=old_interaction.id).update(created_at=old_timestamp)
+
+        session = self.client.session
+        session["tailtalk_vendor_admin_id"] = "orijen"
+        session.save()
+
+        response = self.client.get(f"{reverse('vendor-analytics')}?period=7")
+
+        self.assertEqual(response.status_code, status.HTTP_200_OK)
+        self.assertEqual(response.context["vendor_analytics_period_label"], "최근 7일")
+        summary = {item["label"]: item["value"] for item in response.context["vendor_analytics_summary"]}
+        funnel = {item["label"]: item["value"] for item in response.context["vendor_funnel_items"]}
+        self.assertEqual(summary["최근 7일 매출"], "₩49,900")
+        self.assertEqual(funnel["노출"], "3")
 
     def test_vendor_orders_requires_vendor_session(self):
         response = self.client.get(reverse("vendor-orders"))
