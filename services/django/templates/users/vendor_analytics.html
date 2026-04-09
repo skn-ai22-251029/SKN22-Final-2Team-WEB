@@ -3,8 +3,35 @@
 
 {% block vendor_content %}
 <section class="rounded-[26px] border border-white/70 bg-white/86 px-4 py-5 shadow-[0_18px_48px_rgba(148,163,184,0.14)] backdrop-blur sm:px-6 sm:py-6 md:px-8 md:py-8">
-  <div class="min-h-[28px] sm:min-h-[32px]">
-    <h2 class="text-[20px] font-bold tracking-[-0.02em] text-[#1d4ed8] sm:text-[22px]">핵심 성과 지표</h2>
+  <div class="flex flex-col gap-4 xl:flex-row xl:items-start xl:justify-between">
+    <div class="min-h-[28px] sm:min-h-[32px]">
+      <h2 class="text-[20px] font-bold tracking-[-0.02em] text-[#1d4ed8] sm:text-[22px]">핵심 성과 지표</h2>
+      <p class="mt-2 text-[13px] leading-6 text-[#64748b]">{{ vendor_analytics_data_note }}</p>
+    </div>
+    <div class="flex flex-wrap gap-2">
+      {% for option in vendor_analytics_period_options %}
+      <a href="{{ option.url }}"
+         class="inline-flex rounded-full border px-3 py-1.5 text-[12px] font-semibold transition {% if option.is_active %}border-[#2563eb] bg-[#dbeafe] text-[#1d4ed8]{% else %}border-[#dbe7f5] bg-white text-[#64748b] hover:border-[#bfdbfe] hover:text-[#1d4ed8]{% endif %}">
+        {{ option.label }}
+      </a>
+      {% endfor %}
+    </div>
+  </div>
+
+  <div class="mt-5 rounded-[20px] border border-[#dbe7f5] bg-[#f8fbff] px-4 py-4">
+    <div class="flex flex-col gap-3 lg:flex-row lg:items-center lg:justify-between">
+      <div>
+        <p class="text-[12px] font-semibold text-[#1d4ed8]">표본 수</p>
+        <p class="mt-1 text-[12px] leading-5 text-[#475569]">{{ vendor_analytics_period_label }} 기준으로 집계한 실제 행동 로그입니다.</p>
+      </div>
+      <div class="flex flex-wrap gap-2">
+        {% for item in vendor_analytics_sample_items %}
+        <span class="inline-flex rounded-full border border-[#dbe7f5] bg-white px-3 py-1 text-[12px] font-semibold text-[#334155]">
+          {{ item.label }} {{ item.value }}
+        </span>
+        {% endfor %}
+      </div>
+    </div>
   </div>
 
   <div class="mt-5 grid gap-4 md:grid-cols-2 xl:grid-cols-4">
@@ -25,8 +52,8 @@
     <p class="text-[12px] font-semibold text-[#1d4ed8]">해석 기준</p>
     <div class="mt-3 divide-y divide-[#dbe7f5] rounded-[16px] border border-[#dbe7f5] bg-white">
       <div class="grid gap-2 px-4 py-3 md:grid-cols-[140px,minmax(0,1fr)] md:items-center">
-        <p class="text-[12px] font-semibold text-[#1e293b]">이번 달 매출</p>
-        <p class="text-[12px] leading-5 text-[#475569]">당월 누적 결제 금액 기준</p>
+        <p class="text-[12px] font-semibold text-[#1e293b]">{{ vendor_analytics_summary.0.label }}</p>
+        <p class="text-[12px] leading-5 text-[#475569]">{{ vendor_analytics_revenue_basis_label }}</p>
       </div>
       <div class="grid gap-2 px-4 py-3 md:grid-cols-[140px,minmax(0,1fr)] md:items-center">
         <p class="text-[12px] font-semibold text-[#1e293b]">구매 전환율</p>
@@ -285,7 +312,7 @@
     <a href="{% url 'vendor-products' %}" class="text-[13px] font-semibold text-[#2563eb] hover:text-[#1d4ed8]">상품 목록 보기</a>
   </div>
 
-  <div class="mt-6 space-y-3 lg:hidden">
+  <div class="mt-6 space-y-3 xl:hidden">
     {% for item in vendor_performance_rows %}
     <a href="{% url 'vendor-product-detail' item.goods_id %}" class="block rounded-[20px] border border-[#e5eef8] bg-[#f8fbff] px-4 py-4 transition hover:border-[#bfdbfe] hover:bg-white">
       <div class="flex items-start justify-between gap-4">
@@ -319,8 +346,9 @@
     {% endfor %}
   </div>
 
-  <div class="mt-6 hidden overflow-hidden rounded-[22px] border border-[#e5eef8] lg:block">
-    <div class="grid grid-cols-[72px,minmax(0,1.4fr),120px,140px,110px,120px,120px] gap-3 bg-[#f8fbff] px-5 py-4 text-[12px] font-semibold uppercase tracking-[0.08em] text-[#64748b]">
+  <div class="mt-6 hidden overflow-x-auto rounded-[22px] border border-[#e5eef8] xl:block">
+    <div class="min-w-[860px]">
+      <div class="grid grid-cols-[56px,minmax(220px,1.8fr),92px,108px,88px,96px,96px] gap-2.5 bg-[#f8fbff] px-4 py-4 text-[11px] font-semibold uppercase tracking-[0.08em] text-[#64748b]">
       <span>순위</span>
       <span>상품명</span>
       <span>상태</span>
@@ -328,30 +356,31 @@
       <span>CTR</span>
       <span>전환율</span>
       <span>재구매율</span>
-    </div>
+      </div>
 
-    <div class="divide-y divide-[#e5eef8]">
-      {% for item in vendor_performance_rows %}
-      <a href="{% url 'vendor-product-detail' item.goods_id %}" class="block px-5 py-4 transition hover:bg-[#f8fbff]">
-        <div class="grid gap-3 lg:grid-cols-[72px,minmax(0,1.4fr),120px,140px,110px,120px,120px] lg:items-center">
-          <div class="text-[13px] font-semibold text-[#64748b]">#{{ forloop.counter }}</div>
-          <div class="min-w-0">
-            <p class="truncate text-[15px] font-semibold text-[#1e293b]">{{ item.goods_name }}</p>
-            <div class="mt-1 flex items-center gap-2">
-              <p class="text-[12px] text-[#94a3b8]">{{ item.goods_id }}</p>
-              <span class="inline-flex rounded-full px-2.5 py-1 text-[11px] font-semibold {% if item.strength_tone == 'blue' %}bg-[#dbeafe] text-[#1d4ed8]{% elif item.strength_tone == 'green' %}bg-[#dcfce7] text-[#15803d]{% else %}bg-[#e2e8f0] text-[#475569]{% endif %}">
-                {{ item.strength_label }}
-              </span>
+      <div class="divide-y divide-[#e5eef8]">
+        {% for item in vendor_performance_rows %}
+        <a href="{% url 'vendor-product-detail' item.goods_id %}" class="block px-4 py-4 transition hover:bg-[#f8fbff]">
+          <div class="grid grid-cols-[56px,minmax(220px,1.8fr),92px,108px,88px,96px,96px] items-center gap-2.5">
+            <div class="text-[13px] font-semibold text-[#64748b]">#{{ forloop.counter }}</div>
+            <div class="min-w-0">
+              <p class="truncate text-[14px] font-semibold text-[#1e293b]">{{ item.goods_name }}</p>
+              <div class="mt-1 flex flex-wrap items-center gap-2">
+                <p class="truncate text-[11px] text-[#94a3b8]">{{ item.goods_id }}</p>
+                <span class="inline-flex rounded-full px-2.5 py-1 text-[10px] font-semibold {% if item.strength_tone == 'blue' %}bg-[#dbeafe] text-[#1d4ed8]{% elif item.strength_tone == 'green' %}bg-[#dcfce7] text-[#15803d]{% else %}bg-[#e2e8f0] text-[#475569]{% endif %}">
+                  {{ item.strength_label }}
+                </span>
+              </div>
             </div>
+            <div class="text-[12px] font-semibold text-[#475569]">{{ item.status_label }}</div>
+            <div class="text-[13px] font-bold text-[#1e293b]">{{ item.revenue_label }}</div>
+            <div class="text-[13px] font-semibold text-[#1d4ed8]">{{ item.ctr_label }}</div>
+            <div class="text-[13px] font-semibold text-[#1e293b]">{{ item.conversion_label }}</div>
+            <div class="text-[13px] font-semibold text-[#15803d]">{{ item.repeat_label }}</div>
           </div>
-          <div class="text-[13px] font-semibold text-[#475569]">{{ item.status_label }}</div>
-          <div class="text-[14px] font-bold text-[#1e293b]">{{ item.revenue_label }}</div>
-          <div class="text-[14px] font-semibold text-[#1d4ed8]">{{ item.ctr_label }}</div>
-          <div class="text-[14px] font-semibold text-[#1e293b]">{{ item.conversion_label }}</div>
-          <div class="text-[14px] font-semibold text-[#15803d]">{{ item.repeat_label }}</div>
-        </div>
-      </a>
-      {% endfor %}
+        </a>
+        {% endfor %}
+      </div>
     </div>
   </div>
 </section>

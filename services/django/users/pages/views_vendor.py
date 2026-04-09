@@ -4,6 +4,7 @@ from decimal import Decimal, InvalidOperation
 from urllib.parse import urlencode
 
 from django.db.models import Avg, Count, F, IntegerField, Sum
+from django.db.models.functions import TruncDate
 from django.shortcuts import get_object_or_404, redirect, render
 from django.urls import reverse
 
@@ -688,7 +689,8 @@ def vendor_dashboard_view(request):
     if base_context is None:
         return redirect("vendor-login")
 
-    vendor_products = Product.objects.filter(brand_name=base_context["vendor_account"]["brand_name"])
+    brand_name = base_context["vendor_account"]["brand_name"]
+    vendor_products = Product.objects.filter(brand_name=brand_name)
     demo_soldout_goods_ids = _get_demo_soldout_goods_ids(vendor_products)
     demo_pending_goods_ids = _get_demo_pending_goods_ids(vendor_products, demo_soldout_goods_ids)
     total_products = vendor_products.count()
@@ -717,19 +719,48 @@ def vendor_dashboard_view(request):
     ]
     attention_products = _build_vendor_attention_products(vendor_products, demo_soldout_goods_ids, demo_pending_goods_ids)
     active_products = max(total_products - display_soldout_products - display_pending_products, 0)
-    mock_daily_revenue = 2480000
-    mock_daily_orders = 38
-    mock_cancel_refund = 3
-    review_check_count = max(sum(1 for product in top_products if product["review_count"] >= 100), 1)
-    trend_points = [
-        {"label": "03/25", "value": 42, "revenue": 1940000},
-        {"label": "03/26", "value": 58, "revenue": 2230000},
-        {"label": "03/27", "value": 51, "revenue": 2080000},
-        {"label": "03/28", "value": 66, "revenue": 2460000},
-        {"label": "03/29", "value": 61, "revenue": 2380000},
-        {"label": "03/30", "value": 74, "revenue": 2710000},
-        {"label": "03/31", "value": 69, "revenue": 2590000},
-    ]
+    brand_order_items = OrderItem.objects.filter(product__brand_name=brand_name)
+    active_brand_order_items = brand_order_items.exclude(order__status="cancelled")
+    today_date = date.today()
+    trend_start_date = today_date - timedelta(days=6)
+    today_revenue = (
+        active_brand_order_items.filter(order__created_at__date=today_date).aggregate(
+            total=Sum(F("quantity") * F("price_at_order"), output_field=IntegerField())
+        )["total"]
+        or 0
+    )
+    today_order_count = (
+        active_brand_order_items.filter(order__created_at__date=today_date).values("order_id").distinct().count()
+    )
+    processing_order_count = (
+        brand_order_items.filter(order__status="pending").values("order_id").distinct().count()
+    )
+    cancelled_order_count = (
+        brand_order_items.filter(order__status="cancelled").values("order_id").distinct().count()
+    )
+    review_check_count = vendor_products.filter(review_count__gte=100).count()
+    trend_rows = {
+        row["order_day"]: row
+        for row in active_brand_order_items.filter(order__created_at__date__gte=trend_start_date)
+        .annotate(order_day=TruncDate("order__created_at"))
+        .values("order_day")
+        .annotate(
+            order_count=Count("order_id", distinct=True),
+            revenue=Sum(F("quantity") * F("price_at_order"), output_field=IntegerField()),
+        )
+        .order_by("order_day")
+    }
+    trend_points = []
+    for offset in range(6, -1, -1):
+        day = today_date - timedelta(days=offset)
+        row = trend_rows.get(day, {})
+        trend_points.append(
+            {
+                "label": day.strftime("%m/%d"),
+                "value": row.get("order_count", 0) or 0,
+                "revenue": row.get("revenue", 0) or 0,
+            }
+        )
     max_trend_value = max((point["value"] for point in trend_points), default=1)
     for point in trend_points:
         point["height_percent"] = max(18, int(point["value"] / max_trend_value * 100))
@@ -746,24 +777,24 @@ def vendor_dashboard_view(request):
             "vendor_primary_kpis": [
                 {
                     "label": "오늘 매출",
-                    "value": f"₩{mock_daily_revenue:,}",
-                    "description": "전일 대비 +12.4%",
+                    "value": f"₩{today_revenue:,}",
+                    "description": "브랜드 기준 오늘 결제 금액",
                     "action_label": "매출 흐름 보기",
                     "href": reverse("vendor-analytics"),
                     "tone": "blue",
                 },
                 {
                     "label": "신규 주문",
-                    "value": f"{mock_daily_orders}건",
-                    "description": "결제 완료 후 출고 대기 기준",
+                    "value": f"{today_order_count}건",
+                    "description": "오늘 생성된 브랜드 주문 기준",
                     "action_label": "주문 처리",
                     "href": f"{reverse('vendor-orders')}?focus=processing",
                     "tone": "blue",
                 },
                 {
                     "label": "취소 / 환불 대기",
-                    "value": f"{mock_cancel_refund}건",
-                    "description": "오늘 우선 확인이 필요한 클레임",
+                    "value": f"{cancelled_order_count}건",
+                    "description": "현재 취소된 브랜드 주문 기준",
                     "action_label": "클레임 확인",
                     "href": f"{reverse('vendor-orders')}?focus=refund",
                     "tone": "rose",
@@ -785,13 +816,13 @@ def vendor_dashboard_view(request):
             "vendor_queue_items": [
                 {
                     "title": "신규 주문",
-                    "count_label": f"{mock_daily_orders}건",
+                    "count_label": f"{processing_order_count}건",
                     "href": f"{reverse('vendor-orders')}?focus=processing",
                     "tone": "blue",
                 },
                 {
                     "title": "취소 / 환불",
-                    "count_label": f"{mock_cancel_refund}건",
+                    "count_label": f"{cancelled_order_count}건",
                     "href": f"{reverse('vendor-orders')}?focus=refund",
                     "tone": "rose",
                 },
@@ -944,6 +975,19 @@ def vendor_analytics_view(request):
     if base_context is None:
         return redirect("vendor-login")
 
+    period_definitions = {
+        "7": {"label": "최근 7일", "days": 7},
+        "30": {"label": "최근 30일", "days": 30},
+        "all": {"label": "전체", "days": None},
+    }
+    selected_period = (request.GET.get("period") or "30").strip() or "30"
+    if selected_period not in period_definitions:
+        selected_period = "30"
+    selected_period_meta = period_definitions[selected_period]
+    period_start_date = None
+    if selected_period_meta["days"] is not None:
+        period_start_date = date.today() - timedelta(days=selected_period_meta["days"] - 1)
+
     brand_name = base_context["vendor_account"]["brand_name"]
     vendor_products = Product.objects.filter(brand_name=brand_name)
     demo_soldout_goods_ids = _get_demo_soldout_goods_ids(vendor_products)
@@ -957,18 +1001,20 @@ def vendor_analytics_view(request):
     average_discount_price = vendor_products.aggregate(avg=Avg("discount_price"))["avg"]
     average_price_purchase = vendor_products.exclude(aspect_price_purchase__isnull=True).aggregate(avg=Avg("aspect_price_purchase"))["avg"]
     average_delivery = vendor_products.exclude(aspect_delivery_packaging__isnull=True).aggregate(avg=Avg("aspect_delivery_packaging"))["avg"]
+    interaction_queryset = UserInteraction.objects.filter(product__brand_name=brand_name)
+    brand_order_items = OrderItem.objects.filter(product__brand_name=brand_name).exclude(order__status="cancelled")
+    if period_start_date is not None:
+        interaction_queryset = interaction_queryset.filter(created_at__date__gte=period_start_date)
+        brand_order_items = brand_order_items.filter(order__created_at__date__gte=period_start_date)
+
     interaction_counts = {
         row["interaction_type"]: row["total"]
-        for row in UserInteraction.objects.filter(product__brand_name=brand_name)
+        for row in interaction_queryset
         .values("interaction_type")
         .annotate(total=Count("id"))
     }
-    brand_order_items = OrderItem.objects.filter(product__brand_name=brand_name).exclude(order__status="cancelled")
-    current_month_start = date.today().replace(day=1)
-    monthly_revenue = (
-        brand_order_items.filter(order__created_at__date__gte=current_month_start).aggregate(
-            total=Sum(F("quantity") * F("price_at_order"), output_field=IntegerField())
-        )["total"]
+    revenue_total = (
+        brand_order_items.aggregate(total=Sum(F("quantity") * F("price_at_order"), output_field=IntegerField()))["total"]
         or 0
     )
     orders = brand_order_items.values("order_id").distinct().count()
@@ -990,12 +1036,22 @@ def vendor_analytics_view(request):
     carts = interaction_counts.get("cart", 0)
     checkout_starts = interaction_counts.get("checkout_start", 0)
     wishlist_adds = interaction_counts.get("wishlist", 0)
+    sample_total = impressions + clicks + detail_views + carts + checkout_starts + wishlist_adds + orders
     ctr = (clicks / impressions) * 100 if impressions else 0
     detail_rate = (detail_views / clicks) * 100 if clicks else 0
     cart_rate = (carts / detail_views) * 100 if detail_views else 0
     order_rate = (orders / detail_views) * 100 if detail_views else 0
     repeat_rate_percent = (repeat_buyer_count / buyer_count) * 100 if buyer_count else 0
     price_resistance = max(0.0, 100 - float((average_price_purchase or 0) * 100))
+    revenue_label = f"{selected_period_meta['label']} 매출" if selected_period != "all" else "누적 매출"
+    revenue_basis_label = (
+        f"{selected_period_meta['label']} 결제 금액 기준" if selected_period != "all" else "전체 기간 결제 금액 기준"
+    )
+    period_caption = (
+        f"{selected_period_meta['label']} 실제 이벤트 로그 기준"
+        if selected_period != "all"
+        else "전체 기간 실제 이벤트 로그 기준"
+    )
 
     funnel_items = [
         {
@@ -1187,17 +1243,38 @@ def vendor_analytics_view(request):
 
     category_breakdown = _build_vendor_breakdown_items(category_counter)
     pet_type_breakdown = _build_vendor_breakdown_items(pet_type_counter)
+    vendor_analytics_period_options = [
+        {
+            "label": option_meta["label"],
+            "url": f"{reverse('vendor-analytics')}?{urlencode({'period': option_code})}",
+            "is_active": option_code == selected_period,
+        }
+        for option_code, option_meta in period_definitions.items()
+    ]
 
     return render(
         request,
         "users/vendor_analytics.html",
         {
             **base_context,
+            "vendor_analytics_period_label": selected_period_meta["label"],
+            "vendor_analytics_period_options": vendor_analytics_period_options,
+            "vendor_analytics_data_note": (
+                f"퍼널·매출은 {period_caption}, 상품·리뷰 지표는 현재 브랜드 데이터 기준입니다."
+            ),
+            "vendor_analytics_sample_items": [
+                {"label": "노출", "value": f"{impressions:,}"},
+                {"label": "클릭", "value": f"{clicks:,}"},
+                {"label": "체크아웃 시작", "value": f"{checkout_starts:,}"},
+                {"label": "구매", "value": f"{orders:,}"},
+                {"label": "이벤트 표본", "value": f"{sample_total:,}"},
+            ],
+            "vendor_analytics_revenue_basis_label": revenue_basis_label,
             "vendor_analytics_summary": [
-                {"label": "이번 달 매출", "value": f"₩{monthly_revenue:,}", "delta": "실주문 기준", "delta_tone": "neutral"},
-                {"label": "구매 전환율", "value": f"{order_rate:.1f}%", "delta": "상세 진입 대비", "delta_tone": "neutral"},
-                {"label": "반복 구매율", "value": f"{repeat_rate_percent:.1f}%", "delta": "브랜드 구매자 기준", "delta_tone": "neutral"},
-                {"label": "평균 실판매가", "value": _format_vendor_price(average_discount_price), "delta": "브랜드 상품 평균", "delta_tone": "neutral"},
+                {"label": revenue_label, "value": f"₩{revenue_total:,}", "delta": period_caption, "delta_tone": "neutral"},
+                {"label": "구매 전환율", "value": f"{order_rate:.1f}%", "delta": f"{selected_period_meta['label']} 상세 진입 대비", "delta_tone": "neutral"},
+                {"label": "반복 구매율", "value": f"{repeat_rate_percent:.1f}%", "delta": f"{selected_period_meta['label']} 브랜드 구매자 기준", "delta_tone": "neutral"},
+                {"label": "평균 실판매가", "value": _format_vendor_price(average_discount_price), "delta": "현재 브랜드 상품 평균", "delta_tone": "neutral"},
             ],
             "vendor_funnel_items": funnel_items,
             "vendor_explicit_metrics": explicit_metrics,
