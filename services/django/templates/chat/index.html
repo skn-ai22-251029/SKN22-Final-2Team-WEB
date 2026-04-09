@@ -638,12 +638,185 @@
       </div>
     </div>
 
-    <aside id="sidebar" aria-label="사이드바">
-      <div id="sidebarOpen">
-        <button type="button"
-                onclick="closeSidebar()"
-                class="absolute right-[15px] top-[31px] h-[16px] w-[24px]"
-                aria-label="사이드바 닫기">
+    <div id="quickOrderModal" class="absolute inset-0 z-[60] flex items-center justify-center bg-black/10"
+         onclick="closeQuickOrderModal(event)">
+      <div class="relative flex max-h-[calc(100vh-24px)] w-[min(500px,calc(100vw-24px))] overflow-hidden rounded-[22px] border border-[#dbe7f5] bg-white"
+           onclick="event.stopPropagation()">
+        <div class="flex min-h-0 min-w-0 flex-1 flex-col px-[18px] py-[17px]">
+          <div class="flex items-start justify-between gap-[12px]">
+            <div>
+              <p class="text-[20px] font-bold leading-none text-[#2d3748]">빠른 주문</p>
+            </div>
+            <button type="button"
+                    class="flex h-[26px] items-center justify-center text-[26px] leading-none text-[#718096]"
+                    onclick="closeQuickOrderModal()"
+                    aria-label="빠른 주문 닫기">
+              <span class="relative top-[-4px]">×</span>
+            </button>
+          </div>
+
+          <div class="mt-[13px] min-h-0 overflow-y-auto pr-[2px]">
+            <div class="space-y-[9px]">
+              <div class="rounded-[16px] border border-[#e2e8f0] bg-white px-[12px] py-[10px]">
+                <div class="flex items-start justify-between gap-[10px]">
+                  <div class="min-w-0 flex-1">
+                    <p id="quickOrderPrimaryItem" class="truncate text-[14px] font-bold leading-[1.35] text-[#2d3748]">상품 정보 없음</p>
+                  </div>
+                  <button type="button"
+                          class="shrink-0 text-[12px] font-semibold text-[#3182ce]"
+                          onclick="goToCartPage()">
+                    수정
+                  </button>
+                </div>
+              </div>
+
+              <div class="rounded-[16px] border border-[#e2e8f0] bg-white px-[12px] py-[11px]">
+                <div class="flex items-start justify-between gap-[10px]">
+                  <div class="flex min-w-0 flex-1 items-start gap-[8px]">
+                    <div class="w-[14px] shrink-0 pt-[1px] text-[13px] leading-none text-[#2d3748]" aria-hidden="true">🚚</div>
+                    <div class="min-w-0 flex-1 space-y-[5px] text-[12px] text-[#4a5568]">
+                      <p id="quickOrderRecipientSummary" class="leading-[1.5]">{{ quick_order_recipient }}</p>
+                      <p id="quickOrderAddressSummary" class="leading-[1.55]">{{ quick_order_address }}</p>
+                      <p id="quickOrderPhoneSummary" class="leading-[1.5]">{{ quick_order_phone }}</p>
+                    </div>
+                  </div>
+                  <button type="button"
+                          class="shrink-0 text-[12px] font-semibold text-[#3182ce]"
+                          onclick="goToProfilePage()">
+                    수정
+                  </button>
+                </div>
+              </div>
+
+              <div class="rounded-[16px] border border-[#e2e8f0] bg-white px-[12px] py-[11px]">
+                <div class="flex items-start justify-between gap-[10px]">
+                  <div class="flex min-w-0 flex-1 items-start gap-[8px]">
+                    <div class="w-[14px] shrink-0 pt-[1px] text-[13px] leading-none text-[#2d3748]" aria-hidden="true">💳</div>
+                    <div class="min-w-0 flex-1 space-y-[5px] text-[12px] text-[#4a5568]">
+                      <p id="quickOrderCardSummary" class="leading-[1.5] {% if quick_order_payment_method == '등록된 결제수단이 없습니다' %}text-[#718096]{% else %}text-[#4a5568]{% endif %}">{{ quick_order_payment_method }}</p>
+                    </div>
+                  </div>
+                  <button type="button"
+                          class="shrink-0 text-[12px] font-semibold text-[#3182ce]"
+                          onclick="goToProfilePage()">
+                    수정
+                  </button>
+                </div>
+              </div>
+
+              <div class="rounded-[16px] border border-[#e2e8f0] bg-white px-[12px] py-[11px]">
+                <div class="flex items-start justify-between gap-[10px]">
+                  <div class="flex min-w-0 flex-1 flex-col gap-[9px]">
+                    <div class="flex min-w-0 items-center gap-[8px]">
+                      <div class="flex h-[30px] w-[18px] shrink-0 items-center justify-center text-[13px] leading-none text-[#2d3748]" aria-hidden="true">🎟️</div>
+                      <div class="min-w-0 flex-1">
+                        <select id="quickOrderCouponSelect"
+                                class="h-[30px] min-w-0 w-full rounded-full border border-[#dbe7f5] bg-[#f8fbff] pl-[10px] pr-[34px] text-[11px] font-semibold text-[#4a5568] outline-none">
+                          <option value="none" data-coupon-discount="0" data-coupon-min-total="0">쿠폰 없음</option>
+                          <option value="new-member" data-coupon-discount="3000" data-coupon-min-total="30000">신규회원 3,000원</option>
+                          <option value="pet-care" data-coupon-discount="5000" data-coupon-min-total="60000">펫케어 5,000원</option>
+                        </select>
+                      </div>
+                    </div>
+                    <div class="flex min-w-0 items-center gap-[8px]">
+                      <div class="flex h-[30px] w-[18px] shrink-0 items-center justify-center text-[12px] leading-none text-[#8a94a6]" aria-hidden="true">🪙</div>
+                      <div class="flex min-w-0 flex-1 items-center rounded-full border border-[#dbe7f5] bg-[#f8fbff] pl-[10px] pr-[10px]">
+                        <input id="quickOrderMileageInput"
+                               type="number"
+                               min="0"
+                               max="3200"
+                               step="100"
+                               placeholder="마일리지 3,200원 사용 가능"
+                               class="h-[30px] w-full min-w-0 bg-transparent text-[11px] font-semibold text-[#4a5568] outline-none" />
+                        <span class="shrink-0 text-[11px] font-semibold text-[#718096]">원</span>
+                      </div>
+                      <button type="button"
+                              id="quickOrderUseAllMileage"
+                              class="shrink-0 text-[11px] font-semibold text-[#3182ce]">
+                        전액 사용
+                      </button>
+                    </div>
+                  </div>
+                </div>
+              </div>
+
+              <div class="rounded-[16px] border border-[#e2e8f0] bg-[#fbfdff] px-[12px] py-[11px]">
+                <div class="grid grid-cols-2 gap-x-[12px] gap-y-[9px]">
+                  <div>
+                    <p class="text-[11px] font-medium tracking-[-0.01em] text-[#8a94a6]">주문 상품 수</p>
+                    <p id="quickOrderItemCount" class="mt-[5px] text-[17px] font-semibold leading-none text-[#1f2937]">0개</p>
+                  </div>
+                  <div class="text-right">
+                    <p class="text-[11px] font-medium tracking-[-0.01em] text-[#8a94a6]">상품 금액</p>
+                    <p id="quickOrderSubtotal" class="mt-[5px] text-[17px] font-semibold leading-none text-[#1f2937]">0원</p>
+                  </div>
+                </div>
+                <div class="mt-[9px] border-t border-[#e7eef6] pt-[9px]">
+                  <div class="flex items-center justify-between text-[12px] text-[#4b5563]">
+                    <span class="font-medium">배송비</span>
+                    <span id="quickOrderShippingFee" class="font-semibold text-[#1f2937]">0원</span>
+                  </div>
+                  <div class="mt-[7px] flex items-center justify-between text-[12px] text-[#4b5563]">
+                    <span class="font-medium">할인 적용</span>
+                    <span id="quickOrderDiscount" class="font-semibold text-[#2563eb]">- 0원</span>
+                  </div>
+                  <p id="quickOrderDiscountSummary" class="mt-[5px] text-right text-[11px] leading-[1.45] text-[#8a94a6]">적용된 혜택 없음</p>
+                  <div class="mt-[8px] flex items-center justify-between gap-[8px] border-t border-[#eef2f7] pt-[8px]">
+                    <span class="text-[12px] font-semibold text-[#334155]">총 결제 금액</span>
+                    <span id="quickOrderTotal" class="text-[18px] font-bold leading-none tracking-[-0.02em] text-[#2563eb]">0원</span>
+                  </div>
+                </div>
+              </div>
+
+              <div class="px-[2px] text-[11px] leading-[1.5] text-[#718096]">
+                주문 내용을 확인하였으며, 구매조건, 결제대행 서비스 및 결제에 동의합니다.
+              </div>
+
+              <div class="pb-[2px]">
+                <div id="quickOrderSlide"
+                     class="relative h-[48px] overflow-hidden rounded-full border border-[#dbe7f5] bg-[#edf2f7]">
+                  <div id="quickOrderSlideThumb"
+                       class="absolute left-[4px] top-[4px] flex h-[40px] w-[40px] items-center justify-center rounded-full bg-white text-[#718096]">
+                    <span class="relative top-[-1px] text-[22px] font-bold tracking-[-0.18em]">≫</span>
+                  </div>
+                  <div id="quickOrderSlideLabel"
+                       class="flex h-full w-full items-center justify-center px-[50px] text-center text-[13px] font-bold text-[#a0aec0]">
+                    배송지와 결제수단 저장 후 밀어서 결제하기
+                  </div>
+                </div>
+              </div>
+            </div>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <div id="chatActionToast"
+         class="pointer-events-none absolute left-1/2 top-[88px] z-[70] flex min-h-[44px] min-w-[232px] max-w-[360px] -translate-x-1/2 items-center justify-center rounded-full bg-[#1f2937] px-[18px] py-[11px] text-center text-[13px] font-semibold text-white shadow-[0_14px_28px_rgba(15,23,42,0.28)]">
+      오류가 발생했습니다.
+    </div>
+    {% endif %}
+
+    <button id="sidebarOverlay"
+            class="absolute inset-0 z-[15] hidden cursor-default"
+            type="button"
+            aria-label="사이드바 닫기"
+            onclick="closeSidebar()"></button>
+
+    <aside id="sidebar"
+           class="absolute left-0 top-0 z-20 h-full w-[281px] transition-transform duration-300 ease-[cubic-bezier(0.22,1,0.36,1)]"
+           style="transform: translateX(-213px)">
+      <div id="sidebarOpen" class="absolute inset-0 pointer-events-none opacity-0 transition-opacity duration-200">
+        {% if is_member_view %}
+        <div class="absolute inset-0 bg-[linear-gradient(180deg,#f3f8fd_0%,#eef5fb_42%,#e7f0f9_100%)]"></div>
+        <div class="absolute inset-y-0 right-0 w-[1px] bg-[#d4e2f0]"></div>
+
+        <button type="button" onclick="resetChatState(true)" class="absolute left-[16px] top-[21px] flex h-[37px] w-[207px] items-center justify-center overflow-hidden rounded-[12px] bg-[linear-gradient(135deg,#3b82f6_0%,#2563eb_100%)]">
+          <span class="relative whitespace-nowrap text-[16px] font-bold leading-none text-white">새 대화 시작</span>
+        </button>
+        <button type="button" onclick="closeSidebar()"
+                class="absolute left-[242px] top-[32px] h-[16px] w-[24px]" aria-label="사이드바 닫기">
           <svg viewBox="0 0 24 16" class="block h-full w-full text-[#4a5568]" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" aria-hidden="true">
             <path d="M5 3H19"></path>
             <path d="M5 8H19"></path>
@@ -1682,72 +1855,18 @@
         });
       }
 
-      return options;
-    }
-
-    function shouldPromptProfileSelectionBase() {
-      if (skipProfileSelectionPromptOnce) {
-        skipProfileSelectionPromptOnce = false;
-        return false;
-      }
-      if (profilePromptResolved) return false;
-      if (activeSessionId) {
-        var state = ensureSessionState(activeSessionId);
-        if (state && state.profilePromptResolved) return false;
-        if (state && Array.isArray(state.messages) && state.messages.length) return false;
-      }
-      return true;
-    }
-
-    function shouldShowSelectedProfilePrompt() {
-      return shouldPromptProfileSelectionBase() && !!activePetId;
-    }
-
-    function shouldShowProfileChoicePrompt() {
-      return shouldPromptProfileSelectionBase() && !activePetId && getProfileSelectionOptions(false).length > 0;
-    }
-
-    function shouldShowPetRegistrationPrompt() {
-      return shouldPromptProfileSelectionBase() && !activePetId && !getProfileSelectionOptions(false).length && shouldOfferPetRegistrationPrompt;
-    }
-
-    function showProfileSelectionPrompt() {
-      if (!chatMessages || activeProfileSelectionPrompt) return;
-      var options = getProfileSelectionOptions(true);
-      if (!options.length) return;
-
-      var wrapper = document.createElement('div');
-      wrapper.className = 'flex justify-start';
-      var bubble = document.createElement('div');
-      bubble.className = 'inline-flex w-fit max-w-[460px] flex-col self-start rounded-[24px] rounded-bl-[8px] border border-[#dbe7f5] bg-white px-[20px] py-[16px] text-[#2d3748] shadow-[0_10px_24px_rgba(45,55,72,0.06)]';
-
-      var title = document.createElement('p');
-      title.className = 'text-[15px] font-semibold leading-[1.75] text-[#2d3748]';
-      title.textContent = '어떤 프로필로 대화할까요?';
-      bubble.appendChild(title);
-
-      var description = document.createElement('p');
-      description.className = 'mt-[6px] max-w-[320px] break-keep text-[12px] leading-[1.7] text-[#718096]';
-      description.textContent = '프로필을 선택하면 더 정확하게 답변하고 추천할 수 있어요';
-      bubble.appendChild(description);
-
-      var optionList = document.createElement('div');
-      optionList.className = 'mt-[12px] flex flex-wrap gap-[8px]';
-
-      options.forEach(function (option) {
-        var button = document.createElement('button');
-        button.type = 'button';
-        button.className = 'inline-flex max-w-full items-center gap-[6px] rounded-full border border-[#dbe7f5] bg-[#f8fbff] px-[11px] py-[7px] text-left transition-colors duration-150 hover:border-[#bfdbfe] hover:bg-white';
-        button.innerHTML = '<span class="shrink-0 text-[13px] leading-none text-[#718096]">' + (option.emoji || '○') + '</span><span class="truncate text-[12px] font-semibold leading-none text-[#2d3748]">' + option.name + '</span>';
-        button.addEventListener('click', function () {
-          activePetId = option.id || '';
-          updatePetSummaryDisplay();
-          profilePromptResolved = true;
-          if (activeSessionId) {
-            var state = ensureSessionState(activeSessionId);
-            state.profilePromptResolved = true;
-            state.targetPetId = activePetId || '';
-            state.profileContextType = getCurrentProfileContextType();
+  function applyQuickOrderLocalPreview() {
+    try {
+      var savedAddress = JSON.parse(window.localStorage.getItem(PROFILE_ADDRESS_STORAGE_KEY) || 'null');
+      if (savedAddress) {
+        if (
+          quickOrderAddressSummary &&
+          quickOrderAddressSummary.textContent.indexOf('없습니다') !== -1 &&
+          savedAddress.addressMain
+        ) {
+          var addressText = savedAddress.addressMain || '';
+          if (savedAddress.addressDetail) {
+            addressText += ' ' + savedAddress.addressDetail;
           }
           clearProfileSelectionPrompt();
           skipProfileSelectionPromptOnce = true;
@@ -2278,11 +2397,176 @@
         }
       }
 
-      input.addEventListener('input', syncTitleInputWidth);
-      input.addEventListener('blur', done);
-      input.addEventListener('keydown', function (event) {
-        if (event.key === 'Enter' || event.key === 'Escape') input.blur();
-      });
+    try {
+      var savedPayment = JSON.parse(window.localStorage.getItem(PROFILE_PAYMENT_STORAGE_KEY) || 'null');
+      if (
+        savedPayment &&
+        quickOrderCardSummary &&
+        quickOrderCardSummary.textContent.indexOf('없습니다') !== -1 &&
+        savedPayment.cardName &&
+        savedPayment.maskedCard
+      ) {
+        quickOrderCardSummary.textContent = savedPayment.cardName + ' / ' + savedPayment.maskedCard;
+        quickOrderCardSummary.classList.remove('text-[#718096]');
+      }
+    } catch (e) {}
+  }
+
+  function getQuickOrderSubtotalValue() {
+    var subtotal = 0;
+    getCartSnapshot().forEach(function (item) {
+      subtotal += item.totalPrice;
+    });
+    return subtotal;
+  }
+
+  function updateQuickOrderCouponSelect(subtotal) {
+    if (!quickOrderCouponSelect) return;
+    Array.prototype.forEach.call(quickOrderCouponSelect.options, function (option) {
+      var minTotal = Number(option.getAttribute('data-coupon-min-total') || '0');
+      option.disabled = subtotal < minTotal;
+    });
+    quickOrderCouponSelect.value = quickOrderSelectedCouponId;
+  }
+
+  function syncQuickOrderDiscountSummary() {
+    if (quickOrderDiscountSummary) {
+      if (!quickOrderSelectedCouponDiscount && !quickOrderSelectedMileage) {
+        quickOrderDiscountSummary.textContent = '적용된 혜택 없음';
+      } else if (quickOrderSelectedCouponDiscount && quickOrderSelectedMileage) {
+        quickOrderDiscountSummary.textContent = '쿠폰 + 마일리지 적용';
+      } else if (quickOrderSelectedCouponDiscount) {
+        quickOrderDiscountSummary.textContent = '쿠폰 적용';
+      } else {
+        quickOrderDiscountSummary.textContent = '마일리지 ' + formatPrice(quickOrderSelectedMileage);
+      }
+    }
+  }
+
+  function updateQuickOrderSlideState(enabled) {
+    var slide = document.getElementById('quickOrderSlide');
+    var thumb = document.getElementById('quickOrderSlideThumb');
+    var label = document.getElementById('quickOrderSlideLabel');
+    if (!slide || !thumb || !label) return;
+
+    quickOrderSlideEnabled = enabled;
+    slide.classList.toggle('is-enabled', enabled);
+    slide.classList.remove('is-dragging');
+    slide.classList.toggle('bg-[#edf2f7]', !enabled);
+    slide.classList.toggle('border-[#dbe7f5]', !enabled);
+    slide.classList.toggle('bg-[#ebf8ff]', enabled);
+    slide.classList.toggle('border-[#90cdf4]', enabled);
+    thumb.classList.toggle('text-[#718096]', !enabled);
+    thumb.classList.toggle('text-[#3182ce]', enabled);
+    label.classList.toggle('text-[#a0aec0]', !enabled);
+    label.classList.toggle('text-[#2d3748]', enabled);
+    label.textContent = enabled ? '밀어서 결제하기' : '배송지와 결제수단 저장 후 밀어서 결제하기';
+    thumb.style.left = '4px';
+  }
+
+  function renderQuickOrderSummary() {
+    if (!quickOrderItemCount || !quickOrderSubtotal || !quickOrderShippingFee || !quickOrderTotal) return;
+    var items = getCartSnapshot();
+    var totalCount = 0;
+    var subtotal = 0;
+    items.forEach(function (item) {
+      totalCount += item.quantity;
+      subtotal += item.totalPrice;
+    });
+    var shippingFee = items.length ? (subtotal >= 30000 ? 0 : 3000) : 0;
+    if (subtotal < quickOrderSelectedCouponMinTotal) {
+      quickOrderSelectedCouponId = 'none';
+      quickOrderSelectedCouponLabel = '적용된 쿠폰 없음';
+      quickOrderSelectedCouponDiscount = 0;
+      quickOrderSelectedCouponMinTotal = 0;
+    }
+    var maxMileage = Math.max(subtotal - quickOrderSelectedCouponDiscount, 0);
+    if (quickOrderSelectedMileage > maxMileage) {
+      quickOrderSelectedMileage = Math.min(3200, maxMileage);
+      if (quickOrderMileageInput) {
+        quickOrderMileageInput.value = String(quickOrderSelectedMileage);
+      }
+    }
+    var totalDiscount = quickOrderSelectedCouponDiscount + quickOrderSelectedMileage;
+    var totalPrice = Math.max(subtotal - totalDiscount, 0) + shippingFee;
+
+    quickOrderItemCount.textContent = totalCount + '개';
+    quickOrderSubtotal.textContent = formatPrice(subtotal);
+    quickOrderShippingFee.textContent = formatPrice(shippingFee);
+    if (quickOrderDiscount) {
+      quickOrderDiscount.textContent = '- ' + formatPrice(totalDiscount);
+    }
+    quickOrderTotal.textContent = formatPrice(totalPrice);
+    syncQuickOrderDiscountSummary();
+    updateQuickOrderCouponSelect(subtotal);
+
+    if (quickOrderPrimaryItem) {
+      if (!items.length) {
+        quickOrderPrimaryItem.textContent = '상품 정보 없음';
+      } else if (items.length === 1) {
+        quickOrderPrimaryItem.textContent = items[0].name;
+      } else {
+        quickOrderPrimaryItem.textContent = items[0].name + ' 외 ' + (items.length - 1) + '개 상품';
+      }
+    }
+
+    if (quickOrderCardSummary && quickOrderCardSummary.textContent.indexOf('등록된 결제수단이 없습니다') !== -1) {
+      quickOrderCardSummary.textContent = '등록된 결제수단이 없습니다';
+    }
+
+    applyQuickOrderLocalPreview();
+
+    var hasProfileInfo = !!(
+      (quickOrderRecipientSummary && quickOrderRecipientSummary.textContent.trim() && quickOrderRecipientSummary.textContent.indexOf('없습니다') === -1) &&
+      (quickOrderAddressSummary && quickOrderAddressSummary.textContent.trim() && quickOrderAddressSummary.textContent.indexOf('없습니다') === -1) &&
+      (quickOrderPhoneSummary && quickOrderPhoneSummary.textContent.trim() && quickOrderPhoneSummary.textContent.indexOf('없습니다') === -1)
+    );
+    var hasPaymentInfo = false;
+    if (quickOrderCardSummary) {
+      hasPaymentInfo = quickOrderCardSummary.textContent.trim().indexOf('없습니다') === -1;
+    }
+
+    updateQuickOrderSlideState(hasProfileInfo && hasPaymentInfo && items.length > 0);
+  }
+
+  window.openQuickOrderModal = function () {
+    if (!quickOrderModal) return;
+    renderQuickOrderSummary();
+    quickOrderModal.classList.add('is-open');
+  };
+
+  window.closeQuickOrderModal = function (e) {
+    if (!quickOrderModal) return;
+    if (e && e.target !== quickOrderModal) return;
+    quickOrderModal.classList.remove('is-open');
+  };
+
+  function normalizeQuickOrderPaymentMethod(value) {
+    var normalized = String(value || '').trim();
+    if (!normalized || normalized.indexOf('없습니다') !== -1) {
+      return '';
+    }
+    if (normalized.indexOf('카카오') !== -1) {
+      return '카카오페이 / 일시불';
+    }
+    if (normalized.indexOf('네이버') !== -1) {
+      return '네이버페이 / 일시불';
+    }
+    return '우리카드 1234 / 일시불';
+  }
+
+  function buildQuickOrderPayload() {
+    var addressText = quickOrderAddressSummary ? quickOrderAddressSummary.textContent.trim() : '';
+    var paymentMethod = quickOrderCardSummary ? quickOrderCardSummary.textContent.trim() : '';
+
+    return {
+      recipient_name: quickOrderRecipientSummary ? quickOrderRecipientSummary.textContent.trim() : '',
+      recipient_phone: quickOrderPhoneSummary ? quickOrderPhoneSummary.textContent.trim() : '',
+      delivery_address: addressText,
+      delivery_message: '',
+      payment_method: normalizeQuickOrderPaymentMethod(paymentMethod),
+      coupon_id: quickOrderSelectedCouponId || 'none',
+      mileage_amount: quickOrderSelectedMileage || 0,
     };
 
     window.deleteHistory = function (target) {

@@ -20,16 +20,40 @@ VENDOR_ADMIN_SESSION_KEY = vendor_page_impl.VENDOR_ADMIN_SESSION_KEY
 DEMO_VENDOR_ACCOUNTS = vendor_page_impl.DEMO_VENDOR_ACCOUNTS
 VENDOR_PRODUCT_SORT_OPTIONS = vendor_page_impl.VENDOR_PRODUCT_SORT_OPTIONS
 
-vendor_login_view = vendor_page_impl.vendor_login_view
-vendor_logout_view = vendor_page_impl.vendor_logout_view
-vendor_dashboard_view = vendor_page_impl.vendor_dashboard_view
-vendor_products_view = vendor_page_impl.vendor_products_view
-vendor_analytics_view = vendor_page_impl.vendor_analytics_view
-vendor_product_create_view = vendor_page_impl.vendor_product_create_view
-vendor_product_detail_view = vendor_page_impl.vendor_product_detail_view
-vendor_product_edit_view = vendor_page_impl.vendor_product_edit_view
-vendor_orders_view = vendor_page_impl.vendor_orders_view
-vendor_reviews_view = vendor_page_impl.vendor_reviews_view
+
+def _split_profile_address(address):
+    if not address:
+        return "", ""
+
+    parts = [part.strip() for part in address.split("|", 1)]
+    base_address = parts[0] if parts else ""
+    detail_address = parts[1] if len(parts) > 1 else ""
+    return base_address, detail_address
+
+
+def _get_profile(user):
+    profile, _ = UserProfile.objects.get_or_create(
+        user=user,
+        defaults={"nickname": build_unique_nickname(user.email.split("@")[0], exclude_user=user)},
+    )
+    return profile
+
+
+def _render_profile(request, profile):
+    address_main, address_detail = _split_profile_address(profile.address)
+    return render(
+        request,
+        "users/profile.html",
+        {
+            "profile": profile,
+            "profile_address_main": address_main,
+            "profile_address_detail": address_detail,
+            "profile_payment_method": profile.payment_method or "",
+            "social_accounts": {account.provider: account for account in request.user.social_accounts.all()},
+            "setup_mode": request.GET.get("setup") == "1",
+            "profile_preview": False,
+        },
+    )
 
 
 def home(request):
@@ -63,7 +87,55 @@ def logout_view(request):
 
 
 def profile_view(request):
-    return profile_page_impl.profile_view(request)
+    preview_mode = request.GET.get("preview") == "1" or not request.user.is_authenticated
+
+    if preview_mode:
+        preview_profile = SimpleNamespace(nickname="", phone="", marketing_consent=False)
+        preview_social_accounts = {
+            "kakao": SimpleNamespace(email="tailtalk_user@kakao.com"),
+        }
+        if request.method == "POST":
+            return redirect("pet_add")
+        return render(
+            request,
+            "users/profile.html",
+            {
+                "profile": preview_profile,
+                "profile_preview": True,
+                "social_accounts": preview_social_accounts,
+                "setup_mode": request.GET.get("setup") == "1",
+            },
+        )
+
+    profile = _get_profile(request.user)
+    if request.method == "POST":
+        setup_mode = request.GET.get("setup") == "1"
+        profile.nickname = request.POST.get("nickname", "").strip()
+        profile.phone = request.POST.get("phone", "").strip()
+        address_main = request.POST.get("address_main", "").strip()
+        address_detail = request.POST.get("address_detail", "").strip()
+        if address_main or address_detail:
+            profile.address = " | ".join(part for part in [address_main, address_detail] if part)
+        else:
+            profile.address = ""
+        profile.payment_method = request.POST.get("payment_method", "").strip()
+        profile.marketing_consent = request.POST.get("marketing") == "on"
+        nickname_error = get_nickname_validation_error(profile.nickname, exclude_user=request.user)
+        if nickname_error:
+            messages.error(request, nickname_error)
+            return _render_profile(request, profile)
+        try:
+            with transaction.atomic():
+                profile.save(update_fields=["nickname", "phone", "address", "payment_method", "marketing_consent", "updated_at"])
+        except IntegrityError:
+            messages.error(request, "이미 사용 중인 닉네임입니다.")
+            return _render_profile(request, profile)
+        messages.success(request, "프로필 정보가 저장되었습니다.")
+        if setup_mode:
+            return redirect("pet_add")
+        return redirect("profile")
+
+    return _render_profile(request, profile)
 
 
 def profile_withdraw_view(request):

@@ -227,293 +227,19 @@ class ProfilePageViewTests(TestCase):
         response = self.client.post(
             "/profile/",
             {
-                "nickname": "PageProfile2",
-                "zipcode": "12345",
+                "nickname": "PageProfile",
+                "phone": "01012341234",
                 "address_main": "서울 강동구 올림픽로 123",
                 "address_detail": "101동 1203호",
                 "payment_method": "카카오페이 / 일시불",
             },
         )
 
+        self.assertEqual(response.status_code, status.HTTP_302_FOUND)
         self.user.refresh_from_db()
-        self.assertIn(response.status_code, {status.HTTP_200_OK, status.HTTP_302_FOUND})
-        self.assertEqual(self.user.profile.nickname, "PageProfile2")
-        self.assertEqual(self.user.profile.recipient_name, "PageProfile2")
-        self.assertEqual(self.user.profile.postal_code, "12345")
-        self.assertEqual(self.user.profile.address_main, "서울 강동구 올림픽로 123")
-        self.assertEqual(self.user.profile.address_detail, "101동 1203호")
         self.assertEqual(self.user.profile.address, "서울 강동구 올림픽로 123 | 101동 1203호")
         self.assertEqual(self.user.profile.payment_method, "카카오페이 / 일시불")
 
-    def test_profile_post_requires_phone_verification_for_changed_phone(self):
-        response = self.client.post(
-            "/profile/",
-            {
-                "nickname": "PageProfile",
-                "phone": "01099998888",
-            },
-        )
-
-        self.assertEqual(response.status_code, status.HTTP_200_OK)
-        self.assertContains(response, "연락처 인증을 완료해 주세요.")
-
-    def test_profile_post_redirects_to_chat_when_pet_profile_is_missing_for_regular_edit(self):
-        response = self.client.post(
-            "/profile/",
-            {
-                "nickname": "PageProfile2",
-            },
-        )
-
-        self.assertEqual(response.status_code, status.HTTP_302_FOUND)
-        self.assertEqual(response["Location"], reverse("chat"))
-
-    def test_profile_post_redirects_to_pet_add_when_pet_profile_is_missing_in_setup_mode(self):
-        session = self.client.session
-        session[ONBOARDING_FORCE_PROFILE_SESSION_KEY] = True
-        session.save()
-
-        response = self.client.post(
-            f"{reverse('profile')}?setup=1",
-            {
-                "nickname": "PageProfile2",
-            },
-        )
-
-        self.assertEqual(response.status_code, status.HTTP_302_FOUND)
-        self.assertEqual(response["Location"], reverse("pet_add"))
-
-    def test_profile_post_redirects_to_chat_when_future_pet_profile_exists_in_setup_mode(self):
-        FuturePetProfile.objects.create(
-            user=self.user,
-            preferred_species="dog",
-            housing_type="apartment",
-            experience_level="first",
-            interests=["adoption"],
-        )
-        session = self.client.session
-        session[ONBOARDING_FORCE_PROFILE_SESSION_KEY] = True
-        session.save()
-
-        response = self.client.post(
-            f"{reverse('profile')}?setup=1",
-            {
-                "nickname": "PageProfile2",
-            },
-        )
-
-        self.assertEqual(response.status_code, status.HTTP_302_FOUND)
-        self.assertEqual(response["Location"], reverse("chat"))
-
-    def test_profile_post_redirects_to_chat_when_pet_profile_exists_in_setup_mode(self):
-        Pet.objects.create(
-            user=self.user,
-            name="코코",
-            species="dog",
-            breed="말티즈",
-            gender="male",
-            age_years=3,
-            age_months=0,
-            weight_kg=3.2,
-            budget_range="10-20",
-        )
-        session = self.client.session
-        session[ONBOARDING_FORCE_PROFILE_SESSION_KEY] = True
-        session.save()
-
-        response = self.client.post(
-            f"{reverse('profile')}?setup=1",
-            {
-                "nickname": "PageProfile2",
-            },
-        )
-
-        self.assertEqual(response.status_code, status.HTTP_302_FOUND)
-        self.assertEqual(response["Location"], reverse("chat"))
-
-
-class VendorAdminPageTests(TestCase):
-    def setUp(self):
-        self.client = self.client_class()
-        self.product = Product.objects.create(
-            goods_id="GI-VENDOR-1",
-            goods_name="오리젠 오리지널 독",
-            brand_name="오리젠",
-            price=54000,
-            discount_price=49900,
-            rating=4.8,
-            review_count=128,
-            thumbnail_url="https://example.com/orijen-thumb.png",
-            product_url="https://example.com/orijen-product",
-            soldout_yn=False,
-            pet_type=["강아지"],
-            category=["사료"],
-            crawled_at=timezone.now(),
-        )
-        Product.objects.create(
-            goods_id="GI-VENDOR-2",
-            goods_name="다른 브랜드 상품",
-            brand_name="로얄캐닌",
-            price=46000,
-            discount_price=42000,
-            rating=4.6,
-            review_count=98,
-            thumbnail_url="https://example.com/other-thumb.png",
-            product_url="https://example.com/other-product",
-            soldout_yn=False,
-            pet_type=["강아지"],
-            category=["사료"],
-            crawled_at=timezone.now(),
-        )
-
-    def test_vendor_login_page_renders(self):
-        response = self.client.get(reverse("vendor-login"))
-
-        self.assertEqual(response.status_code, status.HTTP_200_OK)
-        self.assertContains(response, "관리자 로그인")
-
-    def test_vendor_login_post_sets_session_and_redirects_to_dashboard(self):
-        response = self.client.post(
-            reverse("vendor-login"),
-            {"login_id": "orijen", "password": "tailtalk2026!"},
-        )
-
-        self.assertEqual(response.status_code, status.HTTP_302_FOUND)
-        self.assertEqual(response["Location"], reverse("vendor-dashboard"))
-        session = self.client.session
-        self.assertEqual(session.get("tailtalk_vendor_admin_id"), "orijen")
-
-    def test_vendor_login_post_shows_error_for_invalid_credentials(self):
-        response = self.client.post(
-            reverse("vendor-login"),
-            {"login_id": "orijen", "password": "wrong-password"},
-        )
-
-        self.assertEqual(response.status_code, status.HTTP_200_OK)
-        self.assertContains(response, "아이디 또는 비밀번호를 확인해 주세요")
-
-    def test_vendor_dashboard_requires_vendor_session(self):
-        response = self.client.get(reverse("vendor-dashboard"))
-
-        self.assertEqual(response.status_code, status.HTTP_302_FOUND)
-        self.assertEqual(response["Location"], reverse("vendor-login"))
-
-    def test_vendor_dashboard_renders_vendor_brand_metrics(self):
-        session = self.client.session
-        session["tailtalk_vendor_admin_id"] = "orijen"
-        session.save()
-
-        response = self.client.get(reverse("vendor-dashboard"))
-
-        self.assertEqual(response.status_code, status.HTTP_200_OK)
-        self.assertContains(response, "대시보드")
-        self.assertContains(response, "처리 대기함")
-        self.assertContains(response, "확인 필요 상품")
-        self.assertContains(response, "상위 성과 상품")
-        self.assertContains(response, reverse("vendor-product-detail", args=["GI-VENDOR-1"]))
-        self.assertContains(response, "상품 등록")
-        self.assertContains(response, "취소/교환/반품")
-        self.assertContains(response, "고객문의 / CS")
-
-    def test_vendor_products_filters_to_vendor_brand(self):
-        session = self.client.session
-        session["tailtalk_vendor_admin_id"] = "orijen"
-        session.save()
-
-        response = self.client.get(reverse("vendor-products"))
-
-        self.assertEqual(response.status_code, status.HTTP_200_OK)
-        self.assertContains(response, "오리젠 오리지널 독")
-        self.assertNotContains(response, "다른 브랜드 상품")
-        self.assertContains(response, reverse("vendor-product-detail", args=["GI-VENDOR-1"]))
-        self.assertContains(response, "운영 상품")
-        self.assertContains(response, "전체")
-        self.assertContains(response, "판매중")
-
-    def test_vendor_product_detail_requires_vendor_session(self):
-        response = self.client.get(reverse("vendor-product-detail", args=["GI-VENDOR-1"]))
-
-        self.assertEqual(response.status_code, status.HTTP_302_FOUND)
-        self.assertEqual(response["Location"], reverse("vendor-login"))
-
-    def test_vendor_product_detail_renders_admin_sections(self):
-        session = self.client.session
-        session["tailtalk_vendor_admin_id"] = "orijen"
-        session.save()
-
-        response = self.client.get(reverse("vendor-product-detail", args=["GI-VENDOR-1"]))
-
-        self.assertEqual(response.status_code, status.HTTP_200_OK)
-        self.assertContains(response, "오리젠 오리지널 독")
-        self.assertContains(response, "운영 체크 포인트")
-        self.assertContains(response, reverse("vendor-product-edit", args=["GI-VENDOR-1"]))
-
-    def test_vendor_product_detail_blocks_other_brand_product(self):
-        session = self.client.session
-        session["tailtalk_vendor_admin_id"] = "orijen"
-        session.save()
-
-        response = self.client.get(reverse("vendor-product-detail", args=["GI-VENDOR-2"]))
-
-        self.assertEqual(response.status_code, status.HTTP_404_NOT_FOUND)
-
-    def test_vendor_product_create_requires_vendor_session(self):
-        response = self.client.get(reverse("vendor-product-create"))
-
-        self.assertEqual(response.status_code, status.HTTP_302_FOUND)
-        self.assertEqual(response["Location"], reverse("vendor-login"))
-
-    def test_vendor_product_create_renders_form_sections(self):
-        session = self.client.session
-        session["tailtalk_vendor_admin_id"] = "orijen"
-        session.save()
-
-        response = self.client.get(reverse("vendor-product-create"))
-
-        self.assertEqual(response.status_code, status.HTTP_200_OK)
-        self.assertContains(response, "상품 등록")
-        self.assertContains(response, "직접 입력")
-        self.assertContains(response, "파일 업로드")
-
-    def test_vendor_analytics_renders_metrics(self):
-        session = self.client.session
-        session["tailtalk_vendor_admin_id"] = "orijen"
-        session.save()
-
-        response = self.client.get(reverse("vendor-analytics"))
-
-        self.assertEqual(response.status_code, status.HTTP_200_OK)
-        self.assertContains(response, "통계")
-        self.assertContains(response, "퍼널")
-        self.assertContains(response, "우선 액션")
-
-    def test_vendor_orders_requires_vendor_session(self):
-        response = self.client.get(reverse("vendor-orders"))
-
-        self.assertEqual(response.status_code, status.HTTP_302_FOUND)
-        self.assertEqual(response["Location"], reverse("vendor-login"))
-
-    def test_vendor_orders_renders_mock_items(self):
-        session = self.client.session
-        session["tailtalk_vendor_admin_id"] = "orijen"
-        session.save()
-
-        response = self.client.get(f"{reverse('vendor-orders')}?focus=refund")
-
-        self.assertEqual(response.status_code, status.HTTP_200_OK)
-        self.assertContains(response, "주문 관리")
-        self.assertContains(response, "취소/환불")
-
-    def test_vendor_reviews_renders_mock_items(self):
-        session = self.client.session
-        session["tailtalk_vendor_admin_id"] = "orijen"
-        session.save()
-
-        response = self.client.get(f"{reverse('vendor-reviews')}?focus=pending")
-
-        self.assertEqual(response.status_code, status.HTTP_200_OK)
-        self.assertContains(response, "리뷰 관리")
-        self.assertContains(response, "배송이 빨라서 재구매 의향이 있어요")
 
 class UserProfileApiTests(TestCase):
     def setUp(self):
@@ -535,12 +261,8 @@ class UserProfileApiTests(TestCase):
             {
                 "nickname": "UpdatedUser",
                 "phone": "01012341234",
-                "postal_code": "12345",
-                "address_main": "서울 강동구 올림픽로 123",
-                "address_detail": "101동 1203호",
-                "payment_method": "현대카드 M / 1234 **** **** 5678",
-                "payment_card_provider": "현대카드 M",
-                "payment_card_masked_number": "1234 **** **** 5678",
+                "address": "서울 강동구 올림픽로 123 | 101동 1203호",
+                "payment_method": "네이버페이 / 일시불",
                 "marketing_consent": True,
             },
             format="json",
@@ -551,13 +273,8 @@ class UserProfileApiTests(TestCase):
         self.assertEqual(self.user.profile.nickname, "UpdatedUser")
         self.assertEqual(self.user.profile.recipient_name, "UpdatedUser")
         self.assertEqual(self.user.profile.phone, "01012341234")
-        self.assertEqual(self.user.profile.postal_code, "12345")
-        self.assertEqual(self.user.profile.address_main, "서울 강동구 올림픽로 123")
-        self.assertEqual(self.user.profile.address_detail, "101동 1203호")
         self.assertEqual(self.user.profile.address, "서울 강동구 올림픽로 123 | 101동 1203호")
-        self.assertEqual(self.user.profile.payment_method, "현대카드 M / 1234 **** **** 5678")
-        self.assertEqual(self.user.profile.payment_card_provider, "현대카드 M")
-        self.assertEqual(self.user.profile.payment_card_masked_number, "1234 **** **** 5678")
+        self.assertEqual(self.user.profile.payment_method, "네이버페이 / 일시불")
         self.assertTrue(self.user.profile.marketing_consent)
 
     def test_get_quick_purchase_defaults_returns_structured_profile_data(self):
