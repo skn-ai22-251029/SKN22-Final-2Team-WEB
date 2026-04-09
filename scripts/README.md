@@ -81,6 +81,24 @@ bash scripts/aws/start_test_rds_dbeaver_tunnel.sh
 
 ---
 
+### compare_prod_local_db.py — 추천 메타데이터 fill rate 비교
+
+운영 DB와 로컬 DB의 `product` 메타데이터 fill rate를 비교할 때 사용합니다.
+추천 장애가 났거나 배포 전 `pet_type`, `category`, `subcategory` 누락 여부를 확인할 때 우선 실행합니다.
+
+```bash
+# 운영 DB DSN만 넘기면 로컬은 deploy/local/.env 기준으로 자동 구성
+export PROD_DATABASE_URL='postgresql://tailtalk:<PASSWORD>@127.0.0.1:15432/tailtalk'
+python scripts/compare_prod_local_db.py --tables product
+
+# product + review 같이 확인
+python scripts/compare_prod_local_db.py --tables product,review
+```
+
+상세 기준과 복구 절차는 `docs/infra/11_prod_local_db_compare_runbook.md` 문서를 참고합니다.
+
+---
+
 ## 팀원 온보딩 (처음 셋업)
 
 ```bash
