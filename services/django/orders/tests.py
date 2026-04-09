@@ -9,6 +9,7 @@ from rest_framework import status
 from rest_framework.test import APIClient
 
 from chat.models import ChatMessage, ChatMessageRecommendation, ChatSession
+from orders.management.commands.seed_vendor_demo_metrics import _slugify_label
 from products.models import Product
 from users.models import User, UserProfile
 
@@ -776,9 +777,10 @@ class SeedVendorDemoMetricsCommandTests(TestCase):
         )
 
         output = stdout.getvalue()
+        demo_user_prefix = f"seed-{_slugify_label('오리젠')}-"
         self.assertIn("Seeded vendor demo metrics for 오리젠", output)
-        self.assertTrue(User.objects.filter(email__startswith="seed-orijen-").exists())
-        self.assertTrue(UserProfile.objects.filter(user__email__startswith="seed-orijen-").exists())
+        self.assertTrue(User.objects.filter(email__startswith=demo_user_prefix).exists())
+        self.assertTrue(UserProfile.objects.filter(user__email__startswith=demo_user_prefix).exists())
 
         self.assertGreater(UserInteraction.objects.filter(product__brand_name="오리젠").count(), 0)
         self.assertGreater(OrderItem.objects.filter(product__brand_name="오리젠").count(), 0)

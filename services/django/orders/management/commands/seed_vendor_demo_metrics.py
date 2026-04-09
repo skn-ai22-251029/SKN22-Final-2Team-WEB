@@ -22,7 +22,19 @@ FREE_SHIPPING_THRESHOLD = 30000
 
 
 def _slugify_label(value):
-    return re.sub(r"[^a-z0-9]+", "-", str(value or "").strip().lower()).strip("-") or "vendor"
+    normalized = str(value or "").strip().lower()
+    if not normalized:
+        return "vendor"
+
+    ascii_slug = re.sub(r"[^a-z0-9]+", "-", normalized).strip("-")
+    if ascii_slug:
+        return ascii_slug
+
+    unicode_slug = "-".join(
+        char if char.isascii() and char.isalnum() else f"u{ord(char):x}"
+        for char in normalized
+    )
+    return re.sub(r"[^a-z0-9-]+", "-", unicode_slug).strip("-") or "vendor"
 
 
 class Command(BaseCommand):
