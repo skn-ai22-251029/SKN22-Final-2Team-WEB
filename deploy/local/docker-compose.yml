@@ -1,25 +1,21 @@
 name: tailtalk
 
 services:
-
-  # ── 리버스 프록시 ────────────────────────────────────────────────────────────
   nginx:
     image: nginx:alpine
     platform: linux/amd64
     ports:
       - "80:80"
     volumes:
-      - ./nginx/nginx.conf:/etc/nginx/nginx.conf:ro
+      - ../eb/test-django/nginx/nginx.conf:/etc/nginx/nginx.conf:ro
       - django_static:/var/www/static:ro
     depends_on:
       - django
-      - fastapi
     restart: unless-stopped
 
-  # ── Django (Auth / User / Pet / Order / Admin) ───────────────────────────────
   django:
     image: tailtalk-django:latest
-    build: ../services/django
+    build: ../../services/django
     platform: linux/amd64
     command: >
       sh -c "python manage.py migrate --noinput &&
@@ -30,16 +26,21 @@ services:
     environment:
       DJANGO_SECRET_KEY: ${DJANGO_SECRET_KEY}
       DJANGO_DEBUG: ${DJANGO_DEBUG:-False}
-      DJANGO_ALLOWED_HOSTS: ${DJANGO_ALLOWED_HOSTS:-localhost}
+      DJANGO_ALLOWED_HOSTS: ${DJANGO_ALLOWED_HOSTS:-localhost,127.0.0.1}
       APP_BASE_URL: ${APP_BASE_URL:-}
       FASTAPI_INTERNAL_CHAT_URL: ${FASTAPI_INTERNAL_CHAT_URL:-http://fastapi:8001/api/chat/}
+      FASTAPI_INTERNAL_RECOMMEND_URL: ${FASTAPI_INTERNAL_RECOMMEND_URL:-http://fastapi:8001/api/recommend/}
       INTERNAL_SERVICE_TOKEN: ${INTERNAL_SERVICE_TOKEN:-dev-internal-token}
+      FASTAPI_STREAM_CONNECT_TIMEOUT: ${FASTAPI_STREAM_CONNECT_TIMEOUT:-5}
+      FASTAPI_STREAM_READ_TIMEOUT: ${FASTAPI_STREAM_READ_TIMEOUT:-25}
+      FASTAPI_STREAM_WRITE_TIMEOUT: ${FASTAPI_STREAM_WRITE_TIMEOUT:-10}
+      FASTAPI_STREAM_POOL_TIMEOUT: ${FASTAPI_STREAM_POOL_TIMEOUT:-5}
       POSTGRES_DB: ${POSTGRES_DB}
       POSTGRES_USER: ${POSTGRES_USER}
       POSTGRES_PASSWORD: ${POSTGRES_PASSWORD}
       POSTGRES_HOST: ${POSTGRES_HOST:-postgres}
       POSTGRES_PORT: ${POSTGRES_PORT:-5432}
-      CORS_ALLOWED_ORIGINS: ${CORS_ALLOWED_ORIGINS}
+      CORS_ALLOWED_ORIGINS: ${CORS_ALLOWED_ORIGINS:-}
       GOOGLE_CLIENT_ID: ${GOOGLE_CLIENT_ID:-}
       GOOGLE_CLIENT_SECRET: ${GOOGLE_CLIENT_SECRET:-}
       NAVER_CLIENT_ID: ${NAVER_CLIENT_ID:-}
@@ -47,15 +48,19 @@ services:
       KAKAO_CLIENT_ID: ${KAKAO_CLIENT_ID:-}
       KAKAO_CLIENT_SECRET: ${KAKAO_CLIENT_SECRET:-}
       SOCIAL_AUTH_REQUESTS_TIMEOUT: ${SOCIAL_AUTH_REQUESTS_TIMEOUT:-10}
-      DJANGO_SECURE_SSL_REDIRECT: ${DJANGO_SECURE_SSL_REDIRECT:-False}
-      DJANGO_SESSION_COOKIE_SECURE: ${DJANGO_SESSION_COOKIE_SECURE:-False}
-      DJANGO_CSRF_COOKIE_SECURE: ${DJANGO_CSRF_COOKIE_SECURE:-False}
+      JUSO_CONFIRM_KEY: ${JUSO_CONFIRM_KEY:-}
       AWS_S3_BUCKET_NAME: ${AWS_S3_BUCKET_NAME:-}
-      AWS_S3_REGION_NAME: ${AWS_S3_REGION_NAME:-}
+      AWS_S3_REGION_NAME: ${AWS_S3_REGION_NAME:-ap-northeast-2}
       AWS_S3_CUSTOM_DOMAIN: ${AWS_S3_CUSTOM_DOMAIN:-}
       AWS_S3_ENDPOINT_URL: ${AWS_S3_ENDPOINT_URL:-}
       AWS_ACCESS_KEY_ID: ${AWS_ACCESS_KEY_ID:-}
       AWS_SECRET_ACCESS_KEY: ${AWS_SECRET_ACCESS_KEY:-}
+      DJANGO_SECURE_SSL_REDIRECT: ${DJANGO_SECURE_SSL_REDIRECT:-False}
+      DJANGO_SESSION_COOKIE_SECURE: ${DJANGO_SESSION_COOKIE_SECURE:-False}
+      DJANGO_CSRF_COOKIE_SECURE: ${DJANGO_CSRF_COOKIE_SECURE:-False}
+      DJANGO_CSRF_TRUSTED_ORIGINS: ${DJANGO_CSRF_TRUSTED_ORIGINS:-}
+    ports:
+      - "8000:8000"
     expose:
       - "8000"
     depends_on:
@@ -63,10 +68,9 @@ services:
         condition: service_healthy
     restart: unless-stopped
 
-  # ── FastAPI (챗봇 / 추천) ────────────────────────────────────────────────────
   fastapi:
     image: tailtalk-fastapi:latest
-    build: ../services/fastapi
+    build: ../../services/fastapi
     platform: linux/amd64
     command: uvicorn main:app --host 0.0.0.0 --port 8001 --workers 2
     environment:
@@ -81,6 +85,8 @@ services:
       LANGSMITH_PROJECT: ${LANGSMITH_PROJECT:-}
       LANGSMITH_ENDPOINT: ${LANGSMITH_ENDPOINT:-}
       LANGSMITH_WORKSPACE_ID: ${LANGSMITH_WORKSPACE_ID:-}
+    ports:
+      - "8001:8001"
     expose:
       - "8001"
     depends_on:
@@ -88,7 +94,6 @@ services:
         condition: service_healthy
     restart: unless-stopped
 
-  # ── PostgreSQL 16 ────────────────────────────────────────────────────────────
   postgres:
     image: pgvector/pgvector:pg16
     platform: linux/amd64
@@ -101,7 +106,7 @@ services:
     expose:
       - "5432"
     ports:
-      - 5432:5432
+      - "5432:5432"
     healthcheck:
       test: ["CMD-SHELL", "pg_isready -U ${POSTGRES_USER} -d ${POSTGRES_DB}"]
       interval: 10s

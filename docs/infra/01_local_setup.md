@@ -33,10 +33,10 @@ wsl --install
 ## 2. 환경 변수 설정
 
 ```bash
-cp infra/.env.example infra/.env
+cp deploy/local/.env.example deploy/local/.env
 ```
 
-`infra/.env` 파일을 열어 아래 항목을 채운다:
+`deploy/local/.env` 파일을 열어 아래 항목을 채운다:
 
 ```env
 POSTGRES_PASSWORD=원하는_패스워드
@@ -58,8 +58,7 @@ python -c "import secrets; print(secrets.token_urlsafe(50))"
 ### 전체 스택 실행
 
 ```bash
-cd infra
-docker compose up -d
+docker compose -f deploy/local/docker-compose.yml up -d
 ```
 
 처음 실행 시 DockerHub에서 이미지를 pull한다.
@@ -67,9 +66,8 @@ docker compose up -d
 ### 코드 수정 후 반영
 
 ```bash
-cd infra
-docker compose build django   # 또는 fastapi
-docker compose up -d
+docker compose -f deploy/local/docker-compose.yml build django   # 또는 fastapi
+docker compose -f deploy/local/docker-compose.yml up -d
 ```
 
 ### down이 필요한 경우
@@ -84,11 +82,11 @@ docker compose down -v && docker compose up -d
 
 ### 서비스 직접 실행 (핫리로드, 빠른 개발)
 
-> `infra/.env`의 `POSTGRES_HOST=postgres` → `POSTGRES_HOST=localhost`로 변경 후 실행
+> `deploy/local/.env`의 `POSTGRES_HOST=postgres` → `POSTGRES_HOST=localhost`로 변경 후 실행
 
 ```bash
 # DB만 Docker로 실행
-cd infra && docker compose up -d postgres
+docker compose -f deploy/local/docker-compose.yml up -d postgres
 
 # Django (터미널 1)
 cd services/django
@@ -164,7 +162,7 @@ docker compose logs django
 
 ### DB 연결 오류
 
-`infra/.env`의 `POSTGRES_*` 값이 올바른지 확인. 변경 후 재시작:
+`deploy/local/.env`의 `POSTGRES_*` 값이 올바른지 확인. 변경 후 재시작:
 
 ```bash
 docker compose down && docker compose up -d

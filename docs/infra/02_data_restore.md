@@ -23,7 +23,7 @@
 
 ```bash
 # 1. 전체 서비스 실행 (migrate 자동 적용)
-cd infra && docker compose up -d
+docker compose -f deploy/local/docker-compose.yml up -d
 
 # 2. 최신 덤프 자동 선택 복원
 ./scripts/restore_postgres.sh
@@ -46,7 +46,7 @@ cd infra && docker compose up -d
 
 ```bash
 # 1. 전체 서비스 실행 (docker compose up -d 이미 실행했다면 생략)
-cd infra && docker compose up -d
+docker compose -f deploy/local/docker-compose.yml up -d
 
 # 2. 전체 복원 (최신 스냅샷 자동 선택)
 ./scripts/restore_qdrant.sh

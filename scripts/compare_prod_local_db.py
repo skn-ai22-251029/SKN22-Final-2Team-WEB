@@ -112,7 +112,7 @@ def parse_args() -> argparse.Namespace:
     )
     parser.add_argument(
         "--local-env-file",
-        default="infra/.env",
+        default="deploy/local/.env",
         help="Fallback env file for building the local DSN when --local-dsn is omitted",
     )
     return parser.parse_args()

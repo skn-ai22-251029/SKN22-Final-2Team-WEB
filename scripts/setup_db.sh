@@ -4,7 +4,7 @@
 #
 # 사전 조건:
 #   - docker compose 실행 가능
-#   - infra/.env 설정 완료 (POSTGRES_DB, POSTGRES_USER, POSTGRES_PASSWORD)
+#   - deploy/local/.env 설정 완료 (POSTGRES_DB, POSTGRES_USER, POSTGRES_PASSWORD)
 #
 # 사용법:
 #   bash scripts/setup_db.sh                          # dump/ 에서 최신 .dump 자동 선택
@@ -20,8 +20,8 @@ set -euo pipefail
 
 SCRIPT_DIR="$(cd "$(dirname "$0")" && pwd)"
 PROJECT_ROOT="$(cd "$SCRIPT_DIR/.." && pwd)"
-INFRA_DIR="$PROJECT_ROOT/infra"
-COMPOSE_FILE="$INFRA_DIR/docker-compose.yml"
+LOCAL_DIR="$PROJECT_ROOT/deploy/local"
+COMPOSE_FILE="$LOCAL_DIR/docker-compose.yml"
 
 # ── 인자 파싱 ──
 DATA_ONLY=false
@@ -52,12 +52,12 @@ DUMP_FILE="$(cd "$(dirname "$DUMP_FILE")" && pwd)/$(basename "$DUMP_FILE")"
 echo "dump: $(basename "$DUMP_FILE") ($(du -h "$DUMP_FILE" | cut -f1))"
 
 # ── .env 로드 ──
-if [ -f "$INFRA_DIR/.env" ]; then
+if [ -f "$LOCAL_DIR/.env" ]; then
     set -a
-    source "$INFRA_DIR/.env"
+    source "$LOCAL_DIR/.env"
     set +a
 else
-    echo "ERROR: infra/.env 파일이 없습니다. infra/.env.example을 복사하여 설정하세요."
+    echo "ERROR: deploy/local/.env 파일이 없습니다. deploy/local/.env.example을 복사하여 설정하세요."
     exit 1
 fi
 

@@ -8,7 +8,7 @@ output/domain/ Parquet → PostgreSQL domain_qna / breed_meta 테이블 적재
 
 실행:
   # Docker (권장)
-  docker compose -f infra/docker-compose.yml run --rm \
+  docker compose -f deploy/local/docker-compose.yml run --rm \
       -v $(pwd)/output:/app/output \
       -v $(pwd)/scripts:/app/scripts \
       django python scripts/domain/ingest_domain_postgres.py --table all
@@ -39,7 +39,7 @@ from dotenv import load_dotenv
 
 # -- 환경변수 로드 ----------------------------------------------------------------
 
-load_dotenv(Path(__file__).resolve().parents[2] / "infra" / ".env")
+load_dotenv(Path(__file__).resolve().parents[2] / "deploy" / "local" / ".env")
 
 DB_CONFIG = {
     "dbname":   os.getenv("POSTGRES_DB",       "tailtalk_db"),

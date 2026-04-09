@@ -134,10 +134,10 @@ services/django/
 | Django Backend (Auth/API) | `services/django/` |
 | Django Frontend (Templates) | `services/django/templates/`, `services/django/static/` |
 | FastAPI (챗봇/추천) | `services/fastapi/` |
-| 인프라 공통 | `infra/` |
+| 인프라 공통 | `deploy/local/`, `deploy/eb/` |
 
 > 본인 담당 서비스 외 디렉토리는 되도록 건드리지 않는다.
-> 공통 설정(`infra/docker-compose.yml`, `.env.example` 등) 변경 시 팀에 공유할 것.
+> 공통 설정(`deploy/local/docker-compose.yml`, `.env.example` 등) 변경 시 팀에 공유할 것.
 
 ---
 

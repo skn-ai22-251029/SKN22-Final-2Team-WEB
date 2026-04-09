@@ -150,13 +150,13 @@ LIMIT 20;
 
 ```bash
 # Docker (권장)
-docker compose -f infra/docker-compose.yml run --rm \
+docker compose -f deploy/local/docker-compose.yml run --rm \
     -v $(pwd)/output:/app/output \
     -v $(pwd)/scripts:/app/scripts \
     django python scripts/ingest_postgres.py
 
 # 벡터만 재생성
-docker compose -f infra/docker-compose.yml run --rm \
+docker compose -f deploy/local/docker-compose.yml run --rm \
     -v $(pwd)/output:/app/output \
     -v $(pwd)/scripts:/app/scripts \
     django python scripts/ingest_postgres.py --only vectors
@@ -175,7 +175,7 @@ POSTGRES_HOST=localhost conda run -n final-project python scripts/ingest_postgre
 | pgvector 확장 | `CREATE EXTENSION vector` (PostgreSQL 15+ 권장) |
 | fastembed | `intfloat/multilingual-e5-large` 모델 (최초 실행 시 다운로드) |
 | kiwipiepy | 한국어 형태소 분석기 (`pip install kiwipiepy`) |
-| `infra/.env` | DB 접속 정보 |
+| `deploy/local/.env` | DB 접속 정보 |
 
 ---
 

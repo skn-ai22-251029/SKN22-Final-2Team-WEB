@@ -409,8 +409,8 @@ test ! -e "$dest/.test-deploy/.env"
 ### Django
 
 ```bash
-docker compose -f infra/docker-compose.yml build django
-docker compose -f infra/docker-compose.yml run --rm django python manage.py test
+docker compose -f deploy/local/docker-compose.yml build django
+docker compose -f deploy/local/docker-compose.yml run --rm django python manage.py test
 ```
 
 ### FastAPI

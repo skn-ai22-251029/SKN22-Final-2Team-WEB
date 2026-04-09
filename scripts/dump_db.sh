@@ -13,16 +13,16 @@ set -euo pipefail
 
 SCRIPT_DIR="$(cd "$(dirname "$0")" && pwd)"
 PROJECT_ROOT="$(cd "$SCRIPT_DIR/.." && pwd)"
-INFRA_DIR="$PROJECT_ROOT/infra"
-COMPOSE_FILE="$INFRA_DIR/docker-compose.yml"
+LOCAL_DIR="$PROJECT_ROOT/deploy/local"
+COMPOSE_FILE="$LOCAL_DIR/docker-compose.yml"
 
 # .env 로드
-if [ -f "$INFRA_DIR/.env" ]; then
+if [ -f "$LOCAL_DIR/.env" ]; then
     set -a
-    source "$INFRA_DIR/.env"
+    source "$LOCAL_DIR/.env"
     set +a
 else
-    echo "ERROR: infra/.env 파일이 없습니다."
+    echo "ERROR: deploy/local/.env 파일이 없습니다."
     exit 1
 fi
 
@@ -43,7 +43,7 @@ fi
 # postgres 컨테이너 확인
 if ! docker compose -f "$COMPOSE_FILE" exec -T postgres pg_isready -U "$DB_USER" -d "$DB_NAME" > /dev/null 2>&1; then
     echo "ERROR: postgres 컨테이너가 실행 중이 아닙니다."
-    echo "  docker compose -f infra/docker-compose.yml up -d postgres"
+    echo "  docker compose -f deploy/local/docker-compose.yml up -d postgres"
     exit 1
 fi
 
