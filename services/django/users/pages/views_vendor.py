@@ -761,7 +761,7 @@ def vendor_dashboard_view(request):
                 "revenue": row.get("revenue", 0) or 0,
             }
         )
-    max_trend_value = max((point["value"] for point in trend_points), default=1)
+    max_trend_value = max((point["value"] for point in trend_points), default=0) or 1
     for point in trend_points:
         point["height_percent"] = max(18, int(point["value"] / max_trend_value * 100))
         point["revenue_label"] = _format_vendor_price(point["revenue"])
