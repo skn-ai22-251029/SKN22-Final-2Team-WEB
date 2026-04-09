@@ -123,6 +123,8 @@ class WishlistApiTests(TestCase):
         self.assertEqual(response.status_code, status.HTTP_201_CREATED)
         self.assertEqual(response.data["wishlist_item"]["product_id"], self.product.goods_id)
         self.assertTrue(WishlistItem.objects.filter(wishlist__user=self.user, product=self.product).exists())
+        interaction = UserInteraction.objects.get(user=self.user, product=self.product, interaction_type="wishlist")
+        self.assertEqual(interaction.weight, 1)
 
     def test_delete_wishlist_removes_item(self):
         self.client.post("/api/orders/wishlist/", {"product_id": self.product.goods_id}, format="json")
@@ -169,6 +171,20 @@ class InteractionApiTests(TestCase):
         self.assertEqual(interaction.weight, 1)
         self.assertEqual(response.data["interaction"]["product_id"], self.product.goods_id)
         self.assertEqual(response.data["interaction"]["interaction_type"], "click")
+
+    def test_post_interaction_logs_impression(self):
+        response = self.client.post(
+            "/api/orders/interactions/",
+            {
+                "product_id": self.product.goods_id,
+                "interaction_type": "impression",
+            },
+            format="json",
+        )
+
+        self.assertEqual(response.status_code, status.HTTP_201_CREATED)
+        interaction = UserInteraction.objects.get(user=self.user, product=self.product, interaction_type="impression")
+        self.assertEqual(interaction.weight, 1)
 
     def test_post_interaction_logs_reject(self):
         response = self.client.post(

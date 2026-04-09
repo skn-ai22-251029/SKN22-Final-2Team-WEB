@@ -390,10 +390,12 @@ def _serialize_order_completion(order):
         total_quantity += item.quantity
         items.append(
             {
+                "product_id": item.product.goods_id,
                 "name": _display_product_name(item.product.brand_name, item.product.goods_name),
                 "brand": item.product.brand_name,
                 "thumbnail_url": item.product.thumbnail_url,
                 "quantity": item.quantity,
+                "unit_price_raw": int(item.price_at_order),
                 "line_total": _format_price(item.price_at_order * item.quantity),
             }
         )
@@ -412,7 +414,9 @@ def _serialize_order_completion(order):
         "coupon_discount": _format_price(order.coupon_discount),
         "mileage_discount": _format_price(order.mileage_discount),
         "shipping_fee": "무료" if order.shipping_fee == 0 else _format_price(order.shipping_fee),
+        "shipping_fee_raw": int(order.shipping_fee),
         "total_price": _format_price(order.total_price),
+        "total_price_raw": int(order.total_price),
         "item_count": total_quantity,
         "items": items,
         "primary_item_name": items[0]["name"] if items else "주문 상품",

@@ -3,10 +3,11 @@ from datetime import date, timedelta
 from decimal import Decimal, InvalidOperation
 from urllib.parse import urlencode
 
-from django.db.models import Avg, Sum
+from django.db.models import Avg, Count, F, IntegerField, Sum
 from django.shortcuts import get_object_or_404, redirect, render
 from django.urls import reverse
 
+from orders.models import OrderItem, UserInteraction
 from products.catalog_menu import build_catalog_menu_context
 from products.models import Product
 
@@ -943,7 +944,8 @@ def vendor_analytics_view(request):
     if base_context is None:
         return redirect("vendor-login")
 
-    vendor_products = Product.objects.filter(brand_name=base_context["vendor_account"]["brand_name"])
+    brand_name = base_context["vendor_account"]["brand_name"]
+    vendor_products = Product.objects.filter(brand_name=brand_name)
     demo_soldout_goods_ids = _get_demo_soldout_goods_ids(vendor_products)
     demo_pending_goods_ids = _get_demo_pending_goods_ids(vendor_products, demo_soldout_goods_ids)
     total_products = vendor_products.count()
@@ -953,12 +955,26 @@ def vendor_analytics_view(request):
     total_reviews = vendor_products.aggregate(total=Sum("review_count"))["total"] or 0
     average_rating = vendor_products.exclude(rating__isnull=True).aggregate(avg=Avg("rating"))["avg"]
     average_discount_price = vendor_products.aggregate(avg=Avg("discount_price"))["avg"]
-    average_popularity = vendor_products.exclude(popularity_score__isnull=True).aggregate(avg=Avg("popularity_score"))["avg"]
-    average_repeat_rate = vendor_products.exclude(repeat_rate__isnull=True).aggregate(avg=Avg("repeat_rate"))["avg"]
-    average_sentiment = vendor_products.exclude(sentiment_avg__isnull=True).aggregate(avg=Avg("sentiment_avg"))["avg"]
     average_price_purchase = vendor_products.exclude(aspect_price_purchase__isnull=True).aggregate(avg=Avg("aspect_price_purchase"))["avg"]
-    average_palatability = vendor_products.exclude(aspect_palatability__isnull=True).aggregate(avg=Avg("aspect_palatability"))["avg"]
     average_delivery = vendor_products.exclude(aspect_delivery_packaging__isnull=True).aggregate(avg=Avg("aspect_delivery_packaging"))["avg"]
+    interaction_counts = {
+        row["interaction_type"]: row["total"]
+        for row in UserInteraction.objects.filter(product__brand_name=brand_name)
+        .values("interaction_type")
+        .annotate(total=Count("id"))
+    }
+    brand_order_items = OrderItem.objects.filter(product__brand_name=brand_name).exclude(order__status="cancelled")
+    current_month_start = date.today().replace(day=1)
+    monthly_revenue = (
+        brand_order_items.filter(order__created_at__date__gte=current_month_start).aggregate(
+            total=Sum(F("quantity") * F("price_at_order"), output_field=IntegerField())
+        )["total"]
+        or 0
+    )
+    orders = brand_order_items.values("order_id").distinct().count()
+    buyer_order_counts = brand_order_items.values("order__user_id").annotate(order_count=Count("order_id", distinct=True))
+    buyer_count = buyer_order_counts.count()
+    repeat_buyer_count = buyer_order_counts.filter(order_count__gte=2).count()
 
     category_counter = Counter()
     pet_type_counter = Counter()
@@ -968,20 +984,18 @@ def vendor_analytics_view(request):
         if product.category:
             category_counter[product.category[0]] += 1
 
-    impressions = max(total_reviews * 34 + total_products * 180, 1200)
-    clicks = max(int(impressions * 0.043), 1)
-    detail_views = max(int(clicks * 0.71), 1)
-    carts = max(int(detail_views * 0.24), 1)
-    orders = max(int(carts * 0.39), 1)
+    impressions = interaction_counts.get("impression", 0)
+    clicks = interaction_counts.get("click", 0)
+    detail_views = interaction_counts.get("detail_view", 0)
+    carts = interaction_counts.get("cart", 0)
+    checkout_starts = interaction_counts.get("checkout_start", 0)
+    wishlist_adds = interaction_counts.get("wishlist", 0)
     ctr = (clicks / impressions) * 100 if impressions else 0
     detail_rate = (detail_views / clicks) * 100 if clicks else 0
     cart_rate = (carts / detail_views) * 100 if detail_views else 0
     order_rate = (orders / detail_views) * 100 if detail_views else 0
-    repeat_rate_percent = float((average_repeat_rate or 0) * 100)
-    sentiment_percent = float((average_sentiment or 0) * 100)
-    relevance_score = float(average_popularity or 0)
+    repeat_rate_percent = (repeat_buyer_count / buyer_count) * 100 if buyer_count else 0
     price_resistance = max(0.0, 100 - float((average_price_purchase or 0) * 100))
-    repurchase_potential = max(0.0, min((repeat_rate_percent * 0.55) + (relevance_score * 22), 100))
 
     funnel_items = [
         {
@@ -989,35 +1003,35 @@ def vendor_analytics_view(request):
             "value": f"{impressions:,}",
             "rate_label": "기준 모수",
             "rate_tone": "slate",
-            "detail": "추천 + 검색 유입 기준",
+            "detail": "추천 카드 노출 이벤트 기준",
         },
         {
             "label": "클릭",
             "value": f"{clicks:,}",
             "rate_label": f"CTR {ctr:.1f}%",
             "rate_tone": "blue",
-            "detail": "노출 대비 클릭 수",
+            "detail": "추천 카드 클릭 이벤트 수",
         },
         {
             "label": "상세 진입",
             "value": f"{detail_views:,}",
             "rate_label": f"클릭 대비 {detail_rate:.1f}%",
             "rate_tone": "indigo",
-            "detail": "클릭 이후 상세 탐색 수",
+            "detail": "상품 링크 상세 진입 이벤트 수",
         },
         {
             "label": "장바구니",
             "value": f"{carts:,}",
             "rate_label": f"상세 대비 {cart_rate:.1f}%",
             "rate_tone": "green",
-            "detail": "상세 진입 이후 담기 수",
+            "detail": "장바구니 담기 이벤트 수",
         },
         {
             "label": "구매",
             "value": f"{orders:,}",
             "rate_label": f"상세 대비 {order_rate:.1f}%",
             "rate_tone": "amber",
-            "detail": "상세 진입 이후 구매 수",
+            "detail": "브랜드 주문 완료 건수",
         },
     ]
 
@@ -1044,10 +1058,6 @@ def vendor_analytics_view(request):
         },
     ]
 
-    # Presentation-friendly personalization metrics.
-    # Replace these derived values with real event-based aggregates per
-    # docs/planning/13_vendor_personalization_signal_plan.md when
-    # recommendation/product/order interaction logging is implemented.
     implicit_metrics = [
         {
             "label": "추천 클릭률",
@@ -1070,72 +1080,95 @@ def vendor_analytics_view(request):
             "description": "상세 진입 대비 구매 전환",
         },
         {
-            "label": "재구매 잠재 점수",
-            "value": f"{repurchase_potential:.1f}",
-            "description": "리마케팅·재추천 우선순위",
+            "label": "체크아웃 시작 수",
+            "value": f"{checkout_starts:,}회",
+            "description": "결제 진입 이벤트 수",
         },
         {
-            "label": "추천 적합 점수",
-            "value": f"{relevance_score:.2f}",
-            "description": "개인화 랭킹 반영 지표",
+            "label": "관심상품 추가 수",
+            "value": f"{wishlist_adds:,}회",
+            "description": "위시리스트 저장 이벤트 수",
         },
     ]
 
     bottlenecks = [
         {
-            "label": "가격 저항",
-            "value": f"{price_resistance:.1f}",
-            "status": "우선 보정 필요" if price_resistance >= 55 else "안정",
-            "tone": "rose" if price_resistance >= 55 else "green",
+            "label": "추천 클릭률",
+            "value": f"{ctr:.1f}%",
+            "status": "안정" if ctr >= 3 else "개선 필요",
+            "tone": "green" if ctr >= 3 else "amber",
         },
         {
-            "label": "재구매 잠재력",
-            "value": f"{repurchase_potential:.1f}",
-            "status": "확장 가능" if repurchase_potential >= 45 else "보강 필요",
-            "tone": "blue" if repurchase_potential >= 45 else "amber",
+            "label": "상세 진입률",
+            "value": f"{detail_rate:.1f}%",
+            "status": "안정" if detail_rate >= 45 else "보강 필요",
+            "tone": "blue" if detail_rate >= 45 else "amber",
         },
         {
-            "label": "리뷰 정서",
-            "value": f"{sentiment_percent:.1f}%",
-            "status": "양호" if sentiment_percent >= 55 else "개선 필요",
-            "tone": "green" if sentiment_percent >= 55 else "amber",
+            "label": "구매 전환율",
+            "value": f"{order_rate:.1f}%",
+            "status": "안정" if order_rate >= 8 else "개선 필요",
+            "tone": "green" if order_rate >= 8 else "rose",
         },
     ]
 
     recommended_actions = [
         {
-            "title": "추천 가중치 상향",
+            "title": "추천 카드 문구 점검",
             "tag": "추천",
             "tag_tone": "blue",
-            "reason": "추천 적합도와 CTR이 안정적이라 상단 슬롯 확대 효과가 큼",
-            "impact": "예상 매출 +₩1,420,000",
+            "reason": f"추천 노출 {impressions:,}회 대비 클릭률이 {ctr:.1f}%입니다.",
+            "impact": "추천 문구·썸네일 매력도 확인",
         },
         {
-            "title": "재구매 타겟 강화",
-            "tag": "CRM",
+            "title": "상세 유입 경로 보강",
+            "tag": "상세",
             "tag_tone": "green",
-            "reason": "재구매율과 기호성 지표가 높아 리마케팅 효율이 좋음",
-            "impact": "예상 재구매 주문 +26건",
+            "reason": f"클릭 {clicks:,}회 중 상세 진입은 {detail_views:,}회입니다.",
+            "impact": "상품 링크·상세 페이지 연결 점검",
         },
         {
-            "title": "가격 저항 보정",
-            "tag": "가격",
+            "title": "결제 진입 전환 확인",
+            "tag": "전환",
             "tag_tone": "amber",
-            "reason": "가격·구매 반응이 낮아 상세 전환 이후 이탈 구간이 큼",
-            "impact": "전환 이탈 -7.8%",
+            "reason": f"상세 진입 {detail_views:,}회 대비 구매 {orders:,}건, 체크아웃 시작 {checkout_starts:,}회입니다.",
+            "impact": "장바구니·결제 단계 이탈 확인",
         },
     ]
 
     performance_rows = []
     ranked_products = vendor_products.order_by("-review_count", "-rating", "goods_name")[:6]
-    for index, product in enumerate(ranked_products, start=1):
+    product_interaction_counts = {
+        (row["product_id"], row["interaction_type"]): row["total"]
+        for row in UserInteraction.objects.filter(product__in=ranked_products)
+        .values("product_id", "interaction_type")
+        .annotate(total=Count("id"))
+    }
+    product_order_stats = {
+        row["product_id"]: {
+            "revenue": row["revenue"] or 0,
+            "order_count": row["order_count"] or 0,
+        }
+        for row in brand_order_items.filter(product__in=ranked_products)
+        .values("product_id")
+        .annotate(
+            revenue=Sum(F("quantity") * F("price_at_order"), output_field=IntegerField()),
+            order_count=Count("order_id", distinct=True),
+        )
+    }
+    for product in ranked_products:
         item = _serialize_vendor_product(product, demo_soldout_goods_ids, demo_pending_goods_ids)
-        product_ctr = 3.8 + (index * 0.3)
-        product_conversion = 9.2 - (index * 0.6)
-        product_repeat = max(repeat_rate_percent - (index * 1.3), 8.0)
+        product_impressions = product_interaction_counts.get((product.goods_id, "impression"), 0)
+        product_clicks = product_interaction_counts.get((product.goods_id, "click"), 0)
+        product_detail_views = product_interaction_counts.get((product.goods_id, "detail_view"), 0)
+        product_orders = product_order_stats.get(product.goods_id, {}).get("order_count", 0)
+        product_revenue = product_order_stats.get(product.goods_id, {}).get("revenue", 0)
+        product_ctr = (product_clicks / product_impressions) * 100 if product_impressions else 0
+        product_conversion = (product_orders / product_detail_views) * 100 if product_detail_views else 0
+        product_repeat = max(float((product.repeat_rate or 0) * 100), 0.0)
         strength_label, strength_tone = _pick_vendor_performance_strength(
             product_ctr,
-            max(product_conversion, 4.1),
+            product_conversion,
             product_repeat,
         )
         performance_rows.append(
@@ -1143,9 +1176,9 @@ def vendor_analytics_view(request):
                 "goods_id": item["goods_id"],
                 "goods_name": item["goods_name"],
                 "status_label": item["status_label"],
-                "revenue_label": f"₩{max(3800000 - (index * 240000), 780000):,}",
+                "revenue_label": f"₩{product_revenue:,}",
                 "ctr_label": f"{product_ctr:.1f}%",
-                "conversion_label": f"{max(product_conversion, 4.1):.1f}%",
+                "conversion_label": f"{product_conversion:.1f}%",
                 "repeat_label": f"{product_repeat:.1f}%",
                 "strength_label": strength_label,
                 "strength_tone": strength_tone,
@@ -1161,15 +1194,15 @@ def vendor_analytics_view(request):
         {
             **base_context,
             "vendor_analytics_summary": [
-                {"label": "이번 달 매출", "value": "₩23,920,000", "delta": "전월 대비 +8.6%", "delta_tone": "positive"},
-                {"label": "구매 전환율", "value": f"{order_rate:.1f}%", "delta": "전주 대비 +1.2%p", "delta_tone": "positive"},
-                {"label": "반복 구매율", "value": f"{repeat_rate_percent:.1f}%", "delta": "전월 대비 +2.4%p", "delta_tone": "positive"},
-                {"label": "평균 실판매가", "value": _format_vendor_price(average_discount_price), "delta": "전월 대비 -3.1%", "delta_tone": "negative"},
+                {"label": "이번 달 매출", "value": f"₩{monthly_revenue:,}", "delta": "실주문 기준", "delta_tone": "neutral"},
+                {"label": "구매 전환율", "value": f"{order_rate:.1f}%", "delta": "상세 진입 대비", "delta_tone": "neutral"},
+                {"label": "반복 구매율", "value": f"{repeat_rate_percent:.1f}%", "delta": "브랜드 구매자 기준", "delta_tone": "neutral"},
+                {"label": "평균 실판매가", "value": _format_vendor_price(average_discount_price), "delta": "브랜드 상품 평균", "delta_tone": "neutral"},
             ],
             "vendor_funnel_items": funnel_items,
             "vendor_explicit_metrics": explicit_metrics,
             "vendor_implicit_metrics": implicit_metrics,
-            "vendor_personalization_note": "개인화 추천 고도화 시 클릭, 탐색, 구매 전환 신호와 재구매 잠재력을 함께 사용해 추천 가중치에 반영할 수 있습니다.",
+            "vendor_personalization_note": "추천 노출, 클릭, 상세 진입, 장바구니, 체크아웃 시작, 구매 이벤트를 실제 집계해 브랜드 퍼널과 암묵적 반응 지표로 활용할 수 있습니다.",
             "vendor_bottlenecks": bottlenecks,
             "vendor_recommended_actions": recommended_actions,
             "vendor_performance_rows": performance_rows,

@@ -768,6 +768,7 @@ class CartView(APIView):
         if product_error_response:
             return product_error_response
 
+        session_id = request.data.get("session_id")
         quantity = int(request.data.get("quantity", 1) or 1)
         if quantity < 1:
             return Response({"detail": "quantity must be at least 1."}, status=status.HTTP_400_BAD_REQUEST)
@@ -787,6 +788,7 @@ class CartView(APIView):
             product=product,
             interaction_type="cart",
             weight=quantity,
+            session_id=session_id,
         )
 
         return Response(
@@ -844,8 +846,15 @@ class WishlistView(APIView):
         if product_error_response:
             return product_error_response
 
+        session_id = request.data.get("session_id")
         wishlist, _ = Wishlist.objects.get_or_create(user=request.user)
         wishlist_item, created = WishlistItem.objects.get_or_create(wishlist=wishlist, product=product)
+        create_user_interaction(
+            user=request.user,
+            product=product,
+            interaction_type="wishlist",
+            session_id=session_id,
+        )
         return Response(
             {"wishlist_item": serialize_wishlist_item(wishlist_item)},
             status=status.HTTP_201_CREATED if created else status.HTTP_200_OK,

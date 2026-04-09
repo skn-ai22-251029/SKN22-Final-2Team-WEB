@@ -1141,17 +1141,80 @@
       });
     }
 
-    function logRecommendationInteraction(productId, interactionType, weight) {
+    function hasLoggedRecommendationInteraction(dedupeKey) {
+      if (!dedupeKey) return false;
+      try {
+        return window.sessionStorage.getItem('tailtalk:recommendation-interaction:' + dedupeKey) === '1';
+      } catch (error) {
+        return false;
+      }
+    }
+
+    function markRecommendationInteractionLogged(dedupeKey) {
+      if (!dedupeKey) return;
+      try {
+        window.sessionStorage.setItem('tailtalk:recommendation-interaction:' + dedupeKey, '1');
+      } catch (error) {}
+    }
+
+    function logRecommendationInteraction(productId, interactionType, weight, sessionId) {
       if (!productId || !interactionType) return;
       requestJson('/api/orders/interactions/', {
         method: 'POST',
         body: JSON.stringify({
           product_id: productId,
           interaction_type: interactionType,
-          session_id: activeSessionId || null,
+          session_id: sessionId || activeSessionId || null,
           weight: weight || 1,
         }),
       }).catch(function () {});
+    }
+
+    function logRecommendationInteractionOnce(productId, interactionType, dedupeKey, weight, sessionId) {
+      if (!dedupeKey || hasLoggedRecommendationInteraction(dedupeKey)) return;
+      markRecommendationInteractionLogged(dedupeKey);
+      logRecommendationInteraction(productId, interactionType, weight, sessionId);
+    }
+
+    function buildRecommendationAnalyticsPayload(source) {
+      var card = source && source.closest ? source.closest('[data-recommendation-card]') : null;
+      if (!card) return null;
+      return {
+        goods_id: card.getAttribute('data-product-id') || '',
+        brand_name: card.getAttribute('data-brand-name') || '',
+        product_name: card.getAttribute('data-product-name') || '',
+        rank_order: Number(card.getAttribute('data-rank-order') || '0'),
+        session_id: activeSessionId || '',
+        source: 'chat_recommendation',
+        page_type: 'chat',
+      };
+    }
+
+    function trackRecommendationImpressions(sessionId, items) {
+      if (!sessionId) return;
+      var normalized = normalizeRecommendedProducts(items || []);
+      var signature = recommendationSignature(normalized);
+      normalized.forEach(function (item, index) {
+        var goodsId = item.product_id || item.goods_id || '';
+        if (!goodsId) return;
+        var dedupeKey = [sessionId, signature, goodsId, index].join(':');
+        if (window.tailTalkAnalytics) {
+          window.tailTalkAnalytics.trackOnce(
+            'recommendation_impression',
+            dedupeKey,
+            {
+              goods_id: goodsId,
+              brand_name: item.brand_name || '',
+              product_name: item.product_name || '',
+              rank_order: Number(item.rank_order || index),
+              session_id: sessionId,
+              source: 'chat_recommendation',
+              page_type: 'chat',
+            }
+          );
+        }
+        logRecommendationInteractionOnce(goodsId, 'impression', dedupeKey, 1, sessionId);
+      });
     }
 
     window.dismissRecommendationCard = function (button) {
@@ -1263,9 +1326,11 @@
           discount_price: product.discount_price || '',
           rating: product.rating,
           reviews: product.reviews,
+          review_count: product.review_count,
           thumbnail_url: product.thumbnail_url || '',
           product_url: product.product_url || '',
           summary: product.summary || '',
+          rank_order: product.rank_order || 0,
         };
       });
     }
@@ -1509,10 +1574,11 @@
       var productName = escapeHtml(display.name || '추천 상품');
       var priceLabel = escapeHtml(formatPriceLabel(item.discount_price || item.price));
       var thumbnailUrl = escapeHtml(item.thumbnail_url || '');
-      var reviews = escapeHtml(normalizeReviewLabel(item.reviews));
+      var reviews = escapeHtml(normalizeReviewLabel(item.reviews || item.review_count));
       var rating = escapeHtml(item.rating || '4.7');
+      var rankOrder = escapeHtml(item.rank_order || '0');
       var thumbnailHtml = productUrl
-        ? '<a href="' + productUrl + '" target="_blank" rel="noopener noreferrer" class="relative flex h-[68px] w-[68px] shrink-0 items-center justify-center overflow-hidden rounded-[14px] bg-gradient-to-br from-[#dbeafe] via-[#eff6ff] to-[#f8fafc] transition-transform hover:scale-[1.02]" onclick="logRecommendationInteraction(\'' + productId + '\', \'click\')">'
+        ? '<a href="' + productUrl + '" target="_blank" rel="noopener noreferrer" class="relative flex h-[68px] w-[68px] shrink-0 items-center justify-center overflow-hidden rounded-[14px] bg-gradient-to-br from-[#dbeafe] via-[#eff6ff] to-[#f8fafc] transition-transform hover:scale-[1.02]" data-recommendation-link="true">'
           + '  <img src="' + thumbnailUrl + '" alt="" class="h-full w-full object-cover" onerror="this.style.display=\'none\'; this.parentNode.querySelector(&quot;.fallback-emoji&quot;).style.display = \'flex\';">'
           + '  <div class="fallback-emoji absolute inset-0 hidden items-center justify-center text-[26px]">🛍️</div>'
           + '</a>'
@@ -1521,11 +1587,16 @@
           + '  <div class="fallback-emoji absolute inset-0 hidden items-center justify-center text-[26px]">🛍️</div>'
           + '</div>';
       var nameHtml = productUrl
-        ? '<a href="' + productUrl + '" target="_blank" rel="noopener noreferrer" class="product-card-name block transition-colors hover:text-[#2b6cb0]" onclick="logRecommendationInteraction(\'' + productId + '\', \'click\')">' + productName + '</a>'
+        ? '<a href="' + productUrl + '" target="_blank" rel="noopener noreferrer" class="product-card-name block transition-colors hover:text-[#2b6cb0]" data-recommendation-link="true">' + productName + '</a>'
         : '<div class="product-card-name">' + productName + '</div>';
 
       return ''
-        + '<article class="rounded-[20px] border border-[#dbe7f5] bg-white px-[14px] py-[13px] shadow-[0_8px_20px_rgba(45,55,72,0.05)]" data-recommendation-card>'
+        + '<article class="rounded-[20px] border border-[#dbe7f5] bg-white px-[14px] py-[13px] shadow-[0_8px_20px_rgba(45,55,72,0.05)]"'
+        + ' data-recommendation-card'
+        + ' data-product-id="' + productId + '"'
+        + ' data-brand-name="' + brandName + '"'
+        + ' data-product-name="' + productName + '"'
+        + ' data-rank-order="' + rankOrder + '">'
         + '  <div class="flex items-center gap-[10px]">'
         +        thumbnailHtml
         + '    <div class="product-card-text-block min-w-0">'
@@ -1589,6 +1660,7 @@
         return;
       }
       recommendationPanelBody.innerHTML = '<div class="space-y-3">' + normalized.map(recommendationCardMarkup).join('') + '</div>';
+      trackRecommendationImpressions(activeSessionId, normalized);
       refreshRecommendedWishlistState();
     }
 
@@ -1641,11 +1713,18 @@
         method: 'POST',
         body: JSON.stringify({
           product_id: productId,
-        quantity: 1,
-      }),
+          quantity: 1,
+          session_id: activeSessionId || null,
+        }),
       }).then(function () {
         button.classList.add('border-[#3182ce]', 'bg-[#ebf8ff]');
         showChatActionToast('장바구니에 담았어요');
+        if (window.tailTalkAnalytics) {
+          var analyticsPayload = buildRecommendationAnalyticsPayload(button);
+          if (analyticsPayload) {
+            window.tailTalkAnalytics.track('add_to_cart', analyticsPayload);
+          }
+        }
       }).catch(function () {});
     };
 
@@ -1656,12 +1735,36 @@
       var nextActive = !button.classList.contains('is-active');
       requestJson('/api/orders/wishlist/', {
         method: nextActive ? 'POST' : 'DELETE',
-        body: JSON.stringify({ product_id: productId }),
+        body: JSON.stringify({
+          product_id: productId,
+          session_id: activeSessionId || null,
+        }),
       }).then(function () {
         setRecommendedWishlistButtonState(button, nextActive);
         showChatActionToast(nextActive ? '관심상품에 담았어요' : '관심상품에서 뺐어요');
+        if (nextActive && window.tailTalkAnalytics) {
+          var analyticsPayload = buildRecommendationAnalyticsPayload(button);
+          if (analyticsPayload) {
+            window.tailTalkAnalytics.track('wishlist_add', analyticsPayload);
+          }
+        }
       }).catch(function () {});
     };
+
+    if (recommendationPanelBody) {
+      recommendationPanelBody.addEventListener('click', function (event) {
+        var link = event.target.closest('[data-recommendation-link]');
+        if (!link) return;
+        var analyticsPayload = buildRecommendationAnalyticsPayload(link);
+        if (!analyticsPayload) return;
+        logRecommendationInteraction(analyticsPayload.goods_id, 'click', 1, analyticsPayload.session_id || null);
+        logRecommendationInteraction(analyticsPayload.goods_id, 'detail_view', 1, analyticsPayload.session_id || null);
+        if (window.tailTalkAnalytics) {
+          window.tailTalkAnalytics.track('recommendation_click', analyticsPayload);
+          window.tailTalkAnalytics.track('detail_view', analyticsPayload);
+        }
+      });
+    }
 
     function getProfileSelectionOptions(includeDefaultOption) {
       var options = (memberPets || []).map(function (pet) {
