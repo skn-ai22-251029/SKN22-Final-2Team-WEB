@@ -496,6 +496,25 @@ class VendorAdminPageTests(TestCase):
         order_trend = {point["label"]: point["value"] for point in response.context["vendor_order_trend"]}
         self.assertEqual(order_trend[today.strftime("%m/%d")], 2)
 
+    def test_vendor_dashboard_renders_when_brand_has_no_orders(self):
+        session = self.client.session
+        session["tailtalk_vendor_admin_id"] = "orijen"
+        session.save()
+
+        response = self.client.get(reverse("vendor-dashboard"))
+
+        self.assertEqual(response.status_code, status.HTTP_200_OK)
+        primary = {item["label"]: item["value"] for item in response.context["vendor_primary_kpis"]}
+        trend = {item["label"]: item["value"] for item in response.context["vendor_trend_highlights"]}
+        order_trend = response.context["vendor_order_trend"]
+
+        self.assertEqual(primary["오늘 매출"], "₩0")
+        self.assertEqual(primary["신규 주문"], "0건")
+        self.assertEqual(trend["7일 주문"], "0건")
+        self.assertEqual(trend["7일 매출"], "₩0")
+        self.assertTrue(all(point["value"] == 0 for point in order_trend))
+        self.assertTrue(all(point["height_percent"] == 18 for point in order_trend))
+
     def test_vendor_products_filters_to_vendor_brand(self):
         session = self.client.session
         session["tailtalk_vendor_admin_id"] = "orijen"
