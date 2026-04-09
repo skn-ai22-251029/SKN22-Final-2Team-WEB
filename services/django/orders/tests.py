@@ -1,9 +1,15 @@
+from datetime import timedelta
+from io import StringIO
+
+from django.core.management import call_command
+from django.core.management.base import CommandError
 from django.test import TestCase
 from django.utils import timezone
 from rest_framework import status
 from rest_framework.test import APIClient
 
 from chat.models import ChatMessage, ChatMessageRecommendation, ChatSession
+from orders.management.commands.seed_vendor_demo_metrics import _slugify_label
 from products.models import Product
 from users.models import User, UserProfile
 
@@ -716,3 +722,87 @@ class OrderPageViewTests(TestCase):
         self.assertEqual(response.status_code, 200)
         self.assertContains(response, "현재 채팅 세션에서 추천된 상품")
         self.assertContains(response, "카탈로그 추천 상품")
+
+
+class SeedVendorDemoMetricsCommandTests(TestCase):
+    def setUp(self):
+        self.orijen_product_a = Product.objects.create(
+            goods_id="GI-SEED-1001",
+            goods_name="오리젠 오리지널 독",
+            brand_name="오리젠",
+            price=42000,
+            discount_price=37900,
+            review_count=120,
+            rating=4.8,
+            thumbnail_url="https://example.com/orijen-a.png",
+            product_url="https://example.com/orijen-a",
+            crawled_at=timezone.now(),
+        )
+        self.orijen_product_b = Product.objects.create(
+            goods_id="GI-SEED-1002",
+            goods_name="오리젠 시니어 독",
+            brand_name="오리젠",
+            price=39000,
+            discount_price=34900,
+            review_count=96,
+            rating=4.7,
+            thumbnail_url="https://example.com/orijen-b.png",
+            product_url="https://example.com/orijen-b",
+            crawled_at=timezone.now(),
+        )
+        self.other_brand_product = Product.objects.create(
+            goods_id="GI-SEED-2001",
+            goods_name="다른 브랜드 상품",
+            brand_name="다른브랜드",
+            price=25000,
+            discount_price=21900,
+            review_count=32,
+            rating=4.2,
+            thumbnail_url="https://example.com/other-brand.png",
+            product_url="https://example.com/other-brand",
+            crawled_at=timezone.now(),
+        )
+
+    def test_seed_vendor_demo_metrics_creates_brand_specific_interactions_and_orders(self):
+        stdout = StringIO()
+
+        call_command(
+            "seed_vendor_demo_metrics",
+            brand_name="오리젠",
+            sessions=20,
+            days=14,
+            seed=42,
+            user_pool_size=4,
+            stdout=stdout,
+        )
+
+        output = stdout.getvalue()
+        demo_user_prefix = f"seed-{_slugify_label('오리젠')}-"
+        self.assertIn("Seeded vendor demo metrics for 오리젠", output)
+        self.assertTrue(User.objects.filter(email__startswith=demo_user_prefix).exists())
+        self.assertTrue(UserProfile.objects.filter(user__email__startswith=demo_user_prefix).exists())
+
+        self.assertGreater(UserInteraction.objects.filter(product__brand_name="오리젠").count(), 0)
+        self.assertGreater(OrderItem.objects.filter(product__brand_name="오리젠").count(), 0)
+        self.assertEqual(UserInteraction.objects.filter(product=self.other_brand_product).count(), 0)
+        self.assertEqual(OrderItem.objects.filter(product=self.other_brand_product).count(), 0)
+
+        self.assertTrue(Order.objects.filter(items__product__brand_name="오리젠", status="completed").exists())
+        self.assertTrue(Order.objects.filter(items__product__brand_name="오리젠", status="pending").exists())
+        self.assertTrue(Order.objects.filter(items__product__brand_name="오리젠", status="cancelled").exists())
+        self.assertTrue(UserInteraction.objects.filter(product__brand_name="오리젠", interaction_type="purchase").exists())
+
+        oldest_allowed = timezone.now() - timedelta(days=14)
+        self.assertFalse(
+            UserInteraction.objects.filter(product__brand_name="오리젠", created_at__lt=oldest_allowed).exists()
+        )
+
+    def test_seed_vendor_demo_metrics_raises_when_brand_products_are_missing(self):
+        with self.assertRaises(CommandError):
+            call_command(
+                "seed_vendor_demo_metrics",
+                brand_name="없는브랜드",
+                sessions=10,
+                days=7,
+                seed=7,
+            )
