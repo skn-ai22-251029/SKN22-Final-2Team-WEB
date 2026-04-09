@@ -1143,6 +1143,14 @@
           <button type="button" id="catalogFilterBrandReset" class="inline-flex h-[24px] items-center bg-transparent text-[12px] font-semibold leading-none text-[#7aa6e9] shadow-none {% if not catalog_current_brand %}hidden{% endif %}" onclick="resetCatalogFilterLevel('brand')">초기화</button>
         </div>
         <div id="catalogFilterBrandOptions" class="mt-3 flex flex-wrap gap-2"></div>
+        <div id="catalogFilterBrandMore" class="mt-3 hidden">
+          <details>
+            <summary class="catalog-more-summary inline-flex h-[32px] cursor-pointer items-center rounded-full bg-transparent px-1 text-[12px] font-semibold text-[#718096] underline-offset-2 hover:text-[#4a5568] hover:underline">
+              <span class="catalog-more-summary-label">더보기</span>
+            </summary>
+            <div id="catalogFilterBrandHiddenOptions" class="mt-3 flex flex-wrap gap-2"></div>
+          </details>
+        </div>
       </section>
     </div>
     <div class="catalog-filter-panel-footer">
@@ -1286,6 +1294,8 @@
   var catalogFilterDetailGroups = document.getElementById('catalogFilterDetailGroups');
   var catalogFilterDetailReset = document.getElementById('catalogFilterDetailReset');
   var catalogFilterBrandOptions = document.getElementById('catalogFilterBrandOptions');
+  var catalogFilterBrandMore = document.getElementById('catalogFilterBrandMore');
+  var catalogFilterBrandHiddenOptions = document.getElementById('catalogFilterBrandHiddenOptions');
   var catalogFilterBrandReset = document.getElementById('catalogFilterBrandReset');
   var catalogFilterTreeNode = document.getElementById('catalogFilterTreeData');
   var catalogSortSelect = document.getElementById('catalogSort');
@@ -1484,6 +1494,19 @@
     return Array.from(new Set(mergedAll)).sort();
   }
 
+  function splitCatalogVisibleAndHiddenBrands(brands, activeBrand) {
+    var visible = (brands || []).slice(0, 10);
+    if (activeBrand && brands.indexOf(activeBrand) !== -1 && visible.indexOf(activeBrand) === -1) {
+      visible.push(activeBrand);
+    }
+    return {
+      visible: visible,
+      hidden: (brands || []).filter(function (brandLabel) {
+        return visible.indexOf(brandLabel) === -1;
+      }),
+    };
+  }
+
   function renderCatalogDraftChip(label, state, active) {
     return ''
       + '<button type="button"'
@@ -1545,7 +1568,8 @@
     }
 
     if (catalogFilterBrandOptions) {
-      catalogFilterBrandOptions.innerHTML = brands.map(function (brandLabel) {
+      var brandGroups = splitCatalogVisibleAndHiddenBrands(brands, draft.brand);
+      catalogFilterBrandOptions.innerHTML = brandGroups.visible.map(function (brandLabel) {
         return renderCatalogDraftChip(brandLabel, {
           pet: draft.pet,
           category: draft.category,
@@ -1553,6 +1577,22 @@
           brand: brandLabel,
         }, draft.brand === brandLabel);
       }).join('');
+    }
+    if (catalogFilterBrandHiddenOptions) {
+      var hiddenBrandGroups = splitCatalogVisibleAndHiddenBrands(brands, draft.brand);
+      catalogFilterBrandHiddenOptions.innerHTML = hiddenBrandGroups.hidden.map(function (brandLabel) {
+        return renderCatalogDraftChip(brandLabel, {
+          pet: draft.pet,
+          category: draft.category,
+          subcategory: draft.subcategory,
+          brand: brandLabel,
+        }, draft.brand === brandLabel);
+      }).join('');
+      if (catalogFilterBrandMore) {
+        catalogFilterBrandMore.classList.toggle('hidden', !hiddenBrandGroups.hidden.length);
+      }
+    } else if (catalogFilterBrandMore) {
+      catalogFilterBrandMore.classList.add('hidden');
     }
     if (catalogFilterBrandReset) {
       catalogFilterBrandReset.classList.toggle('hidden', !draft.brand);
