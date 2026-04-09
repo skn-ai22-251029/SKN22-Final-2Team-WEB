@@ -279,6 +279,7 @@ class _FakeHttpxClient:
                     "budget": None,
                     "filter_relaxation_count": 0,
                     "recommend_retry_pending": False,
+                    "last_recommended_goods_ids": ["TEST-PRODUCT-1"],
                 },
                 "memory_summary": "업데이트된 요약",
                 "last_compacted_message_id": None,
@@ -508,6 +509,7 @@ class ChatProxyTests(TestCase):
         self.assertEqual(memory.summary_text, "업데이트된 요약")
         self.assertEqual(memory.dialog_state["intents"], ["recommend"])
         self.assertEqual(memory.dialog_state["filters"], {"pet_type": "고양이", "category": "사료"})
+        self.assertEqual(memory.dialog_state["last_recommended_goods_ids"], ["TEST-PRODUCT-1"])
         self.assertIsNone(memory.last_compacted_message_id)
 
         list_response = self.client.get(
