@@ -109,7 +109,7 @@ product
 | Qdrant `products` 컬렉션 | pgvector로 대체됨 |
 | `scripts/ingest_qdrant.py` | `ingest_postgres.py`에 벡터 적재 로직 통합 |
 | `services/fastapi/core/qdrant_setup.py` | Qdrant 연결 설정 불필요 |
-| `infra/.env`의 `QDRANT_URL`, `QDRANT_API_KEY` | 환경변수 제거 |
+| `deploy/local/.env`의 `QDRANT_URL`, `QDRANT_API_KEY` | 환경변수 제거 |
 | `docker-compose.yml`의 qdrant 서비스 | 컨테이너 제거 |
 
 ---

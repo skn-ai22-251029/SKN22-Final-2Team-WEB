@@ -88,9 +88,8 @@ git submodule update --init --recursive
 ### 2. Environment
 
 ```bash
-cd infra
-cp .env.example .env
-# Edit .env with your keys
+cp deploy/local/.env.example deploy/local/.env
+# Edit deploy/local/.env with your keys
 ```
 
 **Required env vars:**
@@ -101,7 +100,7 @@ cp .env.example .env
 ### 3. Launch
 
 ```bash
-docker compose up -d --build
+docker compose -f deploy/local/docker-compose.yml up -d --build
 ```
 
 **🎉 Done!** Visit [http://localhost](http://localhost)
@@ -284,7 +283,7 @@ git submodule update --remote services/fastapi
 ### 1. 준비
 
 - Docker / Docker Compose
-- `infra/.env` 작성
+- `deploy/local/.env` 작성
 - FastAPI 서브모듈 초기화
 
 ```bash
@@ -294,8 +293,7 @@ git submodule update --init --recursive
 ### 2. 실행
 
 ```bash
-cd infra
-docker compose up -d --build
+docker compose -f deploy/local/docker-compose.yml up -d --build
 ```
 
 기본 접속 주소:

@@ -94,8 +94,8 @@
 실행한 명령:
 
 ```bash
-docker compose -f infra/docker-compose.yml build django
-docker compose -f infra/docker-compose.yml run --rm django python manage.py test
+docker compose -f deploy/local/docker-compose.yml build django
+docker compose -f deploy/local/docker-compose.yml run --rm django python manage.py test
 ```
 
 결과:
@@ -326,8 +326,8 @@ Web repo는 Django 테스트만 통과한다고 끝내면 안 된다.
 ### Web repo
 
 ```bash
-docker compose -f infra/docker-compose.yml build django
-docker compose -f infra/docker-compose.yml run --rm django python manage.py test
+docker compose -f deploy/local/docker-compose.yml build django
+docker compose -f deploy/local/docker-compose.yml run --rm django python manage.py test
 ```
 
 ### AI repo

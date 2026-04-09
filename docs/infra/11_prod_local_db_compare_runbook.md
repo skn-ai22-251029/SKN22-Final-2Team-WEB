@@ -36,7 +36,7 @@ bash scripts/aws/start_test_rds_dbeaver_tunnel.sh
 
 ### 3-1. 가장 단순한 실행
 
-로컬 DB는 `infra/.env`를 읽어 자동 구성할 수 있으므로, 운영 DB DSN만 넘기면 된다.
+로컬 DB는 `deploy/local/.env`를 읽어 자동 구성할 수 있으므로, 운영 DB DSN만 넘기면 된다.
 
 ```bash
 export PROD_DATABASE_URL='postgresql://tailtalk:<PASSWORD>@127.0.0.1:15432/tailtalk'

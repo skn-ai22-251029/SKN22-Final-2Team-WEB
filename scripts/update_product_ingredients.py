@@ -8,7 +8,7 @@ def update_product_ingredients():
     # .env 파일에서 설정 로드
     env_path = os.path.join(os.path.dirname(__file__), '../services/django/.env')
     if not os.path.exists(env_path):
-        env_path = os.path.join(os.path.dirname(__file__), '../infra/.env')
+        env_path = os.path.join(os.path.dirname(__file__), '../deploy/local/.env')
     
     config = Config(RepositoryEnv(env_path))
     

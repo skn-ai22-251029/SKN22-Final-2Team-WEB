@@ -7,7 +7,7 @@
 ### 사전 조건
 
 - Docker Desktop 실행 중
-- `infra/.env` 설정 완료 (`infra/.env.example` 복사 후 `POSTGRES_PASSWORD` 등 입력)
+- `deploy/local/.env` 설정 완료 (`deploy/local/.env.example` 복사 후 `POSTGRES_PASSWORD` 등 입력)
 
 ---
 
@@ -88,8 +88,8 @@ bash scripts/aws/start_test_rds_dbeaver_tunnel.sh
 git pull origin develop
 
 # 2. 환경변수 설정
-cp infra/.env.example infra/.env
-# infra/.env 에서 POSTGRES_PASSWORD 등 입력
+cp deploy/local/.env.example deploy/local/.env
+# deploy/local/.env 에서 POSTGRES_PASSWORD 등 입력
 
 # 3. DB 셋업 (backup/ 에 덤프 파일이 공유되어 있어야 함)
 bash scripts/setup_db.sh backup/tailtalk_db_20260324_150000.dump

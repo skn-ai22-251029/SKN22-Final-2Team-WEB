@@ -8,7 +8,7 @@ Gold parquet → PostgreSQL 적재 (pgvector + Kiwi tsvector 포함)
 
 실행:
   # Docker (권장) — output/, scripts/ 마운트
-  docker compose -f infra/docker-compose.yml run --rm \
+  docker compose -f deploy/local/docker-compose.yml run --rm \
       -v $(pwd)/output:/app/output \
       -v $(pwd)/scripts:/app/scripts \
       django python scripts/ingest_postgres.py
@@ -39,7 +39,7 @@ from dotenv import load_dotenv
 
 # ── 환경변수 로드 ──────────────────────────────────────────────────────────────
 
-load_dotenv(Path(__file__).parent.parent / "infra" / ".env")
+load_dotenv(Path(__file__).parent.parent / "deploy" / "local" / ".env")
 
 DB_CONFIG = {
     "dbname":   os.getenv("POSTGRES_DB",       "tailtalk_db"),
