@@ -1009,7 +1009,7 @@
         <div class="catalog-product-grid mt-6 grid gap-5 sm:grid-cols-2">
           {% for item in catalog_items %}
           <article class="catalog-card overflow-hidden rounded-[24px] border border-[#e2e8f0] bg-white shadow-[0_8px_24px_rgba(45,55,72,0.04)]">
-            <a href="{{ item.product_url }}" target="_blank" rel="noreferrer" class="catalog-thumb relative block overflow-hidden bg-[#f8fbff]">
+            <a href="{{ item.product_url }}?source=catalog{% if catalog_current_session_id %}&session={{ catalog_current_session_id|urlencode }}{% endif %}" class="catalog-thumb relative block overflow-hidden bg-[#f8fbff]">
               <img src="{{ item.thumbnail_url }}" alt="{{ item.name }}" class="h-full w-full object-cover">
               <button type="button"
                       class="catalog-card-wishlist wishlist-heart {% if item.is_wishlisted %}is-active {% endif %}absolute bottom-3 right-3 z-[1] inline-flex h-[28px] w-[28px] shrink-0 items-center justify-center rounded-full border border-white/80 bg-white/95 leading-none shadow-[0_8px_20px_rgba(15,23,42,0.12)] backdrop-blur-sm transition-colors"
@@ -1025,7 +1025,7 @@
               </button>
             </a>
             <div class="catalog-card-body p-4">
-              <a href="{{ item.product_url }}" target="_blank" rel="noreferrer" class="catalog-card-title text-[17px] font-bold leading-[1.45] text-[#2d3748] hover:text-[#3182ce]">
+              <a href="{{ item.product_url }}?source=catalog{% if catalog_current_session_id %}&session={{ catalog_current_session_id|urlencode }}{% endif %}" class="catalog-card-title text-[17px] font-bold leading-[1.45] text-[#2d3748] hover:text-[#3182ce]">
                 {{ item.name }}
               </a>
               <div class="catalog-card-meta mt-3 flex items-end justify-between gap-3">
@@ -1198,11 +1198,11 @@
         {% for item in catalog_recommended_items %}
         <article class="rounded-[20px] border border-[#e2e8f0] bg-[#fbfdff] p-4">
           <div class="flex gap-3">
-            <a href="{{ item.product_url }}" target="_blank" rel="noreferrer" class="block h-[72px] w-[72px] shrink-0 overflow-hidden rounded-[16px] bg-[#f1f5f9]">
+            <a href="{{ item.product_url }}?source=catalog_recommendation{% if catalog_current_session_id %}&session={{ catalog_current_session_id|urlencode }}{% endif %}" class="block h-[72px] w-[72px] shrink-0 overflow-hidden rounded-[16px] bg-[#f1f5f9]">
               <img src="{{ item.thumbnail_url }}" alt="{{ item.name }}" class="h-full w-full object-cover">
             </a>
             <div class="min-w-0 flex-1">
-              <a href="{{ item.product_url }}" target="_blank" rel="noreferrer" class="block text-[14px] font-bold leading-[1.5] text-[#2d3748] hover:text-[#3182ce]">{{ item.name }}</a>
+              <a href="{{ item.product_url }}?source=catalog_recommendation{% if catalog_current_session_id %}&session={{ catalog_current_session_id|urlencode }}{% endif %}" class="block text-[14px] font-bold leading-[1.5] text-[#2d3748] hover:text-[#3182ce]">{{ item.name }}</a>
               <p class="mt-2 text-[12px] leading-[1.6] text-[#718096]">{{ item.summary }}</p>
               <div class="mt-3 flex items-end justify-between gap-3">
                 <div>
@@ -1768,6 +1768,20 @@
       .replace(/'/g, '&#39;');
   }
 
+  function buildProductDetailHref(goodsId, source) {
+    var normalized = String(goodsId || '').trim();
+    if (!normalized) return '';
+    var params = new URLSearchParams();
+    if (source) {
+      params.set('source', source);
+    }
+    if (catalogCurrentSessionId) {
+      params.set('session', catalogCurrentSessionId);
+    }
+    var query = params.toString();
+    return '/products/' + encodeURIComponent(normalized) + '/' + (query ? '?' + query : '');
+  }
+
   function readStoredSessionRecommendations(sessionId) {
     if (!sessionId) return [];
     try {
@@ -1785,7 +1799,7 @@
 
   function drawerItemMarkup(item) {
     var productId = escapeHtml(item.product_id || item.goods_id || '');
-    var productUrl = escapeHtml(item.product_url || '');
+    var productUrl = escapeHtml(buildProductDetailHref(item.product_id || item.goods_id || '', 'catalog_recommendation') || item.product_url || '');
     var productName = escapeHtml(item.product_name || item.name || '추천 상품');
     var summary = escapeHtml(item.summary || '');
     var priceLabel = escapeHtml(compactPriceLabel(item.price_label || item.price || '가격 정보 없음'));
@@ -1795,11 +1809,11 @@
     return ''
       + '<article class="rounded-[20px] border border-[#e2e8f0] bg-[#fbfdff] p-4">'
       + '  <div class="flex gap-3">'
-      + '    <a href="' + productUrl + '" target="_blank" rel="noreferrer" class="block h-[72px] w-[72px] shrink-0 overflow-hidden rounded-[16px] bg-[#f1f5f9]">'
+      + '    <a href="' + productUrl + '" class="block h-[72px] w-[72px] shrink-0 overflow-hidden rounded-[16px] bg-[#f1f5f9]">'
       + '      <img src="' + thumbnailUrl + '" alt="' + productName + '" class="h-full w-full object-cover">'
       + '    </a>'
       + '    <div class="min-w-0 flex-1">'
-      + '      <a href="' + productUrl + '" target="_blank" rel="noreferrer" class="block text-[14px] font-bold leading-[1.5] text-[#2d3748] hover:text-[#3182ce]">' + productName + '</a>'
+      + '      <a href="' + productUrl + '" class="block text-[14px] font-bold leading-[1.5] text-[#2d3748] hover:text-[#3182ce]">' + productName + '</a>'
       + (summary ? '      <p class="mt-2 text-[12px] leading-[1.6] text-[#718096]">' + summary + '</p>' : '')
       + '      <div class="mt-3 flex items-end justify-between gap-3">'
       + '        <div>'

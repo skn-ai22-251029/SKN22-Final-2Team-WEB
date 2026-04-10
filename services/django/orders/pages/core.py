@@ -6,15 +6,118 @@ from django.db.models.functions import Coalesce
 from django.contrib.auth.decorators import login_required
 from django.core.paginator import Paginator
 from django.shortcuts import get_object_or_404, redirect, render
+from django.urls import reverse
 
 from chat.models import ChatSession
 from products.catalog_menu import build_catalog_menu_context
-from products.models import Product
+from products.models import Product, Review
+from products.review_metrics import (
+    attach_actual_review_metrics,
+    get_actual_rating_label,
+    get_actual_review_count,
+    with_actual_review_metrics,
+)
 from ..models import Cart, Order, Wishlist
+from .detail_images import get_product_detail_image_urls
+
+PRODUCT_DETAIL_REVIEW_PAGE_SIZE = 12
 
 
 def _format_price(value):
     return f"{value:,}원"
+
+
+def _build_product_detail_url(goods_id):
+    return reverse("product_detail", args=[goods_id])
+
+
+def _format_detail_metric(value, digits=1, *, scale=1, suffix=""):
+    if value in {None, ""}:
+        return "-"
+    try:
+        normalized = float(value) * scale
+    except (TypeError, ValueError):
+        return str(value)
+    return f"{normalized:.{digits}f}{suffix}"
+
+
+def _normalize_product_tokens(value, *, limit=8):
+    tokens = []
+
+    if isinstance(value, dict):
+        for key, item in value.items():
+            key_label = str(key).strip()
+            if not key_label:
+                continue
+            if isinstance(item, (list, tuple)):
+                item_values = [str(entry).strip() for entry in item if str(entry).strip()]
+                detail = ", ".join(item_values[:2])
+                tokens.append(f"{key_label}: {detail}" if detail else key_label)
+            elif item in (None, "", [], {}):
+                tokens.append(key_label)
+            else:
+                tokens.append(f"{key_label}: {item}")
+    elif isinstance(value, (list, tuple)):
+        tokens = [str(item).strip() for item in value if str(item).strip()]
+    elif value:
+        tokens = [str(value).strip()]
+
+    return tokens[:limit]
+
+
+def _discount_rate_label(product):
+    if product.price and product.discount_price and product.price > 0 and product.discount_price < product.price:
+        return f"{int(round((1 - (product.discount_price / product.price)) * 100))}%"
+    return None
+
+
+def _format_review_date(value):
+    return value.strftime("%Y.%m.%d") if value else ""
+
+
+def _purchase_label(value):
+    if value == "repeat":
+        return "재구매"
+    if value == "first":
+        return "첫 구매"
+    return ""
+
+
+def _serialize_product_review(review):
+    return {
+        "review_id": review.review_id,
+        "author_label": (review.author_nickname or "익명").strip() or "익명",
+        "score_label": f"{review.score:.1f}" if review.score is not None else "-",
+        "content": (review.content or "").strip(),
+        "written_at_label": _format_review_date(review.written_at),
+        "purchase_label": _purchase_label(review.purchase_label),
+    }
+
+
+def _load_product_detail_reviews(product, *, page_number=1, page_size=PRODUCT_DETAIL_REVIEW_PAGE_SIZE):
+    queryset = (
+        Review.objects.filter(product=product)
+        .only("review_id", "score", "content", "author_nickname", "written_at", "purchase_label")
+        .order_by("-written_at", "-review_id")
+    )
+    paginator = Paginator(queryset, page_size)
+    page_obj = paginator.get_page(page_number)
+    review_items = [_serialize_product_review(review) for review in page_obj.object_list]
+    return page_obj, review_items
+
+
+def _build_review_page_url(request, *, page_number):
+    query_params = request.GET.copy()
+
+    if page_number <= 1:
+        query_params.pop("review_page", None)
+    else:
+        query_params["review_page"] = str(page_number)
+
+    encoded_query = query_params.urlencode()
+    if encoded_query:
+        return f"{request.path}?{encoded_query}#reviews"
+    return f"{request.path}#reviews"
 
 
 def _product_summary(product):
@@ -174,7 +277,7 @@ DEFAULT_CATALOG_PAGE_SIZE = 24
 CATALOG_SORT_OPTIONS = {
     "tailtalk": {
         "label": "TailTalk 추천순",
-        "ordering": ("-_sort_popularity_score", "-_sort_review_count", "-_sort_rating", "goods_name"),
+        "ordering": ("-_sort_has_rating", "-_sort_popularity_score", "-_sort_review_count", "-_sort_rating", "goods_name"),
     },
     "reviews": {
         "label": "리뷰 많은순",
@@ -211,14 +314,15 @@ def _serialize_catalog_item(product, *, is_wishlisted=False, cart_quantity=0):
     return {
         "product_id": product.goods_id,
         "thumbnail_url": product.thumbnail_url,
-        "product_url": product.product_url,
+        "product_url": _build_product_detail_url(product.goods_id),
+        "external_product_url": product.product_url,
         "brand_name": product.brand_name,
         "name": _display_product_name(product.brand_name, product.goods_name),
         "summary": _product_summary(product),
         "price": product.price,
         "price_label": _format_price(product.price),
-        "rating": f"{product.rating:.1f}" if product.rating is not None else None,
-        "review_count": product.review_count or 0,
+        "rating": get_actual_rating_label(product),
+        "review_count": get_actual_review_count(product),
         "pet_type": product.pet_type,
         "category": product.category,
         "subcategory": product.subcategory,
@@ -262,9 +366,10 @@ def _catalog_brand_sort_key(value):
 
 
 def _with_catalog_sort_fields(queryset):
+    queryset = with_actual_review_metrics(queryset)
     return queryset.annotate(
         _sort_has_rating=Case(
-            When(rating__isnull=False, then=Value(1)),
+            When(_actual_review_count__gt=0, then=Value(1)),
             default=Value(0),
             output_field=IntegerField(),
         ),
@@ -274,14 +379,14 @@ def _with_catalog_sort_fields(queryset):
             output_field=DecimalField(max_digits=10, decimal_places=4),
         ),
         _sort_review_count=Coalesce(
-            "review_count",
+            "_actual_review_count",
             Value(0),
             output_field=IntegerField(),
         ),
         _sort_rating=Coalesce(
-            "rating",
+            "_actual_review_score_avg",
             Value(0),
-            output_field=DecimalField(max_digits=3, decimal_places=1),
+            output_field=DecimalField(max_digits=4, decimal_places=2),
         ),
     )
 
@@ -321,13 +426,14 @@ def _serialize_recommendation_item(recommendation, *, is_wishlisted=False, cart_
     return {
         "product_id": product.goods_id,
         "thumbnail_url": product.thumbnail_url,
-        "product_url": product.product_url,
+        "product_url": _build_product_detail_url(product.goods_id),
+        "external_product_url": product.product_url,
         "brand_name": product.brand_name,
         "name": _display_product_name(product.brand_name, product.goods_name),
         "summary": _product_summary(product),
         "price_label": _format_price(product.price),
-        "rating": f"{product.rating:.1f}" if product.rating is not None else None,
-        "review_count": product.review_count or 0,
+        "rating": get_actual_rating_label(product),
+        "review_count": get_actual_review_count(product),
         "rank_order": recommendation.rank_order,
         "is_wishlisted": is_wishlisted,
         "cart_quantity": cart_quantity,
@@ -505,11 +611,12 @@ def _single_product_queryset():
     for term in excluded_terms:
         query = query.exclude(goods_name__icontains=term)
 
-    return query.order_by("-review_count", "-price", "goods_id")
+    return _with_catalog_sort_fields(query).order_by("-_sort_review_count", "-price", "goods_id")
 
 
 def _load_product_panels():
     base_products = list(_single_product_queryset()[:30])
+    attach_actual_review_metrics(base_products)
 
     if not base_products:
         return [], []
@@ -550,8 +657,8 @@ def _load_product_panels():
                 "name": _display_product_name(product.brand_name, product.goods_name),
                 "summary": _product_summary(product),
                 "price": product.price,
-                "rating": product.rating,
-                "review_count": product.review_count,
+                "rating": get_actual_rating_label(product),
+                "review_count": get_actual_review_count(product),
                 "quantity": (index % 3) + 1,
                 "note": _recommended_note(index),
                 "is_wishlisted": product.goods_id in wishlist_goods_ids,
@@ -567,8 +674,8 @@ def _load_product_panels():
                 "name": _display_product_name(product.brand_name, product.goods_name),
                 "summary": _product_summary(product),
                 "price": product.price,
-                "rating": product.rating,
-                "review_count": product.review_count,
+                "rating": get_actual_rating_label(product),
+                "review_count": get_actual_review_count(product),
                 "note": _recommended_note(index),
             }
         )
@@ -580,13 +687,14 @@ def _serialize_panel_product(product, quantity=1, is_wishlisted=False, note="가
     return {
         "goods_id": product.goods_id,
         "thumbnail_url": product.thumbnail_url,
-        "product_url": product.product_url,
+        "product_url": _build_product_detail_url(product.goods_id),
+        "external_product_url": product.product_url,
         "brand": product.brand_name,
         "name": _display_product_name(product.brand_name, product.goods_name),
         "summary": _product_summary(product),
         "price": product.price,
-        "rating": product.rating,
-        "review_count": product.review_count,
+        "rating": get_actual_rating_label(product),
+        "review_count": get_actual_review_count(product),
         "quantity": quantity,
         "note": note,
         "is_wishlisted": is_wishlisted,
@@ -599,6 +707,11 @@ def _load_user_product_panels(user):
 
     wishlist_items_qs = list(wishlist.items.select_related("product").order_by("-added_at"))
     wishlist_ids = {item.product_id for item in wishlist_items_qs}
+    cart_items_qs = list(cart.items.select_related("product").order_by("-added_at"))
+
+    attach_actual_review_metrics(
+        [item.product for item in cart_items_qs] + [item.product for item in wishlist_items_qs]
+    )
 
     cart_items = [
         _serialize_panel_product(
@@ -606,7 +719,7 @@ def _load_user_product_panels(user):
             quantity=item.quantity,
             is_wishlisted=item.product_id in wishlist_ids,
         )
-        for item in cart.items.select_related("product").order_by("-added_at")
+        for item in cart_items_qs
     ]
     wishlist_items = [
         _serialize_panel_product(item.product, quantity=1)
@@ -880,6 +993,118 @@ def _render_used_products(request, *, active_tab):
     )
 
 
+def _collect_related_products(product, *, limit=4):
+    base_queryset = Product.objects.filter(soldout_yn=False).exclude(goods_id=product.goods_id)
+    ordered_products = []
+    seen_goods_ids = set()
+
+    def extend(queryset, fetch_count):
+        for candidate in _with_catalog_sort_fields(queryset).order_by(*CATALOG_SORT_OPTIONS["tailtalk"]["ordering"])[:fetch_count]:
+            if candidate.goods_id in seen_goods_ids:
+                continue
+            seen_goods_ids.add(candidate.goods_id)
+            ordered_products.append(candidate)
+            if len(ordered_products) >= limit:
+                break
+
+    if product.subcategory:
+        extend(base_queryset.filter(subcategory__overlap=product.subcategory), limit * 2)
+    if len(ordered_products) < limit and product.category:
+        extend(base_queryset.filter(category__overlap=product.category), limit * 2)
+    if len(ordered_products) < limit and product.brand_name:
+        extend(base_queryset.filter(brand_name=product.brand_name), limit * 2)
+    if len(ordered_products) < limit and product.pet_type:
+        extend(base_queryset.filter(pet_type__overlap=product.pet_type), limit * 3)
+    if len(ordered_products) < limit:
+        extend(base_queryset, limit * 4)
+
+    return ordered_products[:limit]
+
+
+def _build_product_detail_context(request, product, serialized_product):
+    category_segments = list(product.category or [])
+    subcategory_segments = list(product.subcategory or [])
+    ingredient_tokens = _normalize_product_tokens(product.main_ingredients)
+    nutrition_tokens = _normalize_product_tokens(product.nutrition_info, limit=6)
+    guide_text = (product.guide_text or "").strip()
+    ingredient_text = (product.ingredient_text_ocr or "").strip()
+    has_discount = bool(
+        product.price
+        and product.discount_price
+        and product.discount_price > 0
+        and product.discount_price < product.price
+    )
+    current_price = product.discount_price if has_discount else product.price
+    discount_rate_label = _discount_rate_label(product)
+    current_price_label = _format_price(current_price)
+    original_price_label = _format_price(product.price) if has_discount else None
+    review_page_number = request.GET.get("review_page") or 1
+    review_page_obj, review_items = _load_product_detail_reviews(product, page_number=review_page_number)
+    review_count = review_page_obj.paginator.count
+
+    detail_highlights = [
+        {"label": "판매가", "value": current_price_label},
+        {"label": "정가", "value": original_price_label or current_price_label},
+        {"label": "리뷰", "value": f"{review_count:,}개"},
+        {"label": "평점", "value": serialized_product["rating"] or "-"},
+    ]
+
+    signal_rows = [
+        {"label": "추천 점수", "value": _format_detail_metric(product.popularity_score, 2)},
+        {"label": "반복 구매율", "value": _format_detail_metric(product.repeat_rate, 1, scale=100, suffix="%")},
+        {"label": "리뷰 정서", "value": _format_detail_metric(product.sentiment_avg, 1, scale=100, suffix="%")},
+        {"label": "기호성", "value": _format_detail_metric(product.aspect_palatability, 2)},
+        {"label": "배송/포장", "value": _format_detail_metric(product.aspect_delivery_packaging, 2)},
+        {"label": "가격 반응", "value": _format_detail_metric(product.aspect_price_purchase, 2)},
+    ]
+
+    info_rows = [
+        {"label": "브랜드", "value": product.brand_name},
+        {"label": "반려동물", "value": ", ".join(product.pet_type) if product.pet_type else "반려동물 공용"},
+        {"label": "카테고리", "value": " · ".join(category_segments) if category_segments else "카테고리 미지정"},
+        {"label": "세부 분류", "value": " · ".join(subcategory_segments) if subcategory_segments else "-"},
+    ]
+
+    note_sections = []
+    if guide_text:
+        note_sections.append({"title": "급여 가이드", "content": guide_text})
+    if ingredient_text:
+        note_sections.append({"title": "원재료 안내", "content": ingredient_text})
+
+    return {
+        "product_detail_status_label": "품절" if product.soldout_yn else "판매중",
+        "product_detail_status_tone": "rose" if product.soldout_yn else "green",
+        "product_detail_discount_rate_label": discount_rate_label,
+        "product_detail_current_price_label": current_price_label,
+        "product_detail_original_price_label": original_price_label,
+        "product_detail_subcategory_label": " · ".join(subcategory_segments) if subcategory_segments else "-",
+        "product_detail_highlights": detail_highlights,
+        "product_detail_signal_rows": signal_rows,
+        "product_detail_info_rows": info_rows,
+        "product_detail_ingredient_tokens": ingredient_tokens,
+        "product_detail_nutrition_tokens": nutrition_tokens,
+        "product_detail_note_sections": note_sections,
+        "product_detail_review_items": review_items,
+        "product_detail_review_count_label": f"{review_count:,}",
+        "product_detail_review_page_number": review_page_obj.number,
+        "product_detail_review_total_pages": review_page_obj.paginator.num_pages,
+        "product_detail_review_has_previous": review_page_obj.has_previous(),
+        "product_detail_review_has_next": review_page_obj.has_next(),
+        "product_detail_review_previous_url": (
+            _build_review_page_url(request, page_number=review_page_obj.previous_page_number())
+            if review_page_obj.has_previous()
+            else ""
+        ),
+        "product_detail_review_next_url": (
+            _build_review_page_url(request, page_number=review_page_obj.next_page_number())
+            if review_page_obj.has_next()
+            else ""
+        ),
+        "product_detail_review_empty_message": "아직 표시할 리뷰가 없습니다." if review_count == 0 else "리뷰 본문을 준비 중입니다.",
+        "product_detail_story_images": get_product_detail_image_urls(product),
+    }
+
+
 @login_required
 def catalog(request):
     keyword = (request.GET.get("q") or "").strip()[:50]
@@ -1008,13 +1233,17 @@ def catalog(request):
                 None,
             )
             if latest_recommendation_message is not None:
+                recommendation_items = list(
+                    latest_recommendation_message.recommended_products.select_related("product").order_by("rank_order", "created_at")
+                )
+                attach_actual_review_metrics([item.product for item in recommendation_items])
                 recommended_items = [
                     _serialize_recommendation_item(
                         recommendation,
                         is_wishlisted=recommendation.product_id in wishlist_product_ids,
                         cart_quantity=cart_quantities.get(recommendation.product_id, 0),
                     )
-                    for recommendation in latest_recommendation_message.recommended_products.select_related("product").order_by("rank_order", "created_at")
+                    for recommendation in recommendation_items
                 ]
 
     context = {
@@ -1104,6 +1333,46 @@ def catalog(request):
         **_member_nav_indicator_state(request.user),
     }
     return render(request, "orders/catalog.html", context)
+
+
+@login_required
+def product_detail(request, goods_id):
+    product = get_object_or_404(with_actual_review_metrics(Product.objects), goods_id=goods_id)
+
+    cart, _ = Cart.objects.get_or_create(user=request.user)
+    wishlist, _ = Wishlist.objects.get_or_create(user=request.user)
+    wishlist_product_ids = set(wishlist.items.values_list("product_id", flat=True))
+    cart_quantities = {
+        product_id: quantity
+        for product_id, quantity in cart.items.values_list("product_id", "quantity")
+    }
+
+    serialized_product = _serialize_catalog_item(
+        product,
+        is_wishlisted=product.goods_id in wishlist_product_ids,
+        cart_quantity=cart_quantities.get(product.goods_id, 0),
+    )
+    related_items = [
+        _serialize_catalog_item(
+            related_product,
+            is_wishlisted=related_product.goods_id in wishlist_product_ids,
+            cart_quantity=cart_quantities.get(related_product.goods_id, 0),
+        )
+        for related_product in _collect_related_products(product)
+    ]
+
+    return render(
+        request,
+        "orders/product_detail.html",
+        {
+            "product_detail": serialized_product,
+            "product_detail_related_items": related_items,
+            "product_detail_session_id": (request.GET.get("session") or "").strip(),
+            "product_detail_source": (request.GET.get("source") or "").strip(),
+            **_build_product_detail_context(request, product, serialized_product),
+            **_member_nav_indicator_state(request.user),
+        },
+    )
 
 
 @login_required

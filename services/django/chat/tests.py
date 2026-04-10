@@ -16,7 +16,7 @@ from chat.api_views import sessions_proxy_view
 from chat.models import ChatMessage, ChatMessageRecommendation, ChatSession, ChatSessionMemory
 from chat.pages.views import ensure_chat_api_tokens
 from pets.models import FuturePetProfile, Pet, PetAllergy, PetFoodPreference, PetHealthConcern
-from products.models import Product
+from products.models import Product, Review
 from users.models import User, UserProfile
 from users.onboarding import ONBOARDING_FORCE_PROFILE_SESSION_KEY
 from users.social_auth import SOCIAL_AUTH_ACCESS_SESSION_KEY, SOCIAL_AUTH_REFRESH_SESSION_KEY
@@ -339,6 +339,22 @@ class ChatProxyTests(TestCase):
             health_concern_tags=[],
             crawled_at=timezone.now(),
         )
+        Review.objects.create(
+            review_id="RV-CHAT-0001",
+            product=self.product,
+            score=5.0,
+            content="기호성이 좋습니다.",
+            author_nickname="채팅버디1",
+            written_at=timezone.now().date(),
+        )
+        Review.objects.create(
+            review_id="RV-CHAT-0002",
+            product=self.product,
+            score=4.0,
+            content="무난하게 잘 먹어요.",
+            author_nickname="채팅버디2",
+            written_at=timezone.now().date(),
+        )
         self.other_user = User.objects.create_user(
             email="other-chat-owner@example.com",
             password="Password123!",
@@ -519,6 +535,8 @@ class ChatProxyTests(TestCase):
         self.assertEqual(list_response.status_code, 200)
         assistant_payload = list_response.json()["messages"][-1]
         self.assertEqual(assistant_payload["recommended_products"][0]["goods_id"], self.product.goods_id)
+        self.assertEqual(assistant_payload["recommended_products"][0]["reviews"], 2)
+        self.assertEqual(assistant_payload["recommended_products"][0]["rating"], 4.5)
 
     @patch("chat.api_views.httpx.Client", _ExplodingHttpxClient)
     def test_session_messages_proxy_persists_error_message_when_fastapi_is_unreachable(self):

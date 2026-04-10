@@ -1,16 +1,27 @@
 import json
 
 from django.db.models import Q
+from django.urls import reverse
 
 from orders.models import Cart, Wishlist
 from pets.future_profile import get_future_pet_profile_for_request
 from products.catalog_menu import build_catalog_menu_context
 from products.models import Product
+from products.review_metrics import (
+    attach_actual_review_metrics,
+    get_actual_rating_label,
+    get_actual_review_count,
+    with_actual_review_metrics,
+)
 from users.social_auth import SOCIAL_AUTH_ACCESS_SESSION_KEY
 
 
 def format_price(value):
     return f"{value:,}원"
+
+
+def build_product_detail_url(goods_id):
+    return reverse("product_detail", args=[goods_id])
 
 
 def display_product_name(brand_name, goods_name):
@@ -55,7 +66,7 @@ def single_product_queryset():
     for term in excluded_terms:
         query = query.exclude(goods_name__icontains=term)
 
-    return query.order_by("-review_count", "-price", "goods_id")
+    return with_actual_review_metrics(query).order_by("-_actual_review_count", "-price", "goods_id")
 
 
 def serialize_recommended_product(product):
@@ -66,9 +77,10 @@ def serialize_recommended_product(product):
         "discount_price": "",
         "brand_name": product.brand_name,
         "thumbnail_url": product.thumbnail_url,
-        "product_url": product.product_url,
-        "rating": str(product.rating or "0.0"),
-        "reviews": f"리뷰 {product.review_count}",
+        "product_url": build_product_detail_url(product.goods_id),
+        "external_product_url": product.product_url,
+        "rating": get_actual_rating_label(product) or "-",
+        "reviews": f"리뷰 {get_actual_review_count(product)}",
     }
 
 
@@ -81,10 +93,11 @@ def serialize_cart_product(item):
         "summary": "장바구니에 담긴 상품",
         "price": format_price(price),
         "thumbnail_url": product.thumbnail_url,
-        "product_url": product.product_url,
+        "product_url": build_product_detail_url(product.goods_id),
+        "external_product_url": product.product_url,
         "brand_name": product.brand_name,
-        "rating": str(product.rating or "0.0"),
-        "reviews": f"리뷰 {product.review_count}",
+        "rating": get_actual_rating_label(product) or "-",
+        "reviews": f"리뷰 {get_actual_review_count(product)}",
         "quantity": item.quantity,
         "unit_price": price,
         "badge": "장바구니",
@@ -443,7 +456,9 @@ def build_chat_page_context(request):
         member_pets = [serialize_pet(pet) for pet in pets]
         cart = Cart.objects.filter(user=request.user).prefetch_related("items__product").first()
         if cart:
-            cart_products = [serialize_cart_product(item) for item in cart.items.all().order_by("-added_at")]
+            cart_items = list(cart.items.all().order_by("-added_at"))
+            attach_actual_review_metrics([item.product for item in cart_items])
+            cart_products = [serialize_cart_product(item) for item in cart_items]
             cart_total = sum(product["unit_price"] * product["quantity"] for product in cart_products)
         else:
             cart_products = []

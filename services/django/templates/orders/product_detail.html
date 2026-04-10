@@ -1,0 +1,1011 @@
+{% extends "base.html" %}
+{% block title %}{{ product_detail.name }} — TailTalk{% endblock %}
+
+{% block head %}
+<style>
+  #pageGate {
+    min-height: 100dvh;
+    background: #f8f9fb;
+  }
+
+  #pageGate > .app-shell {
+    position: relative;
+    width: min(100%, 960px);
+    min-height: 100dvh;
+    height: 100dvh;
+    margin: 0 auto;
+    overflow: hidden;
+    background: #f8f9fb;
+  }
+
+  #productDetailHeader {
+    position: absolute;
+    inset: 0 0 auto 0;
+    height: 72px;
+    border-bottom: 1px solid #e2e8f0;
+    background: #fff;
+    z-index: 40;
+  }
+
+  #productDetailHeaderInner {
+    display: grid;
+    grid-template-columns: 40px auto 40px;
+    align-items: center;
+    gap: 8px;
+    height: 100%;
+    padding: 0 12px;
+  }
+
+  #productDetailHeaderLogo {
+    justify-self: center;
+    font-size: 26px;
+    font-weight: 700;
+    line-height: 1;
+    color: #2d3748;
+    white-space: nowrap;
+  }
+
+  #headerSubnav {
+    position: absolute;
+    inset: 72px 0 auto 0;
+    z-index: 35;
+    border-bottom: 1px solid #e8eef6;
+    background: rgba(255, 255, 255, 0.98);
+    backdrop-filter: blur(12px);
+  }
+
+  #headerSubnavRail {
+    display: grid;
+    grid-template-columns: repeat(4, minmax(0, 1fr));
+    width: 100%;
+  }
+
+  .header-subnav-link {
+    position: relative;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    height: 44px;
+    color: #4a5568;
+    transition: background-color 160ms ease, color 160ms ease;
+  }
+
+  .header-subnav-link + .header-subnav-link::before {
+    content: '';
+    position: absolute;
+    left: 0;
+    top: 10px;
+    bottom: 10px;
+    width: 1px;
+    background: #e8eef6;
+  }
+
+  .header-subnav-link:hover {
+    background: #f8fbff;
+  }
+
+  .header-subnav-link.is-active {
+    color: #2d3748;
+    background: #f8f9fb;
+  }
+
+  .header-subnav-link.has-indicator::after {
+    content: '';
+    position: absolute;
+    top: 9px;
+    right: calc(50% - 12px);
+    width: 6px;
+    height: 6px;
+    border-radius: 9999px;
+    background: #f97316;
+  }
+
+  #profileMenuWrapper {
+    position: relative;
+    height: 40px;
+    width: 40px;
+  }
+
+  #profileMenu {
+    position: absolute;
+    top: calc(100% + 10px);
+    right: 0;
+    width: 188px;
+    overflow: hidden;
+    border: 1px solid #e2e8f0;
+    border-radius: 18px;
+    background: #fff;
+    box-shadow: 0 18px 36px rgba(15, 23, 42, 0.12);
+    opacity: 0;
+    pointer-events: none;
+    transform: translateY(-6px);
+    transition: opacity 160ms ease, transform 160ms ease;
+    z-index: 50;
+  }
+
+  #profileMenu.is-open {
+    opacity: 1;
+    pointer-events: auto;
+    transform: translateY(0);
+  }
+
+  #productDetailViewport {
+    position: absolute;
+    inset: 116px 0 0 0;
+    overflow-y: auto;
+    padding: 24px 16px 36px;
+  }
+
+  html,
+  body,
+  body.bg-white {
+    background: #f8f9fb !important;
+  }
+
+  .detail-hero-card,
+  .detail-section-card,
+  .detail-related-card {
+    border: 1px solid #dbe7f5;
+    border-radius: 28px;
+    background: rgba(255, 255, 255, 0.94);
+    box-shadow: 0 18px 48px rgba(148, 163, 184, 0.12);
+  }
+
+  .detail-hero-grid {
+    display: grid;
+    grid-template-columns: minmax(0, 320px) minmax(0, 1fr);
+    gap: 24px;
+  }
+
+  .detail-thumb {
+    overflow: hidden;
+    border: 1px solid #dbe7f5;
+    border-radius: 28px;
+    background: linear-gradient(145deg, #edf6ff 0%, #ffffff 100%);
+    box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.7);
+  }
+
+  .detail-chip {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    min-height: 32px;
+    border-radius: 9999px;
+    padding: 0 14px;
+    font-size: 12px;
+    font-weight: 700;
+    line-height: 1;
+  }
+
+  .detail-chip.status-green {
+    background: #dcfce7;
+    color: #15803d;
+  }
+
+  .detail-chip.status-rose {
+    background: #fee2e2;
+    color: #b91c1c;
+  }
+
+  .detail-chip.soft {
+    background: #eef4fb;
+    color: #475569;
+  }
+
+  .detail-action-icon {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    height: 44px;
+    width: 44px;
+    border-radius: 9999px;
+    border: 1px solid #dbe7f5;
+    background: #fff;
+    color: #4a5568;
+    transition: background-color 160ms ease, border-color 160ms ease, color 160ms ease, transform 160ms ease, box-shadow 160ms ease;
+  }
+
+  .detail-action-icon:hover {
+    transform: translateY(-1px);
+  }
+
+  .detail-action-icon.primary {
+    border-color: #2d3748;
+    background: #2d3748;
+    color: #fff;
+  }
+
+  .detail-action-icon.wishlist-heart {
+    position: relative;
+    overflow: hidden;
+  }
+
+  .detail-action-icon.wishlist-heart svg:last-child {
+    display: none;
+  }
+
+  .detail-action-icon.wishlist-heart.is-active {
+    border-color: #f3c1c1;
+    background: #fff1f2;
+    color: #e53e3e;
+  }
+
+  .detail-action-icon.wishlist-heart.is-active svg:first-child {
+    display: none;
+  }
+
+  .detail-action-icon.wishlist-heart.is-active svg:last-child {
+    display: block;
+  }
+
+  .detail-action-meta {
+    display: inline-flex;
+    align-items: center;
+    min-height: 34px;
+    border-radius: 9999px;
+    padding: 0 14px;
+    background: #eef4fb;
+    color: #475569;
+    font-size: 12px;
+    font-weight: 700;
+  }
+
+  .detail-tab-bar {
+    display: grid;
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    gap: 12px;
+  }
+
+  .detail-tab-button {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    gap: 8px;
+    min-height: 52px;
+    border: 1px solid #dbe7f5;
+    border-radius: 20px;
+    background: rgba(255, 255, 255, 0.94);
+    color: #475569;
+    font-size: 14px;
+    font-weight: 800;
+    letter-spacing: -0.01em;
+    transition: background-color 160ms ease, border-color 160ms ease, color 160ms ease, box-shadow 160ms ease;
+  }
+
+  .detail-tab-button.is-active {
+    border-color: #1e293b;
+    background: #1e293b;
+    color: #fff;
+    box-shadow: 0 14px 28px rgba(15, 23, 42, 0.16);
+  }
+
+  .detail-tab-count {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    min-width: 28px;
+    min-height: 24px;
+    border-radius: 9999px;
+    padding: 0 10px;
+    background: #eef4fb;
+    color: #475569;
+    font-size: 11px;
+    font-weight: 800;
+  }
+
+  .detail-tab-button.is-active .detail-tab-count {
+    background: rgba(255, 255, 255, 0.16);
+    color: #fff;
+  }
+
+  .detail-highlight-card,
+  .detail-info-row,
+  .detail-note-card {
+    border-radius: 22px;
+    border: 1px solid #e5eef8;
+    background: linear-gradient(180deg, #ffffff 0%, #f8fbff 100%);
+  }
+
+  .detail-related-grid {
+    display: grid;
+    grid-template-columns: repeat(4, minmax(0, 1fr));
+    gap: 14px;
+  }
+
+  .detail-related-card {
+    overflow: hidden;
+    transition: transform 180ms ease, box-shadow 180ms ease, border-color 180ms ease;
+  }
+
+  .detail-related-card:hover {
+    transform: translateY(-2px);
+    border-color: #bfdbfe;
+    box-shadow: 0 20px 40px rgba(148, 163, 184, 0.16);
+  }
+
+  .detail-related-title {
+    display: -webkit-box;
+    overflow: hidden;
+    min-height: 40px;
+    -webkit-box-orient: vertical;
+    -webkit-line-clamp: 2;
+  }
+
+  .detail-review-list {
+    display: grid;
+    gap: 14px;
+  }
+
+  .detail-review-card {
+    border-radius: 22px;
+    border: 1px solid #e5eef8;
+    background: linear-gradient(180deg, #ffffff 0%, #f8fbff 100%);
+    padding: 20px;
+  }
+
+  .detail-review-pagination {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 12px;
+    border-radius: 22px;
+    border: 1px solid #e5eef8;
+    background: linear-gradient(180deg, #ffffff 0%, #f8fbff 100%);
+    padding: 14px 16px;
+  }
+
+  .detail-review-page-link {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    min-width: 84px;
+    min-height: 40px;
+    border-radius: 9999px;
+    border: 1px solid #dbe7f5;
+    background: #fff;
+    color: #1e293b;
+    font-size: 13px;
+    font-weight: 800;
+    transition: background-color 160ms ease, border-color 160ms ease, color 160ms ease;
+  }
+
+  .detail-review-page-link:hover {
+    border-color: #bfdbfe;
+    background: #f8fbff;
+    color: #1d4ed8;
+  }
+
+  .detail-review-page-link.is-disabled {
+    border-color: #e2e8f0;
+    background: #f8fafc;
+    color: #94a3b8;
+    pointer-events: none;
+  }
+
+  .detail-feedback-toast {
+    opacity: 0;
+    visibility: hidden;
+    transform: translate(-50%, 10px) scale(0.98);
+    transition: opacity 180ms ease, transform 180ms ease;
+  }
+
+  .detail-feedback-toast.is-open {
+    opacity: 1;
+    visibility: visible;
+    transform: translate(-50%, 0) scale(1);
+  }
+
+  .detail-story-gallery {
+    overflow: hidden;
+    border-top: 1px solid #e5eef8;
+    background: #fff;
+  }
+
+  .detail-story-image {
+    display: block;
+    width: 100%;
+    height: auto;
+    background: #fff;
+  }
+
+  @media (max-width: 1023px) {
+    .detail-hero-grid,
+    .detail-related-grid,
+    .detail-content-grid {
+      grid-template-columns: repeat(2, minmax(0, 1fr));
+    }
+  }
+
+  @media (max-width: 767px) {
+    #pageGate > .app-shell {
+      width: 100vw;
+    }
+
+    .detail-hero-grid,
+    .detail-related-grid,
+    .detail-content-grid {
+      grid-template-columns: minmax(0, 1fr);
+    }
+
+    .detail-thumb {
+      max-width: 360px;
+      margin: 0 auto;
+    }
+  }
+</style>
+{% endblock %}
+
+{% block content %}
+<div id="pageGate"
+     class="min-h-screen bg-[#f8f9fb]"
+     data-product-id="{{ product_detail.product_id }}"
+     data-session-id="{{ product_detail_session_id }}"
+     data-source="{{ product_detail_source }}"
+     data-cart-quantity="{{ product_detail.cart_quantity }}"
+     data-is-wishlisted="{% if product_detail.is_wishlisted %}1{% else %}0{% endif %}">
+  <div class="app-shell">
+    <header id="productDetailHeader">
+      <div id="productDetailHeaderInner">
+        <button type="button"
+                class="inline-flex h-[40px] w-[40px] items-center justify-center rounded-full border border-[#e2e8f0] bg-white shadow-[0_2px_8px_rgba(45,55,72,0.05)]"
+                aria-label="이전으로 돌아가기"
+                onclick="goProductDetailBack()">
+          <svg viewBox="0 0 24 24" class="h-[18px] w-[18px] text-[#4a5568]" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+            <path d="m15 18-6-6 6-6"></path>
+          </svg>
+        </button>
+        <a href="/chat/" id="productDetailHeaderLogo" aria-label="메인으로 돌아가기">
+          <span class="text-[#3182ce]">Tail</span><span>Talk</span>
+        </a>
+        <div class="justify-self-end min-w-0">
+          <div id="profileMenuWrapper">
+            <button type="button"
+                    class="flex h-[40px] w-[40px] items-center justify-center rounded-full border border-[#e2e8f0] bg-white shadow-[0_2px_8px_rgba(45,55,72,0.05)]"
+                    aria-label="프로필 메뉴 열기"
+                    onclick="toggleProfileMenu()">
+              <svg viewBox="0 0 24 24" class="h-[30px] w-[30px] text-[#4a5568]" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+                <circle cx="12" cy="8" r="3.2"></circle>
+                <path d="M5.5 19a6.5 6.5 0 0 1 13 0"></path>
+              </svg>
+            </button>
+            <div id="profileMenu">
+              <a href="/profile/" class="flex h-[44px] w-full items-center rounded-t-[16px] px-[16px] text-[14px] text-[#2d3748] hover:bg-[#edf2f7]">내 정보</a>
+              <div class="mx-[12px] h-px bg-[#edf2f7]"></div>
+              <a href="/pets/" class="flex h-[44px] w-full items-center px-[16px] text-[14px] text-[#2d3748] hover:bg-[#edf2f7]">반려동물 정보</a>
+              <div class="mx-[12px] h-px bg-[#edf2f7]"></div>
+              <a href="/logout/" class="flex h-[44px] w-full items-center rounded-b-[16px] px-[16px] text-[14px] text-[#ef4444] hover:bg-[#fef2f2]">로그아웃</a>
+            </div>
+          </div>
+        </div>
+      </div>
+    </header>
+
+    <div id="headerSubnav">
+      <div id="headerSubnavRail">
+        <a href="/catalog/" class="header-subnav-link is-active" aria-label="상품 목록" title="상품 목록">
+          <svg viewBox="0 0 24 24" class="h-[17px] w-[17px]" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+            <rect x="4" y="4" width="6" height="6" rx="1.5"></rect>
+            <rect x="14" y="4" width="6" height="6" rx="1.5"></rect>
+            <rect x="4" y="14" width="6" height="6" rx="1.5"></rect>
+            <rect x="14" y="14" width="6" height="6" rx="1.5"></rect>
+          </svg>
+        </a>
+        <a href="/products/" class="header-subnav-link {% if member_nav_has_cart_items %}has-indicator{% endif %}" aria-label="장바구니" title="장바구니">
+          <svg viewBox="0 0 24 24" class="h-[18px] w-[18px]" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+            <circle cx="9" cy="20" r="1.5"></circle>
+            <circle cx="18" cy="20" r="1.5"></circle>
+            <path d="M3 4h2l2.2 10.2a1 1 0 0 0 1 .8h8.9a1 1 0 0 0 1-.75L20 8H7"></path>
+          </svg>
+        </a>
+        <a href="/wishlist/" class="header-subnav-link {% if member_nav_has_wishlist_items %}has-indicator{% endif %}" aria-label="관심 상품" title="관심 상품">
+          <svg viewBox="0 0 24 24" class="h-[18px] w-[18px]" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+            <path d="M12 20.4 4.9 13.8a4.8 4.8 0 0 1 6.8-6.8L12 7.3l.3-.3a4.8 4.8 0 0 1 6.8 6.8L12 20.4Z"></path>
+          </svg>
+        </a>
+        <a href="/orders/" class="header-subnav-link" aria-label="주문 내역" title="주문 내역">
+          <svg viewBox="0 0 24 24" class="h-[18px] w-[18px]" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+            <path d="M7 4.5h10"></path>
+            <path d="M7 9h10"></path>
+            <path d="M7 13.5h6"></path>
+            <rect x="4" y="3" width="16" height="18" rx="2"></rect>
+          </svg>
+        </a>
+      </div>
+    </div>
+
+    <main id="productDetailViewport">
+      <section class="detail-hero-card px-5 py-5 sm:px-6 sm:py-6 md:px-8">
+        <div class="detail-hero-grid">
+          <div class="detail-thumb">
+            <img src="{{ product_detail.thumbnail_url }}" alt="{{ product_detail.name }}" class="aspect-square w-full object-cover">
+          </div>
+
+          <div class="min-w-0">
+            <div class="flex flex-wrap items-center gap-2 text-[13px] font-semibold text-[#64748b]">
+              <a href="/catalog/" class="text-[#2563eb] hover:text-[#1d4ed8]">상품 목록</a>
+              <span class="text-[#cbd5e1]">/</span>
+              <span>상품 상세</span>
+            </div>
+
+            <div class="mt-4 flex flex-wrap items-center gap-2">
+              <span class="detail-chip status-{{ product_detail_status_tone }}">{{ product_detail_status_label }}</span>
+              {% for item in product_detail.pet_type %}
+              <span class="detail-chip soft">{{ item }}</span>
+              {% endfor %}
+              {% if product_detail.category %}
+              <span class="detail-chip soft">{{ product_detail.category.0 }}</span>
+              {% endif %}
+            </div>
+
+            <p class="mt-4 text-[13px] font-semibold uppercase tracking-[0.12em] text-[#90a4b8]">{{ product_detail.brand_name }}</p>
+            <h1 class="mt-2 text-[28px] font-bold tracking-[-0.03em] leading-[1.2] text-[#1e293b] sm:text-[34px]">{{ product_detail.name }}</h1>
+
+            <div class="mt-6 rounded-[24px] border border-[#e5eef8] bg-[linear-gradient(180deg,#ffffff_0%,#f8fbff_100%)] px-5 py-5">
+              <div class="flex flex-wrap items-start justify-between gap-4">
+                <div class="rounded-[20px] border border-[#dbe7f5] bg-white px-4 py-3">
+                  <p class="flex items-center gap-1 text-[16px] font-bold text-[#0f172a]">
+                    <span class="text-[#f6ad55]">★</span>
+                    <span>{{ product_detail.rating|default:"-" }}</span>
+                  </p>
+                </div>
+                <div class="text-right">
+                  {% if product_detail_original_price_label %}
+                  <p class="text-[13px] font-semibold leading-none text-[#94a3b8] line-through">{{ product_detail_original_price_label }}</p>
+                  {% endif %}
+                  <div class="mt-2 flex items-end justify-end gap-2">
+                    {% if product_detail_discount_rate_label %}
+                    <span class="text-[18px] font-extrabold leading-none text-[#2563eb]">{{ product_detail_discount_rate_label }}</span>
+                    {% endif %}
+                    <p class="text-[30px] font-bold tracking-[-0.04em] leading-none text-[#0f172a]">{{ product_detail_current_price_label }}</p>
+                  </div>
+                </div>
+              </div>
+            </div>
+
+            <div class="mt-5 flex flex-wrap items-center gap-3">
+              {% if product_detail.cart_quantity %}
+              <span id="productDetailCartMeta" class="detail-action-meta">장바구니 {{ product_detail.cart_quantity }}개</span>
+              {% else %}
+              <span id="productDetailCartMeta" class="detail-action-meta hidden"></span>
+              {% endif %}
+              <div class="ml-auto flex items-center gap-3">
+                <button type="button"
+                        id="productDetailWishlistButton"
+                        class="detail-action-icon wishlist-heart {% if product_detail.is_wishlisted %}is-active{% endif %}"
+                        aria-label="{% if product_detail.is_wishlisted %}관심 상품 제거{% else %}관심 상품 추가{% endif %}"
+                        onclick="toggleProductDetailWishlist(this)">
+                  <svg width="18" height="18" viewBox="0 0 24 24" fill="none" aria-hidden="true">
+                    <path d="M12 20.4 4.9 13.8a4.8 4.8 0 0 1 6.8-6.8L12 7.3l.3-.3a4.8 4.8 0 0 1 6.8 6.8L12 20.4Z" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"/>
+                  </svg>
+                  <svg width="18" height="18" viewBox="0 0 24 24" fill="currentColor" aria-hidden="true">
+                    <path d="M12 20.4 4.9 13.8a4.8 4.8 0 0 1 6.8-6.8L12 7.3l.3-.3a4.8 4.8 0 0 1 6.8 6.8L12 20.4Z"/>
+                  </svg>
+                </button>
+                <button type="button"
+                        id="productDetailCartButton"
+                        class="detail-action-icon primary"
+                        aria-label="{% if product_detail.cart_quantity %}장바구니에 더 담기{% else %}장바구니에 담기{% endif %}"
+                        onclick="addProductDetailToCart(this)">
+                  <svg width="16" height="16" viewBox="0 0 14 14" fill="none" aria-hidden="true">
+                    <path d="M7 2.2V11.8" stroke="currentColor" stroke-width="2" stroke-linecap="round"/>
+                    <path d="M2.2 7H11.8" stroke="currentColor" stroke-width="2" stroke-linecap="round"/>
+                  </svg>
+                </button>
+              </div>
+            </div>
+          </div>
+        </div>
+      </section>
+
+      <div class="detail-tab-bar mt-6" role="tablist" aria-label="상품 상세 탭">
+        <button type="button"
+                id="detailTabButtonInfo"
+                class="detail-tab-button is-active"
+                role="tab"
+                aria-selected="true"
+                aria-controls="detailTabPanelInfo"
+                data-detail-tab="info">
+          <span>상품 정보</span>
+        </button>
+        <button type="button"
+                id="detailTabButtonReviews"
+                class="detail-tab-button"
+                role="tab"
+                aria-selected="false"
+                aria-controls="detailTabPanelReviews"
+                data-detail-tab="reviews">
+          <span>리뷰</span>
+          <span class="detail-tab-count">{{ product_detail_review_count_label }}</span>
+        </button>
+      </div>
+
+      <div id="detailTabPanelInfo"
+           role="tabpanel"
+           aria-labelledby="detailTabButtonInfo"
+           data-detail-panel="info">
+        <section class="detail-content-grid mt-6 grid gap-6 xl:grid-cols-[1.05fr,0.95fr]">
+          <article class="detail-section-card px-5 py-5 sm:px-6 sm:py-6 md:px-8">
+            <h2 class="text-[21px] font-bold tracking-[-0.02em] text-[#1e293b]">상품 정보</h2>
+            <div class="mt-5 grid gap-3 sm:grid-cols-2">
+              {% for item in product_detail_info_rows %}
+              <div class="detail-info-row px-4 py-4">
+                <p class="text-[12px] font-semibold text-[#64748b]">{{ item.label }}</p>
+                <p class="mt-2 text-[15px] font-semibold leading-6 text-[#0f172a]">{{ item.value }}</p>
+              </div>
+              {% endfor %}
+            </div>
+          </article>
+
+          <article class="detail-section-card px-5 py-5 sm:px-6 sm:py-6 md:px-8">
+            <h2 class="text-[21px] font-bold tracking-[-0.02em] text-[#1e293b]">성분과 영양</h2>
+
+            <section class="mt-5 rounded-[24px] border border-[#e5eef8] bg-[#f8fbff] px-5 py-5">
+              <h3 class="text-[17px] font-bold tracking-[-0.02em] text-[#1e293b]">주요 성분</h3>
+              <div class="mt-4 flex flex-wrap gap-2">
+                {% for item in product_detail_ingredient_tokens %}
+                <span class="detail-chip soft">{{ item }}</span>
+                {% empty %}
+                <span class="detail-chip soft">성분 메타데이터가 없습니다</span>
+                {% endfor %}
+              </div>
+            </section>
+
+            {% if product_detail_nutrition_tokens %}
+            <section class="mt-4 rounded-[24px] border border-[#e5eef8] bg-[#f8fbff] px-5 py-5">
+              <h3 class="text-[17px] font-bold tracking-[-0.02em] text-[#1e293b]">영양 정보</h3>
+              <div class="mt-4 flex flex-wrap gap-2">
+                {% for item in product_detail_nutrition_tokens %}
+                <span class="detail-chip soft">{{ item }}</span>
+                {% endfor %}
+              </div>
+            </section>
+            {% endif %}
+          </article>
+        </section>
+
+        {% if product_detail_story_images %}
+        <section id="productDetailStorySection" class="detail-section-card mt-6 overflow-hidden">
+          <div class="px-5 py-5 sm:px-6 sm:py-6 md:px-8">
+            <h2 class="text-[21px] font-bold tracking-[-0.02em] text-[#1e293b]">상품 상세 정보</h2>
+          </div>
+          <div class="detail-story-gallery">
+            {% for image_url in product_detail_story_images %}
+            <img src="{{ image_url }}"
+                 alt="{{ product_detail.name }} 상세 이미지 {{ forloop.counter }}"
+                 class="detail-story-image"
+                 loading="lazy">
+            {% endfor %}
+          </div>
+        </section>
+        {% endif %}
+
+        {% if product_detail_related_items %}
+        <section class="mt-6">
+          <div class="flex items-center justify-between gap-3">
+            <div>
+              <p class="text-[13px] font-semibold tracking-[0.08em] text-[#90a4b8]">More</p>
+              <h2 class="mt-1 text-[22px] font-bold tracking-[-0.03em] text-[#1e293b]">같이 볼 만한 상품</h2>
+            </div>
+            <a href="/catalog/" class="text-[13px] font-semibold text-[#2563eb] hover:text-[#1d4ed8]">상품 더 보기</a>
+          </div>
+
+          <div class="detail-related-grid mt-4">
+            {% for item in product_detail_related_items %}
+            <article class="detail-related-card">
+              <a href="{{ item.product_url }}?source=product_detail_related{% if product_detail_session_id %}&session={{ product_detail_session_id|urlencode }}{% endif %}" class="block">
+                <div class="aspect-square overflow-hidden bg-[#eef4fb]">
+                  <img src="{{ item.thumbnail_url }}" alt="{{ item.name }}" class="h-full w-full object-cover">
+                </div>
+                <div class="px-4 py-4">
+                  <p class="text-[11px] font-semibold uppercase tracking-[0.1em] text-[#90a4b8]">{{ item.brand_name }}</p>
+                  <p class="detail-related-title mt-2 text-[15px] font-bold leading-[1.35] text-[#1e293b]">{{ item.name }}</p>
+                  <p class="mt-2 text-[12px] leading-[1.6] text-[#64748b]">{{ item.summary }}</p>
+                  <div class="mt-4 flex items-end justify-between gap-3">
+                    <p class="text-[17px] font-bold text-[#0f172a]">{{ item.price_label }}</p>
+                    <p class="text-[12px] font-semibold text-[#64748b]">★ {{ item.rating|default:"-" }} · {{ item.review_count }}</p>
+                  </div>
+                </div>
+              </a>
+            </article>
+            {% endfor %}
+          </div>
+        </section>
+        {% endif %}
+      </div>
+
+      <div id="detailTabPanelReviews"
+           class="mt-6 hidden"
+           role="tabpanel"
+           aria-labelledby="detailTabButtonReviews"
+           data-detail-panel="reviews">
+        <section class="detail-section-card px-5 py-5 sm:px-6 sm:py-6 md:px-8">
+          <h2 class="text-[22px] font-bold tracking-[-0.03em] text-[#1e293b]">리뷰 ({{ product_detail_review_count_label }})</h2>
+
+          <div class="detail-review-list mt-5">
+            {% for item in product_detail_review_items %}
+            <article class="detail-review-card">
+              <div class="flex flex-wrap items-start justify-between gap-3">
+                <div class="flex flex-wrap items-center gap-2">
+                  <p class="text-[15px] font-bold text-[#1e293b]">{{ item.author_label }}</p>
+                  {% if item.purchase_label %}
+                  <span class="detail-chip soft">{{ item.purchase_label }}</span>
+                  {% endif %}
+                </div>
+                <p class="text-[12px] font-semibold text-[#94a3b8]">{{ item.written_at_label }}</p>
+              </div>
+              <p class="mt-3 text-[13px] font-bold text-[#d97706]">★ {{ item.score_label }}</p>
+              <p class="mt-3 whitespace-pre-line text-[14px] leading-[1.8] text-[#334155]">{{ item.content|default:"리뷰 내용이 없습니다." }}</p>
+            </article>
+            {% empty %}
+            <article class="detail-review-card">
+              <p class="text-[15px] font-semibold text-[#1e293b]">{{ product_detail_review_empty_message }}</p>
+            </article>
+            {% endfor %}
+          </div>
+
+          {% if product_detail_review_total_pages > 1 %}
+          <div class="detail-review-pagination mt-5">
+            {% if product_detail_review_has_previous %}
+            <a href="{{ product_detail_review_previous_url }}" class="detail-review-page-link">이전</a>
+            {% else %}
+            <span class="detail-review-page-link is-disabled">이전</span>
+            {% endif %}
+
+            <p class="text-[13px] font-semibold text-[#64748b]">{{ product_detail_review_page_number }} / {{ product_detail_review_total_pages }}</p>
+
+            {% if product_detail_review_has_next %}
+            <a href="{{ product_detail_review_next_url }}" class="detail-review-page-link">다음</a>
+            {% else %}
+            <span class="detail-review-page-link is-disabled">다음</span>
+            {% endif %}
+          </div>
+          {% endif %}
+        </section>
+      </div>
+    </main>
+  </div>
+</div>
+
+<div id="productDetailToast"
+     class="detail-feedback-toast pointer-events-none fixed bottom-6 left-1/2 z-[60] flex min-h-[44px] min-w-[220px] max-w-[360px] items-center justify-center rounded-full bg-[#1f2937] px-[18px] py-[11px] text-center text-[13px] font-semibold text-white shadow-[0_14px_28px_rgba(15,23,42,0.28)]">
+  오류가 발생했습니다.
+</div>
+{% endblock %}
+
+{% block scripts %}
+<script>
+(function () {
+  var pageGate = document.getElementById('pageGate');
+  var profileMenu = document.getElementById('profileMenu');
+  var profileMenuWrapper = document.getElementById('profileMenuWrapper');
+  var headerCartNavLink = document.querySelector('.header-subnav-link[href="/products/"]');
+  var headerWishlistNavLink = document.querySelector('.header-subnav-link[href="/wishlist/"]');
+  var productDetailToast = document.getElementById('productDetailToast');
+  var wishlistButton = document.getElementById('productDetailWishlistButton');
+  var cartButton = document.getElementById('productDetailCartButton');
+  var cartMeta = document.getElementById('productDetailCartMeta');
+  var detailTabButtons = Array.prototype.slice.call(document.querySelectorAll('[data-detail-tab]'));
+  var detailTabPanels = Array.prototype.slice.call(document.querySelectorAll('[data-detail-panel]'));
+  var productToastTimer = null;
+  var detailState = {
+    productId: pageGate ? (pageGate.getAttribute('data-product-id') || '') : '',
+    sessionId: pageGate ? (pageGate.getAttribute('data-session-id') || '') : '',
+    source: pageGate ? (pageGate.getAttribute('data-source') || 'product_detail') : 'product_detail',
+    cartQuantity: pageGate ? Number(pageGate.getAttribute('data-cart-quantity') || '0') || 0 : 0,
+    isWishlisted: pageGate ? pageGate.getAttribute('data-is-wishlisted') === '1' : false,
+  };
+
+  window.toggleProfileMenu = function () {
+    if (!profileMenu) return;
+    profileMenu.classList.toggle('is-open');
+  };
+
+  window.goProductDetailBack = function () {
+    if (document.referrer && document.referrer.indexOf(window.location.origin) === 0) {
+      window.history.back();
+      return;
+    }
+    window.location.href = '/catalog/';
+  };
+
+  function getCsrfToken() {
+    var match = document.cookie.match(/(?:^|;\s*)csrftoken=([^;]+)/);
+    return match ? decodeURIComponent(match[1]) : '';
+  }
+
+  function requestJson(url, options) {
+    var fetchOptions = Object.assign(
+      {
+        headers: {
+          'Content-Type': 'application/json',
+          'X-CSRFToken': getCsrfToken(),
+        },
+        credentials: 'same-origin',
+      },
+      options || {}
+    );
+
+    return fetch(url, fetchOptions).then(function (response) {
+      return response.text().then(function (text) {
+        var data = {};
+        if (text) {
+          try {
+            data = JSON.parse(text);
+          } catch (error) {
+            data = {};
+          }
+        }
+        if (!response.ok) {
+          throw new Error(data.detail || '요청 처리에 실패했습니다.');
+        }
+        return data;
+      });
+    });
+  }
+
+  function showDetailToast(message) {
+    if (!productDetailToast) return;
+    productDetailToast.textContent = message || '요청 처리에 실패했습니다.';
+    productDetailToast.classList.add('is-open');
+    if (productToastTimer) {
+      window.clearTimeout(productToastTimer);
+    }
+    productToastTimer = window.setTimeout(function () {
+      productDetailToast.classList.remove('is-open');
+    }, 2400);
+  }
+
+  function refreshMemberNavIndicators() {
+    return Promise.all([
+      requestJson('/api/orders/cart/'),
+      requestJson('/api/orders/wishlist/'),
+    ]).then(function (results) {
+      var cartData = results[0] || {};
+      var wishlistData = results[1] || {};
+      if (headerCartNavLink) {
+        headerCartNavLink.classList.toggle('has-indicator', !!(cartData.items && cartData.items.length));
+      }
+      if (headerWishlistNavLink) {
+        headerWishlistNavLink.classList.toggle('has-indicator', !!(wishlistData.items && wishlistData.items.length));
+      }
+    }).catch(function () {
+      return null;
+    });
+  }
+
+  function syncActionButtons() {
+    if (wishlistButton) {
+      wishlistButton.classList.toggle('is-active', !!detailState.isWishlisted);
+      wishlistButton.setAttribute('aria-label', detailState.isWishlisted ? '관심 상품 제거' : '관심 상품 추가');
+    }
+    if (cartButton) {
+      cartButton.setAttribute('aria-label', detailState.cartQuantity > 0 ? '장바구니에 더 담기' : '장바구니에 담기');
+    }
+    if (cartMeta) {
+      cartMeta.textContent = detailState.cartQuantity > 0 ? '장바구니 ' + detailState.cartQuantity + '개' : '';
+      cartMeta.classList.toggle('hidden', detailState.cartQuantity <= 0);
+    }
+  }
+
+  function resolveDetailTab() {
+    var url = new URL(window.location.href);
+    if ((window.location.hash || '').replace('#', '') === 'reviews') {
+      return 'reviews';
+    }
+    return url.searchParams.has('review_page') ? 'reviews' : 'info';
+  }
+
+  function setDetailTab(tabName, options) {
+    detailTabButtons.forEach(function (button) {
+      var isActive = button.getAttribute('data-detail-tab') === tabName;
+      button.classList.toggle('is-active', isActive);
+      button.setAttribute('aria-selected', isActive ? 'true' : 'false');
+      button.setAttribute('tabindex', isActive ? '0' : '-1');
+    });
+
+    detailTabPanels.forEach(function (panel) {
+      var isActive = panel.getAttribute('data-detail-panel') === tabName;
+      panel.classList.toggle('hidden', !isActive);
+    });
+
+    if (options && options.updateHash === false) {
+      return;
+    }
+
+    if (window.history && window.history.replaceState) {
+      var url = new URL(window.location.href);
+      url.hash = tabName === 'reviews' ? 'reviews' : 'info';
+      window.history.replaceState(null, '', url.toString());
+      return;
+    }
+
+    window.location.hash = tabName === 'reviews' ? 'reviews' : 'info';
+  }
+
+  function trackDetailView() {
+    if (!detailState.productId) return;
+    requestJson('/api/orders/interactions/', {
+      method: 'POST',
+      body: JSON.stringify({
+        product_id: detailState.productId,
+        interaction_type: 'detail_view',
+        session_id: detailState.sessionId || null,
+      }),
+    }).catch(function () {});
+
+    if (window.tailTalkAnalytics) {
+      window.tailTalkAnalytics.track('detail_view', {
+        goods_id: detailState.productId,
+        page_type: 'product_detail',
+        source: detailState.source || 'product_detail',
+      });
+    }
+  }
+
+  window.toggleProductDetailWishlist = function (button) {
+    if (!detailState.productId || !button) return;
+    button.disabled = true;
+    requestJson('/api/orders/wishlist/', {
+      method: detailState.isWishlisted ? 'DELETE' : 'POST',
+      body: JSON.stringify({
+        product_id: detailState.productId,
+        session_id: detailState.sessionId || null,
+      }),
+    }).then(function () {
+      detailState.isWishlisted = !detailState.isWishlisted;
+      syncActionButtons();
+      refreshMemberNavIndicators();
+      showDetailToast(detailState.isWishlisted ? '관심 상품에 담았습니다.' : '관심 상품에서 제거했습니다.');
+    }).catch(function (error) {
+      showDetailToast(error.message);
+    }).finally(function () {
+      button.disabled = false;
+    });
+  };
+
+  window.addProductDetailToCart = function (button) {
+    if (!detailState.productId || !button) return;
+    button.disabled = true;
+    requestJson('/api/orders/cart/', {
+      method: 'POST',
+      body: JSON.stringify({
+        product_id: detailState.productId,
+        quantity: 1,
+        session_id: detailState.sessionId || null,
+      }),
+    }).then(function (data) {
+      var cartItem = data.cart_item || {};
+      detailState.cartQuantity = Number(cartItem.quantity || detailState.cartQuantity + 1) || 1;
+      syncActionButtons();
+      refreshMemberNavIndicators();
+      showDetailToast('장바구니에 담았습니다.');
+    }).catch(function (error) {
+      showDetailToast(error.message);
+    }).finally(function () {
+      button.disabled = false;
+    });
+  };
+
+  document.addEventListener('mousedown', function (event) {
+    if (profileMenuWrapper && !profileMenuWrapper.contains(event.target) && profileMenu) {
+      profileMenu.classList.remove('is-open');
+    }
+  });
+
+  detailTabButtons.forEach(function (button) {
+    button.addEventListener('click', function () {
+      setDetailTab(button.getAttribute('data-detail-tab') || 'info');
+    });
+  });
+
+  window.addEventListener('hashchange', function () {
+    setDetailTab(resolveDetailTab(), { updateHash: false });
+  });
+
+  syncActionButtons();
+  refreshMemberNavIndicators();
+  setDetailTab(resolveDetailTab(), { updateHash: false });
+  trackDetailView();
+})();
+</script>
+{% endblock %}

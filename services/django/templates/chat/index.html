@@ -1192,7 +1192,7 @@
 
     function trackRecommendationImpressions(sessionId, items) {
       if (!sessionId) return;
-      var normalized = normalizeRecommendedProducts(items || []);
+      var normalized = normalizeRecommendedProducts(items || [], sessionId);
       var signature = recommendationSignature(normalized);
       normalized.forEach(function (item, index) {
         var goodsId = item.product_id || item.goods_id || '';
@@ -1315,10 +1315,26 @@
       });
     }
 
-    function normalizeRecommendedProducts(products) {
+    function buildProductDetailHref(goodsId, source, sessionId) {
+      var normalized = String(goodsId || '').trim();
+      if (!normalized) return '';
+      var params = new URLSearchParams();
+      if (source) {
+        params.set('source', source);
+      }
+      if (sessionId) {
+        params.set('session', sessionId);
+      }
+      var query = params.toString();
+      return '/products/' + encodeURIComponent(normalized) + '/' + (query ? '?' + query : '');
+    }
+
+    function normalizeRecommendedProducts(products, sessionId) {
+      var recommendationSessionId = sessionId || activeSessionId || '';
       return (products || []).map(function (product) {
+        var goodsId = product.goods_id || product.product_id || '';
         return {
-          goods_id: product.goods_id || product.product_id || '',
+          goods_id: goodsId,
           product_id: product.product_id || product.goods_id || '',
           product_name: product.product_name || product.name || '추천 상품',
           brand_name: product.brand_name || product.brand || '',
@@ -1328,7 +1344,8 @@
           reviews: product.reviews,
           review_count: product.review_count,
           thumbnail_url: product.thumbnail_url || '',
-          product_url: product.product_url || '',
+          product_url: product.detail_url || buildProductDetailHref(goodsId, 'chat_recommendation', recommendationSessionId) || product.product_url || '',
+          external_product_url: product.external_product_url || product.product_url || '',
           summary: product.summary || '',
           rank_order: product.rank_order || 0,
         };
@@ -1337,7 +1354,7 @@
 
     function syncSessionRecommendedProductsStorage(sessionId, cards) {
       if (!sessionId) return;
-      sessionRecommendedProducts[sessionId] = normalizeRecommendedProducts(cards || []);
+      sessionRecommendedProducts[sessionId] = normalizeRecommendedProducts(cards || [], sessionId);
       try {
         if (sessionRecommendedProducts[sessionId].length) {
           window.localStorage.setItem(
@@ -1362,14 +1379,14 @@
       }
     }
 
-    function collectLatestRecommendedProducts(messages) {
+    function collectLatestRecommendedProducts(messages, sessionId) {
       var latest = [];
       (messages || []).forEach(function (message) {
         if (Array.isArray(message.recommended_products) && message.recommended_products.length) {
           latest = message.recommended_products;
         }
       });
-      return normalizeRecommendedProducts(latest);
+      return normalizeRecommendedProducts(latest, sessionId);
     }
 
     function hasAssistantMessages(messages) {
@@ -1381,7 +1398,7 @@
     function hydrateSessionRecommendationsFromMessages(sessionId, messages) {
       if (!sessionId) return [];
       var state = ensureSessionState(sessionId);
-      var latest = collectLatestRecommendedProducts(messages);
+      var latest = collectLatestRecommendedProducts(messages, sessionId);
       syncSessionRecommendedProductsStorage(sessionId, latest);
       if (state) {
         state.recommendationStatus = latest.length ? 'ready' : (hasAssistantMessages(messages) ? 'empty' : 'idle');
@@ -1575,10 +1592,10 @@
       var priceLabel = escapeHtml(formatPriceLabel(item.discount_price || item.price));
       var thumbnailUrl = escapeHtml(item.thumbnail_url || '');
       var reviews = escapeHtml(normalizeReviewLabel(item.reviews || item.review_count));
-      var rating = escapeHtml(item.rating || '4.7');
+      var rating = escapeHtml(item.rating || '-');
       var rankOrder = escapeHtml(item.rank_order || '0');
       var thumbnailHtml = productUrl
-        ? '<a href="' + productUrl + '" target="_blank" rel="noopener noreferrer" class="relative flex h-[68px] w-[68px] shrink-0 items-center justify-center overflow-hidden rounded-[14px] bg-gradient-to-br from-[#dbeafe] via-[#eff6ff] to-[#f8fafc] transition-transform hover:scale-[1.02]" data-recommendation-link="true">'
+        ? '<a href="' + productUrl + '" class="relative flex h-[68px] w-[68px] shrink-0 items-center justify-center overflow-hidden rounded-[14px] bg-gradient-to-br from-[#dbeafe] via-[#eff6ff] to-[#f8fafc] transition-transform hover:scale-[1.02]" data-recommendation-link="true">'
           + '  <img src="' + thumbnailUrl + '" alt="" class="h-full w-full object-cover" onerror="this.style.display=\'none\'; this.parentNode.querySelector(&quot;.fallback-emoji&quot;).style.display = \'flex\';">'
           + '  <div class="fallback-emoji absolute inset-0 hidden items-center justify-center text-[26px]">🛍️</div>'
           + '</a>'
@@ -1587,7 +1604,7 @@
           + '  <div class="fallback-emoji absolute inset-0 hidden items-center justify-center text-[26px]">🛍️</div>'
           + '</div>';
       var nameHtml = productUrl
-        ? '<a href="' + productUrl + '" target="_blank" rel="noopener noreferrer" class="product-card-name block transition-colors hover:text-[#2b6cb0]" data-recommendation-link="true">' + productName + '</a>'
+        ? '<a href="' + productUrl + '" class="product-card-name block transition-colors hover:text-[#2b6cb0]" data-recommendation-link="true">' + productName + '</a>'
         : '<div class="product-card-name">' + productName + '</div>';
 
       return ''
@@ -1640,7 +1657,7 @@
 
     function renderRecommendationPanel(items) {
       if (!recommendationPanelBody) return;
-      var normalized = normalizeRecommendedProducts(items || []);
+      var normalized = normalizeRecommendedProducts(items || [], activeSessionId);
       if (recommendationStatus === 'loading') {
         recommendationPanelBody.innerHTML = ''
           + '<div class="rounded-[22px] border border-[#dbe7f5] bg-white px-4 py-6 text-center">'
@@ -1758,10 +1775,8 @@
         var analyticsPayload = buildRecommendationAnalyticsPayload(link);
         if (!analyticsPayload) return;
         logRecommendationInteraction(analyticsPayload.goods_id, 'click', 1, analyticsPayload.session_id || null);
-        logRecommendationInteraction(analyticsPayload.goods_id, 'detail_view', 1, analyticsPayload.session_id || null);
         if (window.tailTalkAnalytics) {
           window.tailTalkAnalytics.track('recommendation_click', analyticsPayload);
-          window.tailTalkAnalytics.track('detail_view', analyticsPayload);
         }
       });
     }

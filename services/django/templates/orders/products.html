@@ -867,7 +867,7 @@
                  data-rating="{{ item.rating|default:'-' }}"
                  data-review-count="{{ item.review_count }}"
                  data-thumbnail-url="{{ item.thumbnail_url|default:'' }}"
-                 data-product-url="{{ item.product_url|default:'' }}"
+                 data-product-url="{% if item.product_url %}{{ item.product_url }}?source=cart{% endif %}"
                  data-note="{{ item.note }}">
           <div class="cart-item-actions absolute right-4 top-[22px] flex items-center gap-2">
             <button type="button"
@@ -877,7 +877,7 @@
           </div>
           <div class="cart-item-main flex items-start gap-3">
             {% if item.product_url %}
-            <a href="{{ item.product_url }}" target="_blank" rel="noopener noreferrer" class="cart-item-media relative z-[1] flex h-[64px] w-[64px] shrink-0 cursor-pointer items-center justify-center overflow-hidden rounded-[18px] bg-[#f8fbff] shadow-[0_4px_12px_rgba(49,130,206,0.08)] transition-transform hover:scale-[1.02]" data-cart-thumbnail-link onclick="event.stopPropagation()">
+            <a href="{{ item.product_url }}?source=cart" class="cart-item-media relative z-[1] flex h-[64px] w-[64px] shrink-0 cursor-pointer items-center justify-center overflow-hidden rounded-[18px] bg-[#f8fbff] shadow-[0_4px_12px_rgba(49,130,206,0.08)] transition-transform hover:scale-[1.02]" data-cart-thumbnail-link onclick="event.stopPropagation()">
               {% if item.thumbnail_url %}
               <img src="{{ item.thumbnail_url }}" alt="{{ item.name }}" class="h-full w-full object-cover" />
               {% else %}
@@ -895,7 +895,7 @@
             {% endif %}
             <div class="cart-item-copy min-w-0 flex-1 pr-14">
               {% if item.product_url %}
-              <a href="{{ item.product_url }}" target="_blank" rel="noopener noreferrer" class="relative z-[1] mt-1 block cursor-pointer truncate text-[16px] font-bold text-[#2d3748] transition-colors hover:text-[#3182ce]" data-cart-name onclick="event.stopPropagation()">{{ item.name }}</a>
+              <a href="{{ item.product_url }}?source=cart" class="relative z-[1] mt-1 block cursor-pointer truncate text-[16px] font-bold text-[#2d3748] transition-colors hover:text-[#3182ce]" data-cart-name onclick="event.stopPropagation()">{{ item.name }}</a>
               {% else %}
               <p class="mt-1 truncate text-[16px] font-bold text-[#2d3748]" data-cart-name>{{ item.name }}</p>
               {% endif %}
@@ -965,7 +965,7 @@
                  data-rating="{{ item.rating|default:'-' }}"
                  data-review-count="{{ item.review_count }}"
                  data-thumbnail-url="{{ item.thumbnail_url|default:'' }}"
-                 data-product-url="{{ item.product_url|default:'' }}"
+                 data-product-url="{% if item.product_url %}{{ item.product_url }}?source=wishlist{% endif %}"
                  data-note="{{ item.note }}">
           {% if item.product_url %}
           <div class="wishlist-item-media catalog-thumb relative overflow-hidden bg-[#f8fbff]">
@@ -974,7 +974,7 @@
                  data-wishlist-select-checkbox
                  aria-label="관심 상품 선택"
                  >
-            <a href="{{ item.product_url }}" target="_blank" rel="noopener noreferrer" class="absolute inset-0 block" data-wishlist-product-link>
+            <a href="{{ item.product_url }}?source=wishlist" class="absolute inset-0 block" data-wishlist-product-link>
               {% if item.thumbnail_url %}
               <img src="{{ item.thumbnail_url }}" alt="{{ item.name }}" class="h-full w-full object-cover">
               {% else %}
@@ -1020,7 +1020,7 @@
           {% endif %}
           <div class="catalog-card-body p-4">
             {% if item.product_url %}
-            <a href="{{ item.product_url }}" target="_blank" rel="noopener noreferrer" class="catalog-card-title hover:text-[#3182ce]" data-wishlist-product-link>{{ item.name }}</a>
+            <a href="{{ item.product_url }}?source=wishlist" class="catalog-card-title hover:text-[#3182ce]" data-wishlist-product-link>{{ item.name }}</a>
             {% else %}
             <p class="catalog-card-title">{{ item.name }}</p>
             {% endif %}
@@ -1283,13 +1283,13 @@
     }, overrides || {});
   }
 
-  function trackPanelDetailView(item, source) {
+  function trackPanelProductClick(item, source) {
     if (!item) return;
     var payload = buildPanelAnalyticsPayload(item, source);
     if (!payload || !payload.goods_id) return;
-    logProductInteraction(payload.goods_id, 'detail_view', payload.quantity || 1);
+    logProductInteraction(payload.goods_id, 'click', 1);
     if (window.tailTalkAnalytics) {
-      window.tailTalkAnalytics.track('detail_view', payload);
+      window.tailTalkAnalytics.track('product_click', payload);
     }
   }
 
@@ -1593,19 +1593,34 @@
     return items;
   }
 
+  function withDetailSource(productUrl, source) {
+    var normalizedUrl = String(productUrl || '').trim();
+    if (!normalizedUrl) return '';
+    var parts = normalizedUrl.split('?');
+    var baseUrl = parts.shift();
+    var params = new URLSearchParams(parts.join('?'));
+    if (source) {
+      params.set('source', source);
+    }
+    var query = params.toString();
+    return query ? baseUrl + '?' + query : baseUrl;
+  }
+
   function cartThumbnailMarkup(productUrl, thumbnailUrl, name) {
+    var detailUrl = withDetailSource(productUrl, 'cart');
     var thumbnail = thumbnailUrl
       ? '<img src="' + escapeHtml(thumbnailUrl) + '" alt="' + escapeHtml(name) + '" class="h-full w-full object-cover" />'
       : '<span class="text-[20px] font-bold text-[#90a4b8]">?</span>';
-    if (productUrl) {
-      return '<a href="' + escapeHtml(productUrl) + '" target="_blank" rel="noopener noreferrer" class="relative z-[1] flex h-[64px] w-[64px] shrink-0 cursor-pointer items-center justify-center overflow-hidden rounded-[18px] bg-[#f8fbff] shadow-[0_4px_12px_rgba(49,130,206,0.08)] transition-transform hover:scale-[1.02]" data-cart-thumbnail-link onclick="event.stopPropagation()">' + thumbnail + '</a>';
+    if (detailUrl) {
+      return '<a href="' + escapeHtml(detailUrl) + '" class="relative z-[1] flex h-[64px] w-[64px] shrink-0 cursor-pointer items-center justify-center overflow-hidden rounded-[18px] bg-[#f8fbff] shadow-[0_4px_12px_rgba(49,130,206,0.08)] transition-transform hover:scale-[1.02]" data-cart-thumbnail-link onclick="event.stopPropagation()">' + thumbnail + '</a>';
     }
     return '<div class="flex h-[64px] w-[64px] shrink-0 items-center justify-center overflow-hidden rounded-[18px] bg-[#f8fbff] shadow-[0_4px_12px_rgba(49,130,206,0.08)]" data-cart-thumbnail-link>' + thumbnail + '</div>';
   }
 
   function cartNameMarkup(productUrl, name) {
-    if (productUrl) {
-      return '<a href="' + escapeHtml(productUrl) + '" target="_blank" rel="noopener noreferrer" class="relative z-[1] mt-1 block cursor-pointer truncate text-[16px] font-bold text-[#2d3748] transition-colors hover:text-[#3182ce]" data-cart-name onclick="event.stopPropagation()">' + escapeHtml(name) + '</a>';
+    var detailUrl = withDetailSource(productUrl, 'cart');
+    if (detailUrl) {
+      return '<a href="' + escapeHtml(detailUrl) + '" class="relative z-[1] mt-1 block cursor-pointer truncate text-[16px] font-bold text-[#2d3748] transition-colors hover:text-[#3182ce]" data-cart-name onclick="event.stopPropagation()">' + escapeHtml(name) + '</a>';
     }
     return '<p class="mt-1 truncate text-[16px] font-bold text-[#2d3748]" data-cart-name>' + escapeHtml(name) + '</p>';
   }
@@ -1620,7 +1635,7 @@
     item.setAttribute('data-rating', cartItem.rating || '-');
     item.setAttribute('data-review-count', normalizeReviewCount(cartItem.review_count || '0'));
     item.setAttribute('data-thumbnail-url', cartItem.thumbnail_url || '');
-    item.setAttribute('data-product-url', cartItem.product_url || '');
+    item.setAttribute('data-product-url', withDetailSource(cartItem.product_url || '', 'cart'));
 
     var quantityNode = item.querySelector('[data-cart-quantity]');
     if (quantityNode) {
@@ -1914,15 +1929,15 @@
     var thumbnail = data.thumbnailUrl
       ? '<img src="' + escapeHtml(data.thumbnailUrl) + '" alt="' + escapeHtml(data.name) + '" class="h-full w-full object-cover" />'
       : '<span class="flex h-full w-full items-center justify-center text-[32px] font-bold text-[#90a4b8]">?</span>';
-    var productUrl = escapeHtml(data.productUrl || '');
+    var productUrl = escapeHtml(withDetailSource(data.productUrl || '', 'wishlist'));
     var checkboxHtml = '<input type="checkbox" class="cart-item-select catalog-card-select" data-wishlist-select-checkbox aria-label="관심 상품 선택">';
     var thumbnailHtml = (
       productUrl
-        ? '<div class="wishlist-item-media catalog-thumb relative overflow-hidden bg-[#f8fbff]">' + checkboxHtml + '<a href="' + productUrl + '" target="_blank" rel="noopener noreferrer" class="absolute inset-0 block" data-wishlist-product-link>' + thumbnail + '</a><button type="button" class="catalog-card-wishlist wishlist-heart is-active" aria-label="관심 상품 상태 변경" onclick="toggleWishlistHeart(this)"><svg width="15" height="15" viewBox="0 0 24 24" fill="none" aria-hidden="true"><path d="M12 20.4 4.9 13.8a4.8 4.8 0 0 1 6.8-6.8L12 7.3l.3-.3a4.8 4.8 0 0 1 6.8 6.8L12 20.4Z" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"/></svg><svg width="15" height="15" viewBox="0 0 24 24" fill="currentColor" aria-hidden="true"><path d="M12 20.4 4.9 13.8a4.8 4.8 0 0 1 6.8-6.8L12 7.3l.3-.3a4.8 4.8 0 0 1 6.8 6.8L12 20.4Z"/></svg></button></div>'
+        ? '<div class="wishlist-item-media catalog-thumb relative overflow-hidden bg-[#f8fbff]">' + checkboxHtml + '<a href="' + productUrl + '" class="absolute inset-0 block" data-wishlist-product-link>' + thumbnail + '</a><button type="button" class="catalog-card-wishlist wishlist-heart is-active" aria-label="관심 상품 상태 변경" onclick="toggleWishlistHeart(this)"><svg width="15" height="15" viewBox="0 0 24 24" fill="none" aria-hidden="true"><path d="M12 20.4 4.9 13.8a4.8 4.8 0 0 1 6.8-6.8L12 7.3l.3-.3a4.8 4.8 0 0 1 6.8 6.8L12 20.4Z" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"/></svg><svg width="15" height="15" viewBox="0 0 24 24" fill="currentColor" aria-hidden="true"><path d="M12 20.4 4.9 13.8a4.8 4.8 0 0 1 6.8-6.8L12 7.3l.3-.3a4.8 4.8 0 0 1 6.8 6.8L12 20.4Z"/></svg></button></div>'
         : '<div class="wishlist-item-media catalog-thumb relative overflow-hidden bg-[#f8fbff]">' + checkboxHtml + thumbnail + '<button type="button" class="catalog-card-wishlist wishlist-heart is-active" aria-label="관심 상품 상태 변경" onclick="toggleWishlistHeart(this)"><svg width="15" height="15" viewBox="0 0 24 24" fill="none" aria-hidden="true"><path d="M12 20.4 4.9 13.8a4.8 4.8 0 0 1 6.8-6.8L12 7.3l.3-.3a4.8 4.8 0 0 1 6.8 6.8L12 20.4Z" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"/></svg><svg width="15" height="15" viewBox="0 0 24 24" fill="currentColor" aria-hidden="true"><path d="M12 20.4 4.9 13.8a4.8 4.8 0 0 1 6.8-6.8L12 7.3l.3-.3a4.8 4.8 0 0 1 6.8 6.8L12 20.4Z"/></svg></button></div>'
     );
     var nameHtml = productUrl
-      ? '<a href="' + productUrl + '" target="_blank" rel="noopener noreferrer" class="catalog-card-title hover:text-[#3182ce]" data-wishlist-product-link>' + escapeHtml(data.name) + '</a>'
+      ? '<a href="' + productUrl + '" class="catalog-card-title hover:text-[#3182ce]" data-wishlist-product-link>' + escapeHtml(data.name) + '</a>'
       : '<p class="catalog-card-title">' + escapeHtml(data.name) + '</p>';
 
     return [
@@ -2342,7 +2357,7 @@
       ? event.target.closest('[data-cart-thumbnail-link], [data-cart-name]')
       : null;
     if (cartLink) {
-      trackPanelDetailView(cartLink.closest('[data-cart-item]'), 'cart');
+      trackPanelProductClick(cartLink.closest('[data-cart-item]'), 'cart');
       return;
     }
 
@@ -2350,7 +2365,7 @@
       ? event.target.closest('[data-wishlist-product-link]')
       : null;
     if (wishlistLink) {
-      trackPanelDetailView(wishlistLink.closest('[data-wishlist-item]'), 'wishlist');
+      trackPanelProductClick(wishlistLink.closest('[data-wishlist-item]'), 'wishlist');
     }
   });
 
