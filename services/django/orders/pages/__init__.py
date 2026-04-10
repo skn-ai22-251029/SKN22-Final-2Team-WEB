@@ -1,4 +1,4 @@
-from .views_catalog import catalog, checkout, used_products, wishlist_products
+from .views_catalog import catalog, checkout, product_detail, used_products, wishlist_products
 from .views_order_pages import order_complete, order_list
 
 __all__ = [
@@ -6,6 +6,7 @@ __all__ = [
     "checkout",
     "order_complete",
     "order_list",
+    "product_detail",
     "used_products",
     "wishlist_products",
 ]

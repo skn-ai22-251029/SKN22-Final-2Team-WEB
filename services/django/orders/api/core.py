@@ -6,8 +6,15 @@ from rest_framework.permissions import IsAuthenticated
 from rest_framework.response import Response
 from rest_framework.views import APIView
 from rest_framework_simplejwt.authentication import JWTAuthentication
+from django.urls import reverse
 
 from products.models import Product
+from products.review_metrics import (
+    attach_actual_review_metrics,
+    get_actual_rating_value,
+    get_actual_review_count,
+    with_actual_review_metrics,
+)
 from users.quick_purchase import serialize_quick_purchase_profile
 
 from ..models import Cart, CartItem, Order, OrderItem, UserInteraction, Wishlist, WishlistItem
@@ -81,6 +88,10 @@ def _display_product_name(brand_name, goods_name):
     return (goods_name or "").strip()
 
 
+def _build_product_detail_url(goods_id):
+    return reverse("product_detail", args=[goods_id])
+
+
 def create_user_interaction(*, user, product, interaction_type, weight=1, session_id=None):
     return UserInteraction.objects.create(
         user=user,
@@ -112,10 +123,11 @@ def serialize_product_summary(product: Product) -> dict:
         "brand": product.brand_name,
         "price": price,
         "price_label": f"{price:,}원",
-        "rating": float(product.rating) if product.rating is not None else None,
-        "review_count": product.review_count,
+        "rating": get_actual_rating_value(product),
+        "review_count": get_actual_review_count(product),
         "thumbnail_url": product.thumbnail_url,
-        "product_url": product.product_url,
+        "product_url": _build_product_detail_url(product.goods_id),
+        "external_product_url": product.product_url,
     }
 
 
@@ -566,7 +578,7 @@ def get_product_or_400(product_id):
             field="product_id",
         )
 
-    product = Product.objects.filter(goods_id=product_id).first()
+    product = with_actual_review_metrics(Product.objects).filter(goods_id=product_id).first()
     if product is None:
         return None, error_response(
             "product not found.",
@@ -581,6 +593,7 @@ def get_product_or_400(product_id):
 def get_cart_response(user):
     cart, _ = Cart.objects.get_or_create(user=user)
     items = list(cart.items.select_related("product").order_by("-added_at"))
+    attach_actual_review_metrics([item.product for item in items])
     serialized_items = [serialize_cart_item(item) for item in items]
     return Response(
         {
@@ -594,6 +607,7 @@ def get_cart_response(user):
 def get_wishlist_response(user):
     wishlist, _ = Wishlist.objects.get_or_create(user=user)
     items = list(wishlist.items.select_related("product").order_by("-added_at"))
+    attach_actual_review_metrics([item.product for item in items])
     serialized_items = [serialize_wishlist_item(item) for item in items]
     return Response(
         {

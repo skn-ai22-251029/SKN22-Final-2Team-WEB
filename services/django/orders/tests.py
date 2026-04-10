@@ -1,5 +1,6 @@
 from datetime import timedelta
 from io import StringIO
+from unittest import mock
 
 from django.core.management import call_command
 from django.core.management.base import CommandError
@@ -10,10 +11,13 @@ from rest_framework.test import APIClient
 
 from chat.models import ChatMessage, ChatMessageRecommendation, ChatSession
 from orders.management.commands.seed_vendor_demo_metrics import _slugify_label
-from products.models import Product
+from products.models import Product, Review
 from users.models import User, UserProfile
 
 from .models import Cart, CartItem, Order, OrderItem, UserInteraction, Wishlist, WishlistItem
+from .pages.core import PRODUCT_DETAIL_REVIEW_PAGE_SIZE
+from .pages.demo_detail_images import PRODUCT_DETAIL_DEMO_IMAGE_MAP
+from .pages.detail_images import get_product_detail_image_urls
 
 
 class CartApiTests(TestCase):
@@ -51,9 +55,38 @@ class CartApiTests(TestCase):
         self.assertEqual(response.status_code, status.HTTP_201_CREATED)
         self.assertEqual(response.data["cart_item"]["product_id"], self.product.goods_id)
         self.assertEqual(response.data["cart_item"]["quantity"], 2)
+        self.assertEqual(response.data["cart_item"]["product_url"], f"/products/{self.product.goods_id}/")
         self.assertTrue(CartItem.objects.filter(cart__user=self.user, product=self.product).exists())
         interaction = UserInteraction.objects.get(user=self.user, product=self.product, interaction_type="cart")
         self.assertEqual(interaction.weight, 2)
+
+    def test_cart_response_uses_actual_review_metrics(self):
+        Review.objects.create(
+            review_id="RV-CART-0001",
+            product=self.product,
+            score=5.0,
+            content="잘 먹어요",
+            author_nickname="버디1",
+            written_at=timezone.now().date(),
+        )
+        Review.objects.create(
+            review_id="RV-CART-0002",
+            product=self.product,
+            score=4.0,
+            content="재구매 예정",
+            author_nickname="버디2",
+            written_at=timezone.now().date(),
+        )
+
+        response = self.client.post(
+            "/api/orders/cart/",
+            {"product_id": self.product.goods_id, "quantity": 1},
+            format="json",
+        )
+
+        self.assertEqual(response.status_code, status.HTTP_201_CREATED)
+        self.assertEqual(response.data["cart_item"]["review_count"], 2)
+        self.assertEqual(response.data["cart_item"]["rating"], 4.5)
 
     def test_post_cart_existing_item_increments_quantity(self):
         self.client.post("/api/orders/cart/", {"product_id": self.product.goods_id}, format="json")
@@ -690,6 +723,54 @@ class OrderPageViewTests(TestCase):
         self.user = User.objects.create_user(email="order-page@example.com", password="Password123!")
         self.client.force_login(self.user)
         UserProfile.objects.create(user=self.user, nickname="주문 페이지")
+        self.product = Product.objects.create(
+            goods_id="GI-DETAIL-1",
+            goods_name="유저 상세 테스트 상품",
+            brand_name="테스트 브랜드",
+            price=25900,
+            discount_price=21900,
+            rating=4.8,
+            review_count=2,
+            thumbnail_url="https://example.com/detail-thumb.png",
+            product_url="https://example.com/detail-product",
+            pet_type=["강아지"],
+            category=["간식"],
+            subcategory=["져키/트릿"],
+            health_concern_tags=["피부", "관절"],
+            main_ingredients=["오리", "고구마", "감자전분", "비타민E", "연어오일", "콜라겐", "유산균", "타우린"],
+            crawled_at=timezone.now(),
+        )
+        Review.objects.create(
+            review_id="RV-DETAIL-0001",
+            product=self.product,
+            score=5.0,
+            content="기호성이 정말 좋아서 금방 다 먹었어요.",
+            author_nickname="버디1001",
+            written_at=timezone.now().date(),
+            purchase_label="repeat",
+        )
+        Review.objects.create(
+            review_id="RV-DETAIL-0002",
+            product=self.product,
+            score=4.0,
+            content="포장이 깔끔했고 간식 크기도 적당합니다.",
+            author_nickname="버디1002",
+            written_at=timezone.now().date(),
+            purchase_label="first",
+        )
+        self.related_product = Product.objects.create(
+            goods_id="GI-DETAIL-2",
+            goods_name="같이 보는 상품",
+            brand_name="테스트 브랜드",
+            price=18900,
+            discount_price=16900,
+            thumbnail_url="https://example.com/detail-related.png",
+            product_url="https://example.com/detail-related",
+            pet_type=["강아지"],
+            category=["간식"],
+            subcategory=["져키/트릿"],
+            crawled_at=timezone.now(),
+        )
 
     def test_order_list_supports_demo_mode(self):
         response = self.client.get("/orders/?demo=1")
@@ -722,6 +803,173 @@ class OrderPageViewTests(TestCase):
         self.assertEqual(response.status_code, 200)
         self.assertContains(response, "현재 채팅 세션에서 추천된 상품")
         self.assertContains(response, "카탈로그 추천 상품")
+
+    def test_catalog_links_to_internal_product_detail(self):
+        response = self.client.get("/catalog/")
+
+        self.assertEqual(response.status_code, 200)
+        self.assertContains(response, f"/products/{self.product.goods_id}/")
+
+    def test_tailtalk_sort_prioritizes_products_with_actual_reviews(self):
+        Product.objects.create(
+            goods_id="GI-NOREV-HP1",
+            goods_name="리뷰 없는 고점수 상품",
+            brand_name="테스트 브랜드",
+            price=12900,
+            discount_price=9900,
+            rating=9.9,
+            review_count=9999,
+            popularity_score=99.9999,
+            thumbnail_url="https://example.com/no-review-high-popularity.png",
+            product_url="https://example.com/no-review-high-popularity",
+            pet_type=["강아지"],
+            category=["간식"],
+            subcategory=["져키/트릿"],
+            crawled_at=timezone.now(),
+        )
+
+        response = self.client.get("/catalog/?sort=tailtalk")
+
+        self.assertEqual(response.status_code, 200)
+        self.assertEqual(response.context["catalog_items"][0]["product_id"], self.product.goods_id)
+
+    def test_product_detail_requires_login(self):
+        self.client.logout()
+
+        response = self.client.get(f"/products/{self.product.goods_id}/")
+
+        self.assertEqual(response.status_code, status.HTTP_302_FOUND)
+        self.assertIn("/login/", response["Location"])
+
+    def test_product_detail_renders_user_sections(self):
+        CartItem.objects.create(cart=Cart.objects.create(user=self.user), product=self.product, quantity=2)
+        WishlistItem.objects.create(wishlist=Wishlist.objects.create(user=self.user), product=self.product)
+
+        response = self.client.get(f"/products/{self.product.goods_id}/")
+
+        self.assertEqual(response.status_code, 200)
+        self.assertContains(response, "유저 상세 테스트 상품")
+        self.assertContains(response, "상품 정보")
+        self.assertContains(response, "리뷰")
+        self.assertContains(response, "성분과 영양")
+        self.assertNotContains(response, "건강 태그")
+        self.assertContains(response, "21,900원")
+        self.assertContains(response, "25,900원")
+        self.assertContains(response, "타우린")
+        self.assertNotContains(response, "+2")
+        self.assertContains(response, "같이 볼 만한 상품")
+        self.assertContains(response, "기호성이 정말 좋아서 금방 다 먹었어요.")
+        self.assertContains(response, "재구매")
+        self.assertContains(response, "리뷰 (2)")
+        self.assertNotContains(response, "평점 / 리뷰")
+        self.assertNotContains(response, 'id="productDetailStorySection"', html=False)
+
+    def test_product_detail_review_pagination_keeps_all_reviews_accessible(self):
+        for index in range(3, PRODUCT_DETAIL_REVIEW_PAGE_SIZE + 3):
+            Review.objects.create(
+                review_id=f"RV-DETAIL-{index:04d}",
+                product=self.product,
+                score=4.0,
+                content=f"추가 리뷰 {index}",
+                author_nickname=f"버디{index:04d}",
+                written_at=timezone.now().date(),
+                purchase_label="repeat" if index % 2 else "first",
+            )
+
+        first_page_response = self.client.get(f"/products/{self.product.goods_id}/?review_page=1")
+
+        self.assertEqual(first_page_response.status_code, 200)
+        self.assertContains(first_page_response, "추가 리뷰 14")
+        self.assertContains(first_page_response, "?review_page=2#reviews")
+        self.assertContains(first_page_response, "1 / 2")
+        self.assertNotContains(first_page_response, "기호성이 정말 좋아서 금방 다 먹었어요.")
+
+        second_page_response = self.client.get(f"/products/{self.product.goods_id}/?review_page=2")
+
+        self.assertEqual(second_page_response.status_code, 200)
+        self.assertContains(second_page_response, "기호성이 정말 좋아서 금방 다 먹었어요.")
+        self.assertContains(second_page_response, "포장이 깔끔했고 간식 크기도 적당합니다.")
+        self.assertContains(second_page_response, "#reviews")
+        self.assertContains(second_page_response, "2 / 2")
+        self.assertNotContains(second_page_response, "추가 리뷰 14")
+
+    def test_product_detail_uses_actual_review_rows_for_review_count(self):
+        product = Product.objects.create(
+            goods_id="GP-DETAIL-NO-REVIEW",
+            goods_name="리뷰 메타만 있는 상품",
+            brand_name="테스트 브랜드",
+            price=15900,
+            discount_price=12900,
+            rating=4.9,
+            review_count=24478,
+            thumbnail_url="https://example.com/detail-no-review-thumb.png",
+            product_url="https://www.aboutpet.co.kr/goods/getGoods?goodsId=GP-DETAIL-NO-REVIEW",
+            pet_type=["고양이"],
+            category=["사료"],
+            subcategory=["건식"],
+            crawled_at=timezone.now(),
+        )
+
+        response = self.client.get(f"/products/{product.goods_id}/")
+
+        self.assertEqual(response.status_code, 200)
+        self.assertContains(response, "리뷰 (0)")
+        self.assertContains(response, "아직 표시할 리뷰가 없습니다.")
+        self.assertNotContains(response, "리뷰 (24,478)")
+
+    def test_product_detail_renders_demo_story_images_for_whitelisted_goods(self):
+        goods_id, image_urls = next(iter(PRODUCT_DETAIL_DEMO_IMAGE_MAP.items()))
+        product = Product.objects.create(
+            goods_id=goods_id,
+            goods_name="시연용 상세 이미지 상품",
+            brand_name="시연 브랜드",
+            price=24000,
+            discount_price=19900,
+            thumbnail_url="https://example.com/demo-detail-thumb.png",
+            product_url="https://example.com/demo-detail-product",
+            pet_type=["고양이"],
+            category=["사료"],
+            subcategory=["건식"],
+            crawled_at=timezone.now(),
+        )
+
+        response = self.client.get(f"/products/{product.goods_id}/")
+
+        self.assertEqual(response.status_code, 200)
+        self.assertContains(response, 'id="productDetailStorySection"', html=False)
+        self.assertContains(response, image_urls[0])
+
+    @mock.patch("orders.pages.detail_images._fetch_aboutpet_detail_image_urls")
+    def test_detail_image_lookup_skips_non_aboutpet_external_products(self, fetch_detail_images):
+        product = Product(
+            goods_id="GI-DETAIL-EXTERNAL",
+            goods_name="외부몰 상품",
+            brand_name="외부몰 브랜드",
+            price=19900,
+            product_url="https://example.com/detail-product",
+        )
+
+        self.assertEqual(get_product_detail_image_urls(product), ())
+        fetch_detail_images.assert_not_called()
+
+    @mock.patch(
+        "orders.pages.detail_images._fetch_aboutpet_detail_image_urls",
+        return_value=("https://prd-main-cdn.aboutpet.co.kr/aboutPet/images/editor/goods_desc/story-live.jpg",),
+    )
+    def test_detail_image_lookup_fetches_for_aboutpet_products(self, fetch_detail_images):
+        product = Product(
+            goods_id="GP-LIVE-DETAIL-001",
+            goods_name="어바웃펫 상품",
+            brand_name="어바웃펫 브랜드",
+            price=19900,
+            product_url="https://www.aboutpet.co.kr/goods/getGoods?goodsId=GP-LIVE-DETAIL-001",
+        )
+
+        self.assertEqual(
+            get_product_detail_image_urls(product),
+            ("https://prd-main-cdn.aboutpet.co.kr/aboutPet/images/editor/goods_desc/story-live.jpg",),
+        )
+        fetch_detail_images.assert_called_once_with(product.goods_id)
 
 
 class SeedVendorDemoMetricsCommandTests(TestCase):

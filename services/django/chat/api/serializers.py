@@ -1,8 +1,19 @@
 from datetime import timedelta
 
+from django.urls import reverse
 from django.utils import timezone
 
+from products.review_metrics import (
+    attach_actual_review_metrics,
+    get_actual_rating_value,
+    get_actual_review_count,
+)
+
 from ..services.chat_session_service import normalize_profile_context_type
+
+
+def build_product_detail_url(goods_id):
+    return reverse("product_detail", args=[goods_id])
 
 
 def serialize_session(session):
@@ -21,6 +32,8 @@ def serialize_session(session):
 def serialize_message(message):
     recommended_products = []
     if hasattr(message, "recommended_products"):
+        recommendations = list(message.recommended_products.all())
+        attach_actual_review_metrics([recommendation.product for recommendation in recommendations])
         recommended_products = [
             {
                 "goods_id": recommendation.product.goods_id,
@@ -28,13 +41,14 @@ def serialize_message(message):
                 "brand_name": recommendation.product.brand_name,
                 "price": recommendation.product.price,
                 "discount_price": recommendation.product.discount_price,
-                "rating": float(recommendation.product.rating) if recommendation.product.rating is not None else None,
-                "reviews": recommendation.product.review_count,
+                "rating": get_actual_rating_value(recommendation.product),
+                "reviews": get_actual_review_count(recommendation.product),
                 "thumbnail_url": recommendation.product.thumbnail_url,
-                "product_url": recommendation.product.product_url,
+                "product_url": build_product_detail_url(recommendation.product.goods_id),
+                "external_product_url": recommendation.product.product_url,
                 "rank_order": recommendation.rank_order,
             }
-            for recommendation in message.recommended_products.all()
+            for recommendation in recommendations
         ]
 
     return {
