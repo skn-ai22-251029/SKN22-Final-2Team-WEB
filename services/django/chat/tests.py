@@ -225,6 +225,8 @@ class _TimeoutHttpxClient:
 
 class _FakeHttpxClient:
     last_stream_request = None
+    card_rating = 4.5
+    card_reviews = 12
 
     def __init__(self, *args, **kwargs):
         pass
@@ -252,8 +254,8 @@ class _FakeHttpxClient:
                     "brand_name": "브랜드",
                     "price": 10000,
                     "discount_price": 9000,
-                    "rating": 4.5,
-                    "reviews": 12,
+                    "rating": self.__class__.card_rating,
+                    "reviews": self.__class__.card_reviews,
                     "thumbnail_url": "https://example.com/thumb.jpg",
                     "product_url": "https://example.com/product",
                 }
@@ -288,11 +290,20 @@ class _FakeHttpxClient:
         return _FakeStreamResponse(
             [
                 b'data: {"type":"token","content":"hel"}\n\n',
-                'data: {"type":"products","cards":[{"goods_id":"TEST-PRODUCT-1","product_name":"추천 상품","brand_name":"브랜드","price":10000,"discount_price":9000,"rating":4.5,"reviews":12,"thumbnail_url":"https://example.com/thumb.jpg","product_url":"https://example.com/product"}]}\n\n',
+                'data: {"type":"products","cards":[{"goods_id":"TEST-PRODUCT-1","product_name":"추천 상품","brand_name":"브랜드","price":10000,"discount_price":9000,"rating":'
+                + str(self.__class__.card_rating)
+                + ',"reviews":'
+                + json_module.dumps(self.__class__.card_reviews, ensure_ascii=False)
+                + ',"thumbnail_url":"https://example.com/thumb.jpg","product_url":"https://example.com/product"}]}\n\n',
                 f"data: {json_module.dumps(final_payload, ensure_ascii=False, separators=(',', ':'))}\n\n",
                 b'data: {"type":"done"}\n\n',
             ]
         )
+
+
+class _LongDecimalRatingHttpxClient(_FakeHttpxClient):
+    card_rating = 4.921038021380922
+    card_reviews = 24478.0
 
 
 def _read_streaming_response(response):
@@ -395,6 +406,24 @@ class ChatProxyTests(TestCase):
         self.assertEqual(_FakeHttpxClient.last_stream_request["headers"]["Accept"], "text/event-stream")
         self.assertEqual(_FakeHttpxClient.last_stream_request["json"]["thread_id"], "thread-1")
         self.assertEqual(_FakeHttpxClient.last_stream_request["json"]["user_id"], str(self.user.id))
+
+    @patch("chat.api_views.httpx.Client", _LongDecimalRatingHttpxClient)
+    def test_chat_proxy_normalizes_recommendation_card_metrics_in_stream_payload(self):
+        response = self.client.post(
+            "/api/chat/",
+            data='{"message":"hello","thread_id":"thread-1","pet_profile":{"species":"cat"}}',
+            content_type="application/json",
+            HTTP_AUTHORIZATION=f"Bearer {self.access_token}",
+        )
+
+        self.assertEqual(response.status_code, 200)
+        payload = _read_streaming_response(response)
+        self.assertIn('"type":"products"', payload)
+        self.assertIn('"type":"final"', payload)
+        self.assertIn('"rating":4.9', payload)
+        self.assertNotIn('4.921038021380922', payload)
+        self.assertIn('"reviews":24478', payload)
+        self.assertNotIn('"reviews":24478.0', payload)
 
     def test_sessions_proxy_crud_and_message_load_are_backed_by_db(self):
         self.client.defaults["HTTP_AUTHORIZATION"] = f"Bearer {self.access_token}"

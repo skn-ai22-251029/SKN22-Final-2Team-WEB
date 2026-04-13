@@ -1519,10 +1519,28 @@
       return numeric.toLocaleString('ko-KR') + '원';
     }
 
+    function parseDisplayNumber(value) {
+      if (value === null || value === undefined || value === '') return NaN;
+      if (typeof value === 'number') return value;
+      var normalized = String(value).trim().replace(/,/g, '');
+      var numeric = Number(normalized);
+      if (Number.isFinite(numeric)) {
+        return numeric;
+      }
+      var matched = normalized.match(/-?\d+(?:\.\d+)?/);
+      return matched ? Number(matched[0]) : NaN;
+    }
+
+    function formatRatingLabel(value) {
+      var numeric = parseDisplayNumber(value);
+      if (!Number.isFinite(numeric) || numeric <= 0) return '-';
+      return numeric.toFixed(1);
+    }
+
     function normalizeReviewLabel(value) {
-      var normalized = String(value || '').replace(/[^\d]/g, '');
-      if (!normalized) return '리뷰 준비 중';
-      return '리뷰 ' + Number(normalized).toLocaleString('ko-KR');
+      var numeric = parseDisplayNumber(value);
+      if (!Number.isFinite(numeric) || numeric <= 0) return '리뷰 준비 중';
+      return '리뷰 ' + Math.trunc(numeric).toLocaleString('ko-KR');
     }
 
     function setRecommendedWishlistButtonState(button, isActive) {
@@ -1602,7 +1620,7 @@
       var priceLabel = escapeHtml(formatPriceLabel(item.discount_price || item.price));
       var thumbnailUrl = escapeHtml(item.thumbnail_url || '');
       var reviews = escapeHtml(normalizeReviewLabel(item.reviews || item.review_count));
-      var rating = escapeHtml(item.rating || '-');
+      var rating = escapeHtml(formatRatingLabel(item.rating));
       var rankOrder = escapeHtml(item.rank_order || '0');
       var thumbnailHtml = productUrl
         ? '<a href="' + productUrl + '" class="relative flex h-[68px] w-[68px] shrink-0 items-center justify-center overflow-hidden rounded-[14px] bg-gradient-to-br from-[#dbeafe] via-[#eff6ff] to-[#f8fafc] transition-transform hover:scale-[1.02]" data-recommendation-link="true">'
