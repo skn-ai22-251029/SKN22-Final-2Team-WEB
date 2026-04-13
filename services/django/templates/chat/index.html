@@ -1343,6 +1343,7 @@
       var recommendationSessionId = sessionId || activeSessionId || '';
       return (products || []).map(function (product) {
         var goodsId = product.goods_id || product.product_id || '';
+        var normalizedReviewCount = normalizeReviewCountValue(product.review_count || product.reviews);
         return {
           goods_id: goodsId,
           product_id: product.product_id || product.goods_id || '',
@@ -1350,9 +1351,9 @@
           brand_name: product.brand_name || product.brand || '',
           price: product.price || '',
           discount_price: product.discount_price || '',
-          rating: product.rating,
-          reviews: product.reviews,
-          review_count: product.review_count,
+          rating: formatRatingLabel(product.rating),
+          reviews: normalizedReviewCount,
+          review_count: normalizedReviewCount,
           thumbnail_url: product.thumbnail_url || '',
           product_url: product.detail_url || buildProductDetailHref(goodsId, 'chat_recommendation', recommendationSessionId) || product.product_url || '',
           external_product_url: product.external_product_url || product.product_url || '',
@@ -1534,13 +1535,20 @@
     function formatRatingLabel(value) {
       var numeric = parseDisplayNumber(value);
       if (!Number.isFinite(numeric) || numeric <= 0) return '-';
-      return numeric.toFixed(1);
+      var clamped = Math.min(Math.max(numeric, 0), 5);
+      return clamped.toFixed(1);
+    }
+
+    function normalizeReviewCountValue(value) {
+      var numeric = parseDisplayNumber(value);
+      if (!Number.isFinite(numeric) || numeric <= 0) return 0;
+      return Math.trunc(numeric);
     }
 
     function normalizeReviewLabel(value) {
-      var numeric = parseDisplayNumber(value);
-      if (!Number.isFinite(numeric) || numeric <= 0) return '리뷰 준비 중';
-      return '리뷰 ' + Math.trunc(numeric).toLocaleString('ko-KR');
+      var count = normalizeReviewCountValue(value);
+      if (count <= 0) return '리뷰 준비 중';
+      return '리뷰 ' + count.toLocaleString('ko-KR');
     }
 
     function setRecommendedWishlistButtonState(button, isActive) {

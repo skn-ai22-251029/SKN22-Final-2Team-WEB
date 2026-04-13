@@ -58,7 +58,8 @@ def _normalize_card_rating(value):
     numeric = _parse_decimal(value)
     if numeric is None:
         return value
-    return float(numeric.quantize(Decimal("0.1"), rounding=ROUND_HALF_UP))
+    clamped = min(max(numeric, Decimal("0.0")), Decimal("5.0"))
+    return float(clamped.quantize(Decimal("0.1"), rounding=ROUND_HALF_UP))
 
 
 def _normalize_card_review_count(value):

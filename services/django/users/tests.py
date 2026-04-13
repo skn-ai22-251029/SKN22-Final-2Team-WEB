@@ -10,7 +10,7 @@ from social_django.models import UserSocialAuth
 
 from orders.models import Order, OrderItem, UserInteraction
 from pets.models import FuturePetProfile, Pet
-from products.models import Product
+from products.models import Product, Review
 from users.models import SocialAccount, User, UserProfile
 from users.onboarding import ONBOARDING_FORCE_PROFILE_SESSION_KEY
 from users.social_auth import (
@@ -366,7 +366,7 @@ class VendorAdminPageTests(TestCase):
             brand_name="오리젠",
             price=54000,
             discount_price=49900,
-            rating=4.8,
+            rating=10.0,
             review_count=128,
             thumbnail_url="https://example.com/orijen-thumb.png",
             product_url="https://example.com/orijen-product",
@@ -374,6 +374,22 @@ class VendorAdminPageTests(TestCase):
             pet_type=["강아지"],
             category=["사료"],
             crawled_at=timezone.now(),
+        )
+        Review.objects.create(
+            review_id="RV-VENDOR-1",
+            product=self.product,
+            score=5.0,
+            content="기호성이 좋습니다.",
+            author_nickname="오리젠고객1",
+            written_at=timezone.now().date(),
+        )
+        Review.objects.create(
+            review_id="RV-VENDOR-2",
+            product=self.product,
+            score=4.0,
+            content="전반적으로 만족합니다.",
+            author_nickname="오리젠고객2",
+            written_at=timezone.now().date(),
         )
         Product.objects.create(
             goods_id="GI-VENDOR-2",
@@ -507,13 +523,16 @@ class VendorAdminPageTests(TestCase):
         self.assertContains(response, "고객문의 / CS")
         primary = {item["label"]: item["value"] for item in response.context["vendor_primary_kpis"]}
         queue = {item["title"]: item["count_label"] for item in response.context["vendor_queue_items"]}
+        secondary = {item["label"]: item["value"] for item in response.context["vendor_secondary_metrics"]}
         trend = {item["label"]: item["value"] for item in response.context["vendor_trend_highlights"]}
         self.assertEqual(primary["오늘 매출"], "₩99,800")
         self.assertEqual(primary["신규 주문"], "2건")
         self.assertEqual(primary["취소 / 환불 대기"], "1건")
         self.assertEqual(queue["신규 주문"], "1건")
         self.assertEqual(queue["취소 / 환불"], "1건")
-        self.assertEqual(queue["리뷰 확인"], "1건")
+        self.assertEqual(queue["리뷰 확인"], "0건")
+        self.assertEqual(secondary["평균 평점"], "4.5")
+        self.assertEqual(secondary["총 리뷰 수"], "2개")
         self.assertEqual(trend["7일 주문"], "3건")
         self.assertEqual(trend["7일 매출"], "₩149,700")
 
@@ -553,6 +572,8 @@ class VendorAdminPageTests(TestCase):
         self.assertContains(response, "운영 상품")
         self.assertContains(response, "전체")
         self.assertContains(response, "판매중")
+        self.assertEqual(response.context["vendor_product_items"][0]["rating_label"], "4.5")
+        self.assertEqual(response.context["vendor_product_items"][0]["review_count"], 2)
 
     def test_vendor_product_detail_requires_vendor_session(self):
         response = self.client.get(reverse("vendor-product-detail", args=["GI-VENDOR-1"]))
@@ -640,11 +661,14 @@ class VendorAdminPageTests(TestCase):
         self.assertContains(response, "실제 이벤트 로그 기준")
         summary = {item["label"]: item["value"] for item in response.context["vendor_analytics_summary"]}
         funnel = {item["label"]: item["value"] for item in response.context["vendor_funnel_items"]}
+        explicit = {item["label"]: item["value"] for item in response.context["vendor_explicit_metrics"]}
         implicit = {item["label"]: item["value"] for item in response.context["vendor_implicit_metrics"]}
         self.assertEqual(response.context["vendor_analytics_period_label"], "최근 30일")
         self.assertEqual(summary["최근 30일 매출"], "₩49,900")
         self.assertEqual(summary["구매 전환율"], "100.0%")
         self.assertEqual(summary["반복 구매율"], "0.0%")
+        self.assertEqual(explicit["평균 평점"], "4.5")
+        self.assertEqual(explicit["리뷰 수"], "2개")
         self.assertEqual(funnel["노출"], "5")
         self.assertEqual(funnel["클릭"], "2")
         self.assertEqual(funnel["상세 진입"], "1")

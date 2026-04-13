@@ -306,6 +306,11 @@ class _LongDecimalRatingHttpxClient(_FakeHttpxClient):
     card_reviews = 24478.0
 
 
+class _OverMaxRatingHttpxClient(_FakeHttpxClient):
+    card_rating = 9.7
+    card_reviews = 12.0
+
+
 def _read_streaming_response(response):
     chunks = []
     for chunk in response.streaming_content:
@@ -424,6 +429,20 @@ class ChatProxyTests(TestCase):
         self.assertNotIn('4.921038021380922', payload)
         self.assertIn('"reviews":24478', payload)
         self.assertNotIn('"reviews":24478.0', payload)
+
+    @patch("chat.api_views.httpx.Client", _OverMaxRatingHttpxClient)
+    def test_chat_proxy_clamps_recommendation_card_rating_to_five(self):
+        response = self.client.post(
+            "/api/chat/",
+            data='{"message":"hello","thread_id":"thread-1","pet_profile":{"species":"cat"}}',
+            content_type="application/json",
+            HTTP_AUTHORIZATION=f"Bearer {self.access_token}",
+        )
+
+        self.assertEqual(response.status_code, 200)
+        payload = _read_streaming_response(response)
+        self.assertIn('"rating":5.0', payload)
+        self.assertNotIn('"rating":9.7', payload)
 
     def test_sessions_proxy_crud_and_message_load_are_backed_by_db(self):
         self.client.defaults["HTTP_AUTHORIZATION"] = f"Bearer {self.access_token}"

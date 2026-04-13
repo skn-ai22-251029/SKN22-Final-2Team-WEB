@@ -1,3 +1,5 @@
+from decimal import Decimal, InvalidOperation, ROUND_HALF_UP
+
 from django.db.models import Avg, Count
 
 from .models import Review
@@ -46,6 +48,36 @@ def attach_actual_review_metrics(products):
     return products
 
 
+def normalize_review_count(value):
+    try:
+        return max(int(value or 0), 0)
+    except (TypeError, ValueError):
+        return 0
+
+
+def normalize_rating_value(value):
+    if value is None:
+        return None
+
+    try:
+        numeric = Decimal(str(value).strip())
+    except (InvalidOperation, TypeError, ValueError):
+        return None
+
+    if not numeric.is_finite():
+        return None
+
+    clamped = min(max(numeric, Decimal("0.0")), Decimal("5.0"))
+    return float(clamped.quantize(Decimal("0.1"), rounding=ROUND_HALF_UP))
+
+
+def normalize_rating_label(value):
+    rating_value = normalize_rating_value(value)
+    if rating_value is None or rating_value <= 0:
+        return None
+    return f"{rating_value:.1f}"
+
+
 def get_actual_review_count(product):
     if product is None:
         return 0
@@ -53,7 +85,7 @@ def get_actual_review_count(product):
     if not hasattr(product, "_actual_review_count"):
         attach_actual_review_metrics([product])
 
-    return int(getattr(product, "_actual_review_count", 0) or 0)
+    return normalize_review_count(getattr(product, "_actual_review_count", 0))
 
 
 def get_actual_rating_value(product):
@@ -67,11 +99,8 @@ def get_actual_rating_value(product):
     if avg_score is None:
         return None
 
-    return round(float(avg_score), 1)
+    return normalize_rating_value(avg_score)
 
 
 def get_actual_rating_label(product):
-    rating_value = get_actual_rating_value(product)
-    if rating_value is None:
-        return None
-    return f"{rating_value:.1f}"
+    return normalize_rating_label(get_actual_rating_value(product))
