@@ -11,6 +11,12 @@ from django.urls import reverse
 from orders.models import OrderItem, UserInteraction
 from products.catalog_menu import build_catalog_menu_context
 from products.models import Product
+from products.review_metrics import (
+    get_actual_rating_label,
+    get_actual_review_count,
+    normalize_rating_label,
+    with_actual_review_metrics,
+)
 
 VENDOR_ADMIN_SESSION_KEY = "tailtalk_vendor_admin_id"
 DEMO_VENDOR_ACCOUNTS = {
@@ -83,9 +89,7 @@ def _format_vendor_price(value):
 
 
 def _format_vendor_rating(value):
-    if value is None:
-        return "-"
-    return f"{value:.1f}"
+    return normalize_rating_label(value) or "-"
 
 
 def _format_vendor_metric(value, digits=2):
@@ -168,8 +172,8 @@ def _serialize_vendor_product(product, demo_soldout_goods_ids=None, demo_pending
         "discount_price_label": _format_vendor_price(product.discount_price),
         "discount_price_value": price_value,
         "discount_rate_label": discount_rate_label,
-        "rating_label": _format_vendor_rating(product.rating),
-        "review_count": product.review_count,
+        "rating_label": get_actual_rating_label(product) or "-",
+        "review_count": get_actual_review_count(product),
         "soldout": product.soldout_yn or is_demo_soldout,
         "pending": is_demo_pending,
         "status_label": "품절" if (product.soldout_yn or is_demo_soldout) else ("준비중" if is_demo_pending else "판매중"),
@@ -439,14 +443,14 @@ def _build_vendor_attention_products(vendor_products, demo_soldout_goods_ids, de
         )
         added_goods_ids.add(product.goods_id)
 
-    for product in vendor_products.filter(goods_id__in=demo_soldout_goods_ids).order_by("-review_count", "goods_name")[:2]:
+    for product in vendor_products.filter(goods_id__in=demo_soldout_goods_ids).order_by("-_actual_review_count", "goods_name")[:2]:
         append_item(product, "품절", "판매 재개를 위해 재고 또는 대체 노출을 먼저 확인해 주세요.", "재입고 확인", "rose")
 
-    for product in vendor_products.filter(goods_id__in=demo_pending_goods_ids).order_by("-review_count", "goods_name")[:2]:
+    for product in vendor_products.filter(goods_id__in=demo_pending_goods_ids).order_by("-_actual_review_count", "goods_name")[:2]:
         append_item(product, "검수 대기", "상품 정보와 노출 문구를 점검해 판매 상태로 전환할 수 있습니다.", "등록 검수", "amber")
 
-    low_rating_products = vendor_products.exclude(rating__isnull=True).filter(review_count__gte=30).order_by(
-        "rating", "-review_count", "goods_name"
+    low_rating_products = vendor_products.exclude(_actual_review_score_avg__isnull=True).filter(_actual_review_count__gte=30).order_by(
+        "_actual_review_score_avg", "-_actual_review_count", "goods_name"
     )[:2]
     for product in low_rating_products:
         append_item(product, "리뷰 점검", "평점과 리뷰 반응을 확인해 상세 설명 또는 CS 대응이 필요한 상품입니다.", "리뷰 확인", "blue")
@@ -457,7 +461,7 @@ def _build_vendor_attention_products(vendor_products, demo_soldout_goods_ids, de
 def _build_vendor_mock_order_rows(vendor_products, demo_soldout_goods_ids, demo_pending_goods_ids):
     serialized_products = [
         _serialize_vendor_product(product, demo_soldout_goods_ids, demo_pending_goods_ids)
-        for product in vendor_products.order_by("-review_count", "goods_name")[:8]
+        for product in vendor_products.order_by("-_actual_review_count", "goods_name")[:8]
     ]
 
     if not serialized_products:
@@ -690,14 +694,14 @@ def vendor_dashboard_view(request):
         return redirect("vendor-login")
 
     brand_name = base_context["vendor_account"]["brand_name"]
-    vendor_products = Product.objects.filter(brand_name=brand_name)
+    vendor_products = with_actual_review_metrics(Product.objects.filter(brand_name=brand_name))
     demo_soldout_goods_ids = _get_demo_soldout_goods_ids(vendor_products)
     demo_pending_goods_ids = _get_demo_pending_goods_ids(vendor_products, demo_soldout_goods_ids)
     total_products = vendor_products.count()
     display_soldout_products = len(demo_soldout_goods_ids)
     display_pending_products = len(demo_pending_goods_ids)
-    total_reviews = vendor_products.aggregate(total=Sum("review_count"))["total"] or 0
-    average_rating = vendor_products.exclude(rating__isnull=True).aggregate(avg=Avg("rating"))["avg"]
+    total_reviews = vendor_products.aggregate(total=Sum("_actual_review_count"))["total"] or 0
+    average_rating = vendor_products.exclude(_actual_review_score_avg__isnull=True).aggregate(avg=Avg("_actual_review_score_avg"))["avg"]
     average_repeat_rate = vendor_products.exclude(repeat_rate__isnull=True).aggregate(avg=Avg("repeat_rate"))["avg"]
     average_sentiment = vendor_products.exclude(sentiment_avg__isnull=True).aggregate(avg=Avg("sentiment_avg"))["avg"]
     average_delivery_score = vendor_products.exclude(aspect_delivery_packaging__isnull=True).aggregate(avg=Avg("aspect_delivery_packaging"))["avg"]
@@ -715,7 +719,7 @@ def vendor_dashboard_view(request):
 
     top_products = [
         _serialize_vendor_product(product, demo_soldout_goods_ids, demo_pending_goods_ids)
-        for product in vendor_products.order_by("-review_count", "-rating", "goods_name")[:5]
+        for product in vendor_products.order_by("-_actual_review_count", "-_actual_review_score_avg", "goods_name")[:5]
     ]
     attention_products = _build_vendor_attention_products(vendor_products, demo_soldout_goods_ids, demo_pending_goods_ids)
     active_products = max(total_products - display_soldout_products - display_pending_products, 0)
@@ -738,7 +742,7 @@ def vendor_dashboard_view(request):
     cancelled_order_count = (
         brand_order_items.filter(order__status="cancelled").values("order_id").distinct().count()
     )
-    review_check_count = vendor_products.filter(review_count__gte=100).count()
+    review_check_count = vendor_products.filter(_actual_review_count__gte=100).count()
     trend_rows = {
         row["order_day"]: row
         for row in active_brand_order_items.filter(order__created_at__date__gte=trend_start_date)
@@ -892,7 +896,7 @@ def vendor_products_view(request):
     sort_key = request.GET.get("sort", "default")
     if sort_key not in VENDOR_PRODUCT_SORT_OPTIONS:
         sort_key = "default"
-    vendor_products = Product.objects.filter(brand_name=base_context["vendor_account"]["brand_name"])
+    vendor_products = with_actual_review_metrics(Product.objects.filter(brand_name=base_context["vendor_account"]["brand_name"]))
     demo_soldout_goods_ids = _get_demo_soldout_goods_ids(vendor_products)
     demo_pending_goods_ids = _get_demo_pending_goods_ids(vendor_products, demo_soldout_goods_ids)
 
@@ -989,15 +993,15 @@ def vendor_analytics_view(request):
         period_start_date = date.today() - timedelta(days=selected_period_meta["days"] - 1)
 
     brand_name = base_context["vendor_account"]["brand_name"]
-    vendor_products = Product.objects.filter(brand_name=brand_name)
+    vendor_products = with_actual_review_metrics(Product.objects.filter(brand_name=brand_name))
     demo_soldout_goods_ids = _get_demo_soldout_goods_ids(vendor_products)
     demo_pending_goods_ids = _get_demo_pending_goods_ids(vendor_products, demo_soldout_goods_ids)
     total_products = vendor_products.count()
     soldout_count = len(demo_soldout_goods_ids)
     pending_count = len(demo_pending_goods_ids)
     active_count = max(total_products - soldout_count - pending_count, 0)
-    total_reviews = vendor_products.aggregate(total=Sum("review_count"))["total"] or 0
-    average_rating = vendor_products.exclude(rating__isnull=True).aggregate(avg=Avg("rating"))["avg"]
+    total_reviews = vendor_products.aggregate(total=Sum("_actual_review_count"))["total"] or 0
+    average_rating = vendor_products.exclude(_actual_review_score_avg__isnull=True).aggregate(avg=Avg("_actual_review_score_avg"))["avg"]
     average_discount_price = vendor_products.aggregate(avg=Avg("discount_price"))["avg"]
     average_price_purchase = vendor_products.exclude(aspect_price_purchase__isnull=True).aggregate(avg=Avg("aspect_price_purchase"))["avg"]
     average_delivery = vendor_products.exclude(aspect_delivery_packaging__isnull=True).aggregate(avg=Avg("aspect_delivery_packaging"))["avg"]
@@ -1193,7 +1197,7 @@ def vendor_analytics_view(request):
     ]
 
     performance_rows = []
-    ranked_products = vendor_products.order_by("-review_count", "-rating", "goods_name")[:6]
+    ranked_products = vendor_products.order_by("-_actual_review_count", "-_actual_review_score_avg", "goods_name")[:6]
     product_interaction_counts = {
         (row["product_id"], row["interaction_type"]): row["total"]
         for row in UserInteraction.objects.filter(product__in=ranked_products)
@@ -1419,7 +1423,7 @@ def vendor_orders_view(request):
     if focus not in dict(VENDOR_ORDER_FOCUS_OPTIONS):
         focus = "all"
 
-    vendor_products = Product.objects.filter(brand_name=base_context["vendor_account"]["brand_name"])
+    vendor_products = with_actual_review_metrics(Product.objects.filter(brand_name=base_context["vendor_account"]["brand_name"]))
     demo_soldout_goods_ids = _get_demo_soldout_goods_ids(vendor_products)
     demo_pending_goods_ids = _get_demo_pending_goods_ids(vendor_products, demo_soldout_goods_ids)
     order_rows = _build_vendor_mock_order_rows(vendor_products, demo_soldout_goods_ids, demo_pending_goods_ids)
