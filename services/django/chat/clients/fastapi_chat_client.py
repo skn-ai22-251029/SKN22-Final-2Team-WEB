@@ -1,4 +1,5 @@
 import json
+from decimal import Decimal, InvalidOperation, ROUND_HALF_UP
 from uuid import uuid4
 
 import httpx
@@ -39,7 +40,66 @@ def stream_timeout():
     )
 
 
-def capture_sse_event(event_lines, capture):
+def _parse_decimal(value):
+    if value is None:
+        return None
+
+    normalized = str(value).strip().replace(",", "")
+    if not normalized or normalized == "-":
+        return None
+
+    try:
+        return Decimal(normalized)
+    except (InvalidOperation, ValueError):
+        return None
+
+
+def _normalize_card_rating(value):
+    numeric = _parse_decimal(value)
+    if numeric is None:
+        return value
+    return float(numeric.quantize(Decimal("0.1"), rounding=ROUND_HALF_UP))
+
+
+def _normalize_card_review_count(value):
+    numeric = _parse_decimal(value)
+    if numeric is None:
+        return value
+    return max(int(numeric), 0)
+
+
+def _normalize_product_card(card):
+    if not isinstance(card, dict):
+        return card
+
+    normalized = dict(card)
+    if "rating" in normalized:
+        normalized["rating"] = _normalize_card_rating(normalized.get("rating"))
+    if "reviews" in normalized:
+        normalized["reviews"] = _normalize_card_review_count(normalized.get("reviews"))
+    if "review_count" in normalized:
+        normalized["review_count"] = _normalize_card_review_count(normalized.get("review_count"))
+    return normalized
+
+
+def _normalize_sse_payload(payload):
+    if not isinstance(payload, dict):
+        return payload
+
+    event_type = payload.get("type")
+    if event_type not in {"products", "final"}:
+        return payload
+
+    cards = payload.get("cards")
+    if not isinstance(cards, list):
+        return payload
+
+    normalized = dict(payload)
+    normalized["cards"] = [_normalize_product_card(card) for card in cards]
+    return normalized
+
+
+def _extract_sse_payload(event_lines):
     payload = None
     for line in event_lines:
         if not line.startswith("data:"):
@@ -48,7 +108,31 @@ def capture_sse_event(event_lines, capture):
             payload = json.loads(line[5:].strip())
         except json.JSONDecodeError:
             continue
+    return payload
 
+
+def _serialize_sse_event_lines(event_lines, payload):
+    serialized_payload = json.dumps(payload, ensure_ascii=False, separators=(",", ":"))
+    serialized_lines = []
+    replaced = False
+
+    for line in event_lines:
+        if line.startswith("data:") and not replaced:
+            serialized_lines.append(f"data: {serialized_payload}")
+            replaced = True
+            continue
+        if line.startswith("data:"):
+            continue
+        serialized_lines.append(line)
+
+    if not replaced:
+        serialized_lines.append(f"data: {serialized_payload}")
+
+    return "\n".join(serialized_lines) + "\n\n"
+
+
+def capture_sse_event(event_lines, capture):
+    payload = _normalize_sse_payload(_extract_sse_payload(event_lines))
     if not payload:
         return
 
@@ -104,17 +188,25 @@ def stream_fastapi_response(url, payload, user_id, capture=None, request_id=None
                     for line in response.iter_lines():
                         if line == "":
                             if event_lines:
+                                payload = _normalize_sse_payload(_extract_sse_payload(event_lines))
                                 if capture is not None:
                                     capture_sse_event(event_lines, capture)
-                                yield "\n".join(event_lines) + "\n\n"
+                                if payload:
+                                    yield _serialize_sse_event_lines(event_lines, payload)
+                                else:
+                                    yield "\n".join(event_lines) + "\n\n"
                                 event_lines = []
                             continue
                         event_lines.append(line)
 
                     if event_lines:
+                        payload = _normalize_sse_payload(_extract_sse_payload(event_lines))
                         if capture is not None:
                             capture_sse_event(event_lines, capture)
-                        yield "\n".join(event_lines) + "\n\n"
+                        if payload:
+                            yield _serialize_sse_event_lines(event_lines, payload)
+                        else:
+                            yield "\n".join(event_lines) + "\n\n"
                 except httpx.HTTPError as exc:
                     detail, _ = map_upstream_exception(exc)
                     if capture is not None:
