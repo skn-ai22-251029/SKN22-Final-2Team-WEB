@@ -19,13 +19,20 @@ from ..services.auth_service import deactivate_user_and_purge_personal_data, iss
 from .serializers import serialize_user
 
 
+def _get_stripped_request_value(request, field_name):
+    value = request.data.get(field_name)
+    if value is None:
+        return ""
+    return str(value).strip()
+
+
 class RegisterView(APIView):
     permission_classes = [AllowAny]
 
     def post(self, request):
-        email = request.data.get("email", "").strip()
+        email = _get_stripped_request_value(request, "email")
         password = request.data.get("password", "")
-        nickname = request.data.get("nickname", "").strip()
+        nickname = _get_stripped_request_value(request, "nickname")
 
         if not email or not password:
             return Response({"detail": "email and password are required."}, status=status.HTTP_400_BAD_REQUEST)
@@ -62,7 +69,7 @@ class AuthLoginView(APIView):
     permission_classes = [AllowAny]
 
     def post(self, request):
-        email = request.data.get("email", "").strip()
+        email = _get_stripped_request_value(request, "email")
         password = request.data.get("password", "")
 
         if not email or not password:

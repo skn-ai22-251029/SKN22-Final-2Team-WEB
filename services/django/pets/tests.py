@@ -272,6 +272,53 @@ class PetApiTests(TestCase):
         self.assertEqual(list(pet.allergies.values_list("ingredient", flat=True)), ["연어"])
         self.assertEqual(list(pet.food_preferences.values_list("food_type", flat=True)), ["wet_pouch"])
 
+    def test_patch_pet_rejects_null_name(self):
+        pet = Pet.objects.create(
+            user=self.user,
+            name="Nabi",
+            species="cat",
+            gender="female",
+            budget_range="under_5",
+        )
+
+        response = self.client.patch(
+            f"/api/pets/{pet.pet_id}/",
+            {"name": None},
+            format="json",
+        )
+
+        self.assertEqual(response.status_code, status.HTTP_400_BAD_REQUEST)
+        self.assertEqual(response.data["detail"], "name is required.")
+        pet.refresh_from_db()
+        self.assertEqual(pet.name, "Nabi")
+
+    def test_patch_pet_clears_optional_text_fields_with_null(self):
+        pet = Pet.objects.create(
+            user=self.user,
+            name="Nabi",
+            species="cat",
+            breed="브리티시 숏헤어",
+            gender="female",
+            budget_range="under_5",
+            special_notes="memo",
+        )
+
+        response = self.client.patch(
+            f"/api/pets/{pet.pet_id}/",
+            {
+                "breed": None,
+                "budget_range": None,
+                "special_notes": None,
+            },
+            format="json",
+        )
+
+        self.assertEqual(response.status_code, status.HTTP_200_OK)
+        pet.refresh_from_db()
+        self.assertIsNone(pet.breed)
+        self.assertEqual(pet.budget_range, "")
+        self.assertIsNone(pet.special_notes)
+
     def test_delete_pet_removes_pet(self):
         pet = Pet.objects.create(
             user=self.user,
