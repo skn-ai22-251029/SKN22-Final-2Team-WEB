@@ -82,6 +82,17 @@ def _parse_boolean(value):
     raise ValueError("neutered must be a boolean.")
 
 
+def _normalize_text(value):
+    if value is None:
+        return ""
+    return str(value).strip()
+
+
+def _normalize_optional_text(value):
+    normalized = _normalize_text(value)
+    return normalized or None
+
+
 def _parse_vaccination_date(value):
     if value in (None, ""):
         return None
@@ -154,7 +165,7 @@ def _apply_pet_payload(pet, request, *, partial):
             raise ValueError(f"Missing required fields: {', '.join(missing)}")
 
     if "name" in request.data:
-        name = str(request.data.get("name", "")).strip()
+        name = _normalize_text(request.data.get("name"))
         if not name:
             raise ValueError("name is required.")
         pet.name = name
@@ -176,8 +187,8 @@ def _apply_pet_payload(pet, request, *, partial):
         "weight_kg": lambda value: _parse_decimal(value, "weight_kg"),
         "neutered": _parse_boolean,
         "vaccination_date": _parse_vaccination_date,
-        "budget_range": lambda value: str(value).strip(),
-        "special_notes": lambda value: str(value).strip() or None,
+        "budget_range": _normalize_text,
+        "special_notes": _normalize_optional_text,
     }
 
     for field, parser in scalar_fields.items():
@@ -192,10 +203,14 @@ def _apply_pet_payload(pet, request, *, partial):
         raise ValueError("weight_kg is required.")
 
     if "breed" in request.data:
-        resolved_breed = resolve_breed(pet.species, request.data.get("breed"))
-        if not resolved_breed:
-            raise ValueError("breed must be one of the registered breeds.")
-        pet.breed = resolved_breed
+        breed = _normalize_text(request.data.get("breed"))
+        if not breed:
+            pet.breed = None
+        else:
+            resolved_breed = resolve_breed(pet.species, breed)
+            if not resolved_breed:
+                raise ValueError("breed must be one of the registered breeds.")
+            pet.breed = resolved_breed
 
     valid_health_concerns = {choice for choice, _ in PetHealthConcern.CONCERN_CHOICES}
     valid_food_preferences = {choice for choice, _ in PetFoodPreference.FOOD_TYPE_CHOICES}

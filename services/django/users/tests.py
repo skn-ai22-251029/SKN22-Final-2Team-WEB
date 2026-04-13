@@ -111,6 +111,30 @@ class AuthApiTests(TestCase):
         self.assertIn("refresh", response.data)
         self.assertEqual(response.data["user"]["email"], "auth@example.com")
 
+    def test_register_treats_null_nickname_as_missing(self):
+        response = self.client.post(
+            "/api/auth/register/",
+            {
+                "email": "null-nickname@example.com",
+                "password": "Password123!",
+                "nickname": None,
+            },
+            format="json",
+        )
+
+        self.assertEqual(response.status_code, status.HTTP_201_CREATED)
+        self.assertEqual(response.data["user"]["nickname"], "nullnickname")
+
+    def test_login_rejects_null_email_without_server_error(self):
+        response = self.client.post(
+            "/api/auth/login/",
+            {"email": None, "password": "Password123!"},
+            format="json",
+        )
+
+        self.assertEqual(response.status_code, status.HTTP_400_BAD_REQUEST)
+        self.assertEqual(response.data["detail"], "email and password are required.")
+
     def test_logout_blacklists_refresh_token(self):
         login_response = self.client.post(
             "/api/auth/login/",
