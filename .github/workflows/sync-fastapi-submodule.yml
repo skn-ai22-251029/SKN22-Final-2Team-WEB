@@ -68,20 +68,79 @@ jobs:
           git add "${SUBMODULE_PATH}"
           echo "changed=true" >> "$GITHUB_OUTPUT"
 
-      - name: Create pull request
+      - name: Detect existing submodule update pull request
         if: steps.target.outputs.changed == 'true'
+        id: guard
+        uses: actions/github-script@v7
+        env:
+          BOT_BRANCH: bot/update-fastapi-submodule
+        with:
+          github-token: ${{ github.token }}
+          script: |
+            const owner = context.repo.owner;
+            const repo = context.repo.repo;
+            const base = process.env.BASE_BRANCH;
+            const path = process.env.SUBMODULE_PATH;
+            const botBranch = process.env.BOT_BRANCH;
+
+            const pulls = await github.paginate(github.rest.pulls.list, {
+              owner,
+              repo,
+              state: "open",
+              base,
+              per_page: 100,
+            });
+
+            let blocking = null;
+
+            for (const pr of pulls) {
+              if (pr.head.ref === botBranch) {
+                continue;
+              }
+
+              const files = await github.paginate(github.rest.pulls.listFiles, {
+                owner,
+                repo,
+                pull_number: pr.number,
+                per_page: 100,
+              });
+
+              if (files.some((file) => file.filename === path)) {
+                blocking = pr;
+                break;
+              }
+            }
+
+            core.setOutput("blocked", blocking ? "true" : "false");
+            core.setOutput("pr_number", blocking ? String(blocking.number) : "");
+            core.setOutput("pr_url", blocking ? blocking.html_url : "");
+            core.setOutput("pr_title", blocking ? blocking.title : "");
+
+      - name: Skip automated pull request when another submodule PR is open
+        if: steps.guard.outputs.blocked == 'true'
+        run: |
+          echo "::notice title=자동 서브모듈 PR 생성 건너뜀::기존 PR #${{ steps.guard.outputs.pr_number }} (${{ steps.guard.outputs.pr_title }}) 이(가) ${SUBMODULE_PATH}를 이미 변경하고 있어 자동 PR 생성을 건너뜁니다."
+          echo "참고: ${{ steps.guard.outputs.pr_url }}"
+
+      - name: Create pull request
+        if: steps.target.outputs.changed == 'true' && steps.guard.outputs.blocked != 'true'
         uses: peter-evans/create-pull-request@v7
         with:
           token: ${{ github.token }}
-          commit-message: "chore: update fastapi submodule to ${{ steps.target.outputs.target_sha }}"
-          title: "chore: update fastapi submodule to ${{ steps.target.outputs.target_sha }}"
+          commit-message: "FastAPI 서브모듈 ${{ steps.target.outputs.target_sha }} 반영"
+          title: "FastAPI 서브모듈 ${{ steps.target.outputs.target_sha }} 반영"
           body: |
-            Automated submodule update for `${{ env.SUBMODULE_PATH }}`.
+            ## 요약
+            - `${{ env.SUBMODULE_PATH }}` 서브모듈 포인터 갱신
 
-            - Previous commit: `${{ steps.target.outputs.current_sha }}`
-            - New commit: `${{ steps.target.outputs.target_sha }}`
-            - Source branch: `${{ steps.target.outputs.target_branch }}`
-            - Trigger: `${{ github.event_name }}`
+            ## 변경 사항
+            - 이전 커밋: `${{ steps.target.outputs.current_sha }}`
+            - 신규 커밋: `${{ steps.target.outputs.target_sha }}`
+            - 소스 브랜치: `${{ steps.target.outputs.target_branch }}`
+            - 트리거: `${{ github.event_name }}`
+
+            ## 관련 이슈
+            - 자동 동기화 PR
           branch: bot/update-fastapi-submodule
           base: ${{ env.BASE_BRANCH }}
           delete-branch: true
