@@ -86,6 +86,15 @@ class ChatPageTests(TestCase):
         self.assertNotEqual(next_access_token, expired_tokens["access"])
         self.assertEqual(AccessToken(next_access_token)["user_id"], str(self.user.id))
 
+    def test_chat_page_uses_session_auth_for_chat_api_requests(self):
+        response = self.client.get(reverse("chat"))
+
+        self.assertEqual(response.status_code, 200)
+        self.assertContains(response, "function buildChatApiHeaders(headers)")
+        self.assertContains(response, "return buildApiHeaders(headers, false);")
+        self.assertContains(response, "includeAuthorization: false", count=2)
+        self.assertContains(response, "headers: buildChatApiHeaders()", count=2)
+
     def _issue_expired_tokens(self):
         refresh = RefreshToken.for_user(self.user)
         access = refresh.access_token
