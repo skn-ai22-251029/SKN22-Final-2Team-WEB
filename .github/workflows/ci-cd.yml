@@ -342,13 +342,13 @@ jobs:
           mkdir -p .deploy-django
           python3 - <<'PY'
           from pathlib import Path
-          src = Path("deploy/eb/test-django/docker-compose.yml").read_text()
+          src = Path("deploy/eb/deploy-django/docker-compose.yml").read_text()
           image = "${{ env.DJANGO_IMAGE_REPO }}:${{ steps.django-meta.outputs.short_sha }}"
           Path(".deploy-django/docker-compose.yml").write_text(
               src.replace("__DJANGO_IMAGE__", image)
           )
           PY
-          cp -r deploy/eb/test-django/nginx .deploy-django/nginx
+          cp -r deploy/eb/deploy-django/nginx .deploy-django/nginx
           cat <<'EOF' > .deploy-django/.env.check
           POSTGRES_DB=check_db
           POSTGRES_USER=check_user
@@ -385,8 +385,8 @@ jobs:
           EOF
           docker compose -f .deploy-django/docker-compose.yml --env-file .deploy-django/.env.check config -q
           # .ebextensions 디렉토리 복사 (EB 기본 설정)
-          cp -r deploy/eb/test-django/.ebextensions .deploy-django/.ebextensions
-          cp -r deploy/eb/test-django/.platform .deploy-django/.platform
+          cp -r deploy/eb/deploy-django/.ebextensions .deploy-django/.ebextensions
+          cp -r deploy/eb/deploy-django/.platform .deploy-django/.platform
           cd .deploy-django
           zip -r ../django-deploy.zip docker-compose.yml nginx .ebextensions .platform
 
