@@ -48,6 +48,12 @@ logs/
 # User uploads
 services/django/media/
 
+# Non-operational repository content
+docs/
+notebooks/
+scripts/
+tests/
+
 # AWS
 .aws/
 
