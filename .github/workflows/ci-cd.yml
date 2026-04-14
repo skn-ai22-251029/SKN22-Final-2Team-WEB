@@ -1,4 +1,4 @@
-name: Django Test EB CI/CD
+name: Django Deploy EB CI/CD
 
 on:
   pull_request:
@@ -26,14 +26,14 @@ permissions:
   contents: read
 
 concurrency:
-  group: test-eb-deploy-django-develop
+  group: deploy-eb-django-develop
   cancel-in-progress: true
 
 env:
   AWS_REGION: ap-northeast-2
-  DJANGO_IMAGE_REPO: 027099020675.dkr.ecr.ap-northeast-2.amazonaws.com/test-tailtalk-django
-  DJANGO_EB_APP_NAME: test-tailtalk-django
-  DJANGO_EB_ENV_NAME: test-tailtalk-django-env
+  DJANGO_IMAGE_REPO: 027099020675.dkr.ecr.ap-northeast-2.amazonaws.com/deploy-tailtalk-django
+  DJANGO_EB_APP_NAME: deploy-tailtalk-django
+  DJANGO_EB_ENV_NAME: deploy-tailtalk-django-env
   DJANGO_HEALTH_PATH: /health/
 
 jobs:
@@ -189,7 +189,7 @@ jobs:
         run: docker compose -f deploy/local/docker-compose.yml down -v --remove-orphans
 
   deploy-django:
-    name: CD - Django Test EB
+    name: CD - Django Deploy EB
     runs-on: ubuntu-latest
     timeout-minutes: 30
     needs:
