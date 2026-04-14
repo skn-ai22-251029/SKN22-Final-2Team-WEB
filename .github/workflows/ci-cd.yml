@@ -10,7 +10,7 @@ on:
       - develop
     paths:
       - ".github/workflows/ci-cd.yml"
-      - "deploy/eb/test-django/**"
+      - "deploy/eb/deploy-django/**"
       - "deploy/local/**"
       - "services/django/**"
   push:
@@ -18,7 +18,7 @@ on:
       - develop
     paths:
       - ".github/workflows/ci-cd.yml"
-      - "deploy/eb/test-django/**"
+      - "deploy/eb/deploy-django/**"
       - "deploy/local/**"
       - "services/django/**"
 
@@ -70,7 +70,7 @@ jobs:
           EOF
 
       - name: Validate deploy nginx config
-        run: docker run --rm --add-host django:127.0.0.1 -v "$PWD/deploy/eb/test-django/nginx/nginx.conf:/etc/nginx/nginx.conf:ro" nginx:alpine nginx -t
+        run: docker run --rm --add-host django:127.0.0.1 -v "$PWD/deploy/eb/deploy-django/nginx/nginx.conf:/etc/nginx/nginx.conf:ro" nginx:alpine nginx -t
 
       - name: Validate deploy compose bundle
         run: |
@@ -78,13 +78,13 @@ jobs:
           mkdir -p .deploy-django
           python3 - <<'PY'
           from pathlib import Path
-          src = Path("deploy/eb/test-django/docker-compose.yml").read_text()
+          src = Path("deploy/eb/deploy-django/docker-compose.yml").read_text()
           Path(".deploy-django/docker-compose.yml").write_text(
               src.replace("__DJANGO_IMAGE__", "tailtalk-django:ci")
           )
           PY
-          cp -r deploy/eb/test-django/nginx .deploy-django/nginx
-          cp -r deploy/eb/test-django/.platform .deploy-django/.platform
+          cp -r deploy/eb/deploy-django/nginx .deploy-django/nginx
+          cp -r deploy/eb/deploy-django/.platform .deploy-django/.platform
           cat <<'EOF' > .deploy-django/.env
           DJANGO_SECRET_KEY=test-secret
           DJANGO_DEBUG=False
@@ -118,13 +118,13 @@ jobs:
           mkdir -p .deploy-django
           python3 - <<'PY'
           from pathlib import Path
-          src = Path("deploy/eb/test-django/docker-compose.yml").read_text()
+          src = Path("deploy/eb/deploy-django/docker-compose.yml").read_text()
           Path(".deploy-django/docker-compose.yml").write_text(
               src.replace("__DJANGO_IMAGE__", "tailtalk-django:latest")
           )
           PY
-          cp -r deploy/eb/test-django/nginx .deploy-django/nginx
-          cp -r deploy/eb/test-django/.platform .deploy-django/.platform
+          cp -r deploy/eb/deploy-django/nginx .deploy-django/nginx
+          cp -r deploy/eb/deploy-django/.platform .deploy-django/.platform
           cat <<'EOF' > .deploy-django/docker-compose.smoke.yml
           services:
             django:
