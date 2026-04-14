@@ -1108,12 +1108,16 @@
       headerCatalogLink.setAttribute('href', '/catalog/?session=' + encodeURIComponent(activeSessionId));
     }
 
-    function buildApiHeaders(headers) {
+    function buildApiHeaders(headers, includeAuthorization) {
       var merged = Object.assign({}, headers || {});
-      if (chatApiAccessToken) {
+      if (includeAuthorization !== false && chatApiAccessToken) {
         merged['Authorization'] = 'Bearer ' + chatApiAccessToken;
       }
       return merged;
+    }
+
+    function buildChatApiHeaders(headers) {
+      return buildApiHeaders(headers, false);
     }
 
     function readJsonResponse(res) {
@@ -1128,18 +1132,24 @@
     }
 
     function requestJson(url, options) {
-      var providedHeaders = (options && options.headers) || {};
+      var requestOptions = Object.assign({}, options || {});
+      var providedHeaders = requestOptions.headers || {};
+      var includeAuthorization = requestOptions.includeAuthorization !== false;
+      delete requestOptions.includeAuthorization;
       var fetchOptions = Object.assign(
         {
           headers: buildApiHeaders({
             'Content-Type': 'application/json',
             'X-CSRFToken': csrfToken || '',
-          }),
+          }, includeAuthorization),
           credentials: 'same-origin',
         },
-        options || {}
+        requestOptions
       );
-      fetchOptions.headers = buildApiHeaders(Object.assign({}, fetchOptions.headers || {}, providedHeaders));
+      fetchOptions.headers = buildApiHeaders(
+        Object.assign({}, fetchOptions.headers || {}, providedHeaders),
+        includeAuthorization
+      );
 
       return fetch(url, fetchOptions).then(function (res) {
         return readJsonResponse(res).then(function (data) {
@@ -1423,7 +1433,7 @@
       if (!sessionId) return Promise.resolve([]);
       var retryAttempt = typeof attempt === 'number' ? attempt : 0;
       return fetch('/api/chat/sessions/' + sessionId + '/messages/', {
-        headers: buildApiHeaders(),
+        headers: buildChatApiHeaders(),
         credentials: 'same-origin',
       }).then(function (res) {
         return readJsonResponse(res).then(function (data) {
@@ -2323,7 +2333,7 @@
           }
 
           fetch('/api/chat/sessions/' + sessionId + '/messages/', {
-            headers: buildApiHeaders(),
+            headers: buildChatApiHeaders(),
             credentials: 'same-origin',
           }).then(function (res) {
             return readJsonResponse(res).then(function (data) {
@@ -2412,7 +2422,7 @@
         if (newTitle !== current) {
           fetch('/api/chat/sessions/' + item.getAttribute('data-id') + '/', {
             method: 'PATCH',
-            headers: buildApiHeaders({
+            headers: buildChatApiHeaders({
               'Content-Type': 'application/json',
               'X-CSRFToken': csrfToken || '',
             }),
@@ -2447,7 +2457,7 @@
 
       fetch('/api/chat/sessions/' + sessionId + '/', {
         method: 'DELETE',
-        headers: buildApiHeaders({ 'X-CSRFToken': csrfToken || '' }),
+        headers: buildChatApiHeaders({ 'X-CSRFToken': csrfToken || '' }),
         credentials: 'same-origin',
       }).then(function (res) {
         return readJsonResponse(res).then(function (data) {
@@ -2467,6 +2477,7 @@
       var derivedTitle = message.length > 18 ? message.slice(0, 18) + '...' : message;
       return requestJson('/api/chat/sessions/', {
         method: 'POST',
+        includeAuthorization: false,
         body: JSON.stringify({
           title: derivedTitle,
           target_pet_id: getCurrentProfileContextType() === 'pet' ? activePetId : null,
@@ -2541,6 +2552,7 @@
 
           requestJson('/api/chat/sessions/' + activeSessionId + '/', {
             method: 'PATCH',
+            includeAuthorization: false,
             body: JSON.stringify({
               target_pet_id: nextContextType === 'pet' ? activePetId : null,
               profile_context_type: nextContextType,
@@ -2633,7 +2645,7 @@
 
         fetch('/api/chat/sessions/' + sessionId + '/messages/', {
           method: 'POST',
-          headers: buildApiHeaders({
+          headers: buildChatApiHeaders({
             'Content-Type': 'application/json',
             'X-CSRFToken': csrfToken || '',
           }),
