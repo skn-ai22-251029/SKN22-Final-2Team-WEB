@@ -26,7 +26,7 @@ permissions:
   contents: read
 
 concurrency:
-  group: test-eb-django-develop
+  group: test-eb-deploy-django-develop
   cancel-in-progress: true
 
 env:
@@ -69,23 +69,23 @@ jobs:
           FASTAPI_STREAM_POOL_TIMEOUT=5
           EOF
 
-      - name: Validate test nginx config
+      - name: Validate deploy nginx config
         run: docker run --rm --add-host django:127.0.0.1 -v "$PWD/deploy/eb/test-django/nginx/nginx.conf:/etc/nginx/nginx.conf:ro" nginx:alpine nginx -t
 
-      - name: Validate test compose bundle
+      - name: Validate deploy compose bundle
         run: |
-          rm -rf .test-django
-          mkdir -p .test-django
+          rm -rf .deploy-django
+          mkdir -p .deploy-django
           python3 - <<'PY'
           from pathlib import Path
           src = Path("deploy/eb/test-django/docker-compose.yml").read_text()
-          Path(".test-django/docker-compose.yml").write_text(
+          Path(".deploy-django/docker-compose.yml").write_text(
               src.replace("__DJANGO_IMAGE__", "tailtalk-django:ci")
           )
           PY
-          cp -r deploy/eb/test-django/nginx .test-django/nginx
-          cp -r deploy/eb/test-django/.platform .test-django/.platform
-          cat <<'EOF' > .test-django/.env
+          cp -r deploy/eb/test-django/nginx .deploy-django/nginx
+          cp -r deploy/eb/test-django/.platform .deploy-django/.platform
+          cat <<'EOF' > .deploy-django/.env
           DJANGO_SECRET_KEY=test-secret
           DJANGO_DEBUG=False
           DJANGO_ALLOWED_HOSTS=localhost
@@ -99,9 +99,9 @@ jobs:
           POSTGRES_PORT=5432
           CORS_ALLOWED_ORIGINS=
           EOF
-          docker compose -f .test-django/docker-compose.yml --env-file .test-django/.env config -q
-          test -f .test-django/.platform/hooks/prebuild/01_ecr_login.sh
-          test -f .test-django/.platform/confighooks/prebuild/01_ecr_login.sh
+          docker compose -f .deploy-django/docker-compose.yml --env-file .deploy-django/.env config -q
+          test -f .deploy-django/.platform/hooks/prebuild/01_ecr_login.sh
+          test -f .deploy-django/.platform/confighooks/prebuild/01_ecr_login.sh
 
       - name: Reset local test stack
         run: docker compose -f deploy/local/docker-compose.yml down -v --remove-orphans || true
@@ -112,20 +112,20 @@ jobs:
       - name: Run Django tests
         run: docker compose -f deploy/local/docker-compose.yml run --rm django python manage.py test
 
-      - name: Smoke test test bundle runtime
+      - name: Smoke test deploy bundle runtime
         run: |
-          rm -rf .test-django
-          mkdir -p .test-django
+          rm -rf .deploy-django
+          mkdir -p .deploy-django
           python3 - <<'PY'
           from pathlib import Path
           src = Path("deploy/eb/test-django/docker-compose.yml").read_text()
-          Path(".test-django/docker-compose.yml").write_text(
+          Path(".deploy-django/docker-compose.yml").write_text(
               src.replace("__DJANGO_IMAGE__", "tailtalk-django:latest")
           )
           PY
-          cp -r deploy/eb/test-django/nginx .test-django/nginx
-          cp -r deploy/eb/test-django/.platform .test-django/.platform
-          cat <<'EOF' > .test-django/docker-compose.smoke.yml
+          cp -r deploy/eb/test-django/nginx .deploy-django/nginx
+          cp -r deploy/eb/test-django/.platform .deploy-django/.platform
+          cat <<'EOF' > .deploy-django/docker-compose.smoke.yml
           services:
             django:
               depends_on:
@@ -146,7 +146,7 @@ jobs:
                 timeout: 5s
                 retries: 10
           EOF
-          cat <<'EOF' > .test-django/.env
+          cat <<'EOF' > .deploy-django/.env
           DJANGO_SECRET_KEY=test-secret
           DJANGO_DEBUG=False
           DJANGO_ALLOWED_HOSTS=localhost,127.0.0.1
@@ -162,16 +162,16 @@ jobs:
           EOF
           cleanup() {
             docker compose \
-              -f .test-django/docker-compose.yml \
-              -f .test-django/docker-compose.smoke.yml \
-              --env-file .test-django/.env \
+              -f .deploy-django/docker-compose.yml \
+              -f .deploy-django/docker-compose.smoke.yml \
+              --env-file .deploy-django/.env \
               down -v --remove-orphans || true
           }
           trap cleanup EXIT
           docker compose \
-            -f .test-django/docker-compose.yml \
-            -f .test-django/docker-compose.smoke.yml \
-            --env-file .test-django/.env \
+            -f .deploy-django/docker-compose.yml \
+            -f .deploy-django/docker-compose.smoke.yml \
+            --env-file .deploy-django/.env \
             up -d
           for _ in $(seq 1 20); do
             if curl --fail --silent http://127.0.0.1/static/css/main.css > /dev/null \
@@ -188,8 +188,8 @@ jobs:
         if: always()
         run: docker compose -f deploy/local/docker-compose.yml down -v --remove-orphans
 
-  test-django:
-    name: CD - Django Test EB
+  deploy-django:
+    name: CD - Django Deploy EB
     runs-on: ubuntu-latest
     timeout-minutes: 30
     needs:
@@ -338,18 +338,18 @@ jobs:
 
       - name: Create Django deployment bundle
         run: |
-          rm -rf .test-django django-test.zip
-          mkdir -p .test-django
+          rm -rf .deploy-django django-deploy.zip
+          mkdir -p .deploy-django
           python3 - <<'PY'
           from pathlib import Path
           src = Path("deploy/eb/test-django/docker-compose.yml").read_text()
           image = "${{ env.DJANGO_IMAGE_REPO }}:${{ steps.django-meta.outputs.short_sha }}"
-          Path(".test-django/docker-compose.yml").write_text(
+          Path(".deploy-django/docker-compose.yml").write_text(
               src.replace("__DJANGO_IMAGE__", image)
           )
           PY
-          cp -r deploy/eb/test-django/nginx .test-django/nginx
-          cat <<'EOF' > .test-django/.env.check
+          cp -r deploy/eb/test-django/nginx .deploy-django/nginx
+          cat <<'EOF' > .deploy-django/.env.check
           POSTGRES_DB=check_db
           POSTGRES_USER=check_user
           POSTGRES_PASSWORD=check_password
@@ -383,12 +383,12 @@ jobs:
           FASTAPI_STREAM_WRITE_TIMEOUT=10
           FASTAPI_STREAM_POOL_TIMEOUT=5
           EOF
-          docker compose -f .test-django/docker-compose.yml --env-file .test-django/.env.check config -q
+          docker compose -f .deploy-django/docker-compose.yml --env-file .deploy-django/.env.check config -q
           # .ebextensions 디렉토리 복사 (EB 기본 설정)
-          cp -r deploy/eb/test-django/.ebextensions .test-django/.ebextensions
-          cp -r deploy/eb/test-django/.platform .test-django/.platform
-          cd .test-django
-          zip -r ../django-test.zip docker-compose.yml nginx .ebextensions .platform
+          cp -r deploy/eb/test-django/.ebextensions .deploy-django/.ebextensions
+          cp -r deploy/eb/test-django/.platform .deploy-django/.platform
+          cd .deploy-django
+          zip -r ../django-deploy.zip docker-compose.yml nginx .ebextensions .platform
 
       - name: Deploy Django to Test Elastic Beanstalk
         uses: einaregilsson/beanstalk-deploy@v22
@@ -399,7 +399,7 @@ jobs:
           application_name: ${{ env.DJANGO_EB_APP_NAME }}
           environment_name: ${{ env.DJANGO_EB_ENV_NAME }}
           version_label: ${{ steps.django-meta.outputs.version_label }}
-          deployment_package: django-test.zip
+          deployment_package: django-deploy.zip
           use_existing_version_if_available: false
           wait_for_deployment: true
           wait_for_environment_recovery: 180
