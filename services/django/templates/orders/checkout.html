@@ -322,15 +322,67 @@
     display: inline-flex;
     width: 100%;
     height: 100%;
+    border: 0;
+    background: transparent;
     align-items: center;
     justify-content: center;
     padding: 0;
     color: #3182ce;
+    cursor: pointer;
   }
 
   .checkout-address-main::placeholder,
   .checkout-sheet-input::placeholder {
     color: #a0aec0;
+  }
+
+  #checkoutAddressSearchModal {
+    z-index: 70;
+    display: none;
+    align-items: flex-end;
+    justify-content: center;
+    background: rgba(15, 23, 42, 0.28);
+  }
+
+  #checkoutAddressSearchModal.is-open {
+    display: flex;
+  }
+
+  .checkout-address-search-sheet {
+    width: min(100%, 960px);
+    max-height: min(82dvh, 760px);
+    overflow: hidden;
+    border-radius: 24px 24px 0 0;
+    background: #ffffff;
+    transform: translateY(24px);
+    opacity: 0;
+    transition: transform 180ms ease, opacity 180ms ease;
+  }
+
+  #checkoutAddressSearchModal.is-open .checkout-address-search-sheet {
+    transform: translateY(0);
+    opacity: 1;
+  }
+
+  .checkout-address-search-results {
+    overflow-y: auto;
+    max-height: min(52dvh, 420px);
+  }
+
+  .checkout-address-search-result {
+    width: 100%;
+    padding: 14px 18px;
+    border-top: 1px solid #edf2f7;
+    text-align: left;
+    background: #ffffff;
+  }
+
+  .checkout-address-search-result:first-child {
+    border-top: 0;
+  }
+
+  .checkout-address-search-result:hover {
+    background: #f8fafc;
   }
 
   .checkout-payment-option {
@@ -517,6 +569,16 @@
 
     .checkout-sheet.is-open .checkout-sheet-panel {
       transform: translateY(0) scale(1);
+    }
+
+    #checkoutAddressSearchModal {
+      align-items: center;
+    }
+
+    .checkout-address-search-sheet {
+      width: min(100%, 560px);
+      border-radius: 24px;
+      max-height: min(80dvh, 700px);
     }
   }
 </style>
@@ -765,22 +827,45 @@
           <span class="checkout-address-divider" aria-hidden="true"></span>
           <input id="deliverySheetBaseAddressInput" type="text" class="checkout-address-main" placeholder="기본 주소" readonly>
           <span class="checkout-address-divider" aria-hidden="true"></span>
-          <span class="checkout-address-search-cell" aria-hidden="true">
-            <span class="checkout-address-search-trigger">
+          <span class="checkout-address-search-cell">
+            <button type="button" id="deliverySheetAddressSearchBtn" class="checkout-address-search-trigger" aria-label="우편번호 찾기">
               <svg viewBox="0 0 24 24" class="h-[16px] w-[16px]" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round">
                 <circle cx="11" cy="11" r="6"></circle>
                 <path d="M20 20l-3.5-3.5"></path>
               </svg>
-            </span>
+            </button>
           </span>
         </div>
         <input id="deliverySheetDetailAddressInput" type="text" class="checkout-sheet-input mt-2" placeholder="상세 주소">
+        <p id="deliverySheetAddressStatus" class="checkout-sheet-helper"></p>
       </label>
     </div>
     <div class="mt-6 flex gap-3">
       <button type="button" class="flex h-[46px] flex-1 items-center justify-center rounded-[14px] bg-[#edf2f7] text-[14px] font-semibold text-[#4a5568]" onclick="closeDeliverySheet()">취소</button>
       <button type="button" id="saveDeliverySheetBtn" class="flex h-[46px] flex-1 items-center justify-center rounded-[14px] bg-[#2d3748] text-[14px] font-semibold text-white">적용하기</button>
     </div>
+  </div>
+</div>
+
+<div id="checkoutAddressSearchModal" class="fixed inset-0 px-0 md:px-4" onclick="closeCheckoutAddressSearchModal(event)">
+  <div class="checkout-address-search-sheet" onclick="event.stopPropagation()">
+    <div class="flex items-center justify-between border-b border-[#edf2f7] px-5 py-4">
+      <div>
+        <div class="text-[18px] font-bold text-[#2d3748]">주소 검색</div>
+        <p class="mt-1 text-[12px] text-[#718096]">도로명 또는 건물명을 입력해 주세요</p>
+      </div>
+      <button type="button" onclick="closeCheckoutAddressSearchModal()" class="text-[24px] leading-none text-[#718096]">×</button>
+    </div>
+    <div class="px-5 pb-5 pt-4">
+      <div class="flex gap-2">
+        <input type="text" id="checkoutAddressSearchKeywordInput" placeholder="예: 테헤란로 212, 판교역로"
+               class="h-[42px] flex-1 rounded-[10px] border border-[#d7dee8] bg-white px-4 text-[14px] text-[#2d3748] outline-none focus:border-[#3182ce] placeholder:text-[#a0aec0]">
+        <button type="button" id="checkoutAddressSearchSubmitButton"
+                class="h-[42px] rounded-[10px] bg-[#3182ce] px-4 text-[14px] font-bold text-white">검색</button>
+      </div>
+      <p id="checkoutAddressSearchStatus" class="mt-3 min-h-[18px] text-[12px] text-[#718096]"></p>
+    </div>
+    <div id="checkoutAddressSearchResults" class="checkout-address-search-results"></div>
   </div>
 </div>
 
@@ -938,7 +1023,14 @@
   var deliverySheetPostalCodeInput = document.getElementById('deliverySheetPostalCodeInput');
   var deliverySheetBaseAddressInput = document.getElementById('deliverySheetBaseAddressInput');
   var deliverySheetDetailAddressInput = document.getElementById('deliverySheetDetailAddressInput');
+  var deliverySheetAddressSearchBtn = document.getElementById('deliverySheetAddressSearchBtn');
+  var deliverySheetAddressStatus = document.getElementById('deliverySheetAddressStatus');
   var saveDeliverySheetBtn = document.getElementById('saveDeliverySheetBtn');
+  var checkoutAddressSearchModal = document.getElementById('checkoutAddressSearchModal');
+  var checkoutAddressSearchKeywordInput = document.getElementById('checkoutAddressSearchKeywordInput');
+  var checkoutAddressSearchSubmitButton = document.getElementById('checkoutAddressSearchSubmitButton');
+  var checkoutAddressSearchStatus = document.getElementById('checkoutAddressSearchStatus');
+  var checkoutAddressSearchResults = document.getElementById('checkoutAddressSearchResults');
   var paymentOptions = Array.prototype.slice.call(document.querySelectorAll('.checkout-payment-option'));
   var savePaymentSheetBtn = document.getElementById('savePaymentSheetBtn');
   var checkoutRecipientName = document.getElementById('checkoutRecipientName');
@@ -986,6 +1078,9 @@
   var initialCardPaymentSummary = '';
   var toastTimer = null;
   var checkoutCartItems = [];
+  var jusoSearchKey = '{{ juso_confm_key|escapejs }}';
+  var lastCheckoutAddressSearchScript = null;
+  var checkoutAddressSearchSequence = 0;
 
   if (checkoutCartItemsNode) {
     try {
@@ -1247,6 +1342,10 @@
     if (deliverySheetPostalCodeInput) deliverySheetPostalCodeInput.value = normalizeDeliveryFieldValue(orderSummaryPanel.dataset.postalCode || '');
     if (deliverySheetBaseAddressInput) deliverySheetBaseAddressInput.value = normalizeDeliveryFieldValue(orderSummaryPanel.dataset.deliveryAddressMain || '');
     if (deliverySheetDetailAddressInput) deliverySheetDetailAddressInput.value = normalizeDeliveryFieldValue(orderSummaryPanel.dataset.deliveryAddressDetail || '');
+    if (deliverySheetAddressStatus) {
+      deliverySheetAddressStatus.textContent = '';
+      deliverySheetAddressStatus.classList.remove('is-error');
+    }
     deliveryInfoSheet.classList.add('is-open');
   };
 
@@ -1268,6 +1367,132 @@
     syncPaymentOptions();
     paymentMethodSheet.classList.add('is-open');
   };
+
+  window.checkoutAddressCallback = function (payload) {
+    if (!payload) return;
+    if (deliverySheetPostalCodeInput) deliverySheetPostalCodeInput.value = payload.zipcode || '';
+    if (deliverySheetBaseAddressInput) deliverySheetBaseAddressInput.value = payload.address_main || '';
+    if (deliverySheetDetailAddressInput) {
+      deliverySheetDetailAddressInput.value = payload.address_detail || '';
+      deliverySheetDetailAddressInput.focus();
+    }
+    if (deliverySheetAddressStatus) {
+      deliverySheetAddressStatus.textContent = '';
+      deliverySheetAddressStatus.classList.remove('is-error');
+    }
+  };
+
+  window.openCheckoutAddressSearchModal = function () {
+    if (!checkoutAddressSearchModal) return;
+    checkoutAddressSearchModal.classList.add('is-open');
+    if (checkoutAddressSearchKeywordInput) {
+      setTimeout(function () { checkoutAddressSearchKeywordInput.focus(); }, 40);
+    }
+  };
+
+  window.closeCheckoutAddressSearchModal = function (event) {
+    if (!checkoutAddressSearchModal) return;
+    if (event && event.target !== checkoutAddressSearchModal) return;
+    checkoutAddressSearchModal.classList.remove('is-open');
+  };
+
+  function setCheckoutAddressSearchStatus(text, color) {
+    if (!checkoutAddressSearchStatus) return;
+    checkoutAddressSearchStatus.textContent = text || '';
+    checkoutAddressSearchStatus.style.color = color || '#718096';
+  }
+
+  function renderCheckoutAddressSearchResults(items) {
+    if (!checkoutAddressSearchResults) return;
+    checkoutAddressSearchResults.innerHTML = '';
+    if (!items.length) {
+      checkoutAddressSearchResults.innerHTML = '<div class="px-5 py-6 text-center text-[13px] text-[#718096]">검색 결과가 없습니다</div>';
+      return;
+    }
+
+    items.forEach(function (item) {
+      var button = document.createElement('button');
+      button.type = 'button';
+      button.className = 'checkout-address-search-result';
+      button.innerHTML =
+        '<div class="text-[13px] font-semibold text-[#2d3748]">' + item.roadAddr + '</div>' +
+        '<div class="mt-1 text-[12px] text-[#718096]">' + item.zipNo + '</div>';
+      button.addEventListener('click', function () {
+        window.checkoutAddressCallback({
+          zipcode: item.zipNo || '',
+          address_main: item.roadAddr || '',
+          address_detail: '',
+        });
+        closeCheckoutAddressSearchModal();
+      });
+      checkoutAddressSearchResults.appendChild(button);
+    });
+  }
+
+  function searchCheckoutAddressKeyword() {
+    if (!checkoutAddressSearchKeywordInput || !checkoutAddressSearchSubmitButton) return;
+    var keyword = checkoutAddressSearchKeywordInput.value.trim();
+    if (!jusoSearchKey) {
+      setCheckoutAddressSearchStatus('JUSO 검색 API 키가 필요합니다', '#e53e3e');
+      return;
+    }
+    if (keyword.length < 2) {
+      setCheckoutAddressSearchStatus('두 글자 이상 입력해 주세요', '#e53e3e');
+      checkoutAddressSearchKeywordInput.focus();
+      return;
+    }
+
+    checkoutAddressSearchSequence += 1;
+    var callbackName = '__tailtalkCheckoutJusoSearchCallback' + checkoutAddressSearchSequence;
+    if (lastCheckoutAddressSearchScript && lastCheckoutAddressSearchScript.parentNode) {
+      lastCheckoutAddressSearchScript.parentNode.removeChild(lastCheckoutAddressSearchScript);
+    }
+
+    setCheckoutAddressSearchStatus('주소를 검색하고 있습니다', '#718096');
+    if (checkoutAddressSearchResults) {
+      checkoutAddressSearchResults.innerHTML = '';
+    }
+    checkoutAddressSearchSubmitButton.disabled = true;
+
+    window[callbackName] = function (response) {
+      delete window[callbackName];
+      if (lastCheckoutAddressSearchScript && lastCheckoutAddressSearchScript.parentNode) {
+        lastCheckoutAddressSearchScript.parentNode.removeChild(lastCheckoutAddressSearchScript);
+        lastCheckoutAddressSearchScript = null;
+      }
+      checkoutAddressSearchSubmitButton.disabled = false;
+
+      var common = response && response.results && response.results.common ? response.results.common : {};
+      var juso = response && response.results && response.results.juso ? response.results.juso : [];
+      if (common.errorCode && common.errorCode !== '0') {
+        setCheckoutAddressSearchStatus(common.errorMessage || '주소를 검색하지 못했어요', '#e53e3e');
+        renderCheckoutAddressSearchResults([]);
+        return;
+      }
+
+      setCheckoutAddressSearchStatus('', '#718096');
+      renderCheckoutAddressSearchResults(Array.isArray(juso) ? juso : [juso]);
+    };
+
+    var script = document.createElement('script');
+    var params = new URLSearchParams({
+      confmKey: jusoSearchKey,
+      currentPage: '1',
+      countPerPage: '10',
+      keyword: keyword,
+      resultType: 'json',
+      firstSort: 'road',
+      callback: callbackName,
+    });
+    script.src = 'https://business.juso.go.kr/addrlink/addrLinkApiJsonp.do?' + params.toString();
+    script.onerror = function () {
+      delete window[callbackName];
+      checkoutAddressSearchSubmitButton.disabled = false;
+      setCheckoutAddressSearchStatus('주소를 검색하지 못했어요', '#e53e3e');
+    };
+    lastCheckoutAddressSearchScript = script;
+    document.body.appendChild(script);
+  }
 
   function closeDeliveryMessageDropdown() {
     if (!deliveryMessageOptionPanel || !deliveryMessageTrigger) return;
@@ -1461,6 +1686,22 @@
 
   if (openDeliverySheetBtn) {
     openDeliverySheetBtn.addEventListener('click', window.openDeliverySheet);
+  }
+
+  if (deliverySheetAddressSearchBtn) {
+    deliverySheetAddressSearchBtn.addEventListener('click', window.openCheckoutAddressSearchModal);
+  }
+
+  if (checkoutAddressSearchSubmitButton) {
+    checkoutAddressSearchSubmitButton.addEventListener('click', searchCheckoutAddressKeyword);
+  }
+
+  if (checkoutAddressSearchKeywordInput) {
+    checkoutAddressSearchKeywordInput.addEventListener('keydown', function (event) {
+      if (event.key !== 'Enter') return;
+      event.preventDefault();
+      searchCheckoutAddressKeyword();
+    });
   }
 
   if (openPaymentSheetBtn) {
