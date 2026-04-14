@@ -7,7 +7,7 @@ services:
     ports:
       - "80:80"
     volumes:
-      - ../eb/deploy-django/nginx/nginx.conf:/etc/nginx/nginx.conf:ro
+      - ../eb/test-django/nginx/nginx.conf:/etc/nginx/nginx.conf:ro
       - django_static:/var/www/static:ro
     depends_on:
       - django
