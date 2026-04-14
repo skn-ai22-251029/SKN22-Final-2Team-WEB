@@ -189,7 +189,7 @@ jobs:
         run: docker compose -f deploy/local/docker-compose.yml down -v --remove-orphans
 
   deploy-django:
-    name: CD - Django Deploy EB
+    name: CD - Django Test EB
     runs-on: ubuntu-latest
     timeout-minutes: 30
     needs:
@@ -390,7 +390,7 @@ jobs:
           cd .deploy-django
           zip -r ../django-deploy.zip docker-compose.yml nginx .ebextensions .platform
 
-      - name: Deploy Django to Test Elastic Beanstalk
+      - name: Deploy Django to Elastic Beanstalk
         uses: einaregilsson/beanstalk-deploy@v22
         with:
           aws_access_key: ${{ secrets.AWS_ACCESS_KEY_ID }}
