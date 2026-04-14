@@ -4,7 +4,7 @@ from unittest import mock
 
 from django.core.management import call_command
 from django.core.management.base import CommandError
-from django.test import TestCase
+from django.test import TestCase, override_settings
 from django.utils import timezone
 from rest_framework import status
 from rest_framework.test import APIClient
@@ -779,6 +779,17 @@ class OrderPageViewTests(TestCase):
         self.assertContains(response, "시연용 예시 주문을 보고 있어요")
         self.assertContains(response, "TT-20260325-1024")
         self.assertContains(response, "배송 중")
+
+    @override_settings(JUSO_CONFM_KEY="test-juso-key")
+    def test_checkout_renders_address_search_wiring(self):
+        CartItem.objects.create(cart=Cart.objects.create(user=self.user), product=self.product, quantity=1)
+
+        response = self.client.get("/checkout/")
+
+        self.assertEqual(response.status_code, 200)
+        self.assertEqual(response.context["juso_confm_key"], "test-juso-key")
+        self.assertContains(response, 'id="deliverySheetAddressSearchBtn"', html=False)
+        self.assertContains(response, "var jusoSearchKey =", html=False)
 
     def test_catalog_shows_recommended_products_for_session(self):
         product = Product.objects.create(

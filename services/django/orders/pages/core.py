@@ -1,6 +1,7 @@
 from collections import defaultdict
 from urllib.parse import parse_qs, urlencode, urlparse
 
+from django.conf import settings
 from django.db.models import Case, DecimalField, IntegerField, Q, Value, When
 from django.db.models.functions import Coalesce
 from django.contrib.auth.decorators import login_required
@@ -980,6 +981,7 @@ def _build_products_page_context(user, *, active_tab, selected_goods_ids=None):
         "mileage_summary": "사용 가능 3,200원",
         "discount_total_raw": discount,
         "shipping_fee_raw": shipping_fee,
+        "juso_confm_key": getattr(settings, "JUSO_CONFM_KEY", ""),
         "active_tab": active_tab,
         **_member_nav_indicator_state(user),
     }
