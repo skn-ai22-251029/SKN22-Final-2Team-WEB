@@ -769,7 +769,7 @@
             </span>
           </div>
           {% empty %}
-          <div class="rounded-[14px] border border-[#dbe7f5] bg-white px-[14px] py-[16px] text-center text-[12px] leading-[1.6] text-[#718096]">
+          <div data-history-empty-state="true" class="rounded-[14px] border border-[#dbe7f5] bg-white px-[14px] py-[16px] text-center text-[12px] leading-[1.6] text-[#718096]">
             저장된 대화가 아직 없습니다
           </div>
           {% endfor %}
@@ -2286,8 +2286,35 @@
       });
     }
 
+    function removeHistoryEmptyState() {
+      if (!chatHistoryList) return;
+      var emptyState = chatHistoryList.querySelector('[data-history-empty-state="true"]');
+      if (emptyState) {
+        emptyState.remove();
+      }
+    }
+
+    function ensureHistoryEmptyState() {
+      if (!chatHistoryList) return;
+      var hasSessionItems = !!chatHistoryList.querySelector('.chat-history-item[data-id]');
+      if (hasSessionItems) {
+        removeHistoryEmptyState();
+        return;
+      }
+      if (chatHistoryList.querySelector('[data-history-empty-state="true"]')) {
+        return;
+      }
+
+      var emptyState = document.createElement('div');
+      emptyState.setAttribute('data-history-empty-state', 'true');
+      emptyState.className = 'rounded-[14px] border border-[#dbe7f5] bg-white px-[14px] py-[16px] text-center text-[12px] leading-[1.6] text-[#718096]';
+      emptyState.textContent = '저장된 대화가 아직 없습니다';
+      chatHistoryList.appendChild(emptyState);
+    }
+
     function bindHistoryItems() {
       if (!chatHistoryList) return;
+      removeHistoryEmptyState();
       chatHistoryList.querySelectorAll('.chat-history-item[data-id]').forEach(function (item) {
         if (item.dataset.bound === 'true') return;
         item.dataset.bound = 'true';
@@ -2362,6 +2389,7 @@
       var item = chatHistoryList.querySelector('[data-id="' + sessionId + '"]');
       if (item) return;
       var state = ensureSessionState(sessionId);
+      removeHistoryEmptyState();
 
       var wrapper = document.createElement('div');
       wrapper.className = 'chat-history-item relative h-[40px] w-full shrink-0 cursor-pointer border-b border-[#e7edf5] transition-colors duration-150 box-border';
@@ -2466,6 +2494,7 @@
           }
           item.remove();
           delete sessionState[sessionId];
+          ensureHistoryEmptyState();
           if (activeSessionId === sessionId) {
             window.resetChatState();
           }
@@ -2831,6 +2860,7 @@
     updateRecommendationLauncher();
     renderRecommendationPanel([]);
     bindHistoryItems();
+    ensureHistoryEmptyState();
     refreshHeaderCartBadge();
     if (messageInput) {
       restoreMessageInputFocus(0);

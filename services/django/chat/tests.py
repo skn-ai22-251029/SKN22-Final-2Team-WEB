@@ -95,6 +95,16 @@ class ChatPageTests(TestCase):
         self.assertContains(response, "includeAuthorization: false", count=2)
         self.assertContains(response, "headers: buildChatApiHeaders()", count=2)
 
+    def test_chat_page_manages_history_empty_state_after_session_changes(self):
+        response = self.client.get(reverse("chat"))
+
+        self.assertEqual(response.status_code, 200)
+        self.assertContains(response, 'data-history-empty-state="true"')
+        self.assertContains(response, "function removeHistoryEmptyState()")
+        self.assertContains(response, "function ensureHistoryEmptyState()")
+        self.assertContains(response, "removeHistoryEmptyState();")
+        self.assertContains(response, "ensureHistoryEmptyState();")
+
     def _issue_expired_tokens(self):
         refresh = RefreshToken.for_user(self.user)
         access = refresh.access_token
