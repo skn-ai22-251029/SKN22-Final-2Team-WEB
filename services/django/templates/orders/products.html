@@ -864,7 +864,7 @@
                  data-unit-price="{{ item.price }}"
                  data-name="{{ item.name }}"
                  data-price-label="{{ item.price_label }}"
-                 data-rating="{{ item.rating|default:'-' }}"
+                 data-rating="{{ item.rating_label|default:'-' }}"
                  data-review-count="{{ item.review_count }}"
                  data-thumbnail-url="{{ item.thumbnail_url|default:'' }}"
                  data-product-url="{% if item.product_url %}{{ item.product_url }}?source=cart{% endif %}"
@@ -900,8 +900,8 @@
               <p class="mt-1 truncate text-[16px] font-bold text-[#2d3748]" data-cart-name>{{ item.name }}</p>
               {% endif %}
               <div class="cart-item-meta mt-2 flex items-center gap-2 text-[11px]" data-cart-review-row>
-                <span class="font-bold text-[#d69e2e]" data-cart-rating>★ {{ item.rating|default:"-" }}</span>
-                <span class="text-[#a0aec0]" data-cart-review-count>({{ item.review_count }})</span>
+                <span class="font-bold text-[#d69e2e]" data-cart-rating>★ {{ item.rating_label|default:"-" }}</span>
+                <span class="text-[#a0aec0]" data-cart-review-count>{{ item.review_count_badge }}</span>
               </div>
             </div>
           </div>
@@ -962,7 +962,7 @@
                  data-name="{{ item.name }}"
                  data-price="{{ item.price }}"
                  data-price-label="{{ item.price_label }}"
-                 data-rating="{{ item.rating|default:'-' }}"
+                 data-rating="{{ item.rating_label|default:'-' }}"
                  data-review-count="{{ item.review_count }}"
                  data-thumbnail-url="{{ item.thumbnail_url|default:'' }}"
                  data-product-url="{% if item.product_url %}{{ item.product_url }}?source=wishlist{% endif %}"
@@ -1029,8 +1029,8 @@
                 <p class="catalog-card-price">₩ {{ item.price_label|cut:"원" }}</p>
                 <p class="catalog-card-review">
                   <span class="text-[#f6ad55]">★</span>
-                  <span>{{ item.rating|default:"-" }}</span>
-                  <span>({{ item.review_count }})</span>
+                  <span>{{ item.rating_label|default:"-" }}</span>
+                  <span>{{ item.review_count_badge }}</span>
                 </p>
               </div>
               <button type="button"
@@ -1467,6 +1467,19 @@
     return digits || '0';
   }
 
+  function normalizeRatingLabel(value) {
+    var numeric = Number(String(value || '').replace(/[^\d.]/g, ''));
+    if (!Number.isFinite(numeric) || numeric <= 0) {
+      return '-';
+    }
+    return numeric.toFixed(1);
+  }
+
+  function formatReviewCountBadge(value) {
+    var count = Number(normalizeReviewCount(value));
+    return count > 0 ? '(' + count.toLocaleString('ko-KR') + ')' : '리뷰 준비 중';
+  }
+
   function getSelectedCartItems() {
     return Array.prototype.filter.call(document.querySelectorAll('[data-cart-item]'), function (item) {
       var checkbox = item.querySelector('[data-cart-select-checkbox]');
@@ -1632,7 +1645,7 @@
     item.setAttribute('data-brand-name', cartItem.brand || item.getAttribute('data-brand-name') || '');
     item.setAttribute('data-name', cartItem.name || '상품');
     item.setAttribute('data-price-label', cartItem.price_label || formatPrice(Number(cartItem.price || 0)));
-    item.setAttribute('data-rating', cartItem.rating || '-');
+    item.setAttribute('data-rating', normalizeRatingLabel(cartItem.rating));
     item.setAttribute('data-review-count', normalizeReviewCount(cartItem.review_count || '0'));
     item.setAttribute('data-thumbnail-url', cartItem.thumbnail_url || '');
     item.setAttribute('data-product-url', withDetailSource(cartItem.product_url || '', 'cart'));
@@ -1657,11 +1670,11 @@
 
     var ratingNode = item.querySelector('[data-cart-rating]');
     if (ratingNode) {
-      ratingNode.textContent = '★ ' + (cartItem.rating || '-');
+      ratingNode.textContent = '★ ' + normalizeRatingLabel(cartItem.rating);
     }
     var reviewCountNode = item.querySelector('[data-cart-review-count]');
     if (reviewCountNode) {
-      reviewCountNode.textContent = '(' + normalizeReviewCount(cartItem.review_count || '0') + ')';
+      reviewCountNode.textContent = formatReviewCountBadge(cartItem.review_count || '0');
     }
   }
 
@@ -1880,6 +1893,8 @@
     var productUrl = escapeHtml(data.productUrl || '');
     var thumbnailHtml = cartThumbnailMarkup(data.productUrl || '', data.thumbnailUrl || '', data.name || '상품');
     var nameHtml = cartNameMarkup(data.productUrl || '', data.name || '상품');
+    var ratingLabel = normalizeRatingLabel(data.rating);
+    var reviewCountLabel = formatReviewCountBadge(data.reviewCount);
 
     return [
       '<article class="cart-item-card relative rounded-[20px] border border-[#dbe7f5] bg-white px-4 py-4 shadow-[0_6px_18px_rgba(45,55,72,0.04)]"',
@@ -1889,7 +1904,7 @@
       ' data-unit-price="' + escapeHtml(data.price) + '"',
       ' data-name="' + escapeHtml(data.name) + '"',
       ' data-price-label="' + escapeHtml(data.priceLabel) + '"',
-      ' data-rating="' + escapeHtml(data.rating) + '"',
+      ' data-rating="' + escapeHtml(ratingLabel) + '"',
       ' data-review-count="' + escapeHtml(data.reviewCount) + '"',
       ' data-thumbnail-url="' + escapeHtml(data.thumbnailUrl) + '"',
       ' data-product-url="' + productUrl + '"',
@@ -1901,7 +1916,7 @@
       thumbnailHtml,
       '<div class="cart-item-copy min-w-0 flex-1 pr-14">',
       nameHtml,
-      '<div class="cart-item-meta mt-2 flex items-center gap-2 text-[11px]" data-cart-review-row><span class="font-bold text-[#d69e2e]" data-cart-rating>★ ' + escapeHtml(data.rating) + '</span><span class="text-[#a0aec0]" data-cart-review-count>(' + escapeHtml(data.reviewCount) + ')</span></div>',
+      '<div class="cart-item-meta mt-2 flex items-center gap-2 text-[11px]" data-cart-review-row><span class="font-bold text-[#d69e2e]" data-cart-rating>★ ' + escapeHtml(ratingLabel) + '</span><span class="text-[#a0aec0]" data-cart-review-count>' + escapeHtml(reviewCountLabel) + '</span></div>',
       '</div>',
       '</div>',
       '<div class="cart-item-footer mt-2.5 flex items-center justify-between gap-2.5 border-t border-[#edf2f7] pt-2.5">',
@@ -1931,6 +1946,8 @@
       : '<span class="flex h-full w-full items-center justify-center text-[32px] font-bold text-[#90a4b8]">?</span>';
     var productUrl = escapeHtml(withDetailSource(data.productUrl || '', 'wishlist'));
     var checkboxHtml = '<input type="checkbox" class="cart-item-select catalog-card-select" data-wishlist-select-checkbox aria-label="관심 상품 선택">';
+    var ratingLabel = normalizeRatingLabel(data.rating);
+    var reviewCountLabel = formatReviewCountBadge(data.reviewCount);
     var thumbnailHtml = (
       productUrl
         ? '<div class="wishlist-item-media catalog-thumb relative overflow-hidden bg-[#f8fbff]">' + checkboxHtml + '<a href="' + productUrl + '" class="absolute inset-0 block" data-wishlist-product-link>' + thumbnail + '</a><button type="button" class="catalog-card-wishlist wishlist-heart is-active" aria-label="관심 상품 상태 변경" onclick="toggleWishlistHeart(this)"><svg width="15" height="15" viewBox="0 0 24 24" fill="none" aria-hidden="true"><path d="M12 20.4 4.9 13.8a4.8 4.8 0 0 1 6.8-6.8L12 7.3l.3-.3a4.8 4.8 0 0 1 6.8 6.8L12 20.4Z" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"/></svg><svg width="15" height="15" viewBox="0 0 24 24" fill="currentColor" aria-hidden="true"><path d="M12 20.4 4.9 13.8a4.8 4.8 0 0 1 6.8-6.8L12 7.3l.3-.3a4.8 4.8 0 0 1 6.8 6.8L12 20.4Z"/></svg></button></div>'
@@ -1947,7 +1964,7 @@
       ' data-name="' + escapeHtml(data.name) + '"',
       ' data-price="' + escapeHtml(data.price) + '"',
       ' data-price-label="' + escapeHtml(data.priceLabel) + '"',
-      ' data-rating="' + escapeHtml(data.rating) + '"',
+      ' data-rating="' + escapeHtml(ratingLabel) + '"',
       ' data-review-count="' + escapeHtml(data.reviewCount) + '"',
       ' data-thumbnail-url="' + escapeHtml(data.thumbnailUrl) + '"',
       ' data-product-url="' + productUrl + '"',
@@ -1956,7 +1973,7 @@
       '<div class="catalog-card-body p-4">',
       nameHtml,
       '<div class="catalog-card-meta">',
-      '<div><p class="catalog-card-price">₩ ' + escapeHtml(String(data.priceLabel).replace(/원/g, "")) + '</p><p class="catalog-card-review"><span class="text-[#f6ad55]">★</span><span>' + escapeHtml(data.rating) + '</span><span>(' + escapeHtml(data.reviewCount) + ')</span></p></div>',
+      '<div><p class="catalog-card-price">₩ ' + escapeHtml(String(data.priceLabel).replace(/원/g, "")) + '</p><p class="catalog-card-review"><span class="text-[#f6ad55]">★</span><span>' + escapeHtml(ratingLabel) + '</span><span>' + escapeHtml(reviewCountLabel) + '</span></p></div>',
       '<button type="button" class="catalog-card-action" aria-label="장바구니에 상품 추가" onclick="addWishlistToCart(this)"><svg width="14" height="14" viewBox="0 0 14 14" fill="none" aria-hidden="true"><path d="M7 2.2V11.8" stroke="currentColor" stroke-width="2" stroke-linecap="round"/><path d="M2.2 7H11.8" stroke="currentColor" stroke-width="2" stroke-linecap="round"/></svg></button>',
       '</div>',
       '</div>',
