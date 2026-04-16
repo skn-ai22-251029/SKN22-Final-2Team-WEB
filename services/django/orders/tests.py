@@ -791,6 +791,51 @@ class OrderPageViewTests(TestCase):
         self.assertContains(response, 'id="deliverySheetAddressSearchBtn"', html=False)
         self.assertContains(response, "var jusoSearchKey =", html=False)
 
+    def test_used_products_initial_render_uses_normalized_panel_meta(self):
+        CartItem.objects.create(cart=Cart.objects.create(user=self.user), product=self.product, quantity=1)
+
+        response = self.client.get("/products/")
+
+        self.assertEqual(response.status_code, 200)
+        cart_item = next(item for item in response.context["cart_items"] if item["goods_id"] == self.product.goods_id)
+        self.assertEqual(cart_item["rating"], "4.5")
+        self.assertEqual(cart_item["rating_label"], "4.5")
+        self.assertEqual(cart_item["review_count"], 2)
+        self.assertEqual(cart_item["review_count_badge"], "(2)")
+        self.assertContains(response, 'data-rating="4.5"', html=False)
+        self.assertContains(response, "★ 4.5")
+        self.assertContains(response, "(2)")
+
+    def test_used_products_initial_render_ignores_stale_review_metadata(self):
+        product = Product.objects.create(
+            goods_id="GP-PANEL-NO-REVIEW",
+            goods_name="패널 메타만 있는 상품",
+            brand_name="테스트 브랜드",
+            price=15900,
+            discount_price=12900,
+            rating=4.9,
+            review_count=24478,
+            thumbnail_url="https://example.com/panel-no-review-thumb.png",
+            product_url="https://www.aboutpet.co.kr/goods/getGoods?goodsId=GP-PANEL-NO-REVIEW",
+            pet_type=["고양이"],
+            category=["사료"],
+            subcategory=["건식"],
+            crawled_at=timezone.now(),
+        )
+        CartItem.objects.create(cart=Cart.objects.create(user=self.user), product=product, quantity=1)
+
+        response = self.client.get("/products/")
+
+        self.assertEqual(response.status_code, 200)
+        cart_item = next(item for item in response.context["cart_items"] if item["goods_id"] == product.goods_id)
+        self.assertIsNone(cart_item["rating"])
+        self.assertEqual(cart_item["rating_label"], "-")
+        self.assertEqual(cart_item["review_count"], 0)
+        self.assertEqual(cart_item["review_count_badge"], "리뷰 준비 중")
+        self.assertContains(response, "★ -")
+        self.assertContains(response, "리뷰 준비 중")
+        self.assertNotContains(response, "(24,478)")
+
     def test_catalog_shows_recommended_products_for_session(self):
         product = Product.objects.create(
             goods_id="CATALOG-REC-1",
