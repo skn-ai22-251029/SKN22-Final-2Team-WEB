@@ -6,7 +6,7 @@ from django.urls import reverse
 from orders.models import Cart, Wishlist
 
 from ..allergies import allergy_options, parse_allergy_ingredients
-from ..breeds import get_breed_options, resolve_breed
+from ..breeds import get_breed_search_options, resolve_breed
 from ..future_profile import get_future_pet_profile_for_request
 from ..models import FuturePetProfile, Pet, PetAllergy, PetFoodPreference, PetHealthConcern
 
@@ -90,6 +90,16 @@ def _breed_error_message(species):
 
 def _weight_error_message():
     return "몸무게를 입력해 주세요"
+
+
+def _breed_options_json():
+    return json.dumps(
+        {
+            "dog": get_breed_search_options("dog"),
+            "cat": get_breed_search_options("cat"),
+        },
+        ensure_ascii=False,
+    )
 
 
 def _normalize_gender(value):
@@ -439,10 +449,7 @@ def pet_add_details(request):
         {
             "pet": pet_seed,
             "species": species,
-            "breed_options_json": json.dumps({
-                "dog": get_breed_options("dog"),
-                "cat": get_breed_options("cat"),
-            }),
+            "breed_options_json": _breed_options_json(),
             "age_year_options": AGE_YEAR_OPTIONS,
             "age_month_options": AGE_MONTH_OPTIONS,
             "step3_data": step3_data,
@@ -492,10 +499,7 @@ def pet_add_health(request):
             {
                 "pet": pet_preview,
                 "species": species,
-                "breed_options_json": json.dumps({
-                    "dog": get_breed_options("dog"),
-                    "cat": get_breed_options("cat"),
-                }),
+                "breed_options_json": _breed_options_json(),
                 "age_year_options": AGE_YEAR_OPTIONS,
                 "age_month_options": AGE_MONTH_OPTIONS,
                 "step3_data": {
@@ -618,10 +622,7 @@ def pet_edit(request, pet_id):
         {
             "pet": _pet_step2_data(pet) | {"neutered": pet.neutered},
             "species": pet.species,
-            "breed_options_json": json.dumps({
-                "dog": get_breed_options("dog"),
-                "cat": get_breed_options("cat"),
-            }),
+            "breed_options_json": _breed_options_json(),
             "is_edit": True,
             "age_year_options": AGE_YEAR_OPTIONS,
             "age_month_options": AGE_MONTH_OPTIONS,
@@ -655,10 +656,7 @@ def pet_edit_health(request, pet_id):
                     "neutered": {"yes": True, "no": False}.get(request.POST.get("neutered", "")),
                 },
                 "species": pet.species,
-                "breed_options_json": json.dumps({
-                    "dog": get_breed_options("dog"),
-                    "cat": get_breed_options("cat"),
-                }),
+                "breed_options_json": _breed_options_json(),
                 "is_edit": True,
                 "age_year_options": AGE_YEAR_OPTIONS,
                 "age_month_options": AGE_MONTH_OPTIONS,
@@ -766,10 +764,7 @@ def preview_pet_edit(request, pet_id):
                         "neutered": True if step2_data["neutered"] == "yes" else False if step2_data["neutered"] == "no" else None,
                     },
                     "species": pet.species,
-                    "breed_options_json": json.dumps({
-                        "dog": get_breed_options("dog"),
-                        "cat": get_breed_options("cat"),
-                    }),
+                    "breed_options_json": _breed_options_json(),
                     "is_edit": True,
                     "age_year_options": AGE_YEAR_OPTIONS,
                     "age_month_options": AGE_MONTH_OPTIONS,
@@ -809,10 +804,7 @@ def preview_pet_edit(request, pet_id):
                 "neutered": pet.neutered,
             },
             "species": pet.species,
-            "breed_options_json": json.dumps({
-                "dog": get_breed_options("dog"),
-                "cat": get_breed_options("cat"),
-            }),
+            "breed_options_json": _breed_options_json(),
             "is_edit": True,
             "is_preview_edit": True,
             "age_year_options": AGE_YEAR_OPTIONS,
