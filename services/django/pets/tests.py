@@ -9,7 +9,7 @@ from rest_framework.test import APIClient
 
 from users.models import User, UserProfile
 
-from .breeds import _breed_meta_snapshot, resolve_breed
+from .breeds import _breed_meta_snapshot, get_breed_search_options, resolve_breed
 from .models import FuturePetProfile, Pet, PetAllergy, PetFoodPreference, PetHealthConcern
 
 
@@ -206,6 +206,43 @@ class PetApiTests(TestCase):
         self.assertEqual(resolve_breed("cat", "British Shorthair"), "브리티시 숏헤어")
         self.assertEqual(resolve_breed("cat", "British   Shorthair"), "브리티시 숏헤어")
         self.assertEqual(resolve_breed("cat", "브리티시숏헤어"), "브리티시 숏헤어")
+        self.assertEqual(resolve_breed("dog", "Mix"), "믹스")
+        self.assertEqual(resolve_breed("dog", "믹스견"), "믹스")
+        self.assertEqual(resolve_breed("cat", "Mixed"), "믹스")
+        self.assertEqual(resolve_breed("cat", "믹스묘"), "믹스")
+
+    def test_get_breed_search_options_includes_english_aliases(self):
+        self.assertEqual(
+            get_breed_search_options("dog"),
+            [
+                {
+                    "label": "말티즈",
+                    "search_terms": ["말티즈", "maltese"],
+                },
+                {
+                    "label": "믹스",
+                    "search_terms": ["믹스", "mix", "mixed", "믹스견", "mongrel"],
+                }
+            ],
+        )
+        self.assertEqual(
+            get_breed_search_options("cat"),
+            [
+                {
+                    "label": "브리티시 숏헤어",
+                    "search_terms": [
+                        "브리티시 숏헤어",
+                        "브리티시숏헤어",
+                        "british shorthair",
+                        "britishshorthair",
+                    ],
+                },
+                {
+                    "label": "믹스",
+                    "search_terms": ["믹스", "mix", "mixed", "믹스묘"],
+                }
+            ],
+        )
 
     def test_post_pets_requires_weight(self):
         response = self.client.post(

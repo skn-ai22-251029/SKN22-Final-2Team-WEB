@@ -499,17 +499,18 @@
       highlightedBreedIndex = -1;
       breedSuggestions.innerHTML = '';
       items.forEach(function (item) {
+        var label = item && typeof item === 'object' ? (item.label || '') : String(item || '');
         var button = document.createElement('button');
         button.type = 'button';
         button.className = 'flex w-full items-center rounded-[8px] px-[10px] py-[9px] text-left text-[13px] leading-none text-[#2d3748] transition-colors duration-150 hover:bg-[#f8fbff]';
-        button.textContent = item;
+        button.textContent = label;
         button.addEventListener('mouseenter', function () {
           highlightedBreedIndex = items.indexOf(item);
           paintBreedSuggestionState();
         });
         button.addEventListener('mousedown', function (event) {
           event.preventDefault();
-          applyBreed(item);
+          applyBreed(label);
         });
         breedSuggestions.appendChild(button);
       });
@@ -530,11 +531,14 @@
       }
       var normalizedKeyword = normalizeText(keyword);
       var filtered = options.filter(function (item) {
-        var normalizedItem = normalizeText(item);
+        var label = item && typeof item === 'object' ? (item.label || '') : String(item || '');
+        var searchTerms = item && typeof item === 'object' ? (item.search_terms || [label]) : [label];
         if (isChoseongQuery(normalizedKeyword)) {
-          return toChoseong(normalizedItem).indexOf(normalizedKeyword) === 0;
+          return toChoseong(normalizeText(label)).indexOf(normalizedKeyword) === 0;
         }
-        return normalizedItem.indexOf(normalizedKeyword) !== -1;
+        return searchTerms.some(function (term) {
+          return normalizeText(term).indexOf(normalizedKeyword) !== -1;
+        });
       }).slice(0, 8);
       openBreedSuggestions(filtered);
     }
