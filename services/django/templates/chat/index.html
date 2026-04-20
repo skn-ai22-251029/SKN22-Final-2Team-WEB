@@ -477,6 +477,50 @@
     white-space: normal;
   }
 
+  .assistant-progress {
+    margin-bottom: 14px;
+    padding: 12px 14px;
+    border: 1px solid #dbe7f5;
+    border-radius: 16px;
+    background: #f8fbff;
+  }
+
+  .assistant-progress-title {
+    margin: 0 0 8px;
+    color: #4a5568;
+    font-size: 12px;
+    font-weight: 700;
+    line-height: 1.4;
+  }
+
+  .assistant-progress-list {
+    display: flex;
+    flex-direction: column;
+    gap: 6px;
+    margin: 0;
+    padding: 0;
+    list-style: none;
+  }
+
+  .assistant-progress-item {
+    display: flex;
+    gap: 8px;
+    align-items: flex-start;
+    color: #2d3748;
+    font-size: 14px;
+    line-height: 1.6;
+    word-break: keep-all;
+  }
+
+  .assistant-progress-dot {
+    width: 6px;
+    height: 6px;
+    margin-top: 8px;
+    flex: 0 0 auto;
+    border-radius: 999px;
+    background: #3182ce;
+  }
+
   .assistant-rich {
     display: flex;
     flex-direction: column;
@@ -2260,6 +2304,44 @@
       return wrapper;
     }
 
+    function ensureAssistantProgressNode(assistantEl) {
+      if (!assistantEl) return null;
+      var bubble = assistantEl.firstElementChild;
+      if (!bubble) return null;
+      var progressNode = bubble.querySelector('.assistant-progress');
+      if (progressNode) return progressNode;
+
+      progressNode = document.createElement('div');
+      progressNode.className = 'assistant-progress';
+      progressNode.innerHTML = ''
+        + '<p class="assistant-progress-title">검색 조건 확인 중</p>'
+        + '<ul class="assistant-progress-list"></ul>';
+
+      var textNode = bubble.querySelector('.assistant-text');
+      bubble.insertBefore(progressNode, textNode || null);
+      return progressNode;
+    }
+
+    function renderAssistantProgress(assistantEl, items) {
+      var progressNode = ensureAssistantProgressNode(assistantEl);
+      if (!progressNode) return;
+      var list = progressNode.querySelector('.assistant-progress-list');
+      if (!list) return;
+      list.innerHTML = '';
+      items.forEach(function (item) {
+        var li = document.createElement('li');
+        li.className = 'assistant-progress-item';
+        var dot = document.createElement('span');
+        dot.className = 'assistant-progress-dot';
+        dot.setAttribute('aria-hidden', 'true');
+        var text = document.createElement('span');
+        text.textContent = item;
+        li.appendChild(dot);
+        li.appendChild(text);
+        list.appendChild(li);
+      });
+    }
+
     function renderSessionThread(sessionId) {
       var state = ensureSessionState(sessionId);
       if (!state || !chatMessages) return;
@@ -2644,6 +2726,7 @@
 
         var assistantEl = appendMessage('assistant', '답변을 준비하고 있어요...');
         var assistantText = '';
+        var assistantInfoItems = [];
         var assistantStored = false;
         activeMessageAbortController = new AbortController();
 
@@ -2716,7 +2799,13 @@
                 if (!line.startsWith('data: ')) return;
                 try {
                   var evt = JSON.parse(line.slice(6));
-                  if (evt.type === 'token') {
+                  if (evt.type === 'info') {
+                    if (evt.content) {
+                      assistantInfoItems.push(evt.content);
+                      renderAssistantProgress(assistantEl, assistantInfoItems);
+                      scrollChatToBottom();
+                    }
+                  } else if (evt.type === 'token') {
                     assistantText += evt.content || '';
                     if (assistantEl) {
                       var p = assistantEl.querySelector('.assistant-text');
