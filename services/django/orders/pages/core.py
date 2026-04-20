@@ -28,6 +28,14 @@ def _format_price(value):
     return f"{value:,}원"
 
 
+def _format_review_count_badge(value):
+    try:
+        review_count = max(int(value or 0), 0)
+    except (TypeError, ValueError):
+        review_count = 0
+    return f"({review_count:,})" if review_count > 0 else "리뷰 준비 중"
+
+
 def _build_product_detail_url(goods_id):
     return reverse("product_detail", args=[goods_id])
 
@@ -685,6 +693,9 @@ def _load_product_panels():
 
 
 def _serialize_panel_product(product, quantity=1, is_wishlisted=False, note="가격 비교를 위해 보관한 상품"):
+    review_count = get_actual_review_count(product)
+    rating = get_actual_rating_label(product)
+    rating_label = rating or "-"
     return {
         "goods_id": product.goods_id,
         "thumbnail_url": product.thumbnail_url,
@@ -694,8 +705,10 @@ def _serialize_panel_product(product, quantity=1, is_wishlisted=False, note="가
         "name": _display_product_name(product.brand_name, product.goods_name),
         "summary": _product_summary(product),
         "price": product.price,
-        "rating": get_actual_rating_label(product),
-        "review_count": get_actual_review_count(product),
+        "rating": rating,
+        "rating_label": rating_label,
+        "review_count": review_count,
+        "review_count_badge": _format_review_count_badge(review_count),
         "quantity": quantity,
         "note": note,
         "is_wishlisted": is_wishlisted,

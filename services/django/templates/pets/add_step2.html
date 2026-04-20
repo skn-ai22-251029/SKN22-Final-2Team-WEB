@@ -444,6 +444,10 @@
         .replace(/^\s+/, '');
     }
 
+    function getBreedLabel(item) {
+      return item && typeof item === 'object' ? (item.label || '') : String(item || '');
+    }
+
     function toChoseong(value) {
       return Array.from(value || '').map(function (char) {
         var code = char.charCodeAt(0) - 44032;
@@ -473,8 +477,10 @@
 
     function applyBreed(value) {
       if (!breedInput) return;
-      breedInput.value = value;
+      breedInput.value = sanitizeBreedInput(getBreedLabel(value)).trim();
+      clearError(breedStatus);
       closeBreedSuggestions();
+      syncNextButton();
       breedInput.focus();
     }
 
@@ -499,7 +505,7 @@
       highlightedBreedIndex = -1;
       breedSuggestions.innerHTML = '';
       items.forEach(function (item) {
-        var label = item && typeof item === 'object' ? (item.label || '') : String(item || '');
+        var label = getBreedLabel(item);
         var button = document.createElement('button');
         button.type = 'button';
         button.className = 'flex w-full items-center rounded-[8px] px-[10px] py-[9px] text-left text-[13px] leading-none text-[#2d3748] transition-colors duration-150 hover:bg-[#f8fbff]';
@@ -531,7 +537,7 @@
       }
       var normalizedKeyword = normalizeText(keyword);
       var filtered = options.filter(function (item) {
-        var label = item && typeof item === 'object' ? (item.label || '') : String(item || '');
+        var label = getBreedLabel(item);
         var searchTerms = item && typeof item === 'object' ? (item.search_terms || [label]) : [label];
         if (isChoseongQuery(normalizedKeyword)) {
           return toChoseong(normalizeText(label)).indexOf(normalizedKeyword) === 0;
