@@ -1508,6 +1508,11 @@
 
     function formatAssistantMessageHtml(text) {
       var safeText = String(text || '').replace(/\r\n/g, '\n');
+
+      function parseMarkdown(str) {
+        return escapeHtml(str).replace(/\*\*(.*?)\*\*/g, '<strong>$1</strong>');
+      }
+
       var blocks = safeText.split(/\n{2,}/).map(function (block) {
         return block.trim();
       }).filter(Boolean);
@@ -1527,7 +1532,7 @@
         });
         if (bulletLines) {
           return '<ul>' + lines.map(function (line) {
-            return '<li>' + escapeHtml(line.replace(/^[-•]\s+/, '')) + '</li>';
+            return '<li>' + parseMarkdown(line.replace(/^[-•]\s+/, '')) + '</li>';
           }).join('') + '</ul>';
         }
 
@@ -1536,11 +1541,11 @@
         });
         if (numberedLines) {
           return '<ol>' + lines.map(function (line) {
-            return '<li>' + escapeHtml(line.replace(/^\d+[.)]\s+/, '')) + '</li>';
+            return '<li>' + parseMarkdown(line.replace(/^\d+[.)]\s+/, '')) + '</li>';
           }).join('') + '</ol>';
         }
 
-        return '<p>' + lines.map(escapeHtml).join('<br>') + '</p>';
+        return '<p>' + lines.map(parseMarkdown).join('<br>') + '</p>';
       }).filter(Boolean).join('');
 
       return '<div class="assistant-rich">' + html + '</div>';
