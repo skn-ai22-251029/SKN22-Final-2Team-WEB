@@ -201,6 +201,26 @@
     margin-top: 28px;
   }
 
+  #memberHeroTitle {
+    max-width: min(640px, 100%);
+    margin: 0 auto;
+    font-size: clamp(28px, 5.8vw, 34px);
+    font-weight: 700;
+    line-height: 1.28;
+    letter-spacing: -0.03em;
+    color: #1a202c;
+    white-space: nowrap;
+  }
+
+  #memberHeroMessage {
+    width: min(540px, 100%);
+    margin: 14px auto 0;
+    font-size: clamp(15px, 3.4vw, 16px);
+    line-height: 1.7;
+    color: #718096;
+    word-break: keep-all;
+  }
+
   .guest-hero-mobile-break {
     display: none;
   }
@@ -224,6 +244,20 @@
       line-height: 1.6;
       white-space: normal;
       word-break: keep-all;
+    }
+
+    #memberHeroTitle {
+      max-width: 11.8em;
+      font-size: clamp(26px, 7.4vw, 30px);
+      line-height: 1.3;
+      white-space: normal;
+      word-break: keep-all;
+    }
+
+    #memberHeroMessage {
+      width: min(320px, 100%);
+      font-size: 15px;
+      line-height: 1.6;
     }
 
     .guest-hero-mobile-break {
@@ -953,6 +987,14 @@
           <section id="chatSection">
             <div id="chatScrollArea">
               <div id="chatEmptyState">
+                {% if chat_enabled %}
+                <div id="memberHeroTitle">
+                  안녕하세요.<br class="guest-hero-mobile-break"> TailTalk이 추천을 도와드릴게요
+                </div>
+                <p id="memberHeroMessage">
+                  제품명이나 원하는 조건을 바로 입력해 보세요.<br class="guest-hero-mobile-break">
+                </p>
+                {% endif %}
                 {% if not chat_enabled %}
                 <div id="guestHeroTitle">
                   <span class="text-[#3182ce]">Tail</span><span>Talk와 함께하는</span><br class="guest-hero-mobile-break"><span> 스마트 반려 생활</span>
